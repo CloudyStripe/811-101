@@ -15,9 +15,26 @@ export type IconName =
   | 'tilt-down'
   | 'zoom-in'
   | 'zoom-out'
-  | 'reset';
+  | 'reset'
+  | 'settings'
+  | 'close'
+  | 'chevron-up'
+  | 'chevron-down'
+  | 'direction';
 
 const PATHS: Record<IconName, JSX.Element> = {
+  settings: (
+    <>
+      <path d="M2.4 4.6h6.4M12.6 4.6h1M2.4 11.4h1M7.2 11.4h6.4" />
+      <circle cx="10.7" cy="4.6" r="1.8" />
+      <circle cx="5.3" cy="11.4" r="1.8" />
+    </>
+  ),
+  close: <path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" />,
+  'chevron-up': <path d="M3.4 10.2L8 5.6l4.6 4.6" />,
+  'chevron-down': <path d="M3.4 5.8L8 10.4l4.6-4.6" />,
+  // The same flat V the 3D view draws along each line.
+  direction: <path d="M5.4 3.6L10 8l-4.6 4.4" />,
   gas: (
     <path d="M8 1.8c.4 2.2 3.6 3.9 3.6 7.2A3.6 3.6 0 0 1 8 12.7 3.6 3.6 0 0 1 4.4 9c0-1.6.8-2.6 1.6-3.3.1 1.3.7 2.1 1.4 2.4C7 6.4 7.2 4 8 1.8z" />
   ),
