@@ -57,9 +57,9 @@ export const THEMES: Record<ThemeName, Theme> = {
       groundBounce: '#9a8467',
       fog: '#e8e0d3',
       sunColor: '#fff1dc',
-      sunIntensity: 2.6,
-      envIntensity: 0.85,
-      fogDensity: 0.0042,
+      sunIntensity: 3.1,
+      envIntensity: 0.72,
+      fogDensity: 0.0018,
     },
   },
   dark: {
@@ -75,25 +75,25 @@ export const THEMES: Record<ThemeName, Theme> = {
       accentInk: '#14120f',
     },
     scene: {
-      skyTop: '#0d131a',
-      skyHorizon: '#2b2721',
-      groundBounce: '#3a3025',
-      fog: '#1f1c18',
+      skyTop: '#131b25',
+      skyHorizon: '#3a342c',
+      groundBounce: '#4a3d2f',
+      fog: '#26221d',
       sunColor: '#c9d7ff',
-      sunIntensity: 0.9,
-      envIntensity: 0.38,
-      fogDensity: 0.0052,
+      sunIntensity: 1.5,
+      envIntensity: 0.62,
+      fogDensity: 0.0024,
     },
   },
 };
 
 /** Material albedos for the street block (sRGB). Earthy and controlled; no lime grass. */
 export const MATERIAL_COLORS = {
-  topsoil: '#6b4f37',
-  subsoil: '#87684a',
-  clay: '#a0805d',
-  deep: '#79644f',
-  backfill: '#9b8568',
+  topsoil: '#5d432f',
+  subsoil: '#8a6a4a',
+  clay: '#ab8a62',
+  deep: '#6c5846',
+  backfill: '#a8916f',
   bedding: '#bba98d',
   grass: '#788f55',
   grassDark: '#5b7142',
@@ -115,7 +115,7 @@ export const MATERIAL_COLORS = {
 export const SIGNAL_COLOR = '#4fe3ff';
 
 /** How far a line's tint is pulled toward the material color, so tints read as a teaching aid. */
-export const FACILITY_TINT_STRENGTH = 0.55;
+export const FACILITY_TINT_STRENGTH = 0.78;
 
 export const TYPE = {
   display: '"Archivo Variable", "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif',
