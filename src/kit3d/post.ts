@@ -17,8 +17,6 @@ import type { TierSettings } from './quality.ts';
 import { SignalPass, type DepthUniforms } from './signal-pass.ts';
 
 export interface Post {
-  readonly composer: EffectComposer;
-  readonly signalPass: SignalPass;
   setSize(width: number, height: number): void;
   render(deltaSeconds: number): void;
   dispose(): void;
@@ -75,8 +73,6 @@ export async function createPost(
   }
 
   return {
-    composer,
-    signalPass,
     setSize: (w, h) => {
       composer.setSize(w, h, false);
     },

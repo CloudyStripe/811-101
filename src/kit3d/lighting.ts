@@ -72,7 +72,6 @@ function buildSky(tokens: SceneTokens): Scene {
 }
 
 export interface Lighting {
-  readonly sun: DirectionalLight;
   setTheme(tokens: SceneTokens): void;
   setShadowQuality(mapSize: number, radius: number): void;
   dispose(): void;
@@ -137,7 +136,6 @@ export function createLighting(
   setTheme(tokens);
 
   return {
-    sun,
     setTheme,
     setShadowQuality,
     dispose() {
