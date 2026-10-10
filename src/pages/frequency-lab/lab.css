@@ -1,0 +1,334 @@
+/* Frequency Lab layout: full-bleed 3D stage with chrome floating over it. */
+
+body {
+  overflow: hidden;
+}
+
+.lab {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+.lab-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}
+
+.lab-canvas:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -4px;
+  box-shadow: none;
+}
+
+.stage-message {
+  position: absolute;
+  inset: auto var(--space-4) 45% var(--space-4);
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+/* Chrome surfaces are opaque, so text contrast holds over any part of the 3D view. */
+.lab-title,
+.lab-console,
+.lab-camera,
+.segmented {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 8px 24px rgb(0 0 0 / 0.08);
+}
+
+.lab-title {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  max-width: min(26rem, calc(100% - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.lab-title h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  font-stretch: 112%;
+}
+
+.lab-title p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.lab-setup {
+  position: absolute;
+  top: calc(var(--space-4) + 98px);
+  left: var(--space-4);
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+}
+
+.segmented-option {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.15;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.segmented-option:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.segmented-option[aria-checked='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Console bottom-left and view controls bottom-right on wide screens; stacked on phones. */
+.lab-bottom {
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.lab-bottom > * {
+  pointer-events: auto;
+}
+
+.lab-console {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.lab-console .segmented {
+  box-shadow: none;
+}
+
+.console-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.frequency .segmented-option {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 4.6rem;
+}
+
+.lab-camera {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--surface-2);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 3D labels */
+.labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 10px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+  transition: opacity var(--dur) var(--ease);
+  will-change: transform;
+}
+
+.lbl-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.lbl-icon .icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Facility chips carry their APWA color, with a dark ring so the edge holds on any background. */
+.lbl-icon-facility {
+  background: var(--chip);
+  color: #1c1a17;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+.lbl.compact {
+  padding: 2px;
+  gap: 0;
+}
+
+.lbl.compact .lbl-text {
+  display: none;
+}
+
+.lbl.off {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur) var(--ease),
+    visibility 0s var(--dur);
+}
+
+.perf-hud {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  font: 600 11px/1.4 var(--font-mono);
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .lab-title {
+    top: var(--space-3);
+    left: var(--space-3);
+    right: var(--space-3);
+    max-width: none;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .lab-title h1 {
+    font-size: 1.2rem;
+  }
+
+  .lab-title p {
+    font-size: 0.82rem;
+  }
+
+  .lab-setup {
+    top: calc(var(--space-3) + 84px);
+    left: var(--space-3);
+    right: var(--space-3);
+  }
+
+  .lab-setup .segmented {
+    display: flex;
+  }
+
+  .lab-setup .segmented-option {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 0.82rem;
+  }
+
+  .lab-bottom {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .lab-camera {
+    align-self: flex-end;
+  }
+
+  .lab-console {
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+
+  .frequency {
+    display: flex;
+  }
+
+  .frequency .segmented-option {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 4px;
+  }
+}
