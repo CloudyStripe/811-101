@@ -26,7 +26,7 @@ An interactive learning site about buried utilities and line locating. The site 
 
 Useful URL parameters on the lab page:
 
-- `?setup=steel|tracer` and `&f=512|8000|33000|83000` set the starting state.
+- `?setup=steel|plastic` and `&f=512|8000|33000|83000` set the starting state.
 - `?tier=low|medium|high` forces a quality tier.
 - `?perf` shows the performance HUD.
 - `?capture` gives deterministic frames for screenshots.

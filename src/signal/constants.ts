@@ -55,16 +55,16 @@ export const FADE_PER_100FT = {
     meaning:
       'Share of the current still on the steel main after another 100 ft. The rest leaks into the soil.',
     unit: 'share left per 100 ft',
-    value: perFrequency([0.97, 0.93, 0.85, 0.72]),
-    why: 'Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner.',
+    value: perFrequency([0.93, 0.72, 0.4, 0.15]),
+    why: "Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order.",
   },
   tracer: {
     name: 'Fade on the tracer wire',
     meaning:
       'Share of the current still on the tracer wire after another 100 ft. The rest leaks into the soil.',
     unit: 'share left per 100 ft',
-    value: perFrequency([0.98, 0.95, 0.88, 0.78]),
-    why: 'The same trend as the steel main. A thin insulated wire leaks a little less at every frequency.',
+    value: perFrequency([0.95, 0.8, 0.5, 0.34]),
+    why: 'The same trend as the steel main, compressed the same way. A thin insulated wire leaks less than the big coated main at every frequency.',
   },
 } as const satisfies Record<string, Constant<PerFrequency>>;
 

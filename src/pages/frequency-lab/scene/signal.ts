@@ -40,7 +40,9 @@ import { HOOKUP, LINES, STAKE_TIP } from './layout.ts';
 const BAND_SPACING_FT: Record<Frequency, number> = { 512: 14, 8000: 7, 33000: 3.5, 83000: 1.8 };
 /** Bands travel at one speed; at the tightest spacing they pass a point about 2.2 times a second (under 3 Hz). */
 const BAND_SPEED_FT_S = 4;
-const LINE_INTENSITY = 4.6;
+/** How brightness follows current (see the line shader). Shared by lines, return paths and chevrons. */
+const BRIGHTNESS_POWER = 1.5;
+const LINE_INTENSITY = 6.5;
 const FLOW_INTENSITY = 2.6;
 const CHEVRON_INTENSITY = 2.6;
 const CHEVRON_STEP_FT = 9;
@@ -92,7 +94,9 @@ float currentAt(float x) {
 void main() {
   if (behindScene()) discard;
   float current = uMode < 0.5 ? currentAt(vDist) : uI0;
-  float b = pow(clamp(current / uRef, 0.0, 1.0), 0.75);
+  // Brightness rises faster than current, so a weak signal looks weak once tone mapping has
+  // compressed the bright end. Linear, it still read as bright stripes on a pale pipe.
+  float b = pow(clamp(current / uRef, 0.0, 1.0), ${BRIGHTNESS_POWER.toFixed(2)});
   float phase = (vDist - uDir * uSpeed * uTime) / uSpacing;
   float band = pow(0.5 + 0.5 * cos(6.2831853 * phase), uSharp);
   float rim = mix(1.0, 0.55, abs(dot(vNormalV, vViewDir)));
@@ -355,7 +359,7 @@ export class SignalEffects {
       const xs = mesh.userData.xs as number[];
       const share = i === 0 ? 1 : state.telecom.share;
       const attr = mesh.geometry.getAttribute('aBright') as InstancedBufferAttribute;
-      xs.forEach((x, j) => attr.setX(j, Math.min(1, (at(x) * share) / ref) ** 0.75));
+      xs.forEach((x, j) => attr.setX(j, Math.min(1, (at(x) * share) / ref) ** BRIGHTNESS_POWER));
       attr.needsUpdate = true;
     });
 

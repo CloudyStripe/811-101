@@ -51,12 +51,12 @@ Unit: share left per 100 ft.
 
 | | 512 Hz | 8 kHz | 33 kHz | 83 kHz |
 |---|---|---|---|---|
-| Coated steel main | 0.97 | 0.93 | 0.85 | 0.72 |
-| Tracer wire | 0.98 | 0.95 | 0.88 | 0.78 |
+| Coated steel main | 0.93 | 0.72 | 0.4 | 0.15 |
+| Tracer wire | 0.95 | 0.8 | 0.5 | 0.34 |
 
-**Why (fade on the coated steel main):** Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner.
+**Why (fade on the coated steel main):** Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order.
 
-**Why (fade on the tracer wire):** The same trend as the steel main. A thin insulated wire leaks a little less at every frequency.
+**Why (fade on the tracer wire):** The same trend as the steel main, compressed the same way. A thin insulated wire leaks less than the big coated main at every frequency.
 
 ### Bleed-over onto the telecom cable
 
@@ -114,13 +114,13 @@ The target current the lab treats as enough to trace at the far end of the block
 
 | Setup | Frequency | Transmitter | Resistance | Far end of block | Telecom at hookup | Works? |
 |---|---|---|---|---|---|---|
-| Steel main | 512 Hz | 454.5 mA | 60 Ω | 435.6 mA | 9.1 mA | Yes |
-| Steel main | 8 kHz | 471.7 mA | 56 Ω | 426.1 mA | 28.3 mA | Yes |
-| Steel main | 33 kHz | 490.2 mA | 52 Ω | 390.4 mA | 73.5 mA | Yes |
-| Steel main | 83 kHz | 510.2 mA | 48 Ω | 322.1 mA | 163.3 mA | Yes |
-| Plastic main (tracer wire) | 512 Hz | 90.9 mA | 500 Ω | 88.4 mA | 1.8 mA | Yes |
-| Plastic main (tracer wire) | 8 kHz | 92.6 mA | 490 Ω | 86.2 mA | 5.6 mA | Yes |
-| Plastic main (tracer wire) | 33 kHz | 94.3 mA | 480 Ω | 78.9 mA | 14.2 mA | Yes |
-| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 67.9 mA | 30.8 mA | Yes |
+| Steel main | 512 Hz | 454.5 mA | 60 Ω | 410.6 mA | 9.1 mA | Yes |
+| Steel main | 8 kHz | 471.7 mA | 56 Ω | 297.8 mA | 28.3 mA | Yes |
+| Steel main | 33 kHz | 490.2 mA | 52 Ω | 135.9 mA | 73.5 mA | Yes |
+| Steel main | 83 kHz | 510.2 mA | 48 Ω | 35.8 mA | 163.3 mA | Yes |
+| Plastic main (tracer wire) | 512 Hz | 90.9 mA | 500 Ω | 84.6 mA | 1.8 mA | Yes |
+| Plastic main (tracer wire) | 8 kHz | 92.6 mA | 490 Ω | 67.7 mA | 5.6 mA | Yes |
+| Plastic main (tracer wire) | 33 kHz | 94.3 mA | 480 Ω | 35.7 mA | 14.2 mA | Yes |
+| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 21.2 mA | 30.8 mA | Yes |
 
 **Lowest frequency that works:** Steel main: 512 Hz; Plastic main (tracer wire): 512 Hz.
