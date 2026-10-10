@@ -12,6 +12,7 @@ import { FREQUENCIES, frequencyLabel } from '../config/equipment.ts';
 import { CONTENT_MODULES } from '../content/index.ts';
 import { APWA, LAB_APWA } from '../src/design/apwa.ts';
 import { collectClaims, type Claim } from '../src/content-kit/claims.ts';
+import { plainText } from '../src/content-kit/terms.ts';
 import { ALL_CONSTANTS, type Constant, type PerFrequency } from '../src/signal/constants.ts';
 
 const OUT = 'docs/CONTENT_REVIEW.md';
@@ -36,11 +37,12 @@ function status(id: string, text: string): string {
   return s.hash === hash(text) ? `Signed off by ${s.by}, ${s.date}` : 'Changed since sign-off';
 }
 
+/** Claims are listed and hashed as read, without term markup: only a change of wording needs re-review. */
 function claimRows(claims: readonly Claim[]): string[] {
-  return claims.map(
-    (c) =>
-      `| \`${c.id}\` | ${cell(c.text)}${c.note ? ` _(${cell(c.note)})_` : ''} | ${c.stateSpecific ? 'Yes' : 'No'} | \`${hash(c.text)}\` | ${status(c.id, c.text)} |`,
-  );
+  return claims.map((c) => {
+    const text = plainText(c.text);
+    return `| \`${c.id}\` | ${cell(text)}${c.note ? ` _(${cell(c.note)})_` : ''} | ${c.stateSpecific ? 'Yes' : 'No'} | \`${hash(text)}\` | ${status(c.id, text)} |`;
+  });
 }
 
 const valueText = (c: Constant<number | PerFrequency>) =>

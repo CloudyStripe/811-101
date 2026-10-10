@@ -1,7 +1,11 @@
 /** Content modules whose claims go to locator review. */
+import { FREQUENCY_LAB } from './training/frequency-lab.ts';
+
 export interface ContentModule {
   name: string;
   content: unknown;
 }
 
-export const CONTENT_MODULES: readonly ContentModule[] = [];
+export const CONTENT_MODULES: readonly ContentModule[] = [
+  { name: 'Frequency Lab', content: FREQUENCY_LAB },
+];
