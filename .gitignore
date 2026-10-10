@@ -1,0 +1,23 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Test artifacts
+test-results/
+playwright-report/
+blob-report/
+artifacts/
+
+# Local-only docs: never commit these
+docs/BRIEF.md
+docs/PLAN.md
+docs/private/
+
+# Local tool settings
+.claude/settings.local.json
+
+# OS and editor
+.DS_Store
+Thumbs.db
+*.log
