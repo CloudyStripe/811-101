@@ -9,7 +9,14 @@ import {
   WORKS_THRESHOLD_MA,
   type PerFrequency,
 } from './constants.ts';
-import { CONDUCTOR, SETUPS, labState, lowestWorkingFrequency, targetCurrentAt } from './model.ts';
+import {
+  CONDUCTOR,
+  SETUPS,
+  labState,
+  lowestWorkingFrequency,
+  reachFt,
+  targetCurrentAt,
+} from './model.ts';
 
 const STATES = SETUPS.flatMap((setup) =>
   FREQUENCIES.map((frequency) => labState(setup, frequency)),
@@ -115,6 +122,25 @@ describe('the rule: use the lowest frequency that works', () => {
         targetCurrentAt(s.setup, s.frequency, GEOMETRY.blockLengthFt.value),
         9,
       );
+    }
+  });
+});
+
+describe('reach', () => {
+  it.each(SETUPS)('%s: shrinks as frequency rises', (setup) => {
+    expect(strictlyFalling(FREQUENCIES.map((f) => reachFt(setup, f)))).toBe(true);
+  });
+
+  it('ends where the target current falls to the trace threshold', () => {
+    for (const s of STATES) {
+      const reach = reachFt(s.setup, s.frequency);
+      expect(targetCurrentAt(s.setup, s.frequency, reach)).toBeCloseTo(WORKS_THRESHOLD_MA.value, 9);
+    }
+  });
+
+  it('agrees with "works": a frequency works when it reaches the far end of the block', () => {
+    for (const s of STATES) {
+      expect(reachFt(s.setup, s.frequency) >= GEOMETRY.blockLengthFt.value).toBe(s.works);
     }
   });
 });

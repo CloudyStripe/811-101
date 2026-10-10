@@ -120,6 +120,17 @@ export function labState(setup: SetupId, frequency: Frequency): LabState {
   };
 }
 
+/**
+ * How far along the target the signal stays strong enough to trace (see WORKS_THRESHOLD_MA), in
+ * feet from the hookup. Lower frequencies reach farther.
+ */
+export function reachFt(setup: SetupId, frequency: Frequency): number {
+  const start = transmitterReading(setup, frequency).ma;
+  const threshold = WORKS_THRESHOLD_MA.value;
+  if (start <= threshold) return 0;
+  return Math.log(start / threshold) / decayPerFt(setup, frequency);
+}
+
 /** The lesson's rule, computed: the lowest frequency that gets enough signal to the far end. */
 export function lowestWorkingFrequency(setup: SetupId): Frequency | null {
   return FREQUENCIES.find((f) => labState(setup, f).works) ?? null;
