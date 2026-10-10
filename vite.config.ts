@@ -32,9 +32,36 @@ function legacyRoot(): Plugin {
   };
 }
 
+/**
+ * Starts downloading the 3D chunks with the page. The app asks for them only after it has loaded
+ * and run, which on a slow connection costs a round trip before the 3D view can start.
+ */
+function preload3d(): Plugin {
+  let base = '/';
+  return {
+    name: 'preload-3d',
+    apply: 'build',
+    configResolved(config) {
+      base = config.base;
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        return Object.values(ctx.bundle ?? {})
+          .filter((c) => c.type === 'chunk' && (c.name === 'vendor-3d' || c.name === 'scene'))
+          .map((c) => ({
+            tag: 'link',
+            attrs: { rel: 'modulepreload', crossorigin: true, href: `${base}${c.fileName}` },
+            injectTo: 'head' as const,
+          }));
+      },
+    },
+  };
+}
+
 export default defineConfig({
   base: '/811-101/',
-  plugins: [tokens(), legacyRoot()],
+  plugins: [tokens(), legacyRoot(), preload3d()],
   build: {
     target: 'es2022',
     manifest: true,

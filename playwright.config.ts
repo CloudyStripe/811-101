@@ -8,7 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  timeout: 90_000,
+  // CI runners render with software WebGL on fewer cores, so give each test more room there.
+  timeout: process.env.CI ? 180_000 : 90_000,
   expect: { timeout: 15_000 },
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
