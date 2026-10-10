@@ -82,7 +82,7 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
   },
   {
     id: 'water',
-    text: { steel: 'Water main (not connected)', plastic: 'Water main (not connected)' },
+    text: { steel: 'Water main', plastic: 'Water main' },
     icon: 'water',
     color: 'blue',
     anchor: same([LINES.water.x, LINES.water.y - 0.2, 0.6]),

@@ -45,7 +45,7 @@ export function Panel({ setup, frequency, sheetOpen, onSheetToggle, onAbout }: P
   const summary = stateSummary(setup, frequency);
   // "Steel main at 83 kHz:" leads in bold; the reading follows.
   const split = summary.indexOf(': ') + 1;
-  const [lowest, why, stepUp] = RULE.claims;
+  const [lowest, why, stepUp, higher] = RULE.claims;
 
   return (
     <aside
@@ -56,6 +56,9 @@ export function Panel({ setup, frequency, sheetOpen, onSheetToggle, onAbout }: P
     >
       <div class="sheet-bar">
         <p class="sheet-summary">{summary}</p>
+        <p class="sheet-title" aria-hidden="true">
+          Lab guide
+        </p>
         <button
           type="button"
           class="sheet-toggle"
@@ -127,6 +130,7 @@ export function Panel({ setup, frequency, sheetOpen, onSheetToggle, onAbout }: P
           <p class="rule">
             <strong>{lowest.text}</strong> {why.text}
           </p>
+          <p>{higher.text}</p>
           <p>{stepUp.text}</p>
           <p class="muted">{ruleSummary(setup)}</p>
         </section>

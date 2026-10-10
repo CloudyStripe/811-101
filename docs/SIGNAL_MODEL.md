@@ -52,7 +52,7 @@ Unit: share left per 100 ft.
 | | 512 Hz | 8 kHz | 33 kHz | 83 kHz |
 |---|---|---|---|---|
 | Coated steel main | 0.93 | 0.72 | 0.4 | 0.15 |
-| Tracer wire | 0.95 | 0.8 | 0.5 | 0.34 |
+| Tracer wire | 0.95 | 0.8 | 0.5 | 0.3 |
 
 **Why (fade on the coated steel main):** Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order.
 
@@ -68,7 +68,7 @@ Unit: share of target current.
 |---|---|---|---|---|
 | Telecom cable | 0.02 | 0.06 | 0.15 | 0.32 |
 
-**Why (bleed-over onto the telecom cable):** Coupling onto a nearby metal line grows with frequency, so higher frequencies bleed over more.
+**Why (bleed-over onto the telecom cable):** Coupling onto a metal line running alongside grows with frequency, so higher frequencies bleed over more.
 
 ### Circuit resistance
 
@@ -82,9 +82,9 @@ Unit: Ω.
 | Steel main | 60 | 56 | 52 | 48 |
 | Tracer wire | 500 | 490 | 480 | 470 |
 
-**Why (circuit resistance, steel main):** A long, well-grounded metal main is a good circuit at every frequency. Higher frequencies find a little more path through the soil.
+**Why (circuit resistance, steel main):** A long metal main has many paths to the earth, so it is a good circuit at every frequency. Higher frequencies find a little more path through the soil.
 
-**Why (circuit resistance, tracer wire):** A thin wire grounded at its far end makes a higher-resistance circuit than a big steel main, so less current flows.
+**Why (circuit resistance, tracer wire):** An insulated tracer wire reaches the earth only where it is grounded, so its circuit has more resistance than a steel main and less current flows.
 
 ### Transmitter output
 
@@ -121,6 +121,6 @@ The target current the lab treats as enough to trace at the far end of the block
 | Plastic main (tracer wire) | 512 Hz | 90.9 mA | 500 Ω | 84.6 mA | 1.8 mA | Yes |
 | Plastic main (tracer wire) | 8 kHz | 92.6 mA | 490 Ω | 67.7 mA | 5.6 mA | Yes |
 | Plastic main (tracer wire) | 33 kHz | 94.3 mA | 480 Ω | 35.7 mA | 14.2 mA | Yes |
-| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 21.2 mA | 30.8 mA | Yes |
+| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 17.8 mA | 30.8 mA | No |
 
 **Lowest frequency that works:** Steel main: 512 Hz; Plastic main (tracer wire): 512 Hz.

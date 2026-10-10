@@ -63,7 +63,7 @@ export const FADE_PER_100FT = {
     meaning:
       'Share of the current still on the tracer wire after another 100 ft. The rest leaks into the soil.',
     unit: 'share left per 100 ft',
-    value: perFrequency([0.95, 0.8, 0.5, 0.34]),
+    value: perFrequency([0.95, 0.8, 0.5, 0.3]),
     why: 'The same trend as the steel main, compressed the same way. A thin insulated wire leaks less than the big coated main at every frequency.',
   },
 } as const satisfies Record<string, Constant<PerFrequency>>;
@@ -74,7 +74,7 @@ export const TELECOM_SHARE = {
     'Current on the parallel telecom cable as a share of the target current at the same spot. It flows back toward the stake.',
   unit: 'share of target current',
   value: perFrequency([0.02, 0.06, 0.15, 0.32]),
-  why: 'Coupling onto a nearby metal line grows with frequency, so higher frequencies bleed over more.',
+  why: 'Coupling onto a metal line running alongside grows with frequency, so higher frequencies bleed over more.',
 } as const satisfies Constant<PerFrequency>;
 
 export const CIRCUIT_RESISTANCE_OHMS = {
@@ -83,7 +83,7 @@ export const CIRCUIT_RESISTANCE_OHMS = {
     meaning: 'Resistance the transmitter sees when hooked up to the steel main.',
     unit: 'Ω',
     value: perFrequency([60, 56, 52, 48]),
-    why: 'A long, well-grounded metal main is a good circuit at every frequency. Higher frequencies find a little more path through the soil.',
+    why: 'A long metal main has many paths to the earth, so it is a good circuit at every frequency. Higher frequencies find a little more path through the soil.',
   },
   plastic: {
     name: 'Circuit resistance, tracer wire',
@@ -91,7 +91,7 @@ export const CIRCUIT_RESISTANCE_OHMS = {
       'Resistance the transmitter sees when hooked up to the tracer wire on the plastic main.',
     unit: 'Ω',
     value: perFrequency([500, 490, 480, 470]),
-    why: 'A thin wire grounded at its far end makes a higher-resistance circuit than a big steel main, so less current flows.',
+    why: 'An insulated tracer wire reaches the earth only where it is grounded, so its circuit has more resistance than a steel main and less current flows.',
   },
 } as const satisfies Record<string, Constant<PerFrequency>>;
 

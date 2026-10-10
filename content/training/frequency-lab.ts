@@ -23,7 +23,7 @@ export const TERMS: Readonly<Record<string, Claim>> = {
   ),
   frequency: claim(
     'fl.term.frequency',
-    'How many times a second the signal current alternates, measured in hertz (Hz). 8 kHz is 8,000 times a second.',
+    'How many times a second the signal current cycles back and forth, measured in hertz (Hz). 8 kHz is 8,000 cycles a second.',
   ),
   current: claim(
     'fl.term.current',
@@ -81,7 +81,7 @@ export const INTRO = {
   ],
   /** How to use the lab: instructions, not claims. */
   howTo:
-    'Switch between the two setups and step the transmitter through its four frequencies. Brighter means more current, and closer bands mean a higher frequency, slowed way down so you can see it. Drag to turn the view, or use the view buttons.',
+    'Switch between the two setups and step the transmitter through its four frequencies. Brighter means a stronger signal, and the glow on your line fades out where the signal gets too weak to trace. Closer bands mean a higher frequency, slowed way down so you can see it. Drag to turn the view, or use the view buttons.',
 } as const;
 
 export const SETUP_TEXT: PerSetup<{
@@ -98,7 +98,7 @@ export const SETUP_TEXT: PerSetup<{
     target: 'main',
     note: claim(
       'fl.setup.steel',
-      'The transmitter is connected to the steel gas main at a [[test station]]. A big metal main makes a good circuit, so plenty of current flows.',
+      'The transmitter is connected to the steel gas main at a [[test station]]. A long metal main has many paths to the earth, so it makes a good circuit and plenty of current flows.',
     ),
   },
   plastic: {
@@ -107,7 +107,7 @@ export const SETUP_TEXT: PerSetup<{
     target: 'tracer wire',
     note: claim(
       'fl.setup.plastic',
-      "Plastic can't carry the signal, so the transmitter is connected to the [[tracer wire]] at a [[tracer test box]]. A thin wire makes a weaker circuit than a big steel main, so less current flows.",
+      "Plastic can't carry the signal, so the transmitter is connected to the [[tracer wire]] at a [[tracer test box]]. The insulated wire reaches the earth only where it's grounded, so its circuit has more resistance and less current flows.",
     ),
   },
 };
@@ -119,21 +119,21 @@ export const FREQUENCY_NOTES: Readonly<Record<Frequency, Claim>> = {
   ),
   8000: claim(
     'fl.freq.8k',
-    'At 8 kHz, a little more of the signal leaks off along the way, and a little more bleeds onto the telecom cable.',
+    'At 8 kHz, noticeably more of the signal leaks off along the way, and more of it bleeds onto the telecom cable.',
   ),
   33000: claim(
     'fl.freq.33k',
-    'At 33 kHz, the signal leaks off noticeably sooner and fades along the block, and more of it bleeds onto the telecom cable.',
+    'At 33 kHz, the signal leaks off much sooner and fades along the block, and still more of it bleeds onto the telecom cable.',
   ),
   83000: claim(
     'fl.freq.83k',
-    "At 83 kHz, the highest frequency here, the signal leaks off soonest. It doesn't travel far, and the most of it bleeds onto the telecom cable.",
+    "At 83 kHz, the highest frequency here, the signal leaks off soonest. It doesn't travel far, and more of it bleeds onto the telecom cable than at any other frequency.",
   ),
 };
 
 export const BLEED_DIRECTION = claim(
   'fl.bleed.direction',
-  "Bleed-over current flows back toward the stake, the opposite way to the current on your line. A receiver's signal direction reading uses that difference to tell your line from others.",
+  'Bleed-over current usually flows back toward the stake, the opposite way to the current on your line. Receivers with a signal direction feature use that difference to help tell your line from others.',
 );
 
 export const TRY_THIS: PerSetup<readonly Claim[]> = {
@@ -148,7 +148,7 @@ export const TRY_THIS: PerSetup<readonly Claim[]> = {
     ),
     claim(
       'fl.try.steel.chart',
-      'In the chart, find where each frequency becomes too weak to trace.',
+      'In the chart, find where 33 kHz and 83 kHz become too weak to trace. The lower frequencies stay strong past the end of the chart.',
     ),
   ],
   plastic: [
@@ -158,11 +158,11 @@ export const TRY_THIS: PerSetup<readonly Claim[]> = {
     ),
     claim(
       'fl.try.plastic.current',
-      "Compare the transmitter's current with the steel main's. The thin wire carries much less.",
+      "Compare the transmitter's current with the steel main's: the tracer wire's circuit carries much less.",
     ),
     claim(
       'fl.try.plastic.reach',
-      'Step up to 83 kHz and see how little of the signal is left at the far end of the block.',
+      'Step up to 83 kHz: on the tracer wire, the signal gets too weak to trace before the far end of the block.',
     ),
   ],
 };
@@ -173,11 +173,15 @@ export const RULE = {
     claim('fl.rule.lowest', 'Use the lowest frequency that works.'),
     claim(
       'fl.rule.why',
-      'It travels farthest along your line and bleeds least onto others, so the signal you follow is on your line.',
+      'It travels farthest along your line and bleeds least onto others, so more of the signal you follow is on your line.',
     ),
     claim(
       'fl.rule.step-up',
-      "If a low frequency can't put enough signal on the line, step up one frequency at a time.",
+      "If a low frequency can't put enough signal on the line, check your connection and ground first, then step up one frequency at a time.",
+    ),
+    claim(
+      'fl.rule.higher',
+      "Higher frequencies get onto a poor circuit more easily, such as a poorly grounded tracer wire or a line with insulated joints. That's when stepping up helps.",
     ),
   ],
 } as const;
@@ -193,7 +197,8 @@ export const KEY = {
     "A buried line's own color isn't a reliable guide, so the colors on the lines here are a teaching aid.",
   ),
   /** Symbol explanations: they describe the lab's drawing, not the world. */
-  signal: 'Locate signal. Brighter means more current; closer bands mean a higher frequency.',
+  signal:
+    'Locate signal. Brighter means stronger, and on your line the glow fades out where the signal gets too weak to trace. Closer bands mean a higher frequency.',
   arrows: 'Which way current flows: out along your line, back along bleed-over.',
   soil: 'Current returning through the soil to the ground stake.',
   scale: 'Lines are drawn thicker than real so they show at this scale.',
@@ -208,7 +213,7 @@ export const ABOUT = {
     ),
     claim(
       'fl.about.compressed',
-      'Distances are compressed. The signal fades within one block here so the frequencies are easy to compare. Real signals travel much farther, in the same order, with lower frequencies farthest.',
+      'Distances are compressed. The signal fades within one block here so the frequencies are easy to compare. On a continuous, well-grounded line, real signals travel much farther, in the same order, with lower frequencies farthest.',
     ),
     claim(
       'fl.about.slowed',
@@ -216,11 +221,15 @@ export const ABOUT = {
     ),
     claim(
       'fl.about.brightness',
-      'Brightness shows strength within each setup. The tracer wire carries far less current than the steel main, so each setup is scaled for its signal to show.',
+      'Brightness is scaled within each setup, since the tracer wire carries far less current than the steel main. On your line, the glow fades out where the signal gets too weak to trace.',
     ),
     claim(
       'fl.about.water',
-      "The water main gets no signal in this model. In the field, a nearby line that isn't connected can still pick up a little, more so at higher frequencies.",
+      'The water main gets no signal in this model. In the field, a line that crosses yours can pick up some, more so at higher frequencies, and a receiver can follow it by mistake.',
+    ),
+    claim(
+      'fl.about.stake',
+      'In the field, set the ground stake well away from the line, roughly at a right angle to it, and never over another buried line. Here it stands where the cutaway can show it.',
     ),
     claim(
       'fl.about.threshold',
@@ -269,7 +278,7 @@ export const LABEL_DEFINITIONS: Readonly<Record<LabelId, Claim | PerSetup<Claim>
   ),
   water: claim(
     'fl.label.water',
-    "Drinking water main. It isn't connected to the gas main, so it gets almost no signal.",
+    'Drinking water main crossing under the gas main. It crosses rather than running alongside, so it picks up very little of the signal.',
   ),
 };
 
