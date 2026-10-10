@@ -10,7 +10,7 @@ import { disposeObject } from '../../../kit3d/dispose.ts';
 import { LabelLayer } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
 import { PerfHud } from '../../../kit3d/perf.ts';
-import { createPost, type Post } from '../../../kit3d/post.ts';
+import { createPost, preloadPost, type Post } from '../../../kit3d/post.ts';
 import {
   Governor,
   TIER_SETTINGS,
@@ -138,6 +138,7 @@ async function buildLabScene(
   let setup = o.setup;
   let frequency = o.frequency;
   let rebuilding = false;
+  let theme = o.theme;
   /** The tier asked for most recently, which a rebuild in progress picks up when it's done. */
   let wantedTier: Tier | null = null;
   let disposed = false;
@@ -178,6 +179,8 @@ async function buildLabScene(
         o.onContextLost?.();
       },
       contextRestored() {
+        // The sky and its lighting were rendered into a texture the lost context took with it.
+        lighting.setTheme(THEMES[theme].scene);
         labelsDirty = true;
         o.onContextRestored?.();
       },
@@ -199,6 +202,8 @@ async function buildLabScene(
     new Vector3(BLOCK.x1, 4, BLOCK.z1),
   );
   const settings = () => TIER_SETTINGS[tier];
+  // The ambient-occlusion chunk downloads while the scene is built and compiled.
+  preloadPost(settings());
   const lighting = createLighting(renderer, scene, bounds, THEMES[o.theme].scene, {
     mapSize: settings().shadowMapSize,
     radius: settings().shadowRadius,
@@ -230,6 +235,12 @@ async function buildLabScene(
     targetBounds: new Box3(new Vector3(-30, -9, -30), new Vector3(140, 4, 3)),
   });
   cam.reducedMotion = reducedMotion || o.capture;
+  // Dragging, pinching or scrolling wakes the loop; it sleeps when nothing animates.
+  for (const type of ['controlstart', 'control', 'wake'] as const) {
+    cam.controls.addEventListener(type, () => {
+      stage.requestFrame();
+    });
+  }
   const labels = new LabelLayer(camera, o.noGo);
   /** The part of the view the panel or sheet leaves free, as the label layer wants it. */
   const freeArea = () => {
@@ -261,13 +272,24 @@ async function buildLabScene(
   }
 
   /** Builds the new post chain before retiring the old one, so no frame renders without one. */
-  async function buildPost(): Promise<Post> {
-    const next = await createPost(renderer, scene, fxScene, camera, settings(), depthUniforms);
+  /** Builds a post chain for a tier. The current one keeps rendering until it's swapped in. */
+  async function buildPost(forTier: Tier): Promise<Post> {
+    const next = await createPost(
+      renderer,
+      scene,
+      fxScene,
+      camera,
+      TIER_SETTINGS[forTier],
+      depthUniforms,
+    );
     next.setSize(stage.width, stage.height);
+    return next;
+  }
+
+  function swapPost(next: Post) {
     const old = post;
     post = next;
     old?.dispose();
-    return next;
   }
 
   /** Rebuilds for a new tier. A tier asked for during a rebuild is applied right after it. */
@@ -275,19 +297,29 @@ async function buildLabScene(
     wantedTier = next;
     if (rebuilding) return;
     rebuilding = true;
-    // Read through a function: another call can change it during the await below.
+    // Read through functions: other calls can change these during the await below.
     const wanted = (): Tier | null => wantedTier;
+    const gone = () => disposed;
     try {
-      for (let want = wanted(); want !== null && want !== tier && !disposed; want = wanted()) {
+      for (let want = wanted(); want !== null && want !== tier && !gone(); want = wanted()) {
+        // The tier changes only once its post chain is built, so a failed build changes nothing.
+        const next = await buildPost(want);
+        if (gone()) {
+          next.dispose();
+          break;
+        }
+        swapPost(next);
         tier = want;
         lighting.setShadowQuality(settings().shadowMapSize, settings().shadowRadius);
         street.setDetail(settings().detail);
         contact.visible = !settings().ao;
-        await buildPost();
         stage.resize();
         governor?.settle(performance.now());
         stage.requestFrame();
       }
+    } catch (error) {
+      // E.g. the ambient-occlusion chunk failed to load; the current tier keeps working.
+      console.error(error);
     } finally {
       rebuilding = false;
       wantedTier = null;
@@ -324,7 +356,8 @@ async function buildLabScene(
 
   // Everything is built and compiled before the loop starts, so the first frame is the real one.
   stage.resize();
-  const firstPost = await buildPost();
+  const firstPost = await buildPost(tier);
+  swapPost(firstPost);
   await cam.goTo(viewFor(o.visibleArea()), false);
   await precompile();
   // The screen draws with its own font from the first frame. If the font is slow, it shows a
@@ -364,7 +397,8 @@ async function buildLabScene(
       frequency = nextFrequency;
       applyState();
     },
-    setTheme(theme) {
+    setTheme(next) {
+      theme = next;
       lighting.setTheme(THEMES[theme].scene);
       setLineGlow(scene, THEMES[theme].scene.lineGlow);
       stage.requestFrame();
@@ -389,6 +423,11 @@ async function buildLabScene(
       }
     },
     refreshLabels() {
+      if (o.capture) {
+        // The loop has stopped; labels are HTML, so they can be placed without a new frame.
+        labels.update(stage.width, stage.height, freeArea());
+        return;
+      }
       labelsDirty = true;
       stage.requestFrame();
     },

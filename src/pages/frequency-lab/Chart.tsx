@@ -44,8 +44,22 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
   const sx = (ft: number) => PAD.left + (ft / CHART_FT) * plotW;
   const sy = (ma: number) =>
     PAD.top + (1 - Math.log10(Math.max(ma, Y_MIN) / Y_MIN) / decades) * plotH;
-  const path = (points: readonly LinePoint[]) =>
-    points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)} ${sy(p.ma).toFixed(1)}`).join('');
+  /** A line's path, ending where it drops to the bottom of the scale rather than running along it. */
+  const path = (points: readonly LinePoint[]) => {
+    const end = points.findIndex((p) => p.ma < Y_MIN);
+    const shown = end < 0 ? points : points.slice(0, end);
+    const prev = shown.at(-1);
+    const next = end < 0 ? undefined : points[end];
+    const parts = shown.map(
+      (p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)} ${sy(p.ma).toFixed(1)}`,
+    );
+    if (prev && next) {
+      // Where it crosses the floor, on the log scale.
+      const t = Math.log(prev.ma / Y_MIN) / Math.log(prev.ma / next.ma);
+      parts.push(`L${sx(prev.x + t * (next.x - prev.x)).toFixed(1)} ${sy(Y_MIN).toFixed(1)}`);
+    }
+    return parts.join('');
+  };
   const reach = reachFt(setup, frequency);
   const xTicks = Array.from({ length: CHART_FT / X_STEP_FT + 1 }, (_, i) => i * X_STEP_FT);
   const yTicks = Array.from({ length: decades + 1 }, (_, i) => Y_MIN * 10 ** i);

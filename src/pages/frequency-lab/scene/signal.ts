@@ -360,24 +360,21 @@ export class SignalEffects {
     group.add(targetSleeve, telecomSleeve, ...chevrons, ...wires);
 
     const flows: Flow[] = [];
-    // Current leaks into the soil from whatever carries it: the steel main, or the tracer wire.
-    const startY = line.y - glowRadius - 0.15;
+    // Current leaks into the soil from whatever carries it: from under the steel main, or from
+    // the tracer wire, in front of the plastic main it rides on.
+    const start = (x: number) =>
+      setup === 'steel'
+        ? new Vector3(x, line.y - glowRadius - 0.15, 0.12)
+        : new Vector3(x, LINES.tracer.y, LINES.plastic.radius + 0.12);
     // A few return paths, each carrying the soil leakage from a 20 ft stretch of the target.
     const bins = 7;
     for (let i = 0; i < bins; i++) {
       const x = 10 + i * 20;
       const depthY = -5.2 - 3.2 * (i / (bins - 1));
-      flows.push(
-        this.flow(
-          new Vector3(x, startY, 0.12),
-          depthY,
-          { kind: 'leak', from: x - 10, to: x + 10 },
-          group,
-        ),
-      );
+      flows.push(this.flow(start(x), depthY, { kind: 'leak', from: x - 10, to: x + 10 }, group));
     }
     // Current still on the target at the end of the block returns from beyond it.
-    flows.push(this.flow(new Vector3(BLOCK_FT - 2, startY, 0.12), -8.6, { kind: 'beyond' }, group));
+    flows.push(this.flow(start(BLOCK_FT - 2), -8.6, { kind: 'beyond' }, group));
     flows.push(
       this.flow(new Vector3(t.x0, t.y - t.radius - 0.1, 0.12), -3.6, { kind: 'telecom' }, group),
     );

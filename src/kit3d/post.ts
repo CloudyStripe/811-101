@@ -24,6 +24,11 @@ export interface Post {
 
 export const BLOOM_THRESHOLD = 2.5;
 
+/** Starts fetching the ambient-occlusion chunk early, when the tier uses it. */
+export function preloadPost(tier: TierSettings): void {
+  if (tier.ao) void import('n8ao');
+}
+
 export async function createPost(
   renderer: WebGLRenderer,
   scene: Scene,

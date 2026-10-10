@@ -110,6 +110,27 @@ test.describe('with reduced motion', () => {
     }, png.toString('base64'));
   }
 
+  test('dragging and zooming move the view even though nothing animates', async ({ page }) => {
+    await open(page);
+    const label = page.locator('[data-label="transmitter"]');
+    const placeOf = () => label.evaluate((el) => el.style.transform);
+    const box = await page.locator('canvas').boundingBox();
+    if (!box) throw new Error('no canvas');
+
+    // Drag across the view: the camera turns, so the label moves.
+    const before = await placeOf();
+    await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.5, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(placeOf).not.toBe(before);
+
+    // Scroll to zoom: it moves too.
+    const afterDrag = await placeOf();
+    await page.mouse.wheel(0, -400);
+    await expect.poll(placeOf).not.toBe(afterDrag);
+  });
+
   test('the view keeps drawing through changes', async ({ page }) => {
     await open(page);
     await exercise(page, async (step) => {
