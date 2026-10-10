@@ -45,7 +45,7 @@ const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 /** Match the layouts in lab.css: phones, and short screens such as phones held sideways. */
 const phoneQuery = matchMedia('(max-width: 760px)');
-const shortQuery = matchMedia('(max-height: 500px) and (min-width: 561px)');
+const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
 /** Layouts where the guide is a sheet that opens over the 3D view. */
 const sheetLayout = () => phoneQuery.matches || shortQuery.matches;
 
@@ -126,7 +126,9 @@ export function App() {
   // The scene's callbacks outlive renders, so they read current state from here.
   const live = useRef({ setup, frequency, settings, sheetOpen });
   live.current = { setup, frequency, settings, sheetOpen };
-  const lastArea = useRef<VisibleArea | null>(null);
+  const lastArea = useRef<{ area: VisibleArea; size: string } | null>(null);
+  // Whether the guide is a sheet over the view, which changes as the screen rotates or resizes.
+  const [sheetMode, setSheetMode] = useState(sheetLayout);
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -147,17 +149,23 @@ export function App() {
     /** The part of the 3D view the chrome leaves free, which the camera frames. */
     const visibleArea = (): VisibleArea => {
       const box = stageEl.getBoundingClientRect();
-      // An open sheet covers the view, so the framing stays as it was.
-      if (live.current.sheetOpen && sheetLayout() && lastArea.current) return lastArea.current;
-      lastArea.current = freeArea(box);
-      return lastArea.current;
+      const size = `${String(box.width)}x${String(box.height)}`;
+      // An open sheet covers the view, so the framing stays as it was, unless the screen itself
+      // changed (a rotation); closing the sheet then frames the view afresh.
+      const last = lastArea.current;
+      if (live.current.sheetOpen && sheetLayout() && last?.size === size) return last.area;
+      const area = freeArea(box);
+      lastArea.current = { area, size };
+      return area;
     };
     const freeArea = (box: DOMRect): VisibleArea => {
       const top = (rectOf('.lab-setup')?.bottom ?? box.top) - box.top;
       if (shortQuery.matches) {
-        // Short screens: right of the column of controls.
+        // Short screens: between the column of controls and the upright view toolbar.
         const left = (rectOf('.lab-title')?.right ?? box.left) - box.left + 8;
-        return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
+        const toolbar = rectOf('.lab-camera');
+        const right = toolbar && toolbar.width > 0 ? toolbar.left - box.left - 8 : box.width;
+        return { x: left, y: 0, width: Math.max(160, right - left), height: box.height };
       }
       if (phoneQuery.matches) {
         // Phones: between the setup switch and the controls below the view.
@@ -283,9 +291,24 @@ export function App() {
   }, [settings.quality]);
 
   // The sheet covers part of the view on phones, so labels move out from under it.
+  // Opening the sheet covers part of the view, so labels move out from under it. Closing it
+  // reframes the view, in case the screen rotated while it was open.
   useEffect(() => {
-    sceneRef.current?.refreshLabels();
+    if (sheetOpen) sceneRef.current?.refreshLabels();
+    else sceneRef.current?.relayout();
   }, [sheetOpen]);
+
+  useEffect(() => {
+    const onChange = () => {
+      setSheetMode(sheetLayout());
+    };
+    phoneQuery.addEventListener('change', onChange);
+    shortQuery.addEventListener('change', onChange);
+    return () => {
+      phoneQuery.removeEventListener('change', onChange);
+      shortQuery.removeEventListener('change', onChange);
+    };
+  }, []);
 
   function onCanvasKey(event: KeyboardEvent) {
     const scene = sceneRef.current;
@@ -321,7 +344,7 @@ export function App() {
           ref={canvasRef}
           class="lab-canvas"
           // Under an open sheet the view can't be seen, so it leaves the tab order.
-          tabIndex={sheetOpen && sheetLayout() ? -1 : 0}
+          tabIndex={sheetOpen && sheetMode ? -1 : 0}
           role="img"
           aria-label="3D cutaway of a street block showing buried lines and the locate signal. Use the arrow keys to turn the view, and plus or minus to zoom."
           aria-describedby="lab-status"
@@ -346,12 +369,13 @@ export function App() {
             />
           ))}
         </div>
-        {failed && (
-          <p class="stage-message" role="status">
-            {failed}
-          </p>
-        )}
       </main>
+
+      {failed && (
+        <p class="stage-message" role="status">
+          {failed}
+        </p>
+      )}
 
       <div class="lab-camera" role="toolbar" aria-label="View" data-chrome>
         {CAMERA_BUTTONS.map((b) => (

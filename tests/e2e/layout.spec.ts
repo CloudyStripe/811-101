@@ -1,22 +1,156 @@
 /**
- * The layout between the two designed sizes: tablets, phones held sideways, small laptops, and a
- * 1280×1024 screen zoomed to 400% (320×256, WCAG 1.4.10). Every control must be reachable and on
- * top where it's clicked, and the chrome must never overlap.
+ * The layout between and beyond the two designed sizes: tablets, phones held sideways or with
+ * browser toolbars showing, small and zoomed laptop windows, and a 1280×1024 screen zoomed to 400%
+ * (320×256, WCAG 1.4.10). Every control must be reachable and on top where it's clicked, the
+ * frequency dial on screen without scrolling (sheet open or closed), the hookup framed clear of
+ * the controls, and no chrome overlapping.
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 
-const SIZES = [
-  { name: 'tablet-portrait', width: 820, height: 1180, touch: true, framed: true },
-  { name: 'large-tablet-portrait', width: 1024, height: 1366, touch: true, framed: true },
-  { name: 'phone-landscape', width: 844, height: 390, touch: true, framed: true },
-  { name: 'small-laptop', width: 1024, height: 768, touch: false, framed: true },
-  { name: 'small-window', width: 900, height: 600, touch: false, framed: true },
-  { name: 'narrow-window', width: 761, height: 900, touch: false, framed: true },
-  { name: 'tablet-landscape', width: 1112, height: 834, touch: true, framed: true },
-  // 1280 × 1024 at 400%: a reflow check, too small to frame the hookup as well.
-  { name: 'zoomed-400', width: 320, height: 256, touch: false, framed: false },
-] as const;
+interface Size {
+  name: string;
+  width: number;
+  height: number;
+  touch: boolean;
+  /** The transmitter and stake labels show. */
+  framed: boolean;
+  /** Everything fits without scrolling. */
+  fits: boolean;
+  /** The guide is a sheet that opens over the view. */
+  sheet: boolean;
+}
+
+const SIZES: Size[] = [
+  {
+    name: 'tablet-portrait',
+    width: 820,
+    height: 1180,
+    touch: true,
+    framed: true,
+    fits: true,
+    sheet: false,
+  },
+  {
+    name: 'large-tablet-portrait',
+    width: 1024,
+    height: 1366,
+    touch: true,
+    framed: true,
+    fits: true,
+    sheet: false,
+  },
+  {
+    name: 'tablet-landscape',
+    width: 1112,
+    height: 834,
+    touch: true,
+    framed: true,
+    fits: true,
+    sheet: false,
+  },
+  {
+    name: 'small-laptop',
+    width: 1024,
+    height: 768,
+    touch: false,
+    framed: true,
+    fits: true,
+    sheet: false,
+  },
+  {
+    name: 'small-window',
+    width: 900,
+    height: 600,
+    touch: false,
+    framed: true,
+    fits: true,
+    sheet: false,
+  },
+  {
+    name: 'narrow-window',
+    width: 761,
+    height: 900,
+    touch: false,
+    framed: true,
+    fits: true,
+    sheet: false,
+  },
+  // A 1366 × 768 laptop at 125% zoom, with browser toolbars.
+  {
+    name: 'zoomed-laptop',
+    width: 1093,
+    height: 505,
+    touch: false,
+    framed: true,
+    fits: true,
+    sheet: true,
+  },
+  {
+    name: 'short-window',
+    width: 740,
+    height: 560,
+    touch: false,
+    framed: true,
+    fits: true,
+    sheet: true,
+  },
+  // A small phone with the browser's toolbars showing.
+  {
+    name: 'small-phone',
+    width: 375,
+    height: 553,
+    touch: true,
+    framed: true,
+    fits: true,
+    sheet: true,
+  },
+  {
+    name: 'phone-landscape',
+    width: 844,
+    height: 390,
+    touch: true,
+    framed: true,
+    fits: true,
+    sheet: true,
+  },
+  {
+    name: 'small-phone-landscape',
+    width: 667,
+    height: 375,
+    touch: true,
+    framed: true,
+    fits: true,
+    sheet: true,
+  },
+  // The smallest sideways phone: everything fits, but the view is too small to frame the hookup.
+  {
+    name: 'tiny-phone-landscape',
+    width: 568,
+    height: 320,
+    touch: true,
+    framed: false,
+    fits: true,
+    sheet: true,
+  },
+  // 1280 × 1024 at 400%: a reflow check. The page scrolls to reach everything.
+  {
+    name: 'zoomed-400',
+    width: 320,
+    height: 256,
+    touch: false,
+    framed: false,
+    fits: false,
+    sheet: true,
+  },
+];
+
+async function open(page: Page) {
+  await page.goto('training/frequency-lab/?tier=low');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+}
 
 /** Whether the control is what's actually on top at its center, after scrolling it into view. */
 async function onTop(page: Page, selector: string, index: number) {
@@ -29,6 +163,19 @@ async function onTop(page: Page, selector: string, index: number) {
   });
 }
 
+/** Asserts the whole frequency dial is on screen, with nothing scrolled. */
+async function expectDialOnScreen(page: Page, height: number, when: string) {
+  const scrolled = await page.locator('#app').evaluate((el) => el.scrollTop);
+  expect(scrolled, `page scrolled ${when}`).toBe(0);
+  for (const name of ['512 hertz', '83 kilohertz']) {
+    const box = await page.getByRole('radio', { name }).boundingBox();
+    expect(box, `${name} ${when}`).not.toBeNull();
+    expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom ${when}`).toBeLessThanOrEqual(
+      height,
+    );
+  }
+}
+
 test.use({ reducedMotion: 'reduce' });
 
 for (const size of SIZES) {
@@ -39,12 +186,30 @@ for (const size of SIZES) {
       isMobile: size.touch,
     });
 
-    test('every control is reachable and on top; no chrome overlaps', async ({ page }) => {
-      await page.goto('training/frequency-lab/?tier=low');
-      await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
-        timeout: 60_000,
-      });
+    test('controls reachable and on screen, hookup framed, no chrome overlapping', async ({
+      page,
+    }) => {
+      await open(page);
       await page.screenshot({ path: `artifacts/screenshots/layout-${size.name}.png` });
+      if (size.fits) await expectDialOnScreen(page, size.height, 'with the guide closed');
+
+      // The hookup, where the lesson starts, is framed clear of the controls.
+      if (size.framed) {
+        for (const id of ['transmitter', 'stake']) {
+          await expect(page.locator(`[data-label="${id}"]`), `${id} label`).not.toHaveClass(
+            /\boff\b/,
+          );
+        }
+      }
+
+      // Opening the guide as a sheet leaves the dial on screen.
+      if (size.sheet && size.fits) {
+        await page.getByRole('button', { name: 'Details' }).click();
+        await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
+        await page.screenshot({ path: `artifacts/screenshots/layout-${size.name}-sheet.png` });
+        await expectDialOnScreen(page, size.height, 'with the guide open');
+        await page.getByRole('button', { name: 'Details' }).click();
+      }
 
       const radios = '[role="radio"]';
       const buttons = '.lab-camera button';
@@ -54,15 +219,6 @@ for (const size of SIZES) {
       ] as const) {
         for (let i = 0; i < count; i++) {
           expect(await onTop(page, selector, i), `${selector} #${String(i)} is covered`).toBe(true);
-        }
-      }
-
-      // The hookup, where the lesson starts, is framed clear of the controls.
-      if (size.framed) {
-        for (const id of ['transmitter', 'stake']) {
-          await expect(page.locator(`[data-label="${id}"]`), `${id} label`).not.toHaveClass(
-            /\boff\b/,
-          );
         }
       }
 
@@ -86,3 +242,26 @@ for (const size of SIZES) {
     });
   });
 }
+
+test.describe('rotating a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('with the guide open, the view is framed again once it closes', async ({ page }) => {
+    await open(page);
+    const details = page.getByRole('button', { name: 'Details' });
+    for (const [width, height] of [
+      [844, 390],
+      [390, 844],
+    ] as const) {
+      await details.click();
+      await page.setViewportSize({ width, height });
+      await details.click();
+      for (const id of ['transmitter', 'target']) {
+        await expect(
+          page.locator(`[data-label="${id}"]`),
+          `${id} label at ${String(width)}×${String(height)}`,
+        ).not.toHaveClass(/\boff\b/);
+      }
+    }
+  });
+});
