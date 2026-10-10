@@ -3,7 +3,7 @@ import { collectClaims } from '../../src/content-kit/claims.ts';
 import { termKey, termKeysIn } from '../../src/content-kit/terms.ts';
 import { LABEL_SPECS } from '../../src/pages/frequency-lab/scene/labels.ts';
 import { SETUPS } from '../../src/signal/model.ts';
-import { FREQUENCY_LAB, TERMS, labelDefinition } from './frequency-lab.ts';
+import { FREQUENCY_LAB, TAGLINE, TERMS, labelDefinition } from './frequency-lab.ts';
 
 /** Every string in the content, claims and instructions alike. */
 function stringsIn(value: unknown, into: string[] = []): string[] {
@@ -56,5 +56,13 @@ describe('Frequency Lab content', () => {
 
   it('flags no claim as state-specific, since the lab teaches no state rules', () => {
     expect(claims.filter((c) => c.stateSpecific)).toEqual([]);
+  });
+});
+
+describe('the static page shell', () => {
+  it('shows the same tagline the app does', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const html = await readFile('training/frequency-lab/index.html', 'utf8');
+    expect(html.replaceAll(/\s+/g, ' ')).toContain(TAGLINE.text);
   });
 });

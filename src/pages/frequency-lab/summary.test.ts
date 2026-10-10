@@ -48,3 +48,11 @@ describe('ruleSummary', () => {
     expect(ruleSummary(s)).toBe("Here, that's 512 Hz.");
   });
 });
+
+describe('every state', () => {
+  it('fills in every placeholder', () => {
+    for (const s of SETUPS) {
+      for (const f of FREQUENCIES) expect(stateSummary(s, f)).not.toMatch(/\{\w+\}/);
+    }
+  });
+});

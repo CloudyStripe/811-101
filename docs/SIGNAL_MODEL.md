@@ -51,8 +51,8 @@ Unit: share left per 100 ft.
 
 | | 512 Hz | 8 kHz | 33 kHz | 83 kHz |
 |---|---|---|---|---|
-| Coated steel main | 0.93 | 0.72 | 0.4 | 0.15 |
-| Tracer wire | 0.95 | 0.8 | 0.5 | 0.3 |
+| Coated steel main | 0.93 | 0.72 | 0.2 | 0.04 |
+| Tracer wire | 0.95 | 0.8 | 0.5 | 0.19 |
 
 **Why (fade on the coated steel main):** Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order.
 
@@ -84,7 +84,7 @@ Unit: Ω.
 
 **Why (circuit resistance, steel main):** A long metal main has many paths to the earth, so it is a good circuit at every frequency. Higher frequencies find a little more path through the soil.
 
-**Why (circuit resistance, tracer wire):** An insulated tracer wire reaches the earth only where it is grounded, so its circuit has more resistance than a steel main and less current flows.
+**Why (circuit resistance, tracer wire):** An insulated tracer wire connects to the earth directly only where it is grounded, so its circuit has more resistance than a steel main and less current flows. Higher frequencies leak a little through the insulation, so the resistance falls slightly as frequency rises.
 
 ### Transmitter output
 
@@ -108,7 +108,7 @@ The target current the lab treats as enough to trace at the far end of the block
 
 **Value:** 20 mA
 
-**Why:** An illustrative threshold. Real needs depend on depth, soil and the receiver.
+**Why:** An illustrative threshold. Real needs depend on depth, interference from other lines and noise, and the receiver.
 
 ## The eight states, computed
 
@@ -116,11 +116,11 @@ The target current the lab treats as enough to trace at the far end of the block
 |---|---|---|---|---|---|---|
 | Steel main | 512 Hz | 454.5 mA | 60 Ω | 410.6 mA | 9.1 mA | Yes |
 | Steel main | 8 kHz | 471.7 mA | 56 Ω | 297.8 mA | 28.3 mA | Yes |
-| Steel main | 33 kHz | 490.2 mA | 52 Ω | 135.9 mA | 73.5 mA | Yes |
-| Steel main | 83 kHz | 510.2 mA | 48 Ω | 35.8 mA | 163.3 mA | Yes |
+| Steel main | 33 kHz | 490.2 mA | 52 Ω | 51.5 mA | 73.5 mA | Yes |
+| Steel main | 83 kHz | 510.2 mA | 48 Ω | 5.6 mA | 163.3 mA | No |
 | Plastic main (tracer wire) | 512 Hz | 90.9 mA | 500 Ω | 84.6 mA | 1.8 mA | Yes |
 | Plastic main (tracer wire) | 8 kHz | 92.6 mA | 490 Ω | 67.7 mA | 5.6 mA | Yes |
 | Plastic main (tracer wire) | 33 kHz | 94.3 mA | 480 Ω | 35.7 mA | 14.2 mA | Yes |
-| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 17.8 mA | 30.8 mA | No |
+| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 9.4 mA | 30.8 mA | No |
 
 **Lowest frequency that works:** Steel main: 512 Hz; Plastic main (tracer wire): 512 Hz.

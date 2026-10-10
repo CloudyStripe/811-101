@@ -3,7 +3,7 @@
  * the numbers come from the model, the names from the lab's content.
  */
 import { frequencyLabel, type Frequency } from '../../../config/equipment.ts';
-import { SETUP_TEXT } from '../../../content/training/frequency-lab.ts';
+import { SETUP_TEXT, SUMMARY, SUMMARY_TOO_WEAK } from '../../../content/training/frequency-lab.ts';
 import { GEOMETRY } from '../../signal/constants.ts';
 import { labState, lowestWorkingFrequency, reachFt, type SetupId } from '../../signal/model.ts';
 import { feetAndMeters, percent } from './format.ts';
@@ -12,9 +12,15 @@ import { feetAndMeters, percent } from './format.ts';
 export function stateSummary(setup: SetupId, frequency: Frequency): string {
   const s = labState(setup, frequency);
   const { name, target } = SETUP_TEXT[setup];
-  const left = percent(s.farEndMa / s.transmitter.ma);
-  const enough = s.works ? '' : ', too little to trace';
-  return `${name} at ${frequencyLabel(frequency)}: ${left} of the signal is left at the far end of the block${enough}. The telecom cable carries ${percent(s.telecom.share)} as much as the ${target}, flowing back toward the stake.`;
+  const fill: Record<string, string> = {
+    setup: name,
+    frequency: frequencyLabel(frequency),
+    left: percent(s.farEndMa / s.transmitter.ma),
+    short: s.works ? '' : SUMMARY_TOO_WEAK,
+    share: percent(s.telecom.share),
+    target,
+  };
+  return SUMMARY.text.replaceAll(/\{(\w+)\}/g, (whole, key: string) => fill[key] ?? whole);
 }
 
 /** How far along the line the signal stays strong enough to trace, within the chart. */

@@ -55,7 +55,7 @@ export const FADE_PER_100FT = {
     meaning:
       'Share of the current still on the steel main after another 100 ft. The rest leaks into the soil.',
     unit: 'share left per 100 ft',
-    value: perFrequency([0.93, 0.72, 0.4, 0.15]),
+    value: perFrequency([0.93, 0.72, 0.2, 0.04]),
     why: "Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order.",
   },
   tracer: {
@@ -63,7 +63,7 @@ export const FADE_PER_100FT = {
     meaning:
       'Share of the current still on the tracer wire after another 100 ft. The rest leaks into the soil.',
     unit: 'share left per 100 ft',
-    value: perFrequency([0.95, 0.8, 0.5, 0.3]),
+    value: perFrequency([0.95, 0.8, 0.5, 0.19]),
     why: 'The same trend as the steel main, compressed the same way. A thin insulated wire leaks less than the big coated main at every frequency.',
   },
 } as const satisfies Record<string, Constant<PerFrequency>>;
@@ -91,7 +91,7 @@ export const CIRCUIT_RESISTANCE_OHMS = {
       'Resistance the transmitter sees when hooked up to the tracer wire on the plastic main.',
     unit: 'Ω',
     value: perFrequency([500, 490, 480, 470]),
-    why: 'An insulated tracer wire reaches the earth only where it is grounded, so its circuit has more resistance than a steel main and less current flows.',
+    why: 'An insulated tracer wire connects to the earth directly only where it is grounded, so its circuit has more resistance than a steel main and less current flows. Higher frequencies leak a little through the insulation, so the resistance falls slightly as frequency rises.',
   },
 } as const satisfies Record<string, Constant<PerFrequency>>;
 
@@ -118,7 +118,7 @@ export const WORKS_THRESHOLD_MA = {
     'The target current the lab treats as enough to trace at the far end of the block. A frequency "works" when it meets this.',
   unit: 'mA',
   value: 20,
-  why: 'An illustrative threshold. Real needs depend on depth, soil and the receiver.',
+  why: 'An illustrative threshold. Real needs depend on depth, interference from other lines and noise, and the receiver.',
 } as const satisfies Constant<number>;
 
 /** All constants, for the docs generator and the validation test. */

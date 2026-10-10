@@ -11,6 +11,23 @@ import type { SetupId } from '../../src/signal/model.ts';
 
 type PerSetup<T> = Readonly<Record<SetupId, T>>;
 
+/** The rule, as the lab's tagline. The static page shell repeats it (a test keeps them in step). */
+export const TAGLINE = claim(
+  'fl.tagline',
+  'Use the lowest frequency that works: it travels farther and bleeds less onto other lines.',
+);
+
+/**
+ * The live summary of what the 3D view shows, filled in from the model. {setup}, {frequency},
+ * {left}, {short}, {share} and {target} are replaced; {short} is SUMMARY_TOO_WEAK or nothing.
+ */
+export const SUMMARY = claim(
+  'fl.summary',
+  '{setup} at {frequency}: {left} of the signal is left at the far end of the block{short}. The telecom cable carries {share} as much as the {target}, flowing back toward the stake.',
+  { note: 'describes the state of the lab model' },
+);
+export const SUMMARY_TOO_WEAK = ', too little to trace';
+
 /** Definitions for every marked term, keyed as `termKey()` normalizes them. */
 export const TERMS: Readonly<Record<string, Claim>> = {
   transmitter: claim(
@@ -76,7 +93,7 @@ export const INTRO = {
     ),
     claim(
       'fl.intro.frequency',
-      "The [[frequency]] you choose changes how the signal behaves. Lower frequencies stay on the line and travel farther. Higher frequencies leak off sooner, don't travel as far, and [[bleed over|bleed-over]] onto nearby lines more.",
+      "The [[frequency]] you choose changes how the signal behaves. Lower frequencies stay on your line better and travel farther. Higher frequencies leak off sooner, don't travel as far, and [[bleed over|bleed-over]] onto nearby lines more.",
     ),
   ],
   /** How to use the lab: instructions, not claims. */
@@ -107,7 +124,7 @@ export const SETUP_TEXT: PerSetup<{
     target: 'tracer wire',
     note: claim(
       'fl.setup.plastic',
-      "Plastic can't carry the signal, so the transmitter is connected to the [[tracer wire]] at a [[tracer test box]]. The insulated wire reaches the earth only where it's grounded, so its circuit has more resistance and less current flows.",
+      "Plastic can't carry the signal, so the transmitter is connected to the [[tracer wire]] at a [[tracer test box]]. The insulated wire connects to the earth directly only where it's grounded, so its circuit has more resistance and less current flows.",
     ),
   },
 };
@@ -140,7 +157,7 @@ export const TRY_THIS: PerSetup<readonly Claim[]> = {
   steel: [
     claim(
       'fl.try.steel.reach',
-      'Step from 512 Hz up to 83 kHz and watch how far along the main the glow reaches.',
+      'Step from 512 Hz up to 83 kHz and watch the glow along the main: it dims sooner at each step, and at 83 kHz it fades out before the far end.',
     ),
     claim(
       'fl.try.steel.bleed',
@@ -213,7 +230,7 @@ export const ABOUT = {
     ),
     claim(
       'fl.about.compressed',
-      'Distances are compressed. The signal fades within one block here so the frequencies are easy to compare. On a continuous, well-grounded line, real signals travel much farther, in the same order, with lower frequencies farthest.',
+      'Distances are compressed. The signal fades within one block here so the frequencies are easy to compare. On a real, continuous line, signals usually travel much farther, in the same order, with lower frequencies farthest.',
     ),
     claim(
       'fl.about.slowed',
@@ -233,7 +250,7 @@ export const ABOUT = {
     ),
     claim(
       'fl.about.threshold',
-      `"Enough to trace" is set at ${String(WORKS_THRESHOLD_MA.value)} mA for this lab. What a receiver needs in the field depends on depth, soil and the receiver itself.`,
+      `"Enough to trace" is set at ${String(WORKS_THRESHOLD_MA.value)} mA for this lab. What a receiver needs in the field depends on depth, interference from other lines and noise, and the receiver itself.`,
     ),
   ],
   /** Scope, not a claim. */
@@ -278,7 +295,7 @@ export const LABEL_DEFINITIONS: Readonly<Record<LabelId, Claim | PerSetup<Claim>
   ),
   water: claim(
     'fl.label.water',
-    'Drinking water main crossing under the gas main. It crosses rather than running alongside, so it picks up very little of the signal.',
+    'Drinking water main crossing under the gas main. This lab gives it no signal, but in the field a crossing line can pick some up.',
   ),
 };
 
@@ -289,6 +306,8 @@ export function labelDefinition(id: LabelId, setup: SetupId): Claim {
 
 /** The lab's content, as one module for the review doc. */
 export const FREQUENCY_LAB = {
+  TAGLINE,
+  SUMMARY,
   INTRO,
   SETUP_TEXT,
   FREQUENCY_NOTES,
