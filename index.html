@@ -1,0 +1,3199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>From Rock to Flame</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-bleed 3D diorama; brand + path filter top-left, tools top-right,
+   info panel docked right on wide screens and a bottom sheet on phones. */
+:root {
+  --bg: #eaf0f5;
+  --sky-top: #d7e7f4;
+  --sky-bottom: #f4f7f9;
+  --surface: #ffffff;
+  --surface-2: #f2f5f8;
+  --ink: #16202a;
+  --ink-2: #4b5967;
+  --line: #d3dce5;
+  --gas: #1a64bd;          /* gas route, text-safe on surfaces */
+  --gas-fill: #2f86eb;     /* gas route lines and dots */
+  --gas-soft: #e2eefc;
+  --amber: #9a5c00;        /* gasoline route, text-safe */
+  --amber-fill: #f2a516;
+  --amber-soft: #fdf1d8;
+  --stone: #6f6156;        /* shared start, text-safe */
+  --stone-fill: #8e8178;
+  --stone-soft: #efe9e4;
+  /* numbered badges: background + ink pairs that pass 4.5:1 in both themes */
+  --badge-shared: #6f6156; --badge-shared-ink: #ffffff;
+  --badge-gas: #1a64bd; --badge-gas-ink: #ffffff;
+  --badge-amber: #f2a516; --badge-amber-ink: #2a1a00;
+  --good: #1e7d4f;
+  --bad: #b3372b;
+  --shadow: 0 1px 2px rgba(22, 32, 42, .08), 0 6px 20px rgba(22, 32, 42, .10);
+  --font-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --panel-w: 384px;
+  --edge-l: max(16px, env(safe-area-inset-left, 0px));
+  --edge-r: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c131b; --sky-top: #0b1622; --sky-bottom: #1a2836;
+    --surface: #131c26; --surface-2: #1a2531; --ink: #e7edf3; --ink-2: #a5b3c1; --line: #293644;
+    --gas: #7ab6ff; --gas-fill: #3d8ff0; --gas-soft: #152c47;
+    --amber: #ffc457; --amber-fill: #f2a516; --amber-soft: #36270c;
+    --stone: #cdbcac; --stone-fill: #9a8c82; --stone-soft: #2a241f;
+    --badge-shared: #cdbcac; --badge-shared-ink: #1a1410;
+    --badge-gas: #7ab6ff; --badge-gas-ink: #0c131b;
+    --good: #5fd39a; --bad: #ff8a7a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c131b; --sky-top: #0b1622; --sky-bottom: #1a2836;
+  --surface: #131c26; --surface-2: #1a2531; --ink: #e7edf3; --ink-2: #a5b3c1; --line: #293644;
+  --gas: #7ab6ff; --gas-fill: #3d8ff0; --gas-soft: #152c47;
+  --amber: #ffc457; --amber-fill: #f2a516; --amber-soft: #36270c;
+  --stone: #cdbcac; --stone-fill: #9a8c82; --stone-soft: #2a241f;
+  --badge-shared: #cdbcac; --badge-shared-ink: #1a1410;
+  --badge-gas: #7ab6ff; --badge-gas-ink: #0c131b;
+  --good: #5fd39a; --bad: #ff8a7a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+html { box-sizing: border-box; height: 100%; }
+*, *::before, *::after { box-sizing: inherit; }
+body { height: 100%; margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gas-fill); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+#app { position: relative; height: 100%; overflow: hidden;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 70%); }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; outline: none; }
+#scene:focus-visible { outline: 2px solid var(--gas-fill); outline-offset: -3px; }   /* inset: #app clips outside outlines */
+#scene.dragging { cursor: grabbing; }
+#scene.hovering { cursor: pointer; }
+
+/* ---------- floating labels ---------- */
+#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl { position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 3px; border-radius: 999px; border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: var(--shadow);
+  font-size: 12.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; pointer-events: auto; touch-action: none;
+  cursor: pointer; transition: opacity .25s ease, box-shadow .2s ease, visibility 0s; will-change: transform; }
+.lbl .b { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--badge-shared-ink); background: var(--badge-shared); }
+.lbl[data-path="gas"] .b { background: var(--badge-gas); color: var(--badge-gas-ink); }
+.lbl[data-path="gasoline"] .b { background: var(--badge-amber); color: var(--badge-amber-ink); }
+.lbl.compact { padding: 2px; gap: 0; }
+.lbl.compact .t { display: none; }
+.lbl.dim { opacity: .38; }
+/* after .dim so a hidden label stays hidden; visibility also takes it out of the tab order */
+.lbl.off { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s ease, visibility 0s .25s; }
+.lbl.sel { box-shadow: 0 0 0 2px var(--stone-fill), var(--shadow); }
+.lbl.sel[data-path="gas"] { box-shadow: 0 0 0 2px var(--gas-fill), var(--shadow); }
+.lbl.sel[data-path="gasoline"] { box-shadow: 0 0 0 2px var(--amber-fill), var(--shadow); }
+.lbl:hover { box-shadow: 0 0 0 2px var(--line), var(--shadow); }
+.dlbl { position: absolute; left: 0; top: 0; padding: 2px 7px; border-radius: 6px; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .01em;
+  background: color-mix(in srgb, var(--surface) 86%, transparent); border: 1px solid var(--line);
+  color: var(--ink); transition: opacity .3s ease; will-change: transform; }
+.dlbl.off { opacity: 0; }
+.dlbl.big { font-size: 13px; font-weight: 600; padding: 4px 9px; }
+.dlbl .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px;
+  vertical-align: -1px; border: 1px solid var(--ink-2); }
+
+/* ---------- chrome ---------- */
+.brand { position: absolute; left: var(--edge-l); top: 16px; display: grid; gap: 10px; max-width: min(420px, calc(100% - 32px)); pointer-events: none; }
+.brand > * { pointer-events: auto; }
+.brand h1 { margin: 0; font-family: var(--font-display); font-stretch: 118%; font-weight: 800;
+  font-size: 22px; line-height: 1.05; letter-spacing: -.01em; text-wrap: balance; }
+.brand h1 .fork { font-weight: 500; color: var(--ink-2); font-stretch: 100%; font-size: 13px; letter-spacing: .02em;
+  display: block; margin-top: 4px; font-family: var(--font-body); }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: var(--shadow); width: max-content; }
+.seg button { border: 0; background: transparent; padding: 6px 11px; border-radius: 7px; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.seg button .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gas-fill); }
+.seg button[data-f="gasoline"] .dot { background: var(--amber-fill); }
+.seg button[data-f="both"] .dot { background: linear-gradient(90deg, var(--gas-fill) 50%, var(--amber-fill) 50%); }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.seg-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-right: 6px; align-self: center; padding-left: 6px; }
+
+.tools { position: absolute; right: var(--edge-r); top: 16px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+  max-width: calc(100% - 32px); }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); font-size: 13px; font-weight: 700; }
+.tbtn:hover { background: var(--surface-2); }
+.tbtn svg { width: 16px; height: 16px; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tbtn.primary:hover { opacity: .9; background: var(--ink); }
+.menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 230px; padding: 6px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: grid; gap: 2px; z-index: 5; }
+.menu button { text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 8px; cursor: pointer; display: grid; gap: 1px; }
+.menu button:hover, .menu button:focus-visible { background: var(--surface-2); }
+.menu b { font-size: 14px; display: flex; align-items: center; gap: 7px; }
+.menu small { color: var(--ink-2); font-size: 12px; }
+.menu .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gas-fill); }
+.menu .dot.a { background: var(--amber-fill); }
+.tool-wrap { position: relative; }
+
+.hint { position: absolute; left: var(--edge-l); bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+  padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); max-width: calc(100% - 32px); transition: opacity .4s ease; }
+.hint .key { display: inline-flex; align-items: center; gap: 6px; }
+.hint .sw { width: 18px; height: 6px; border-radius: 3px; background: var(--stone-fill); }
+.hint .sw.g { background: var(--gas-fill); } .hint .sw.a { background: var(--amber-fill); }
+.hint .sep { width: 1px; height: 14px; background: var(--line); }
+.panel-open .hint { max-width: calc(100% - var(--panel-w) - 56px); }
+
+/* ---------- info panel ---------- */
+#panel { position: absolute; right: var(--edge-r); top: 72px; bottom: 16px; width: var(--panel-w); display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+  transform: translateX(0); transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .25s ease; overflow: hidden; z-index: 3; }
+#panel.closed { transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; }
+.p-head { padding: 16px 18px 10px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); position: relative; }
+.p-eyebrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-right: 36px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px;
+  font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--stone-soft); color: var(--stone); }
+.chip.gas { background: var(--gas-soft); color: var(--gas); }
+.chip.gasoline { background: var(--amber-soft); color: var(--amber); }
+.p-step { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+#p-title { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 750; font-size: 23px; line-height: 1.15;
+  letter-spacing: -.01em; text-wrap: balance; padding-right: 30px; }
+.close { position: absolute; right: 12px; top: 12px; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); display: grid; place-items: center; cursor: pointer; }
+.close:hover { background: var(--surface-2); }
+.close svg { width: 16px; height: 16px; }
+.p-body { padding: 14px 18px 18px; overflow-y: auto; display: grid; gap: 14px; align-content: start; min-height: 0; flex: 1; overscroll-behavior: contain; }
+.p-body p { margin: 0; }
+.lead { font-size: 15.5px; line-height: 1.6; }
+.box { padding: 11px 13px; border-radius: 11px; background: var(--surface-2); display: grid; gap: 3px; font-size: 14px; line-height: 1.5; }
+.box h3 { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.box.fact { background: var(--gas-soft); }
+.box.fact h3 { color: var(--gas); }
+.p-gasoline .box.fact { background: var(--amber-soft); }
+.p-gasoline .box.fact h3 { color: var(--amber); }
+.p-shared .box.fact { background: var(--stone-soft); }
+.p-shared .box.fact h3 { color: var(--stone); }
+.trade { font-size: 13.5px; color: var(--ink-2); border-left: 3px solid var(--line); padding: 2px 0 2px 11px; }
+.trade b { color: var(--ink); }
+.note { font-size: 14px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+.eq { font-family: var(--font-mono); font-size: 14px; font-weight: 600; padding: 9px 12px; border-radius: 9px; border: 1px dashed var(--line); text-align: center; }
+.term { border: 0; padding: 0 1px; background: none; font: inherit; color: inherit; cursor: help;
+  text-decoration: underline dotted 1.5px; text-underline-offset: 3px; text-decoration-color: var(--ink-2);
+  font-weight: 700; border-radius: 3px; }
+.p-gas .term { text-decoration-color: var(--gas-fill); }
+.p-gasoline .term { text-decoration-color: var(--amber-fill); }
+.term:hover, .term[aria-expanded="true"] { background: var(--surface-2); }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.acts.split { justify-content: space-between; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface); cursor: pointer; font-size: 14px; font-weight: 700; }
+.btn:hover { background: var(--surface-2); }
+.btn.solid { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.gas { background: var(--badge-gas); border-color: var(--badge-gas); color: var(--badge-gas-ink); }
+.btn.gasoline { background: var(--badge-amber); border-color: var(--badge-amber); color: var(--badge-amber-ink); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .45; cursor: default; }
+.btn svg { width: 15px; height: 15px; }
+.strokes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.strokes div { padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); font-size: 13px; line-height: 1.4; transition: background .2s, border-color .2s; }
+.strokes div b { display: block; font-family: var(--font-mono); font-size: 12px; }
+.strokes div.on { background: var(--amber-soft); border-color: var(--amber-fill); }
+.tl { display: grid; gap: 8px; padding: 12px; border-radius: 11px; border: 1px solid var(--line); }
+.tl-count { font-family: var(--font-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tl-count small { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.tl-cap { font-size: 14px; min-height: 42px; }
+.tl-bar { height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.tl-bar i { display: block; height: 100%; width: 0; background: var(--stone-fill); }
+.tiny { font-size: 12px; color: var(--ink-2); }
+
+/* overview route map */
+.rmap-wrap { width: 100%; }
+.rmap { width: 100%; height: auto; aspect-ratio: 344 / 152; display: block; }
+.rmap .ln { fill: none; stroke-width: 4; }
+.rmap .ln.shared { stroke: var(--stone-fill); } .rmap .ln.gas { stroke: var(--gas-fill); } .rmap .ln.gasoline { stroke: var(--amber-fill); }
+.rmap .lbt { font-family: var(--font-body); font-size: 11px; font-weight: 700; }
+.rmap .lbt.shared { fill: var(--stone); } .rmap .lbt.gas { fill: var(--gas); } .rmap .lbt.gasoline { fill: var(--amber); }
+.rmap .st { cursor: pointer; }
+.rmap .st circle { stroke: var(--surface); stroke-width: 2; }
+.rmap .st text { font-family: var(--font-mono); font-size: 10px; font-weight: 600; }
+.rmap .st.shared circle { fill: var(--badge-shared); } .rmap .st.shared text { fill: var(--badge-shared-ink); }
+.rmap .st.gas circle { fill: var(--badge-gas); } .rmap .st.gas text { fill: var(--badge-gas-ink); }
+.rmap .st.gasoline circle { fill: var(--badge-amber); } .rmap .st.gasoline text { fill: var(--badge-amber-ink); }
+.rmap .st:hover circle, .rmap .st:focus-visible circle { stroke: var(--ink); stroke-width: 2.5; }
+.tourpick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tourpick button { text-align: left; padding: 11px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; display: grid; gap: 2px; }
+.tourpick button:hover { background: var(--surface-2); }
+.tourpick b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; }
+.tourpick small { color: var(--ink-2); font-size: 12.5px; }
+.tourpick .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gas-fill); }
+.tourpick .dot.a { background: var(--amber-fill); }
+.howto { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13.5px; color: var(--ink-2); }
+
+/* tour footer */
+.p-foot { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px 14px;
+  border-top: 1px solid var(--line); background: var(--surface); }
+.p-prog { display: grid; gap: 5px; justify-items: center; min-width: 0; }
+.p-prog span { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.dots i.done { background: var(--ink-2); }
+.dots i.cur { background: var(--gas-fill); transform: scale(1.3); }
+.t-gasoline .dots i.cur { background: var(--amber-fill); }
+
+/* quiz */
+.q { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.q h4 { margin: 0; font-size: 15px; }
+.q .opts { display: grid; gap: 6px; }
+.q .opts button { text-align: left; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; }
+.q .opts button:hover:not(:disabled) { background: var(--surface-2); }
+.q .opts button.right { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+.q .opts button.wrong { border-color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+.q .opts button:disabled { cursor: default; }
+.q .mark { display: block; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.q .right .mark { color: var(--good); } .q .wrong .mark { color: var(--bad); }
+.q .fb { font-size: 13.5px; }
+.q .fb b.ok { color: var(--good); } .q .fb b.no { color: var(--bad); }
+.score { font-family: var(--font-display); font-stretch: 112%; font-weight: 750; font-size: 18px; }
+
+/* tooltip */
+#tip { position: fixed; z-index: 20; max-width: 280px; padding: 9px 11px; border-radius: 10px; background: var(--ink); color: var(--bg);
+  font-size: 13px; line-height: 1.45; box-shadow: var(--shadow); pointer-events: none; }
+#tip b { display: block; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; opacity: .75; margin-bottom: 2px; }
+
+/* modal */
+.modal { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(3px); }
+.modal-card { position: relative; width: min(760px, 100%); max-height: calc(100% - 8px); overflow-y: auto; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; display: grid; gap: 14px; }
+.modal-card h2 { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 750; font-size: 22px; padding-right: 40px; text-wrap: balance; }
+#m-body { display: grid; gap: 14px; }
+.mol-wrap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mol { display: grid; gap: 6px; align-content: start; }
+/* a light "lightbox" in both themes so dark carbon atoms stay visible */
+.mol canvas { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #e3eaf0, #b4c2cf);
+  display: block; touch-action: none; cursor: grab; }
+.mol h3 { margin: 0; font-family: var(--font-mono); font-size: 15px; }
+.mol p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.legend-atoms { display: flex; gap: 14px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+.legend-atoms i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; border: 1px solid var(--ink-2); }
+.legend-atoms .atom-c { background: #3a3f45; } .legend-atoms .atom-h { background: #f3f5f7; }
+.cmp-scroll { overflow-x: auto; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+.cmp th, .cmp td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cmp thead th { font-family: var(--font-display); font-stretch: 112%; font-size: 15px; }
+.cmp thead th.g { color: var(--gas); } .cmp thead th.a { color: var(--amber); }
+.cmp tbody th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); width: 24%; }
+.prose { margin: 0; font-size: 14.5px; line-height: 1.6; }
+
+.noscene { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+/* ---------- tablets: icon-only toolbar so it clears the title ---------- */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .tbtn .tx { display: none; }
+  #b-tour .tx { display: inline; }
+}
+/* ---------- phones ---------- */
+@media (max-width: 760px) {
+  .brand { gap: 8px; }
+  .brand h1 { font-size: 18px; }
+  .brand h1 .fork { display: none; }
+  .seg-label { display: none; }
+  .seg button { padding: 6px 9px; font-size: 12.5px; }
+  /* sits just above the bottom sheet; --sheet-h is set from script */
+  .tools { top: auto; bottom: calc(var(--sheet-h, 0px) + 10px); right: max(12px, env(safe-area-inset-right, 0px)); left: max(12px, env(safe-area-inset-left, 0px));
+    justify-content: center; flex-wrap: nowrap; z-index: 4; transition: bottom .35s cubic-bezier(.2,.8,.2,1); }
+  .tbtn { padding: 8px 10px; font-size: 13px; }
+  .tbtn .tx { display: none; }
+  #b-tour .tx { display: inline; }
+  .hint { display: none; }
+  .menu { top: auto; bottom: calc(100% + 6px); right: auto; left: 0; }
+  #panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 52%; border-radius: 18px 18px 0 0; border-bottom: 0; }
+  #panel.closed { transform: translateY(calc(100% + 24px)); }
+  .p-head { padding: 18px 16px 8px; }
+  .p-head::before { content: ""; position: absolute; left: 50%; top: 7px; width: 38px; height: 4px; margin-left: -19px; border-radius: 2px; background: var(--line); }
+  #p-title { font-size: 19px; }
+  .p-body { padding: 12px 16px 16px; gap: 12px; }
+  .lead { font-size: 15px; }
+  .mol-wrap { grid-template-columns: minmax(0, 1fr); }
+  .tourpick { grid-template-columns: minmax(0, 1fr); }
+  .strokes { grid-template-columns: minmax(0, 1fr); }
+  .modal { padding: 10px; }
+  .modal-card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #panel, .lbl, .dlbl, .hint, .tools { transition: none; }
+}
+</style>
+<style>/* standalone only: the artifact host adds this padding itself */ :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }</style>
+</head>
+<body>
+
+<div id="app">
+  <canvas id="scene" tabindex="0" aria-label="3D diorama of the natural gas and gasoline lifecycle. Drag to rotate, scroll to zoom, click a stage for details. Keyboard: W A S D to turn, plus and minus to zoom."></canvas>
+  <div id="labels" role="group" aria-label="Stage labels"></div>
+
+  <div class="brand">
+    <h1>From Rock to Flame <span class="fork">Natural gas and gasoline: one origin, two paths</span></h1>
+    <div class="seg" role="group" aria-label="Show path">
+      <span class="seg-label">Show</span>
+      <button type="button" data-f="gas" aria-pressed="false"><span class="dot"></span>Natural gas</button>
+      <button type="button" data-f="gasoline" aria-pressed="false"><span class="dot"></span>Gasoline</button>
+      <button type="button" data-f="both" aria-pressed="true"><span class="dot"></span>Both</button>
+    </div>
+  </div>
+
+  <div class="tools">
+    <div class="tool-wrap">
+      <button type="button" class="tbtn primary" id="b-tour" aria-controls="tour-menu" aria-expanded="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l4-9 4 6 4-7"/></svg><span class="tx">Guided tour</span></button>
+      <div class="menu" id="tour-menu" hidden>
+        <button type="button" data-tour="gas"><b><span class="dot"></span>Natural gas tour</b><small>10 steps, from seafloor to stove</small></button>
+        <button type="button" data-tour="gasoline"><b><span class="dot a"></span>Gasoline tour</b><small>12 steps, from seafloor to tailpipe</small></button>
+      </div>
+    </div>
+    <button type="button" class="tbtn" id="b-mol" aria-label="Molecules"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="2.6"/><circle cx="2.8" cy="3.4" r="1.4"/><circle cx="13.2" cy="3.4" r="1.4"/><circle cx="8" cy="14" r="1.4"/><path d="M6 6.4L3.8 4.4M10 6.4l2.2-2M8 10.6v2"/></svg><span class="tx">Molecules</span></button>
+    <button type="button" class="tbtn" id="b-cmp" aria-label="Compare fuels"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M8 2.5v11M1.5 6.5h13"/></svg><span class="tx">Compare fuels</span></button>
+    <button type="button" class="tbtn" id="b-guide" aria-label="Big idea"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.01" stroke-linecap="round"/></svg><span class="tx">Big idea</span></button>
+    <button type="button" class="tbtn" id="b-motion" aria-label="Pause motion"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3" width="2.6" height="10" rx=".8"/><rect x="9.4" y="3" width="2.6" height="10" rx=".8"/></svg><span class="tx" id="motion-txt">Pause</span></button>
+    <button type="button" class="tbtn" id="b-reset" aria-label="Reset view"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4"/><path d="M2.5 2.5v3h3"/></svg><span class="tx">Reset view</span></button>
+  </div>
+
+  <div class="hint" id="hint">
+    <span class="key"><span class="sw"></span>Shared start</span>
+    <span class="key"><span class="sw g"></span>Natural gas</span>
+    <span class="key"><span class="sw a"></span>Gasoline</span>
+    <span class="sep" aria-hidden="true"></span>
+    <span>Drag to rotate · Scroll or pinch to zoom · Right-drag to pan · Click any stage</span>
+  </div>
+
+  <aside id="panel" aria-labelledby="p-title">
+    <header class="p-head">
+      <div class="p-eyebrow"><span class="chip" id="p-chip">Start here</span><span class="p-step" id="p-step"></span></div>
+      <h2 id="p-title">Two fuels, one beginning</h2>
+      <button type="button" class="close" id="p-close" aria-label="Close panel"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+    </header>
+    <div class="p-body" id="p-body"></div>
+    <footer class="p-foot" id="tourbar" hidden>
+      <button type="button" class="btn" id="t-back"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 3L5 8l5 5"/></svg>Back</button>
+      <div class="p-prog"><span id="t-count">Step 1 of 10</span><div class="dots" id="t-dots"></div></div>
+      <button type="button" class="btn solid" id="t-next" aria-label="Next step">Next<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg></button>
+    </footer>
+  </aside>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="m-title">
+      <button type="button" class="close" id="m-close" aria-label="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+      <div id="m-body"></div>
+    </div>
+  </div>
+  <div id="tip" role="tooltip" hidden></div>
+  <div id="sr-live" class="sr-only" aria-live="polite"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   STAGE CONTENT — edit freely.
+   Each stage: id, path ('shared' | 'gas' | 'gasoline'), step number,
+   label (short floating label), title, text, analogy, fact, optional
+   tradeoff / note / equation, terms (word -> one-line definition),
+   camera {pos, look} for the fly-to view, and labelAt (label anchor).
+   In any text, wrap a term in [[double brackets]] to highlight it.
+   Use [[shown words|term key]] when the words differ from the key.
+   ===================================================================== */
+const STAGES = [
+  // ---------------- SHARED START ----------------
+  {
+    id: 'formation', path: 'shared', step: 1, label: 'Ancient sea life',
+    title: 'It starts with tiny sea life',
+    text: 'Long ago, the oceans were full of [[plankton]]: tiny plants and animals, most too small to see. When they died, they sank into the mud on the seafloor, where there was too little oxygen for them to rot away completely. Layer after layer of mud and sand buried them deeper, and the heat and pressure down there slowly "cooked" them into oil and gas. The dark, buried mud became [[source rock]].',
+    analogy: 'It\'s like a slow cooker that runs for millions of years: low heat, lots of time, and the ingredients completely change.',
+    fact: 'Oil and gas don\'t come from dinosaurs. They come mostly from plankton and algae, which were far more plentiful.',
+    terms: {
+      'plankton': 'Tiny living things that drift in water, like algae and microscopic animals.',
+      'source rock': 'Rock that formed from mud rich in ancient life. Oil and gas are created inside it.'
+    },
+    camera: { pos: [-67, 1, 61], look: [-42, -7, 17] },
+    labelAt: [-47.5, 2.4, 18]
+  },
+  {
+    id: 'reservoir', path: 'shared', step: 2, label: 'Trapped in rock',
+    title: 'Hiding in rock, like water in a sponge',
+    text: 'Oil and gas are lighter than water, so over time they creep upward through the rock. Many end up in [[reservoir rock]], such as sandstone, filling the tiny [[pores]] between its grains. A layer of [[cap rock]] above works like a lid and stops them escaping. Under that lid they sort by weight: gas on top, oil in the middle, and salty water at the bottom.',
+    analogy: 'Think of a sponge, not a bucket. The oil is soaked into the rock\'s tiny holes, and there is no underground lake to dip into.',
+    fact: 'Even good reservoir rock is mostly solid. Often only about 10–30% of it is open space (approximate).',
+    terms: {
+      'reservoir rock': 'Rock with many tiny connected holes that can hold oil, gas or water and let them flow.',
+      'pores': 'The tiny spaces between the grains of a rock.',
+      'cap rock': 'A tight layer of rock, like shale or salt, that fluids can\'t pass through. It seals oil and gas in.'
+    },
+    camera: { pos: [-27, -1, 62], look: [-28, -7, 24] },
+    labelAt: [-24, -3.6, 24.4]
+  },
+  {
+    id: 'drilling', path: 'shared', step: 3, label: 'Find & drill',
+    title: 'Finding it, then drilling down',
+    text: 'Crews first run a [[seismic survey]]: they send sound waves into the ground and record the echoes to map the rock layers. Then a drilling rig bores a hole, often a few kilometers deep, and lines it with steel [[casing]] and cement to seal it off from [[groundwater]]. In tight rock like [[shale]], the well can turn sideways, called [[horizontal drilling]]. Then [[hydraulic fracturing]] cracks the rock open so oil and gas can flow out.',
+    analogy: 'A seismic survey is like an ultrasound for the Earth: sound goes in, echoes come back, and a computer turns them into a picture.',
+    fact: 'Drillers can steer a well like a car, using sensors near the drill bit to stay inside a rock layer only a few meters thick.',
+    tradeoff: 'Fracking unlocked huge amounts of oil and gas, but it uses a lot of water and creates wastewater that must be handled carefully. Injecting that wastewater deep underground has been linked to earthquakes in some regions, mostly small but a few strong enough to cause damage.',
+    terms: {
+      'seismic survey': 'Mapping underground rock by sending sound waves down and timing their echoes.',
+      'casing': 'Steel pipe cemented into a well to keep it stable and sealed off from the rock around it.',
+      'groundwater': 'Fresh water held in soil and rock near the surface. Many people drink it from wells.',
+      'shale': 'A rock made from hardened mud. Its pores are so tiny that oil and gas barely move through it.',
+      'horizontal drilling': 'Steering a well to turn and run sideways through a rock layer, often for 2–3 km or more (approximate).',
+      'hydraulic fracturing': 'Pumping water, sand and a little chemical additive into a well at high pressure to crack the rock. Also called fracking.'
+    },
+    camera: { pos: [-12, 6, 67], look: [-15, -2.5, 21] },
+    labelAt: [-21, 12.4, 22]
+  },
+  {
+    id: 'lifting', path: 'shared', step: 4, label: 'Up & split',
+    title: 'Up the well, then sorted three ways',
+    text: 'Gas usually rushes up the well on its own, pushed by the pressure underground. Oil is heavier, so many wells need a [[pump jack]] to lift it. What comes up is a mix of gas, oil and salty water. At the wellsite, a [[separator]] lets the mix settle: gas rises out the top, oil collects in the middle, and water sinks to the bottom.',
+    analogy: 'It\'s like a bottle of salad dressing left to sit. The parts settle into layers on their own.',
+    fact: 'Many older oil wells bring up more salty water than oil. That "produced water" is cleaned, reused or pumped back deep underground.',
+    note: 'This is the fork: gas heads off along the blue route, oil along the amber one.',
+    terms: {
+      'pump jack': 'A nodding machine at an oil well. It moves a long rod up and down to lift oil to the surface.',
+      'separator': 'A tank that lets the gas, oil and water coming out of a well separate by weight.'
+    },
+    camera: { pos: [-22, 13, 44], look: [-31, -0.5, 17] },
+    labelAt: [-28, 3.2, 13.5]
+  },
+
+  // ---------------- NATURAL GAS PATH ----------------
+  {
+    id: 'gas-plant', path: 'gas', step: 5, label: 'Gas plant',
+    title: 'Cleaning up the gas',
+    text: 'Raw gas from the well isn\'t ready to use. At a [[processing plant]], it\'s dried, and impurities like carbon dioxide and poisonous hydrogen sulfide are removed. The plant also pulls out heavier gases such as propane and butane, called [[natural gas liquids]], which are sold separately. What\'s left is mostly [[methane]], the gas that reaches homes and power plants.',
+    analogy: 'It\'s like a water filter for gas: the useful part passes through, and everything else is caught and sorted.',
+    fact: 'In the US, most propane, about three-quarters (approximate), comes from gas plants like this one. Most of the rest comes from oil refineries.',
+    tradeoff: 'Plants sometimes burn off extra gas in a tall [[flare]] for safety. Flaring wastes gas and releases CO₂ and some pollution.',
+    terms: {
+      'processing plant': 'A facility that cleans raw natural gas and separates it into useful parts.',
+      'natural gas liquids': 'Heavier gases like ethane, propane and butane that come out of natural gas. Also called NGLs.',
+      'methane': 'The simplest carbon-based fuel: one carbon atom and four hydrogen atoms (CH₄). It is the main part of natural gas.',
+      'flare': 'A tall burner that safely burns off gas that can\'t be used or stored.'
+    },
+    camera: { pos: [-1, 17, 13], look: [-14, 1.5, -9.5] },
+    labelAt: [-15, 7, -11]
+  },
+  {
+    id: 'pipeline', path: 'gas', step: 6, label: 'Pipeline',
+    title: 'Pushed along long pipelines',
+    text: 'Clean gas travels long distances through buried steel [[pipelines]], some about a meter wide (approximate). Gas loses pressure as it rubs along the pipe walls. So every 80–160 km or so (50–100 miles, approximate), a [[compressor station]] squeezes it back up to keep it moving.',
+    analogy: 'Compressor stations are like relay runners: each one gives the gas a fresh push for the next leg of the trip.',
+    fact: 'Devices nicknamed "pigs" ride the gas flow through pipelines to clean them, and some carry sensors that check the walls for wear.',
+    tradeoff: 'Pipelines move huge amounts of gas quietly underground, but leaks can release methane and occasionally cause fires, so they are monitored and inspected.',
+    terms: {
+      'pipelines': 'Long steel pipes, usually buried, that carry gas or liquids over long distances.',
+      'compressor station': 'A facility along a pipeline that squeezes the gas to raise its pressure so it keeps flowing.'
+    },
+    camera: { pos: [11, 12, 4], look: [1.5, 1, -11.5] },
+    labelAt: [2, 4.6, -12.5]
+  },
+  {
+    id: 'storage-lng', path: 'gas', step: 7, label: 'Storage & LNG',
+    title: 'Saved for winter, or shipped overseas',
+    text: 'People use far more gas in winter for heating. So in warmer months, companies pump extra gas into [[underground storage]], such as old gas fields or huge caverns carved out of underground salt, and pull it back out when it\'s cold. To cross oceans, gas is chilled to about −162 °C (−260 °F) until it becomes a liquid called [[LNG]]. Special ships carry it, and at the other end it\'s warmed back into a gas.',
+    analogy: 'Storage works like a pantry: you stock up when food is plentiful and use it when you need it most.',
+    fact: 'Turning gas into LNG shrinks it to about 1/600th of its volume (approximate). That\'s what makes shipping it worthwhile.',
+    tradeoff: 'LNG lets countries buy gas from far away, but chilling, shipping and re-warming it uses a lot of energy.',
+    terms: {
+      'underground storage': 'Places deep underground, like old gas fields or caverns in salt, where gas is kept until it\'s needed.',
+      'LNG': 'Liquefied natural gas: natural gas chilled until it turns into a liquid, so it takes up far less space.'
+    },
+    camera: { pos: [-6, 12, -60], look: [14, -3, -23] },
+    labelAt: [19.5, 5.4, -19.5]
+  },
+  {
+    id: 'city-gate', path: 'gas', step: 8, label: 'City gate',
+    title: 'Into town: lower pressure, added smell',
+    text: 'At the [[city gate]], gas leaves the big pipeline and enters the local network. A [[pressure regulator]] lowers its pressure a lot, and an [[odorant]] is added, because natural gas has no smell of its own. Smaller pipes under the streets then carry the gas to a [[gas meter]] at each building.',
+    analogy: 'It\'s like leaving the highway for neighborhood streets: everything slows down and spreads out to reach each house.',
+    fact: 'Adding a smell to gas became standard after a deadly 1937 gas explosion at a school in New London, Texas.',
+    tradeoff: 'Safety tip: if you ever smell rotten eggs indoors, leave right away and call the gas company from outside.',
+    terms: {
+      'city gate': 'The station where gas moves from a long-distance pipeline into a local delivery network.',
+      'pressure regulator': 'A valve that automatically lowers gas pressure to a safe, steady level.',
+      'odorant': 'A strong-smelling sulfur chemical added to gas so leaks can be noticed.',
+      'gas meter': 'A device on the outside of a building that measures how much gas it uses.'
+    },
+    camera: { pos: [27, 10, 3], look: [17.5, 1, -8.5] },
+    labelAt: [17, 3.4, -9]
+  },
+  {
+    id: 'gas-uses', path: 'gas', step: 9, label: 'Using gas',
+    title: 'Electricity, heat and things we make',
+    text: 'Much natural gas goes to [[power plants]], which burn it to spin [[turbines]] that make electricity. In homes it fuels furnaces, stoves and water heaters. Factories use it for heat and also as an ingredient: most nitrogen [[fertilizer]] is made from natural gas, and many plastics start from the gas liquids pulled out at the processing plant.',
+    analogy: 'Natural gas is a utility player: the same fuel can light a city, cook dinner and help grow food.',
+    fact: 'In the US, natural gas makes roughly 40% of the electricity, more than any other source (approximate, recent years).',
+    tradeoff: 'Gas power plants can ramp up quickly when demand spikes, which helps keep the power supply steady, but they still release CO₂.',
+    terms: {
+      'power plants': 'Facilities that make electricity, often by burning fuel to spin a generator.',
+      'turbines': 'Machines with blades that spin when gas or steam rushes through them, turning a generator.',
+      'fertilizer': 'Nutrients added to soil to help crops grow. Nitrogen fertilizer is mostly made from natural gas.'
+    },
+    camera: { pos: [35, 30, 22], look: [31, 1, -8] },
+    labelAt: [37.5, 9.4, -17]
+  },
+  {
+    id: 'gas-burning', path: 'gas', step: 10, label: 'Burning gas',
+    title: 'Burning gas: heat, water and CO₂',
+    text: 'When methane burns, it combines with oxygen from the air. Each methane molecule becomes one molecule of [[carbon dioxide]] and two of water vapor, and gives off heat. Natural gas burns cleaner than coal or oil, with less soot and less CO₂ for the same heat. But it still adds CO₂ to the air, and methane that leaks before it\'s burned is a powerful [[greenhouse gas]].',
+    equation: 'CH₄ + 2 O₂ → CO₂ + 2 H₂O + heat',
+    analogy: 'Burning is a quick swap of partners: the same atoms rearrange, and the energy that held them together comes out as heat.',
+    fact: 'For the same amount of heat, burning gas releases roughly half the CO₂ of coal and about a quarter less than gasoline (approximate).',
+    tradeoff: 'Over 20 years, leaked methane traps roughly 80 times more heat than the same weight of CO₂ (approximate), so how much leaks along the way matters a lot for gas\'s overall climate impact.',
+    terms: {
+      'carbon dioxide': 'CO₂: a gas made when fuels containing carbon burn. It traps heat in the atmosphere.',
+      'greenhouse gas': 'A gas that traps heat in the atmosphere and warms the planet.'
+    },
+    camera: { pos: [27, 7, 10], look: [24.5, 2, 3] },
+    labelAt: [24.5, 4.4, 3]
+  },
+
+  // ---------------- GASOLINE PATH ----------------
+  {
+    id: 'crude-transport', path: 'gasoline', step: 5, label: 'To the refinery',
+    title: 'Moving crude oil to a refinery',
+    text: '[[Crude oil|crude oil]] is the thick, dark oil that comes out of the ground. On land, most of it travels through pipelines. Giant [[tanker]] ships carry it across oceans, and trains and trucks fill in where there are no pipes. Its destination is a refinery, where the real transformation happens.',
+    analogy: 'Crude oil is like raw ingredients delivered to a restaurant kitchen: useful, but not ready to serve.',
+    fact: 'A very large tanker can carry about 2 million [[barrels]] of crude (approximate).',
+    tradeoff: 'Spills from pipelines, trains or ships are uncommon but can badly harm land and water, so routes are inspected and regulated.',
+    terms: {
+      'crude oil': 'Oil as it comes out of the ground: a dark mix of many different molecules made of hydrogen and carbon.',
+      'tanker': 'A ship built to carry liquids like crude oil in huge tanks.',
+      'barrels': 'The standard unit for oil: 42 US gallons, about 159 liters.'
+    },
+    camera: { pos: [-12, 18, 31], look: [-13.5, 0.5, 14.5] },
+    labelAt: [-15, 3.4, 15.5]
+  },
+  {
+    id: 'distillation', path: 'gasoline', step: 6, label: 'Distillation tower',
+    title: 'Sorting crude by boiling point',
+    text: 'Crude is a mix of thousands of different molecules, big and small. A furnace heats it to roughly 350–400 °C (approximate), turning much of it to vapor. The vapor rises up a tall [[distillation tower]] and cools as it climbs, and each part turns back to liquid at its own [[boiling point]]: gasoline near the top, then jet fuel, diesel and heavy oils lower down. Light gases leave from the very top, and the heaviest part, which never boils, collects at the bottom as [[asphalt]].',
+    analogy: 'It works like steam fogging a cold bathroom mirror: vapor turns back to liquid when it cools. The tower does this at many temperatures, one level at a time.',
+    fact: 'After all of a refinery\'s steps, a 42-gallon barrel of crude yields about 19–20 gallons of gasoline at US refineries (approximate), plus diesel, jet fuel and more.',
+    terms: {
+      'distillation tower': 'A tall column that separates a liquid mix by letting its parts condense at different heights.',
+      'boiling point': 'The temperature where a liquid turns into a gas, or a gas turns back into a liquid as it cools.',
+      'asphalt': 'The thick, sticky leftover at the bottom of the barrel, used to pave roads.'
+    },
+    camera: { pos: [11, 9, 37], look: [-1, 6, 14] },
+    labelAt: [-1, 13.4, 14]
+  },
+  {
+    id: 'cracking', path: 'gasoline', step: 7, label: 'Cracking & cleanup',
+    title: 'Reshaping molecules into gasoline',
+    text: 'Distillation alone doesn\'t make enough gasoline, so refineries change the molecules themselves. [[Cracking|cracking]] uses heat, pressure and a [[catalyst]] to break big, heavy molecules into smaller, gasoline-sized ones. [[Reforming|reforming]] reshapes molecules to raise their [[octane]]. Finally, [[hydrotreating]] uses hydrogen to pull out sulfur, which would otherwise pollute the air when the fuel burns.',
+    analogy: 'Cracking is like slicing a long loaf of bread: the same bread, now in pieces the right size.',
+    fact: 'US gasoline is now limited to about 10 parts per million of sulfur on average (approximate), far less than in the 1990s.',
+    tradeoff: 'These units use a lot of energy, so refineries burn fuel and release CO₂, but the cleanup steps sharply cut sulfur pollution from cars.',
+    terms: {
+      'cracking': 'Breaking large fuel molecules into smaller ones.',
+      'catalyst': 'A material that speeds up a chemical reaction without being used up.',
+      'reforming': 'Rearranging the atoms in molecules so they make a higher-octane fuel.',
+      'octane': 'A rating of how well a fuel resists "knocking": exploding on its own instead of burning smoothly in an engine.',
+      'hydrotreating': 'Using hydrogen to remove sulfur and other impurities from fuel.'
+    },
+    camera: { pos: [16, 13, 32], look: [6, 3.5, 13] },
+    labelAt: [4, 8.4, 16]
+  },
+  {
+    id: 'blending', path: 'gasoline', step: 8, label: 'Blending',
+    title: 'Mixing the final recipe',
+    text: 'Gasoline isn\'t one product from one machine. Refiners [[blend]] several streams together, like a recipe, to hit targets such as octane. [[Additives|additives]], like detergents that keep engines clean, and often [[ethanol]] go in too, usually at the [[fuel terminal|storage terminals]]; most US gasoline is about 10% ethanol (approximate). The recipe changes with the seasons: winter blends evaporate more easily to help cold engines start, and summer blends evaporate less to cut smog.',
+    analogy: 'It\'s like a coffee blend: different batches are mixed so the result is the same every time, even when the beans vary.',
+    fact: 'Butane evaporates very easily, so refiners add more of it to winter gasoline and less in summer.',
+    terms: {
+      'blend': 'To mix several refinery liquids in set amounts to make a finished fuel.',
+      'additives': 'Small amounts of chemicals added to fuel, such as detergents that keep engine parts clean.',
+      'ethanol': 'An alcohol made mostly from corn or sugarcane and mixed into gasoline.'
+    },
+    camera: { pos: [19, 10, 31], look: [13, 1, 18] },
+    labelAt: [12.5, 3.2, 18]
+  },
+  {
+    id: 'delivery', path: 'gasoline', step: 9, label: 'Fuel delivery',
+    title: 'From refinery to your neighborhood',
+    text: 'Finished fuels travel through [[product pipelines]] to [[storage terminals]], big tank farms near cities. There, [[tanker trucks]] fill up and drive the fuel to gas stations. The truck unloads into large tanks buried under the station.',
+    analogy: 'It\'s like a grocery supply chain: a central warehouse stocks up, and delivery trucks make the last short trip to each store.',
+    fact: 'One pipeline can carry different fuels one after another, like cars in a train, with only a little mixing where batches meet.',
+    tradeoff: 'Modern underground tanks usually have double walls and leak sensors, because leaking fuel can pollute soil and groundwater.',
+    terms: {
+      'product pipelines': 'Pipelines that carry finished fuels like gasoline and diesel instead of crude oil.',
+      'storage terminals': 'Large groups of tanks where fuel is stored and loaded onto trucks.',
+      'tanker trucks': 'Trucks with a big tank that deliver fuel, typically about 30,000–40,000 liters per load (approximate).'
+    },
+    camera: { pos: [16, 12, 28], look: [19, 0.5, 11] },
+    labelAt: [17.5, 4.4, 6]
+  },
+  {
+    id: 'pump', path: 'gasoline', step: 10, label: 'At the pump',
+    title: 'At the pump: what octane means',
+    text: 'The numbers on the pump are [[octane ratings]]. They measure how well a fuel resists [[knocking]], when some of the fuel explodes on its own instead of burning smoothly, with a ping or rattle. Higher octane does not mean more energy or more power. It only matters if your engine is built for it, so use the grade your owner\'s manual recommends.',
+    analogy: 'Octane is like patience: high-octane fuel waits calmly for the flame from the spark instead of going off on its own under pressure.',
+    fact: 'US pumps usually show 87, 89 and 91–93. Many other countries use a different scale, so similar fuels carry higher numbers there, like 95 or 98.',
+    terms: {
+      'octane ratings': 'A number showing how well a fuel resists knocking. Higher means more resistant, not more energy.',
+      'knocking': 'Pockets of fuel and air exploding on their own instead of burning smoothly from the spark. It makes a pinging sound and can damage an engine over time.'
+    },
+    camera: { pos: [25, 9, 38], look: [22.5, 1.5, 19.5] },
+    labelAt: [23.5, 4.6, 18]
+  },
+  {
+    id: 'engine', path: 'gasoline', step: 11, label: 'Inside the engine',
+    title: 'Inside the engine: four strokes',
+    text: 'Each [[cylinder]] repeats a [[four-stroke cycle]]: intake, compression, power and exhaust. A [[spark plug]] lights the squeezed fuel and air, and the burst of hot gas shoves the [[piston]] down. The pistons turn the [[crankshaft]], which turns the wheels. Most of the fuel\'s energy, though, ends up as waste heat.',
+    strokes: [
+      ['Intake', 'The piston moves down and pulls in air and a mist of fuel.'],
+      ['Compression', 'The piston moves up and squeezes the mix into a small space.'],
+      ['Power', 'The spark ignites the mix, and the hot gas forces the piston down.'],
+      ['Exhaust', 'The piston moves up and pushes the burned gas out to the tailpipe.']
+    ],
+    analogy: 'It\'s like pedaling a bike: each push on a pedal turns the crank, and the crank keeps the wheels turning.',
+    fact: 'Only about a fifth to a quarter of the energy in gasoline actually moves a typical car (approximate). Most of the rest leaves as heat.',
+    terms: {
+      'cylinder': 'A tube inside the engine where fuel burns and a piston slides up and down. Most cars have four or more.',
+      'four-stroke cycle': 'The repeating four-step pattern most car engines use: intake, compression, power, exhaust.',
+      'spark plug': 'A part that makes a small electric spark to ignite the fuel.',
+      'piston': 'A metal plug that slides up and down inside a cylinder.',
+      'crankshaft': 'A spinning shaft that turns the pistons\' up-and-down motion into rotation.'
+    },
+    camera: { pos: [37, 6.8, 20.5], look: [34, 4.7, 11] },
+    labelAt: [34, 2.5, 11]
+  },
+  {
+    id: 'tailpipe', path: 'gasoline', step: 12, label: 'Out the tailpipe',
+    title: 'Out the tailpipe: what\'s left',
+    text: 'Burning gasoline mostly makes [[carbon dioxide]] and water vapor. Smaller amounts of pollutants form too: [[carbon monoxide]], unburned fuel, and [[nitrogen oxides]], which help make smog. A [[catalytic converter]] turns most of these into less harmful gases once it has warmed up. But it can\'t remove CO₂, the main greenhouse gas from cars.',
+    equation: '2 C₈H₁₈ + 25 O₂ → 16 CO₂ + 18 H₂O + heat',
+    analogy: 'A catalytic converter is like a cleanup crew at the exit: it fixes the worst leftovers but can\'t make the main product, CO₂, disappear.',
+    fact: 'Burning about 1 kg of gasoline makes about 3 kg of CO₂ (approximate). The extra weight is oxygen grabbed from the air.',
+    tradeoff: 'Catalytic converters have cut smog-forming pollution dramatically, but tailpipe CO₂ remains a major contributor to climate change.',
+    terms: {
+      'carbon dioxide': 'CO₂: a gas made when fuels containing carbon burn. It traps heat in the atmosphere.',
+      'carbon monoxide': 'A poisonous, invisible gas made when fuel burns without enough oxygen.',
+      'nitrogen oxides': 'Gases formed from air in hot engines. They help create smog.',
+      'catalytic converter': 'A device in the exhaust pipe that uses metals like platinum to turn harmful gases into less harmful ones.'
+    },
+    camera: { pos: [27, 6, 24], look: [30.5, 2, 12] },
+    labelAt: [30, 1.6, 12.6]
+  }
+];
+
+/* Fallback definitions for terms used outside a stage (overview, extras). */
+const GLOSSARY = {
+  'hydrocarbons': 'Molecules made only of hydrogen and carbon atoms. Oil and natural gas are mixes of them.',
+  'refinery': 'A plant that turns crude oil into fuels like gasoline, diesel and jet fuel.'
+};
+
+/* The big-idea overview shown first. */
+const OVERVIEW = {
+  title: 'Two fuels, one beginning',
+  text: 'Natural gas and gasoline start the same way. Tiny sea life was buried and slowly "cooked" by heat and pressure over millions of years into oil and gas. The two are often found together and come up the same wells. Then the paths split: gas is cleaned and piped fairly directly to where it\'s used, while crude oil must be heavily transformed in a [[refinery]] before it becomes gasoline.'
+};
+
+/* Guided tours: the order of stage ids. */
+const TOURS = {
+  gas: { name: 'Natural gas', stages: ['formation', 'reservoir', 'drilling', 'lifting', 'gas-plant', 'pipeline', 'storage-lng', 'city-gate', 'gas-uses', 'gas-burning'] },
+  gasoline: { name: 'Gasoline', stages: ['formation', 'reservoir', 'drilling', 'lifting', 'crude-transport', 'distillation', 'cracking', 'blending', 'delivery', 'pump', 'engine', 'tailpipe'] }
+};
+
+/* End-of-tour quizzes: [question, [options], index of correct option, explanation]. */
+const QUIZZES = {
+  gas: [
+    ['Natural gas and gasoline both started as…', ['Dinosaur bones', 'Tiny sea life buried for millions of years', 'Cooled volcanic lava', 'Ancient tree sap'], 1,
+      'Both formed from plankton and algae that were buried and slowly "cooked" by heat and pressure.'],
+    ['Why does natural gas smell like rotten eggs?', ['That is its natural smell', 'A smell is added on purpose so leaks are noticed', 'It picks up the smell inside pipelines', 'Burning it makes the smell'], 1,
+      'Natural gas has no smell. An odorant is added at the city gate so people can notice a leak.'],
+    ['What does a compressor station do?', ['Turns gas into a liquid', 'Adds the rotten-egg smell', 'Squeezes the gas so it keeps moving down the pipeline', 'Removes propane and butane'], 2,
+      'Gas loses pressure as it travels. Compressor stations push it back up so it keeps flowing.']
+  ],
+  gasoline: [
+    ['Where is oil found underground?', ['In big underground lakes', 'Soaked into tiny pores in rock', 'Inside open caves', 'Floating on groundwater near the surface'], 1,
+      'Oil fills the tiny spaces between rock grains, like water in a sponge, trapped under a cap rock.'],
+    ['In a distillation tower, where does gasoline collect?', ['At the very bottom, with asphalt', 'Near the top, just below the light gases', 'Exactly in the middle', 'Nowhere; gasoline is added later'], 1,
+      'Gasoline molecules are small and boil at low temperatures, so they rise high before turning back into liquid.'],
+    ['What does a higher octane rating mean?', ['More energy per liter', 'Better resistance to knocking', 'Cleaner exhaust', 'More ethanol in the mix'], 1,
+      'Octane measures how well fuel resists exploding on its own under pressure. It is not a measure of energy or power.']
+  ]
+};
+
+/* Side-by-side comparison card. */
+const COMPARISON = [
+  ['Main molecule', 'Methane (CH₄): 1 carbon atom', 'A mix of molecules with roughly 4–12 carbons, such as octane (C₈H₁₈)'],
+  ['At room temperature', 'A gas', 'A liquid'],
+  ['Getting it ready', 'Cleaned and dried at a processing plant', 'Heavily transformed at a refinery: distilled, cracked, reformed and blended'],
+  ['How it travels', 'Pipelines; ships as chilled liquid (LNG)', 'Pipelines, ships, trains and tanker trucks'],
+  ['Main uses', 'Electricity, home heating and cooking, industry, fertilizer', 'Mostly cars and other vehicles'],
+  ['Smell', 'None of its own; a smell is added for safety', 'Its own strong smell'],
+  ['Burning makes', 'CO₂ and water, plus some nitrogen oxides; less CO₂ for the same heat', 'CO₂ and water, plus pollutants a catalytic converter mostly cleans up'],
+  ['Climate watch-out', 'CO₂ when burned, plus methane leaks before it is burned', 'CO₂ from millions of tailpipes']
+];
+
+/* Molecule view text. */
+const MOLECULES = {
+  title: 'Why one is a gas and the other a liquid',
+  methane: ['Methane · CH₄', 'One carbon atom. Boils at about −162 °C, so it is a gas at room temperature.'],
+  octane: ['Octane · C₈H₁₈', 'Eight carbon atoms. Boils at about 125 °C, so it is a liquid at room temperature.'],
+  text: 'Gasoline isn\'t a single molecule. It is a blend of many [[hydrocarbons]], each with roughly 4 to 12 carbon atoms. Bigger molecules cling to each other more strongly, so they need more heat to boil. That is a big reason methane is a gas while gasoline is a liquid.',
+  note: 'Octane is drawn here as a straight chain. The "octane" in octane ratings has the same atoms arranged in a branching shape.'
+};
+
+/* Formation time-lapse captions: [millions of years ago, caption]. Illustrative only. */
+const TIMELAPSE = [
+  [150, 'Plankton thrive in a warm, shallow sea. When they die, they sink into the mud.'],
+  [130, 'Low oxygen on the seafloor stops them rotting away. A dark, rich mud builds up.'],
+  [100, 'Rivers dump sand and mud on top. Layer by layer, the remains are buried deeper.'],
+  [60, 'Now kilometers down, it is hot: roughly 60–120 °C (approximate). The remains slowly turn into oil.'],
+  [30, 'Deeper, hotter parts turn into gas. Oil and gas creep upward through the rock.'],
+  [0, 'They collect in porous sandstone, trapped under tight cap rock. Today, we drill for them.']
+];
+
+/* =====================================================================
+   SCENE SETUP
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const canvas = $('#scene');
+const IS_COARSE = matchMedia('(pointer: coarse)').matches;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+} catch (err) {
+  $('#app').insertAdjacentHTML('beforeend', '<div class="noscene"><p>This model needs WebGL, which your browser or device has turned off. Try a recent version of Chrome, Edge, Firefox or Safari.</p></div>');
+  throw err;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_COARSE ? 1.5 : 1.75));
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 1000);
+
+const hemi = new THREE.HemisphereLight(0xf0f6ff, 0x8f7d6a, 0.8);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff4e2, 0.7);
+sun.position.set(38, 72, 46);
+sun.castShadow = true;
+sun.shadow.mapSize.set(IS_COARSE ? 1024 : 2048, IS_COARSE ? 1024 : 2048);
+Object.assign(sun.shadow.camera, { left: -66, right: 66, top: 56, bottom: -56, near: 10, far: 220 });
+sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.04;
+scene.add(sun);
+const fillLight = new THREE.DirectionalLight(0xe2ecff, 0.3);
+fillLight.position.set(-45, 20, 70);
+scene.add(fillLight);
+
+/* =====================================================================
+   BUILD HELPERS
+   Every stage gets its own group, materials (so it can be dimmed),
+   invisible click targets, optional pop-out exhibits and an animation.
+   ===================================================================== */
+const ST = {};            // stage id -> runtime record
+let SEL = null;           // id of the stage open in the panel, or null
+const SCENERY = new THREE.Group();
+scene.add(SCENERY);
+const BUILD = { id: null, parent: scene };
+const matCache = new Map();
+const HIT_GEO = new THREE.BoxGeometry(1, 1, 1);
+const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
+
+/* Materials are cached per stage so a stage can be dimmed on its own.
+   o.own = a private material the stage animates itself (color, emissive or opacity). */
+function mat(hex, o = {}) {
+  const key = [BUILD.id || '_', hex, o.op ?? 1, o.em ?? 0, o.basic ? 1 : 0, o.side || 0].join('|');
+  let m = o.own ? null : matCache.get(key);
+  if (!m) {
+    m = o.basic
+      ? new THREE.MeshBasicMaterial({ color: hex })
+      : new THREE.MeshPhongMaterial({ color: hex, flatShading: true, shininess: 10, specular: 0x111111 });
+    if (o.em != null && !o.basic) m.emissive = new THREE.Color(o.em);
+    if (o.op != null && o.op < 1) { m.transparent = true; m.opacity = o.op; m.depthWrite = false; }
+    if (o.side) m.side = o.side;
+    m.userData.base = new THREE.Color(hex);
+    m.userData.baseOp = m.opacity;
+    m.userData.baseEm = m.emissive ? m.emissive.clone() : null;
+    m.userData.own = !!o.own;
+    if (!o.own) matCache.set(key, m);
+    if (BUILD.id) ST[BUILD.id].mats.add(m);
+  }
+  return m;
+}
+function add(m, o) {
+  m.castShadow = o.cast !== false && !o.basic;
+  m.receiveShadow = o.recv !== false && !o.basic;
+  if (o.dyn) m.userData.dyn = 1;
+  (o.p || BUILD.parent).add(m);
+  return m;
+}
+function M(geo, hex, x, y, z, o = {}) {
+  const m = new THREE.Mesh(geo, o.m || mat(hex, o));
+  m.position.set(x, y, z);
+  if (o.rx) m.rotation.x = o.rx;
+  if (o.ry) m.rotation.y = o.ry;
+  if (o.rz) m.rotation.z = o.rz;
+  return add(m, o);
+}
+/* y is the BASE height for box/cyl, the CENTER for ball */
+const box = (w, h, d, hex, x, y, z, o = {}) => M(new THREE.BoxGeometry(w, h, d), hex, x, y + h / 2, z, o);
+const cyl = (rt, rb, h, hex, x, y, z, o = {}) => M(new THREE.CylinderGeometry(rt, rb, h, o.seg || 10, 1, !!o.open), hex, x, y + h / 2, z, o);
+const ball = (r, hex, x, y, z, o = {}) => M(new THREE.SphereGeometry(r, o.seg || 10, o.hseg || 7), hex, x, y, z, o);
+function rod(a, b, r, hex, o = {}) {
+  const A = V3(...a), B = V3(...b), d = B.clone().sub(A), len = d.length();
+  const m = M(new THREE.CylinderGeometry(r, o.r2 ?? r, len, o.seg || 8), hex, (A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2, o);
+  m.quaternion.setFromUnitVectors(V3(0, 1, 0), d.normalize());
+  return m;
+}
+/* horizontal tank along x with rounded ends */
+function bullet(len, r, hex, x, y, z, o = {}) {
+  const g = grp(x, y, z, o);
+  within(g, () => {
+    M(new THREE.CylinderGeometry(r, r, len, o.seg || 12), hex, 0, 0, 0, { rz: Math.PI / 2, dyn: o.dyn });
+    ball(r, hex, -len / 2, 0, 0, { seg: o.seg || 12, dyn: o.dyn });
+    ball(r, hex, len / 2, 0, 0, { seg: o.seg || 12, dyn: o.dyn });
+  });
+  return g;
+}
+function grp(x = 0, y = 0, z = 0, o = {}) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  if (o.ry) g.rotation.y = o.ry;
+  if (o.dyn) g.userData.dyn = 1;
+  (o.p || BUILD.parent).add(g);
+  return g;
+}
+function within(g, fn) { const prev = BUILD.parent; BUILD.parent = g; fn(); BUILD.parent = prev; return g; }
+/* invisible click target, centered at x,y,z */
+function hit(x, y, z, w, h, d, p) {
+  const m = new THREE.Mesh(HIT_GEO, HIT_MAT);
+  m.scale.set(w, h, d);
+  m.position.set(x, y, z);
+  m.userData.hit = BUILD.id;
+  (p || BUILD.parent).add(m);
+  ST[BUILD.id].hits.push(m);
+  return m;
+}
+/* small HTML label shown only while its stage is selected */
+const DETAILS = [];
+function detail(text, pos, o = {}) {
+  const d = { stage: BUILD.id, text, pos: V3(...pos), obj: o.obj || null, big: !!o.big, swatch: o.swatch, el: null, face: o.face || null, playing: !!o.playing };
+  DETAILS.push(d);
+  return d;
+}
+/* pop-out exhibits grow in when the stage is selected */
+function popout(g) { g.userData.dyn = 1; g.scale.setScalar(0.001); g.visible = false; ST[BUILD.id].pops.push(g); return g; }
+function onAnim(fn) { ST[BUILD.id].anim = fn; }
+function stage(id, fn) {
+  const s = STAGES.find(v => v.id === id);
+  if (!s) return;
+  const g = new THREE.Group();
+  g.name = id;
+  scene.add(g);
+  ST[id] = { data: s, group: g, mats: new Set(), hits: [], pops: [], anim: null, k: 0, dim: 0, dimT: 0 };
+  const prev = { ...BUILD };
+  BUILD.id = id; BUILD.parent = g;
+  fn(g);
+  BUILD.id = prev.id; BUILD.parent = prev.parent;
+}
+function scenery(fn) { const prev = { ...BUILD }; BUILD.id = null; BUILD.parent = SCENERY; fn(); BUILD.id = prev.id; BUILD.parent = prev.parent; }
+
+/* canvas textures for signs */
+function textTexture(lines, o = {}) {
+  const c = document.createElement('canvas');
+  c.width = o.w || 256; c.height = o.h || 128;
+  const x = c.getContext('2d');
+  x.fillStyle = o.bg || '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = o.fg || '#16202a';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  lines.forEach((ln, i) => {
+    x.font = (ln.f || '700 44px') + ' Arial, Helvetica, sans-serif';
+    x.fillStyle = ln.c || o.fg || '#16202a';
+    x.fillText(ln.t, ln.x ?? c.width / 2, ln.y ?? (c.height / (lines.length + 1)) * (i + 1));
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = 4;
+  return t;
+}
+/* round sprite for particles */
+function dotTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.55, 'rgba(255,255,255,1)'); g.addColorStop(0.7, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const DOT_TEX = dotTexture();
+function pointsCloud(n, size, opts = {}) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+  const m = new THREE.PointsMaterial({ size, map: DOT_TEX, vertexColors: true, transparent: true, depthWrite: false, alphaTest: 0.05, sizeAttenuation: true, opacity: opts.op ?? 1 });
+  const p = new THREE.Points(geo, m);
+  p.frustumCulled = false;
+  p.userData.dyn = 1;
+  (opts.p || BUILD.parent).add(p);
+  return p;
+}
+
+/* =====================================================================
+   THE GROUND: a layered slab with the front cut away
+   ===================================================================== */
+const X0 = -42, X1 = 42, Z0 = -24, Z1 = 24, YB = -16, FACE = Z1 + 0.04;
+const dome = x => 2.4 * Math.exp(-((x + 28) ** 2) / 98);
+const BND = [
+  () => -0.15,                       // top of soil (grass sits above)
+  () => -0.9,                        // soil bottom
+  () => -3.2,                        // groundwater sand bottom
+  x => -6.4 + dome(x),               // cap rock top
+  x => -7.6 + dome(x),               // cap rock bottom = reservoir top
+  x => -10.4 + dome(x),              // reservoir bottom
+  x => -12.2 + 0.45 * dome(x),       // source rock top
+  x => -14.4 + 0.2 * dome(x),        // source rock bottom
+  () => YB
+];
+const GOC = -5.9, OWC = -6.9;         // gas-oil and oil-water contacts
+const COL = {
+  grass: 0x9fcf6a, soil: 0x8a6a4c, aquifer: 0xbfd4dc, over: 0xdcbf91, cap: 0x8b86a8,
+  water: 0x7fb0c3, oil: 0x4a3426, gas: 0xdcefff, shale: 0x9a928a, source: 0x3e3b42, base: 0xb08468,
+  plinth: 0x2f3b48, dsteel: 0x5c6873, conc: 0xc9c6c0, road: 0x50565e, line: 0xf1f1ea,
+  gasB: 0x2f86eb, amber: 0xf2a516, stone: 0x8e8178       // route colors: natural gas, gasoline, shared
+};
+/* Anchor points shared by the stage models and the route lines (h_routes.js).
+   Move a site here and both follow. */
+const SITE = {
+  oilWell: { x: -36, z: 23.3 },                       // pump jack well, ends in the oil zone
+  gasWell: { x: -28, z: 23.2 },                       // gas wellhead on the dome crest
+  separator: { x: -28, y: 1.35, z: 13.5, len: 5 },    // horizontal three-phase separator
+  waterTank: { x: -33.4, z: 11.4 },
+  tower: { x: -1, z: 14 },                            // distillation tower
+  storage: { x: 6, z: -21.6 },                        // underground gas storage well
+  gasMain: { z: -9 },                                 // the buried gas main runs along this line
+  cityGate: { x: 17, z: -9 },                         // sits on the gas main
+  stove: { x: 24.5, z: 3 },
+  street: { z: -1.2 },                                // town street the gas main runs along
+  car: { x: 34, z: 11 }                               // car on the road (engine + tailpipe stages)
+};
+function xs(a, b, step = 1.2) {
+  const n = Math.max(2, Math.ceil((b - a) / step));
+  return Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+}
+function shapeFrom(pts) {
+  const clean = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 1e-3);
+  const s = new THREE.Shape();
+  s.moveTo(clean[0][0], clean[0][1]);
+  for (let i = 1; i < clean.length; i++) s.lineTo(clean[i][0], clean[i][1]);
+  return s;
+}
+function bandPts(x0, x1, top, bot, step) {
+  const X = xs(x0, x1, step), pts = [];
+  X.forEach(x => pts.push([x, top(x)]));
+  for (let i = X.length - 1; i >= 0; i--) pts.push([X[i], bot(X[i])]);
+  return pts;
+}
+function extrude(pts, hex, z0, z1, o = {}) {
+  const g = new THREE.ExtrudeGeometry(shapeFrom(pts), { depth: z1 - z0, bevelEnabled: false, curveSegments: 1 });
+  g.translate(0, 0, z0);
+  return M(g, hex, 0, 0, 0, o);
+}
+/* find x where f(x) crosses level c between a and b (bisection) */
+function crossX(f, c, a, b) {
+  let lo = a, hi = b, flo = f(lo) - c;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2, fm = f(mid) - c; if ((fm > 0) === (flo > 0)) { lo = mid; flo = fm; } else hi = mid; }
+  return (lo + hi) / 2;
+}
+
+scenery(() => {
+  // display base
+  box(98, 1, 70, COL.plinth, -3, -17, -5, { cast: false });
+  // grass top
+  box(X1 - X0, 0.15, Z1 - Z0, COL.grass, 0, -0.15, 0, { cast: false });
+  // rock layers
+  const L = [['soil', 0, 1], ['aquifer', 1, 2], ['over', 2, 3], ['cap', 3, 4], ['shale', 5, 6], ['source', 6, 7], ['base', 7, 8]];
+  L.forEach(([c, a, b]) => extrude(bandPts(X0, X1, BND[a], BND[b]), COL[c], Z0, Z1, { cast: false }));
+  // reservoir split into gas / oil / water zones (fluids sorted by weight)
+  const top = BND[4], bot = BND[5];
+  const gx0 = crossX(top, GOC, -42, -28), gx1 = crossX(top, GOC, -28, 0);
+  const ox0 = crossX(top, OWC, -42, -28), ox1 = crossX(top, OWC, -28, 0);
+  extrude(bandPts(gx0, gx1, top, () => GOC, 0.6), COL.gas, Z0, Z1, { cast: false });
+  const oilTop = x => Math.min(top(x), GOC);
+  extrude(bandPts(ox0, ox1, oilTop, () => OWC, 0.6), COL.oil, Z0, Z1, { cast: false });
+  const waterTop = x => Math.min(top(x), OWC);
+  extrude(bandPts(X0, X1, waterTop, bot, 0.6), COL.water, Z0, Z1, { cast: false });
+  // sea strip for the harbor
+  box(30, 12.8, 16, 0xcdbb94, 27, -16, -32, { cast: false });
+  box(30, 2.5, 16, 0x3d9be0, 27, -3.2, -32, { op: 0.72, cast: false, recv: false });
+  box(30, 0.05, 16, 0x7cc0f0, 27, -0.72, -32, { op: 0.55, cast: false, recv: false });
+});
+
+
+
+/* ground helpers used by many stages */
+function pad(w, d, x, z, hex = COL.conc) { return box(w, 0.08, d, hex, x, 0, z, { cast: false }); }
+function faceStrip(x, y0, y1, w, hex, dz = 0, o = {}) { // vertical strip drawn on the cut face
+  return box(w, y0 - y1, 0.06, hex, x, y1, FACE + dz, { cast: false, ...o });
+}
+function tree(x, z, s = 1, hex = 0x5fa34a) {
+  cyl(0.12 * s, 0.16 * s, 0.7 * s, 0x7a5a3c, x, 0, z, { seg: 6 });
+  M(new THREE.ConeGeometry(0.75 * s, 1.7 * s, 7), hex, x, 0.7 * s + 0.85 * s, z);
+  M(new THREE.ConeGeometry(0.55 * s, 1.2 * s, 7), hex, x, 1.5 * s + 0.6 * s, z);
+}
+
+/* =====================================================================
+   SHARED START: formation, reservoir, drilling, lifting
+   ===================================================================== */
+const TL = { playing: false, T: 1, dur: 16, ma: 0, cap: TIMELAPSE[TIMELAPSE.length - 1][1] };
+
+stage('formation', () => {
+  // fossil specks in the source rock on the cut face
+  [[-41, -13.1], [-40, -12.6], [-39.1, -13.5], [-38.1, -12.9], [-37.2, -13.4], [-36.3, -12.8], [-34.9, -13.2]].forEach(([x, y], i) => {
+    if (i % 2) M(new THREE.TorusGeometry(0.2, 0.07, 5, 10), 0xf1e7cf, x, y, FACE + 0.04, { cast: false });
+    else M(new THREE.CircleGeometry(0.22, 7), 0xe9dcc0, x, y, FACE + 0.03, { cast: false });
+  });
+  hit(-38, -13, 24, 8, 2.8, 1.2);
+  detail('Source rock: where oil and gas form', [-38, -15.1, FACE]);
+
+  // time column: a glass core that replays how the layers formed
+  const cx = -47.5, cz = 18, r = 1.95, xl = -42;
+  const col = grp(cx, 0, cz, { dyn: 1 });
+  within(col, () => {
+    M(new THREE.CylinderGeometry(2.15, 2.15, 16.7, 20, 1, true), 0xcfe6f7, 0, -16 + 8.35, 0, { op: 0.18, cast: false, recv: false, side: THREE.DoubleSide });
+    M(new THREE.TorusGeometry(2.15, 0.1, 6, 24), 0x9fb3c4, 0, 0.7, 0, { rx: Math.PI / 2, cast: false });
+    M(new THREE.CylinderGeometry(2.6, 2.8, 0.5, 20), COL.plinth, 0, -16 + 0.25, 0, { cast: false });
+  });
+  hit(cx, -7.5, cz, 5, 17.5, 5);
+  const unit = new THREE.CylinderGeometry(r, r, 1, 18); unit.translate(0, 0.5, 0);
+  const at = i => BND[i](xl);
+  const spec = [ // [bottom, top, color, glowable]
+    [YB, at(7), COL.base], [at(7), at(6), COL.source, 1], [at(6), at(5), COL.shale], [at(5), at(4), COL.water],
+    [at(4), at(3), COL.cap], [at(3), at(2), COL.over], [at(2), at(1), COL.aquifer], [at(1), at(0), COL.soil], [at(0), 0, COL.grass]
+  ];
+  const layers = spec.map(([y0, y1, c, glow]) => {
+    const m = new THREE.Mesh(unit, mat(c, { own: !!glow }));
+    m.position.set(0, y0, 0); m.scale.y = y1 - y0; m.userData.dyn = 1; col.add(m);
+    return { m, y0, y1 };
+  });
+  // oil and gas that collect at the top of the sandstone at the end
+  const resTop = at(4), srcTop = at(6);
+  const oilCap = new THREE.Mesh(unit, mat(COL.oil)); oilCap.position.y = resTop - 0.9; oilCap.scale.set(1.01, 0.5, 1.01); col.add(oilCap);
+  const gasCap = new THREE.Mesh(unit, mat(COL.gas)); gasCap.position.y = resTop - 0.4; gasCap.scale.set(1.01, 0.4, 1.01); col.add(gasCap);
+  const sea = new THREE.Mesh(unit, mat(0x4aa3e0, { op: 0.45, own: true })); sea.visible = false; col.add(sea);
+  oilCap.userData.dyn = gasCap.userData.dyn = sea.userData.dyn = 1;
+  const plank = pointsCloud(46, 0.32, { p: col });
+  const drops = pointsCloud(36, 0.36, { p: col });
+  const pp = plank.geometry.attributes.position.array, dp = drops.geometry.attributes.position.array, dc = drops.geometry.attributes.color.array;
+  const pc = plank.geometry.attributes.color.array;
+  for (let i = 0; i < 46; i++) { const a = Math.random() * 6.28, rr = Math.random() * 1.7; pp[i * 3] = Math.cos(a) * rr; pp[i * 3 + 1] = -14 + Math.random() * 14; pp[i * 3 + 2] = Math.sin(a) * rr; pc.set([0.82, 0.98, 0.72], i * 3); }
+  for (let i = 0; i < 36; i++) { const a = Math.random() * 6.28, rr = Math.random() * 1.6; dp[i * 3] = Math.cos(a) * rr; dp[i * 3 + 2] = Math.sin(a) * rr; dp[i * 3 + 1] = srcTop - Math.random() * 1.5; const g = i % 3 === 0; dc.set(g ? [0.86, 0.94, 1] : [0.2, 0.13, 0.08], i * 3); }
+  plank.visible = drops.visible = false;
+  const counter = detail('', [cx, 1.7, cz], { big: true, playing: true });
+
+  const seg = (T, a, b) => clamp((T - a) / (b - a), 0, 1);
+  function setT(T) {
+    TL.T = T;
+    // Ma counter through the keyframes
+    const keys = [[0, 150], [0.12, 130], [0.34, 100], [0.62, 60], [0.8, 30], [1, 0]];
+    let ma = 0;
+    for (let i = 0; i < keys.length - 1; i++) if (T >= keys[i][0] && T <= keys[i + 1][0]) ma = lerp(keys[i][1], keys[i + 1][1], (T - keys[i][0]) / (keys[i + 1][0] - keys[i][0]));
+    TL.ma = Math.round(ma);
+    const capIdx = [0, 0.12, 0.34, 0.62, 0.8, 0.97].filter(v => T >= v).length - 1;
+    TL.cap = TIMELAPSE[clamp(capIdx, 0, TIMELAPSE.length - 1)][1];
+    counter.text = TL.ma > 0 ? `≈ ${TL.ma} million years ago` : 'Today';
+    // layers grow from the bottom up
+    const grow = [1, seg(T, 0, 0.2), seg(T, 0.2, 0.27), seg(T, 0.27, 0.36), seg(T, 0.36, 0.42), seg(T, 0.42, 0.5), seg(T, 0.5, 0.56), seg(T, 0.56, 0.6), seg(T, 0.6, 0.62)];
+    let stackTop = YB;
+    layers.forEach((L, i) => {
+      const h = (L.y1 - L.y0) * grow[i];
+      L.m.visible = h > 0.001;
+      L.m.position.y = L.y0; L.m.scale.y = Math.max(h, 0.001);
+      if (h > 0.001) stackTop = L.y0 + h;
+    });
+    sea.visible = stackTop < -0.05;
+    sea.position.y = stackTop; sea.scale.set(1.0, Math.max(0.001, -stackTop), 1.0);
+    // heat glow in the source rock
+    const glow = seg(T, 0.6, 0.72) * (1 - 0.5 * seg(T, 0.9, 1));
+    layers[1].m.material.emissive.setRGB(0.55 * glow, 0.18 * glow, 0.02 * glow);
+    const fillIn = seg(T, 0.8, 0.98);
+    oilCap.visible = gasCap.visible = fillIn > 0.02;
+    oilCap.scale.y = 0.5 * fillIn; gasCap.scale.y = 0.4 * fillIn; gasCap.position.y = resTop - 0.4 * fillIn;
+    oilCap.position.y = resTop - 0.4 * fillIn - 0.5 * fillIn;
+    plank.visible = TL.playing && T < 0.24;
+    drops.visible = TL.playing && T > 0.72 && T < 0.99;
+  }
+  TL.play = () => {
+    for (let i = 0; i < 36; i++) dp[i * 3 + 1] = srcTop - Math.random() * 1.5;
+    drops.geometry.attributes.position.needsUpdate = true;
+    TL.playing = true; setT(0);
+  };
+  setT(1);
+
+  onAnim((t, dt, active) => {
+    counter.hide = !TL.playing && TL.T >= 1 && !active;
+    if (!TL.playing) return;
+    const T = Math.min(1, TL.T + dt / TL.dur);
+    setT(T);
+    if (plank.visible) {
+      for (let i = 0; i < 46; i++) { let y = pp[i * 3 + 1] - dt * 2.2; if (y < srcTop + 0.1) y = -1 - Math.random() * 2; pp[i * 3 + 1] = y; }
+      plank.geometry.attributes.position.needsUpdate = true;
+    }
+    if (drops.visible) {
+      for (let i = 0; i < 36; i++) { let y = dp[i * 3 + 1] + dt * (1.6 + (i % 5) * 0.25); const stop = resTop - 0.3 - (i % 3 ? 0.5 : 0); if (y > stop) y = stop; dp[i * 3 + 1] = y; }
+      drops.geometry.attributes.position.needsUpdate = true;
+    }
+    if (T >= 1) { TL.playing = false; setT(1); }
+  });
+});
+
+stage('reservoir', () => {
+  hit(-28, -6.4, 24, 22, 4.4, 1.2);
+  detail('Gas', [-28, -5.55, FACE], { swatch: '#dcefff' });
+  detail('Oil', [-35.2, -6.5, FACE], { swatch: '#4a3426' });
+  detail('Salty water', [-19.5, -7.9, FACE], { swatch: '#7fb0c3' });
+  detail('Cap rock (the lid)', [-21.5, -5.3, FACE], { swatch: '#8b86a8' });
+  // magnifier showing sand grains with oil in the pores
+  const lens = popout(grp(-38, -11.4, 27.4));
+  const inner = grp(0, 0, 0, { p: lens });
+  inner.scale.setScalar(0.78);
+  within(inner, () => {
+    M(new THREE.TorusGeometry(2.25, 0.16, 8, 30), 0x2b3440, 0, 0, 0, { cast: false });
+    lens.userData.back = M(new THREE.CircleGeometry(2.2, 30), 0x4a3426, 0, 0, -0.05, { cast: false, own: true });
+    const grains = [];
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.39996, rr = 1.85 * Math.sqrt((i + 0.5) / 26);
+      const g = M(new THREE.IcosahedronGeometry(0.42 + (i % 4) * 0.05, 0), [0xe2c893, 0xd5b57d, 0xeed9a8, 0xc9a66d][i % 4], Math.cos(a) * rr, Math.sin(a) * rr, 0.2, { cast: false });
+      g.rotation.set(i, i * 2, 0); grains.push(g);
+    }
+    lens.userData.grains = grains;
+  });
+  const stick = rod([-37.2, -9.7, 27.4], [-34.6, -6.45, FACE + 0.05], 0.05, 0x2b3440, { cast: false, dyn: 1 });
+  popout(stick);
+  detail('Zoom: sand grains, oil in the gaps', [-38, -13.6, 27.4]);
+  onAnim((t, dt, active, k) => {
+    if (k <= 0) return;
+    lens.userData.grains.forEach((g, i) => { g.position.z = 0.2 + Math.sin(t * 1.6 + i) * 0.04; });
+    lens.userData.back.material.color.setHSL(0.07, 0.32, 0.2 + 0.03 * Math.sin(t * 2.4));
+  });
+});
+
+stage('drilling', () => {
+  const rx = -21, rz = 22.2;
+  pad(6.4, 3.4, rx, rz);
+  // substructure and drill floor
+  [[-1.5, -1.3], [1.5, -1.3], [-1.5, 1.3], [1.5, 1.3]].forEach(([a, b]) => box(0.3, 2.2, 0.3, COL.dsteel, rx + a, 0, rz + b));
+  box(3.6, 0.3, 3.0, 0x6a7680, rx, 2.2, rz);
+  // derrick
+  const T = 11.4;
+  [[-1.5, -1.3], [1.5, -1.3], [-1.5, 1.3], [1.5, 1.3]].forEach(([a, b]) => rod([rx + a, 2.5, rz + b], [rx + a * 0.25, T, rz + b * 0.25], 0.09, 0xe0573e, { seg: 5 }));
+  [4.6, 7.0, 9.3].forEach(y => {
+    const f = 1 - (y - 2.5) / (T - 2.5) * 0.75;
+    const c = [[-1.5 * f, -1.3 * f], [1.5 * f, -1.3 * f], [1.5 * f, 1.3 * f], [-1.5 * f, 1.3 * f]];
+    c.forEach((p, i) => { const q = c[(i + 1) % 4]; rod([rx + p[0], y, rz + p[1]], [rx + q[0], y, rz + q[1]], 0.05, 0xe0573e, { seg: 4 }); });
+  });
+  box(0.9, 0.6, 0.9, 0xf2c14e, rx, T, rz);
+  const drive = box(0.6, 0.8, 0.6, 0xf2c14e, rx, 7.2, rz, { dyn: 1 });
+  const pipe = cyl(0.08, 0.08, 4.6, 0x9aa5ae, rx, 2.5, rz, { dyn: 1, seg: 6 });
+  box(2.2, 1.6, 1.6, 0xf3f5f7, rx - 4.2, 0, rz + 0.6);           // doghouse
+  box(2.2, 1.1, 1.3, 0x46719a, rx + 3.6, 0, rz + 0.8);           // mud tanks
+  box(2.2, 1.1, 1.3, 0x46719a, rx + 3.6, 0, rz - 0.8);
+  for (let i = 0; i < 5; i++) rod([rx - 3.2, 0.42 + (i % 2) * 0.16, rz - 2.2 - i * 0.18], [rx + 2.8, 0.42 + (i % 2) * 0.16, rz - 2.2 - i * 0.18], 0.08, 0x8d98a2, { seg: 6 });
+  hit(rx, 5.6, rz, 5, 11.6, 4);
+
+  // the well on the cut face: cement, steel casing, then the open hole
+  faceStrip(rx, -0.15, -4.4, 0.62, 0xd8d3c8);
+  faceStrip(rx, -0.15, -4.4, 0.38, 0x6b7680, 0.02);
+  faceStrip(rx, -0.15, -11.2, 0.16, 0x1d1d1f, 0.04);
+  const yH = -12.85, bend = [[-21, -11.2], [-20.85, -11.95], [-20.45, -12.45], [-19.85, -12.75], [-19.2, -12.85]];
+  for (let i = 0; i < bend.length - 1; i++) rod([bend[i][0], bend[i][1], FACE + 0.05], [bend[i + 1][0], bend[i + 1][1], FACE + 0.05], 0.08, 0x1d1d1f, { cast: false, seg: 5 });
+  rod([-19.2, yH, FACE + 0.05], [-6.6, yH, FACE + 0.05], 0.08, 0x1d1d1f, { cast: false, seg: 5 });
+  const bit = M(new THREE.ConeGeometry(0.28, 0.55, 6), 0xd8a03d, -6.3, yH, FACE + 0.08, { rz: -Math.PI / 2, dyn: 1, cast: false });
+  const fracs = [-17.4, -14.9, -12.4, -9.9, -7.6].map((x, i) => {
+    const g = grp(x, yH, FACE + 0.06, { dyn: 1 });
+    within(g, () => {
+      [[0, 1], [0.5, 0.75], [-0.45, 0.8]].forEach(([tilt, len], j) => {
+        const m = M(new THREE.OctahedronGeometry(1, 0), 0xf3d27a, 0, 0, 0, { cast: false, dyn: 1 });
+        m.scale.set(0.09, 0.95 * len, 0.02); m.rotation.z = tilt + (i % 2 ? 0.1 : -0.1);
+      });
+    });
+    return g;
+  });
+  hit(-13.5, -12.6, 24, 16, 2.4, 1.2);
+
+  // seismic truck and listening sensors
+  const tx = -10.5, tz = 21.8;
+  within(grp(tx, 0, tz), () => {
+    box(3.6, 0.5, 1.6, 0xf2c14e, 0, 0.35, 0);
+    box(1.2, 1.1, 1.6, 0xf2c14e, 1.3, 0.85, 0);
+    box(0.5, 0.45, 1.5, 0x2c3e50, 1.62, 1.35, 0);
+    box(1.4, 0.9, 1.4, 0x6a7680, -0.6, 0.85, 0);
+    box(1.2, 0.12, 1.2, 0x2c3e50, -0.6, 0.06, 0);
+    [[-1.2, -0.8], [-1.2, 0.8], [1.2, -0.8], [1.2, 0.8]].forEach(([a, b]) => M(new THREE.CylinderGeometry(0.33, 0.33, 0.25, 10), 0x22272c, a, 0.33, b, { rx: Math.PI / 2 }));
+  });
+  hit(tx, 1, tz, 4.2, 2.4, 2.4);
+  const phones = [-16, -13.2, -7.8, -5, -2.4].map(x => M(new THREE.ConeGeometry(0.13, 0.4, 5), 0xff8a3d, x, 0.2, 23.4, { own: true, em: 0x000000 }));
+  const rings = [0, 1, 2].map(i => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 40, 1, Math.PI, Math.PI), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+    m.position.set(tx - 0.6, -0.15, FACE + 0.1); m.userData.dyn = 1; ST.drilling.group.add(m); return m;
+  });
+  const echoes = [0, 1].map(i => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 32, 1, 0, Math.PI), new THREE.MeshBasicMaterial({ color: 0xffd36e, transparent: true, opacity: 0, depthWrite: false }));
+    m.position.set(tx - 0.6, BND[3](tx), FACE + 0.1); m.userData.dyn = 1; ST.drilling.group.add(m); return m;
+  });
+  detail('Groundwater', [-13.5, -2.05, FACE], { swatch: '#bfd4dc' });
+  detail('Steel casing + cement', [-21, -4.9, FACE]);
+  detail('Fractures held open by sand', [-12.4, -14.7, FACE]);
+  detail('Seismic waves', [tx - 0.6, -9.6, FACE]);
+
+  let depth = 0;
+  onAnim((t, dt, active, k) => {
+    const on = k > 0.01;
+    rings.forEach((m, i) => {
+      const p = ((t * 0.32 + i / 3) % 1);
+      m.visible = on; m.scale.setScalar(0.4 + p * 11); m.material.opacity = on ? (1 - p) * 0.75 * k : 0;
+    });
+    echoes.forEach((m, i) => {
+      const p = ((t * 0.32 + 0.5 + i / 2) % 1);
+      m.visible = on; m.scale.setScalar(0.3 + p * 7); m.material.opacity = on ? (1 - p) * 0.8 * k : 0;
+    });
+    phones.forEach((m, i) => { const p = (t * 0.32 + 0.5 + i * 0.07) % 1; m.material.emissive.setRGB(on && p > 0.75 ? 0.6 : 0, on && p > 0.75 ? 0.25 : 0, 0); });
+    if (!on) return;
+    pipe.rotation.y += dt * 3;
+    bit.rotation.x += dt * 8;
+    depth = (depth + dt * 0.25) % 1;
+    drive.position.y = 7.6 - depth * 3.4;
+    // the drill pipe runs from the floor (y 2.5) up to the bottom of the top drive
+    const pipeLen = drive.position.y - 0.4 - 2.5;
+    pipe.scale.y = pipeLen / 4.6;
+    pipe.position.y = 2.5 + pipeLen / 2;
+    fracs.forEach((g, i) => { const s = 0.75 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2.5 - i * 0.7)); g.scale.set(1, s, 1); });
+  });
+});
+
+/* inner layers of a horizontal tank: a band of a circle, extruded along x */
+function circBand(r, a, b) {
+  const pts = [], N = 8, w = y => Math.sqrt(Math.max(0, r * r - y * y));
+  for (let i = 0; i <= N; i++) { const y = a + (b - a) * i / N; pts.push([-w(y), y]); }
+  for (let i = N; i >= 0; i--) { const y = a + (b - a) * i / N; pts.push([w(y), y]); }
+  return pts;
+}
+
+stage('lifting', () => {
+  // pump jack over the oil well
+  const wx = SITE.oilWell.x, wz = SITE.oilWell.z, px = wx - 2.2, py = 3.25;
+  pad(6.6, 2.0, px, Z1 - 1.05);
+  box(5.2, 0.3, 1.0, 0x4f5b63, px - 0.2, 0.06, wz);
+  rod([px - 0.5, 0.35, wz - 0.45], [px, py, wz], 0.1, 0x5f6e78, { seg: 5 });
+  rod([px - 0.5, 0.35, wz + 0.45], [px, py, wz], 0.1, 0x5f6e78, { seg: 5 });
+  rod([px + 0.6, 0.35, wz], [px, py, wz], 0.1, 0x5f6e78, { seg: 5 });
+  box(1.0, 0.9, 0.8, 0x6f7d86, px - 2.2, 0.36, wz);           // gearbox
+  box(0.8, 0.6, 0.6, 0x3e7cb1, px - 3.1, 0.36, wz - 0.4);     // motor
+  cyl(0.28, 0.32, 0.9, 0x7c8790, wx, 0, wz);                   // wellhead
+  const beam = grp(px, py, wz, { dyn: 1 });
+  within(beam, () => {
+    box(4.4, 0.32, 0.36, 0x3d4a52, 0.0, -0.16, 0, { dyn: 1 });
+    box(0.5, 1.2, 0.5, 0xf2b134, 2.1, -0.75, 0, { dyn: 1 });
+    box(0.3, 0.5, 0.5, 0x3d4a52, -2.05, -0.55, 0, { dyn: 1 });
+  });
+  const crank = grp(px - 2.2, 1.5, wz, { dyn: 1 });
+  within(crank, () => {
+    box(0.22, 1.5, 0.16, 0x6f7d86, 0, -0.75, 0.55, { dyn: 1 });
+    box(0.22, 1.5, 0.16, 0x6f7d86, 0, -0.75, -0.55, { dyn: 1 });
+    box(0.9, 0.6, 0.2, 0xd0503f, 0, -1.3, 0.55, { dyn: 1 });
+    box(0.9, 0.6, 0.2, 0xd0503f, 0, -1.3, -0.55, { dyn: 1 });
+  });
+  const prod = cyl(0.05, 0.05, 1, 0xdfe5ea, wx, 0.9, wz, { dyn: 1, seg: 5 });
+  hit(px - 0.2, 2.1, wz, 7, 4.6, 2.4);
+  detail('Pump jack lifts the oil', [px - 0.4, 5.1, wz]);
+
+  // gas wellhead ("christmas tree") on the dome crest
+  const gx = SITE.gasWell.x, gz = SITE.gasWell.z;
+  pad(2, 1.6, gx, gz);
+  cyl(0.38, 0.42, 0.45, 0x7c8790, gx, 0, gz);
+  box(0.32, 1.4, 0.32, 0x8e99a2, gx, 0.45, gz);
+  rod([gx - 0.6, 1.25, gz], [gx + 0.6, 1.25, gz], 0.1, 0x8e99a2);
+  [[gx, 1.95, gz + 0.3], [gx - 0.62, 1.25, gz + 0.26], [gx + 0.62, 1.25, gz + 0.26]].forEach(p => M(new THREE.TorusGeometry(0.17, 0.05, 5, 12), 0xd0503f, p[0], p[1], p[2]));
+  hit(gx, 1, gz, 1.8, 2.4, 1.8);
+  detail('Gas flows up on its own', [gx, 2.7, gz + 0.2]);
+
+  // wells on the cut face
+  faceStrip(wx, -0.15, -4.2, 0.6, 0xd8d3c8);
+  faceStrip(wx, -0.15, -4.2, 0.36, 0x6b7680, 0.02);
+  faceStrip(wx, -0.15, -6.65, 0.16, 0x1d1d1f, 0.04);
+  faceStrip(gx, -0.15, -4.0, 0.6, 0xd8d3c8);
+  faceStrip(gx, -0.15, -4.0, 0.36, 0x6b7680, 0.02);
+  faceStrip(gx, -0.15, -5.5, 0.16, 0x1d1d1f, 0.04);
+
+  // three-phase separator: see-through shell with layers inside
+  const { x: sx, y: sy, z: sz, len } = SITE.separator, wt = SITE.waterTank;
+  pad(8, 3.6, sx - 0.6, sz - 0.2);
+  [-1.6, 1.6].forEach(d => box(0.4, 0.6, 1.4, 0x7c8790, sx + d, 0.05, sz));
+  const sep = grp(sx, sy, sz);
+  within(sep, () => {
+    const shell = new THREE.CylinderGeometry(0.95, 0.95, len, 18, 1, true);
+    M(shell, 0xd7e3ec, 0, 0, 0, { rz: Math.PI / 2, op: 0.32, cast: false, recv: false, side: THREE.DoubleSide });
+    ball(0.95, 0x9fb0bd, -len / 2, 0, 0, { seg: 14 });
+    ball(0.95, 0x9fb0bd, len / 2, 0, 0, { seg: 14 });
+    [[-0.86, -0.36, 0x5aa6d6], [-0.36, 0.08, 0x3a2a1f], [0.08, 0.84, 0xdcefff]].forEach(([a, b, c]) => {
+      const g = new THREE.ExtrudeGeometry(shapeFrom(circBand(0.86, a, b)), { depth: len, bevelEnabled: false });
+      g.rotateY(Math.PI / 2); g.translate(-len / 2, 0, 0);
+      M(g, c, 0, 0, 0, { cast: false });
+    });
+  });
+  // outlets: gas leaves the top, oil the far end, water the bottom; each comes down to
+  // the ground where its route line starts (h_routes.js uses the same offsets)
+  const gasOut = [sx + 1.6, sz - 1.3], oilOut = [sx + len / 2 + 1.6, sz];
+  rod([gasOut[0], sy + 0.9, sz], [gasOut[0], sy + 1.45, sz], 0.12, COL.gasB);
+  rod([gasOut[0], sy + 1.45, sz], [gasOut[0], sy + 1.45, gasOut[1]], 0.12, COL.gasB);
+  rod([gasOut[0], sy + 1.45, gasOut[1]], [gasOut[0], 0.05, gasOut[1]], 0.12, COL.gasB);
+  rod([sx + len / 2 + 0.85, sy, sz], [oilOut[0], sy, sz], 0.12, 0x3a2a1f);
+  rod([oilOut[0], sy, sz], [oilOut[0], 0.05, sz], 0.12, 0x3a2a1f);
+  rod([sx - 1.5, sy - 0.85, sz - 0.5], [wt.x + 0.6, 0.5, wt.z + 0.5], 0.1, 0x5aa6d6);
+  cyl(1.0, 1.0, 1.9, 0x6fb7d6, wt.x, 0, wt.z);
+  cyl(1.02, 1.02, 0.2, 0x3d7fa6, wt.x, 1.3, wt.z);
+  hit(sx + 0.2, 1.4, sz - 0.1, 8.8, 3.2, 3.4);
+  hit(wt.x, 1, wt.z, 2.4, 2.2, 2.4);
+  detail('Salty water', [wt.x, 2.6, wt.z], { swatch: '#5aa6d6' });
+  detail('Inside: gas · oil · water', [sx + 2.4, 2.7, sz + 1.2]);
+
+  onAnim((t, dt, active, k) => {
+    const speed = active ? 1.7 : 0.45;
+    crank.userData.a = (crank.userData.a || 0) + dt * speed;
+    const a = crank.userData.a;
+    crank.rotation.z = a;
+    const tilt = 0.24 * Math.sin(a);
+    beam.rotation.z = tilt;
+    const headY = py + Math.sin(tilt) * 2.1 - 0.75;
+    prod.scale.y = Math.max(0.2, headY - 0.9); prod.position.y = 0.9 + prod.scale.y / 2;
+  });
+});
+
+/* =====================================================================
+   NATURAL GAS PATH
+   ===================================================================== */
+function flame(x, y, z, s = 1, hex = 0xff8a2b) {
+  const g = grp(x, y, z, { dyn: 1 });
+  within(g, () => {
+    M(new THREE.ConeGeometry(0.32 * s, 1.1 * s, 6), hex, 0, 0.55 * s, 0, { em: hex, cast: false, dyn: 1 });
+    M(new THREE.ConeGeometry(0.17 * s, 0.65 * s, 6), 0xffe07a, 0, 0.36 * s, 0, { em: 0xffc94a, cast: false, dyn: 1 });
+  });
+  return g;
+}
+/* drifting puffs (steam, smoke, smell, exhaust); each fades on its own, so each owns its material */
+const PUFF_GEO = new THREE.IcosahedronGeometry(0.3, 0);
+function puffs(n, hex, op = 0.55) {
+  return Array.from({ length: n }, () => {
+    const m = new THREE.Mesh(PUFF_GEO, mat(hex, { op, own: true }));
+    m.userData.dyn = 1; m.visible = false; BUILD.parent.add(m); return m;
+  });
+}
+function runPuffs(list, t, on, src, rise = 3, spread = 0.6, cycle = 2.6) {
+  list.forEach((m, i) => {
+    const p = ((t / cycle) + i / list.length) % 1;
+    m.visible = on;
+    if (!on) return;
+    m.position.set(src[0] + Math.sin(i * 7.1) * spread * p, src[1] + p * rise, src[2] + Math.cos(i * 3.3) * spread * p);
+    m.scale.setScalar(0.4 + p * 1.4);
+    m.material.opacity = (1 - p) * m.material.userData.baseOp;
+  });
+}
+function roofGeo(w, h, L) {
+  const g = new THREE.ExtrudeGeometry(shapeFrom([[-w / 2, 0], [w / 2, 0], [0, h]]), { depth: L, bevelEnabled: false });
+  g.translate(0, 0, -L / 2); g.rotateY(Math.PI / 2);
+  return g;
+}
+
+stage('gas-plant', () => {
+  pad(11.2, 8.6, -13, -9);
+  cyl(0.72, 0.72, 6.2, 0xdbe3ea, -15.6, 0, -11.7, { seg: 12 });
+  cyl(0.75, 0.75, 0.28, COL.gasB, -15.6, 4.6, -11.7, { seg: 12 });
+  ball(0.72, 0xdbe3ea, -15.6, 6.2, -11.7, { seg: 12, hseg: 5 });
+  cyl(0.58, 0.58, 4.6, 0xdbe3ea, -13.4, 0, -11.7, { seg: 12 });
+  ball(0.58, 0xdbe3ea, -13.4, 4.6, -11.7, { seg: 12, hseg: 5 });
+  bullet(3.2, 0.55, 0xf4f6f8, -9.9, 0.85, -11.2);
+  bullet(3.2, 0.55, 0xf4f6f8, -9.9, 0.85, -12.6);
+  [-11.2, -8.6].forEach(x => box(0.3, 0.4, 2.2, 0x9aa5ae, x, 0, -11.9));
+  [-17, -14.5, -12, -9.5].forEach(x => box(0.18, 1.7, 0.18, 0x8796a3, x, 0, -10.1));
+  rod([-17.2, 1.7, -10.1], [-8.6, 1.7, -10.1], 0.12, 0xaab4bd);
+  rod([-17.2, 1.45, -10.1], [-8.6, 1.45, -10.1], 0.1, COL.gasB);
+  box(3, 1.8, 2.2, 0x9fb8c9, -15.3, 0, -6.4);
+  box(3.2, 0.2, 2.4, 0x5e7f96, -15.3, 1.8, -6.4);
+  box(2.6, 1.2, 1.8, 0x8aa0ae, -11.2, 0, -6.4);
+  const fans = [-11.85, -10.55].map(x => {
+    const f = grp(x, 1.25, -6.4, { dyn: 1 });
+    within(f, () => { box(0.9, 0.04, 0.16, 0x3a444d, 0, 0, 0, { dyn: 1 }); box(0.16, 0.04, 0.9, 0x3a444d, 0, 0, 0, { dyn: 1 }); });
+    return f;
+  });
+  cyl(0.18, 0.26, 8, 0x9aa5ae, -19.6, 0, -12.6, { seg: 8 });
+  const fl = flame(-19.6, 8, -12.6, 1);
+  hit(-13, 3.1, -9.2, 10.6, 6.6, 8.4);
+  hit(-19.6, 4.6, -12.6, 1.4, 9.6, 1.4);
+  detail('Propane & butane removed (NGLs)', [-9.9, 2.3, -11.9]);
+  detail('Flare', [-19.6, 10.1, -12.6]);
+  detail('Mostly methane leaves', [-6.4, 1.1, -8.4]);
+  onAnim((t, dt, active, k) => {
+    const s = active ? 1.15 + Math.sin(t * 13) * 0.18 + Math.sin(t * 7.3) * 0.1 : 0.85 + Math.sin(t * 5) * 0.05;
+    fl.scale.set(1 + Math.sin(t * 9) * 0.06, s, 1);
+    if (active) fans.forEach(f => (f.rotation.y += dt * 9));
+  });
+});
+
+stage('pipeline', () => {
+  const cx = 2, cz = -12.6;
+  pad(6.6, 5.4, cx, -11.9);
+  box(4.4, 2.4, 3, 0xe7ecf0, cx, 0, cz);
+  box(4.6, 0.25, 3.2, COL.gasB, cx, 2.4, cz);
+  const fans = [cx - 1.1, cx + 1.1].map(x => {
+    cyl(0.55, 0.55, 0.2, 0x8796a3, x, 2.65, cz, { seg: 12 });
+    const f = grp(x, 2.9, cz, { dyn: 1 });
+    within(f, () => { [0, 1, 2].forEach(i => { const b = box(0.95, 0.04, 0.2, 0x2a3138, 0, 0, 0, { dyn: 1 }); b.rotation.y = i * 2.09; }); });
+    return f;
+  });
+  cyl(0.2, 0.2, 2.2, 0x9aa5ae, cx + 1.9, 2.4, cz - 1.1, { seg: 8 });
+  // station piping rises out of the buried line and into the compressors
+  const lz = SITE.gasMain.z - 0.2, mz = SITE.gasMain.z + 0.85;   // pipe in the yard, marker posts beside the line
+  [cx - 1.4, cx + 1.4].forEach(x => {
+    rod([x, 0, lz], [x, 1.1, lz], 0.16, 0x8796a3);
+    rod([x, 1.1, lz], [x, 1.1, cz + 1.5], 0.16, 0x8796a3);
+    ball(0.17, 0x8796a3, x, 1.1, lz, { seg: 8, hseg: 6 });
+  });
+  rod([cx - 2.6, 0.45, lz], [cx + 2.6, 0.45, lz], 0.34, 0x7d8b97, { seg: 12 });
+  [cx - 2.1, cx + 2.1].forEach(x => box(0.3, 0.3, 0.8, 0x5c6873, x, 0, lz));
+  // marker posts along the buried pipeline
+  [-4.5, 8.2].forEach(x => { cyl(0.07, 0.07, 1.0, 0xf2c14e, x, 0, mz, { seg: 6 }); cyl(0.14, 0.14, 0.22, 0xe0573e, x, 0.95, mz, { seg: 6 }); });
+  hit(cx, 1.6, -11.8, 6, 3.6, 5.6);
+  detail('Compressors squeeze the gas', [cx, 3.6, cz + 1.4]);
+  detail('Buried pipeline (marker posts)', [-4.5, 1.6, mz]);
+  onAnim((t, dt, active) => { fans.forEach(f => (f.rotation.y += dt * (active ? 10 : 0))); });
+});
+
+stage('storage-lng', () => {
+  // underground storage: a well into porous rock near the back edge
+  const { x: wx, z: wz } = SITE.storage;
+  pad(3.2, 2.6, wx, wz);
+  cyl(0.3, 0.34, 0.5, 0x7c8790, wx, 0, wz);
+  box(0.28, 1.1, 0.28, 0x8e99a2, wx, 0.5, wz);
+  M(new THREE.TorusGeometry(0.16, 0.05, 5, 12), 0xd0503f, wx, 1.35, wz + 0.25);
+  box(1.8, 1.2, 1.4, 0xe7ecf0, wx + 1.6, 0, wz + 0.2);
+  box(1.9, 0.14, 1.5, COL.gasB, wx + 1.6, 1.2, wz + 0.2);
+  const bz = Z0 - 0.04;                                  // just behind the back face
+  box(0.55, 7.6, 0.06, 0xd8d3c8, wx, -7.75, bz, { cast: false });
+  box(0.16, 7.6, 0.06, 0x1d1d1f, wx, -7.75, bz - 0.02, { cast: false });
+  const bub = new THREE.Shape(); bub.absellipse(0, 0, 3.4, 0.72, 0, Math.PI * 2, false, 0);
+  const bubble = M(new THREE.ShapeGeometry(bub, 24), 0xdcefff, wx, -8.35, bz - 0.03, { ry: Math.PI, cast: false, dyn: 1, basic: true });
+  hit(wx, 1, wz, 3.8, 2.4, 3.2);
+  hit(wx, -8.3, Z0, 8, 2.4, 1.2);
+  detail('Gas stored in porous rock for winter', [wx, -10.1, bz], { face: [0, 0, -1] });
+
+  // LNG export terminal
+  pad(10.8, 6, 19.4, -19.8);
+  [17.4, 21.6].forEach(x => {
+    cyl(1.8, 1.8, 3.2, 0xf3f5f7, x, 0, -19.6, { seg: 18 });
+    const d = M(new THREE.SphereGeometry(1.8, 18, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xe6eaee, x, 3.2, -19.6);
+    d.scale.y = 0.4;
+    cyl(1.82, 1.82, 0.22, COL.gasB, x, 2.5, -19.6, { seg: 18 });
+  });
+  box(2.2, 1.6, 1.8, 0xd9e3ea, 14, 0, -20.8);
+  cyl(0.3, 0.3, 3.4, 0xc6d0d8, 13.3, 0, -22.0, { seg: 8 });
+  cyl(0.3, 0.3, 2.8, 0xc6d0d8, 14.7, 0, -22.0, { seg: 8 });
+  rod([15.2, 1.2, -20.8], [16.2, 1.2, -19.9], 0.12, 0x8796a3);
+  // jetty out to the ship
+  box(1.1, 0.18, 6.6, 0xb59a7a, 25.2, -0.05, -26.0);
+  [-23.6, -25.8, -28.0].forEach(z => cyl(0.12, 0.12, 3.2, 0x7b6852, 25.2, -3.2, z, { seg: 6 }));
+  rod([25.2, 0.2, -28.6], [25.8, 1.6, -29.4], 0.07, 0x9aa5ae);
+  rod([25.8, 1.6, -29.4], [26.2, 0.6, -30.6], 0.07, 0x9aa5ae);
+  const ship = grp(27.6, -0.7, -32.6, { dyn: 1 });
+  within(ship, () => {
+    box(11.5, 1.45, 2.8, 0x2e4053, 0, -0.85, 0, { dyn: 1 });
+    box(11.55, 0.38, 2.84, 0xb03a2e, 0, -0.85, 0, { dyn: 1 });
+    M(new THREE.CylinderGeometry(1.62, 1.62, 1.45, 3), 0x2e4053, 6.56, -0.125, 0, { ry: Math.PI / 2, dyn: 1 });   // triangular bow
+    [-2.0, 0.2, 2.4, 4.5].forEach(x => {
+      cyl(0.98, 0.98, 0.3, 0xdfe5ea, x, 0.6, 0, { seg: 14, dyn: 1 });
+      M(new THREE.SphereGeometry(1.0, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xf6f8fa, x, 0.9, 0, { dyn: 1 });
+    });
+    box(1.5, 1.7, 2.4, 0xf3f5f7, -4.7, 0.6, 0, { dyn: 1 });
+    cyl(0.28, 0.32, 0.9, 0xb03a2e, -5.1, 2.3, 0, { dyn: 1, seg: 8 });
+  });
+  hit(19.4, 2.1, -19.8, 10.6, 4.6, 5.6);
+  hit(27.6, -0.2, -32.6, 13.6, 3.6, 3.4);
+  hit(25.2, 0, -26, 1.8, 1.2, 7);
+  detail('Chilled to about −162 °C', [14, 3.8, -21.0]);
+  detail('LNG carrier', [27.6, 2.6, -32.6]);
+  detail('Underground storage well', [wx, 2.3, wz]);
+  onAnim((t, dt, active, k) => {
+    ship.position.y = -0.7 + Math.sin(t * 1.1) * 0.06;
+    ship.rotation.x = Math.sin(t * 0.9) * 0.015;
+    const s = active ? 0.85 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.2)) : 1;
+    bubble.scale.set(s, s, 1);
+  });
+});
+
+stage('city-gate', () => {
+  const { x: cx, z: cz } = SITE.cityGate;
+  pad(4.6, 4.6, cx, cz, 0xb9b4aa);
+  const fence = 0xa5adb5;
+  [[-2.2, -2.2], [2.2, -2.2], [2.2, 2.2], [-2.2, 2.2]].forEach(([a, b], i, arr) => {
+    box(0.1, 1.2, 0.1, fence, cx + a, 0, cz + b);
+    const [c, d] = arr[(i + 1) % 4];
+    [0.55, 1.1].forEach(y => rod([cx + a, y, cz + b], [cx + c, y, cz + d], 0.03, fence, { seg: 4 }));
+  });
+  rod([cx - 1.5, 0, cz], [cx - 1.5, 1.0, cz], 0.2, 0x8796a3);
+  rod([cx - 1.5, 1.0, cz], [cx - 0.2, 1.0, cz], 0.2, 0x8796a3);
+  box(0.55, 0.6, 0.55, 0xd0503f, cx - 0.2, 0.7, cz);
+  ball(0.22, 0xd0503f, cx - 0.2, 1.42, cz, { seg: 8 });
+  rod([cx + 0.1, 1.0, cz], [cx + 1.4, 1.0, cz], 0.13, 0x8796a3);
+  rod([cx + 1.4, 1.0, cz], [cx + 1.4, 0, cz], 0.13, 0x8796a3);
+  bullet(1.1, 0.34, 0xf3f5f7, cx + 0.2, 0.6, cz + 1.5);
+  cyl(0.36, 0.36, 0.12, 0xf2c14e, cx + 0.2, 0.54, cz + 1.5, { seg: 10, rz: Math.PI / 2 });   // band around the tank
+  rod([cx + 0.6, 0.6, cz + 1.3], [cx + 0.6, 1.0, cz + 0.15], 0.04, 0x8796a3, { seg: 5 });
+  box(1.2, 1.2, 1.1, 0xe7ecf0, cx + 0.9, 0, cz - 1.5);
+  box(1.3, 0.12, 1.2, COL.gasB, cx + 0.9, 1.2, cz - 1.5);
+  const smell = puffs(7, 0xd8de5a, 0.6);
+  hit(cx, 1.2, cz, 4.8, 2.6, 4.8);
+  detail('Pressure lowered here', [cx - 0.6, 2.1, cz - 0.3]);
+  detail('Odorant added', [cx + 0.6, 1.5, cz + 2.2]);
+  onAnim((t, dt, active, k) => runPuffs(smell, t, k > 0.05, [cx + 0.6, 1.1, cz + 0.2], 2.2, 0.5, 2.2));
+});
+
+stage('gas-uses', () => {
+  const winMat = mat(0xfff1c1, { own: true, em: 0x000000 });
+  const walls = [0xf6e7c1, 0xd9eaf7, 0xf9d5c9, 0xe0f0d9, 0xece4f7, 0xf3f0e6, 0xdfe9e0, 0xf7dfe7];
+  const houses = [[26, -4.4, 1], [30, -4.4, 1], [34, -4.4, 1], [38, -4.4, 1], [28, 2.4, -1], [32, 2.4, -1], [36, 2.4, -1], [40, 2.4, -1]];
+  houses.forEach(([x, z, f], i) => {
+    box(2.4, 1.7, 2.2, walls[i], x, 0, z);
+    M(roofGeo(2.7, 1.0, 2.9), [0xc0574a, 0x4f6d8a, 0x7a5b4a, 0x5e7d5a][i % 4], x, 1.7, z);
+    box(0.32, 0.8, 0.32, 0x8b7d72, x + 0.7, 1.8, z - 0.3 * f);
+    box(0.5, 0.95, 0.06, 0x7a5b43, x - 0.5, 0, z + 1.11 * f);
+    M(new THREE.BoxGeometry(0.55, 0.45, 0.06), 0, x + 0.45, 0.95, z + 1.11 * f, { m: winMat });
+    box(0.22, 0.3, 0.16, 0x9aa5ae, x + 1.25, 0.25, z + 0.5 * f);
+    rod([x + 1.25, 0.12, z + 0.5 * f], [x + 1.25, 0.12, SITE.street.z], 0.04, COL.gasB, { seg: 4, cast: false });   // service line to the meter
+    hit(x, 1.3, z, 2.8, 2.9, 2.6);
+  });
+  // power plant
+  box(5, 3, 4, 0xe3e8ec, 35.6, 0, -16.8);
+  box(5.1, 0.3, 4.1, COL.gasB, 35.6, 3, -16.8);
+  box(1.6, 3.8, 2.4, 0xb8c2cc, 38.8, 0, -16.6);
+  cyl(0.45, 0.55, 8.6, 0xe3e6e9, 39.4, 0, -18.4, { seg: 10 });
+  cyl(0.47, 0.47, 0.5, 0xd0503f, 39.4, 7.4, -18.4, { seg: 10 });
+  [[33.2, -19.4], [34.4, -19.4]].forEach(([x, z]) => box(0.9, 1.0, 0.8, 0x6f7d86, x, 0, z));
+  // power lines from the plant to town
+  [[33.6, -12.3], [31.4, -7.3]].forEach(([x, z]) => {
+    cyl(0.06, 0.32, 4.6, 0x8b939b, x, 0, z, { seg: 4 });
+    box(1.6, 0.1, 0.12, 0x8b939b, x, 4.3, z);
+  });
+  [[-0.7], [0.7]].forEach(([o]) => {
+    rod([35.6 + o, 3.3, -14.8], [33.6 + o, 4.38, -12.3], 0.025, 0x2b3138, { seg: 3, cast: false });
+    rod([33.6 + o, 4.38, -12.3], [31.4 + o, 4.38, -7.3], 0.025, 0x2b3138, { seg: 3, cast: false });
+    rod([31.4 + o, 4.38, -7.3], [30 + o, 1.7, -5.4], 0.025, 0x2b3138, { seg: 3, cast: false });
+  });
+  // factory making fertilizer and plastics
+  box(6, 2.2, 4, 0xd9cbb8, 27.8, 0, -16.3);
+  [-2, 0, 2].forEach(d => M(roofGeo(2.0, 0.9, 4.0), 0x9a8c7c, 27.8 + d, 2.2, -16.3, { ry: Math.PI / 2 }));
+  cyl(0.3, 0.38, 4.6, 0xb8aea2, 25.4, 0, -17.6, { seg: 8 });
+  [[30.6, -14.6], [31.9, -14.6]].forEach(([x, z]) => { cyl(0.6, 0.6, 3.2, 0xe8eef2, x, 0, z, { seg: 12 }); M(new THREE.ConeGeometry(0.6, 0.6, 12), 0xd0d8de, x, 3.5, z); });
+  const steam = puffs(6, 0xffffff, 0.5);
+  const smoke = puffs(5, 0xe9edf0, 0.45);
+  hit(36.4, 2.4, -16.9, 7.4, 5, 5);
+  hit(39.4, 4.6, -18.4, 1.6, 9.2, 1.6);
+  hit(28.6, 1.7, -16.2, 7.6, 3.6, 4.6);
+  detail('Power plant: electricity', [35.6, 4.2, -16.8]);
+  detail('Factory: fertilizer, plastics', [27.8, 4.4, -16.3]);
+  detail('Homes: heat, hot water, cooking', [32, 3.6, -4.4]);
+  onAnim((t, dt, active, k) => {
+    const on = k > 0.05;
+    runPuffs(steam, t, on, [39.4, 8.8, -18.4], 4, 0.8, 3);
+    runPuffs(smoke, t + 1, on, [25.4, 4.8, -17.6], 3, 0.6, 3.2);
+    const g = on ? 0.35 + 0.25 * (0.5 + 0.5 * Math.sin(t * 2.2)) : 0;
+    winMat.emissive.setRGB(g, g * 0.82, g * 0.4);
+  });
+});
+
+stage('gas-burning', () => {
+  const { x: sx, z: sz } = SITE.stove;
+  pad(3.6, 2.8, sx, sz, 0xd9d3c7);
+  box(2.6, 1.6, 1.8, 0xf3f5f7, sx, 0, sz);
+  box(2.62, 0.08, 1.82, 0x2a2f35, sx, 1.6, sz);
+  box(1.7, 0.75, 0.05, 0x2a2f35, sx, 0.4, sz + 0.91);
+  [-0.9, -0.3, 0.3, 0.9].forEach(d => cyl(0.08, 0.08, 0.1, 0x55595e, sx + d, 1.32, sz + 0.94, { rx: Math.PI / 2, seg: 8 }));
+  const burners = [[-0.6, -0.4], [0.6, -0.4], [-0.6, 0.4], [0.6, 0.4]];
+  burners.forEach(([a, b]) => M(new THREE.TorusGeometry(0.27, 0.06, 5, 14), 0x55595e, sx + a, 1.72, sz + b, { rx: Math.PI / 2 }));
+  const fl = grp(sx - 0.6, 1.72, sz + 0.4, { dyn: 1 });
+  const cones = [];
+  within(fl, () => {
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * Math.PI * 2;
+      const c = M(new THREE.ConeGeometry(0.075, 0.36, 5), 0x3d8bff, Math.cos(a) * 0.27, 0.18, Math.sin(a) * 0.27, { em: 0x1b4fe0, cast: false, dyn: 1 });
+      cones.push(c);
+    }
+  });
+  // CO2 and H2O molecules rising off the flame
+  const mols = [];
+  for (let i = 0; i < 6; i++) {
+    const g = grp(0, 0, 0, { dyn: 1 });
+    within(g, () => {
+      if (i % 2 === 0) {
+        ball(0.13, 0x3a3f45, 0, 0, 0, { seg: 8, hseg: 6, dyn: 1, cast: false });
+        ball(0.11, 0xe74c3c, -0.22, 0, 0, { seg: 8, hseg: 6, dyn: 1, cast: false });
+        ball(0.11, 0xe74c3c, 0.22, 0, 0, { seg: 8, hseg: 6, dyn: 1, cast: false });
+      } else {
+        ball(0.12, 0xe74c3c, 0, 0, 0, { seg: 8, hseg: 6, dyn: 1, cast: false });
+        ball(0.08, 0xffffff, -0.15, -0.11, 0, { seg: 8, hseg: 6, dyn: 1, cast: false });
+        ball(0.08, 0xffffff, 0.15, -0.11, 0, { seg: 8, hseg: 6, dyn: 1, cast: false });
+      }
+    });
+    g.visible = false;
+    mols.push(g);
+  }
+  hit(sx, 1.2, sz, 3.2, 2.6, 2.4);
+  detail('Blue flame: methane burning', [sx - 1.6, 2.3, sz + 0.9]);
+  detail('CO₂ + water vapor', [sx + 0.9, 3.5, sz + 0.3]);
+  onAnim((t, dt, active, k) => {
+    cones.forEach((c, i) => { c.scale.y = (active ? 1.1 : 0.8) + Math.sin(t * 17 + i * 1.7) * (active ? 0.28 : 0.08); });
+    mols.forEach((g, i) => {
+      const p = ((t / 3) + i / mols.length) % 1;
+      g.visible = k > 0.05;
+      g.position.set(sx - 0.6 + Math.sin(i * 2.1 + p * 3) * 0.5, 2.1 + p * 2.4, sz + 0.4 + Math.cos(i * 1.3) * 0.4);
+      g.rotation.set(p * 3 + i, p * 2, 0);
+      g.scale.setScalar(Math.min(1, (1 - p) * 3) * 1.1);
+    });
+  });
+});
+
+/* =====================================================================
+   GASOLINE PATH
+   ===================================================================== */
+function carModel(x, y, z, hex, o = {}) {
+  const g = grp(x, y, z, { dyn: o.dyn, ry: o.ry || 0 });
+  const wheels = [];
+  within(g, () => {
+    const d = { dyn: o.dyn };
+    box(3.6, 0.7, 1.6, hex, 0, 0.3, 0, d);
+    box(2.0, 0.62, 1.42, hex, -0.25, 1.0, 0, d);
+    box(1.85, 0.42, 1.45, 0x26323d, -0.25, 1.08, 0, d);
+    [-0.5, 0.5].forEach(s => box(0.06, 0.18, 0.32, 0xfff4c2, 1.79, 0.68, s, d));
+    [-1.15, 1.15].forEach(a => [-0.78, 0.78].forEach(b => {
+      const w = M(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 9), 0x1f2328, a, 0.34, b, { rx: Math.PI / 2, dyn: 1 });
+      wheels.push(w);
+    }));
+  });
+  g.userData.wheels = wheels;
+  return g;
+}
+
+stage('crude-transport', () => {
+  box(17.8, 0.1, 0.09, 0x6b6f75, -15.3, 0.06, 15.05);
+  box(17.8, 0.1, 0.09, 0x6b6f75, -15.3, 0.06, 15.95);
+  for (let x = -23.8; x <= -6.8; x += 0.85) box(0.22, 0.07, 1.4, 0x7a5a3c, x, 0, 15.5, { cast: false });
+  box(0.3, 0.6, 1.2, 0xd0503f, -6.2, 0, 15.5);
+  const train = grp(-14.5, 0, 15.5, { dyn: 1 });
+  within(train, () => {
+    const d = { dyn: 1 };
+    box(2.6, 1.0, 1.15, 0xf2c14e, 4.1, 0.35, 0, d);
+    box(0.9, 0.55, 1.18, 0x26323d, 4.95, 1.0, 0, d);
+    box(2.62, 0.16, 1.17, 0xd0503f, 4.1, 0.55, 0, d);
+    [1.3, -1.6, -4.5].forEach(x => {
+      box(2.7, 0.18, 1.0, 0x3a3f45, x, 0.3, 0, d);
+      bullet(2.2, 0.52, 0x1f2226, x, 1.02, 0, d);
+      box(0.6, 0.1, 0.6, 0x3a3f45, x, 1.5, 0, d);
+    });
+  });
+  hit(-14.5, 1.1, 15.5, 12.4, 2.4, 2.2);
+  detail('Crude oil: thick and dark', [-22.8, 1.3, 13.4], { swatch: '#2a1d14' });
+  detail('Rail tank cars', [-11.5, 2.4, 15.5]);
+  onAnim((t, dt, active) => {
+    if (!active) return;
+    train.userData.t = (train.userData.t || 0) + dt;
+    train.position.x = -14.5 + 2.1 * Math.sin(train.userData.t * 0.45);
+  });
+});
+
+stage('distillation', () => {
+  const { x: tx, z: tz } = SITE.tower, R = 1.45, H = 12, fx = tx - 3.8;   // fx: furnace
+  pad(8.8, 6.4, tx - 1.8, tz);
+  box(2.4, 2.2, 2.4, 0xb5654a, fx, 0, tz);
+  box(2.5, 0.25, 2.5, 0x7d4434, fx, 2.2, tz);
+  const glowMat = mat(0xff8a2b, { own: true, em: 0xc24a00 });
+  M(new THREE.BoxGeometry(1.6, 0.5, 0.05), 0, fx, 0.85, tz + 1.22, { m: glowMat });
+  cyl(0.24, 0.3, 3.2, 0x7d4434, fx - 0.6, 2.4, tz - 0.6, { seg: 8 });
+  rod([fx + 1.2, 1.0, tz], [tx - R + 0.05, 1.0, tz], 0.18, 0x8796a3);
+  cyl(R + 0.15, R + 0.25, 0.6, 0x8796a3, tx, 0, tz, { seg: 18 });
+  M(new THREE.CylinderGeometry(R, R, H - 0.6, 20, 1, true), 0xdfeaf3, tx, 0.6 + (H - 0.6) / 2, tz, { op: 0.24, side: THREE.DoubleSide, cast: false, recv: false });
+  M(new THREE.SphereGeometry(R, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xb8c2cc, tx, H, tz);
+  const bands = [
+    ['Asphalt', 0x2b2622, 0.6, 2.3], ['Heavy oils', 0x8a5a2b, 2.3, 4.2], ['Diesel', 0xc9a227, 4.2, 6.0],
+    ['Jet fuel', 0xf3e27a, 6.0, 7.8], ['Gasoline', 0xffb31a, 7.8, 9.8], ['Light gases', 0xcfe9ff, 9.8, 11.8]
+  ];
+  bands.forEach(([name, c, y0, y1]) => {
+    cyl(R - 0.14, R - 0.14, y1 - y0 - 0.06, c, tx, y0 + 0.03, tz, { op: 0.62, cast: false, recv: false, seg: 18 });
+    cyl(R - 0.04, R - 0.04, 0.07, 0x6f7d86, tx, y0, tz, { seg: 18, cast: false });
+    const ym = (y0 + y1) / 2;
+    rod([tx + R - 0.05, ym, tz], [tx + R + 1.0, ym, tz], 0.11, c);
+    rod([tx + R + 1.0, ym, tz], [tx + R + 1.0, ym - 0.5, tz], 0.11, c);
+    detail(name, [tx + R + 1.35, ym, tz], { swatch: '#' + c.toString(16).padStart(6, '0') });
+  });
+  // vapor dots rise and condense at their own level
+  const N = 70, vap = pointsCloud(N, 0.24);
+  const vp = vap.geometry.attributes.position.array, vc = vap.geometry.attributes.color.array;
+  const tgt = new Float32Array(N), spd = new Float32Array(N), life = new Float32Array(N);
+  const hot = new THREE.Color(0xffe2bf), tmp = new THREE.Color(), bandCol = bands.map(b => new THREE.Color(b[1]));
+  function spawn(i) {
+    const a = Math.random() * 6.28, r = Math.random() * (R - 0.35);
+    vp[i * 3] = tx + Math.cos(a) * r; vp[i * 3 + 1] = 0.9 + Math.random() * 0.4; vp[i * 3 + 2] = tz + Math.sin(a) * r;
+    const b = 1 + Math.floor(Math.random() * 5);           // bands 1..5 (asphalt stays at the bottom)
+    tgt[i] = b; spd[i] = 1.4 + Math.random() * 1.2; life[i] = 0;
+  }
+  for (let i = 0; i < N; i++) { spawn(i); vp[i * 3 + 1] = 0.9 + Math.random() * 10; }
+  vap.visible = false;
+  hit(tx, 6.1, tz, 3.4, 12.6, 3.4);
+  hit(fx, 1.3, tz, 2.8, 2.8, 2.8);
+  detail('Furnace: about 350–400 °C', [fx, 3.1, tz + 1.3]);
+  onAnim((t, dt, active, k) => {
+    const on = k > 0.05, lit = 1 - ST.distillation.dim;   // the furnace glow fades with the path filter
+    glowMat.emissive.setRGB((on ? 0.75 + Math.sin(t * 11) * 0.1 : 0.5) * lit, (on ? 0.3 : 0.2) * lit, 0);
+    vap.visible = on;
+    if (!on) return;
+    for (let i = 0; i < N; i++) {
+      const b = bands[tgt[i]], ym = (b[2] + b[3]) / 2;
+      let y = vp[i * 3 + 1];
+      if (y < ym) {
+        y = Math.min(ym, y + dt * spd[i]);
+        tmp.copy(hot).lerp(bandCol[tgt[i]], clamp((y - 0.9) / (ym - 0.9), 0, 1) * 0.6);
+      } else {
+        life[i] += dt;
+        tmp.copy(bandCol[tgt[i]]);
+        if (life[i] > 0.9) { spawn(i); y = vp[i * 3 + 1]; }
+      }
+      vp[i * 3 + 1] = y;
+      vc[i * 3] = tmp.r; vc[i * 3 + 1] = tmp.g; vc[i * 3 + 2] = tmp.b;
+    }
+    vap.geometry.attributes.position.needsUpdate = true;
+    vap.geometry.attributes.color.needsUpdate = true;
+  });
+});
+
+stage('cracking', () => {
+  pad(7.8, 9.4, 6.3, 13.1);
+  cyl(0.7, 0.7, 7.2, 0xdbe3ea, 4.2, 0, 16.2, { seg: 12 });
+  M(new THREE.ConeGeometry(0.7, 0.8, 12), 0xc9d3db, 4.2, 7.6, 16.2);
+  cyl(1.1, 1.1, 5.6, 0xc9d3db, 6.5, 0, 16.2, { seg: 14 });
+  ball(1.1, 0xc9d3db, 6.5, 5.6, 16.2, { seg: 14, hseg: 6 });
+  const cat = mat(0xd98c3a, { own: true, em: 0x000000 });
+  M(new THREE.CylinderGeometry(1.13, 1.13, 0.5, 14), 0, 6.5, 2.4, 16.2, { m: cat });
+  rod([4.6, 2.0, 16.2], [6.0, 3.3, 16.2], 0.16, 0x8796a3);
+  rod([4.75, 5.7, 16.2], [6.0, 4.6, 16.2], 0.16, 0x8796a3);
+  [3.8, 5.3, 6.8].forEach(x => { cyl(0.5, 0.5, 2.4, 0xe7ecf0, x, 0, 10.6, { seg: 12 }); ball(0.5, 0xe7ecf0, x, 2.4, 10.6, { seg: 12, hseg: 5 }); });
+  box(4.4, 1.4, 1.3, 0xb5654a, 5.3, 0, 8.9);
+  rod([3.8, 1.9, 10.6], [6.8, 1.9, 10.6], 0.1, 0x8796a3);
+  cyl(0.62, 0.62, 4.4, 0xdbe3ea, 9.0, 0, 13.0, { seg: 12 });
+  ball(0.62, 0xdbe3ea, 9.0, 4.4, 13.0, { seg: 12, hseg: 5 });
+  ball(0.85, 0xf3f5f7, 9.2, 1.25, 10.6, { seg: 12, hseg: 8 });
+  [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].forEach(([a, b]) => box(0.1, 0.5, 0.1, 0x8796a3, 9.2 + a, 0, 10.6 + b));
+  // a big molecule that splits in two
+  const chain = grp(5.3, 10.2, 13.6, { dyn: 1 });
+  const left = grp(0, 0, 0, { p: chain, dyn: 1 }), right = grp(0, 0, 0, { p: chain, dyn: 1 });
+  for (let i = 0; i < 12; i++) {
+    const parent = i < 6 ? left : right;
+    within(parent, () => ball(0.2, 0x3a3f45, -2.3 + i * 0.42, Math.sin(i * 1.4) * 0.12, 0, { seg: 8, hseg: 6, dyn: 1, cast: false }));
+  }
+  chain.visible = false;
+  hit(5.3, 3.8, 16.2, 4.8, 7.8, 2.8);
+  hit(5.3, 1.4, 10, 5.2, 2.8, 3.8);
+  hit(9.1, 2.3, 12, 2.4, 4.8, 4.2);
+  detail('Catalytic cracker', [6.5, 6.9, 16.2]);
+  detail('Reformer: raises octane', [5.3, 3.5, 10.6]);
+  detail('Sulfur removed', [9.0, 5.5, 13.0]);
+  detail('One big molecule → two smaller ones', [5.3, 11.0, 13.6]);
+  onAnim((t, dt, active, k) => {
+    const on = k > 0.05;
+    const g = on ? 0.3 + 0.25 * Math.sin(t * 3) : 0;
+    cat.emissive.setRGB(g, g * 0.45, 0);
+    chain.visible = on;
+    if (!on) return;
+    const p = (t / 4) % 1, sep = p < 0.35 ? 0 : p < 0.6 ? (p - 0.35) / 0.25 : 1;
+    left.position.set(-sep * 0.9, sep * 0.25, 0); right.position.set(sep * 0.9, -sep * 0.25, 0);
+    left.rotation.z = sep * 0.25; right.rotation.z = -sep * 0.25;
+    chain.rotation.y = Math.sin(t * 0.6) * 0.4;
+    chain.scale.setScalar(p > 0.92 ? Math.max(0.01, (1 - p) / 0.08) : Math.min(1, p / 0.05 + 0.01));
+  });
+});
+
+stage('blending', () => {
+  pad(7.6, 6.6, 13.7, 18.0);
+  const tops = [[11.6, 16.6, 0xf6b73c], [14.0, 16.6, 0xe9a23b], [11.6, 19.0, 0xf2c26b], [14.0, 19.0, 0xd99a2b]];
+  tops.forEach(([x, z, c]) => {
+    cyl(1.0, 1.0, 1.7, 0xeef1f4, x, 0, z, { seg: 14 });
+    cyl(1.02, 1.02, 0.24, c, x, 1.35, z, { seg: 14 });
+    rod([x, 0.35, z], [16.3, 0.35, 17.8], 0.07, 0x8796a3, { seg: 5 });
+  });
+  cyl(0.6, 0.6, 2.4, 0xdbe3ea, 16.3, 0, 17.8, { seg: 12 });
+  const paddle = grp(16.3, 2.5, 17.8, { dyn: 1 });
+  within(paddle, () => { box(1.1, 0.07, 0.16, 0x2a3138, 0, 0, 0, { dyn: 1 }); box(0.16, 0.07, 1.1, 0x2a3138, 0, 0, 0, { dyn: 1 }); });
+  cyl(0.75, 0.75, 1.6, 0xf3f5f7, 16.6, 0, 20.4, { seg: 12 });
+  cyl(0.77, 0.77, 0.22, 0x3aa35b, 16.6, 1.0, 20.4, { seg: 12 });
+  box(0.8, 0.8, 0.8, COL.gasB, 16.8, 0, 15.5);
+  hit(13.9, 1.2, 18, 7.2, 2.8, 6);
+  detail('Ethanol', [16.6, 2.1, 20.4], { swatch: '#3aa35b' });
+  detail('Additives', [16.8, 1.3, 15.3], { swatch: '#2f86eb' });
+  detail('Several refinery streams', [12.8, 2.3, 19.2]);
+  onAnim((t, dt, active) => { if (active) paddle.rotation.y += dt * 4; });
+});
+
+stage('delivery', () => {
+  pad(7.8, 4.8, 18, 6.6);
+  [16.2, 19.8].forEach(x => {
+    cyl(1.5, 1.5, 2.6, 0xf3f5f7, x, 0, 6.2, { seg: 16 });
+    M(new THREE.ConeGeometry(1.53, 0.45, 16), 0xdfe5ea, x, 2.83, 6.2);
+    cyl(1.52, 1.52, 0.2, COL.amber, x, 1.9, 6.2, { seg: 16 });
+  });
+  [[17.0, 8.9], [19.4, 8.9]].forEach(([x, z]) => box(0.15, 2.2, 0.15, 0x8796a3, x, 0, z));
+  box(2.8, 0.15, 1.2, 0x8796a3, 18.2, 2.2, 8.9);
+  rod([18.2, 2.2, 8.9], [18.6, 1.6, 10.1], 0.06, 0x5c6873);
+  // tanker truck that loops: terminal -> station -> back
+  const truck = grp(18, 0, 10.6, { dyn: 1 });
+  within(truck, () => {
+    const d = { dyn: 1 };
+    box(4.2, 0.25, 1.0, 0x2a2f35, 0, 0.32, 0, d);
+    box(1.1, 1.15, 1.3, 0xd0503f, 1.75, 0.45, 0, d);
+    box(0.5, 0.4, 1.32, 0x26323d, 2.1, 1.05, 0, d);
+    bullet(2.4, 0.55, 0xdfe5ea, -0.55, 1.1, 0, d);
+    cyl(0.565, 0.565, 0.2, COL.amber, -0.55, 1.0, 0, { rz: Math.PI / 2, dyn: 1, seg: 12 });
+    [-1.5, -0.6, 1.6].forEach(a => [-0.52, 0.52].forEach(b => M(new THREE.CylinderGeometry(0.27, 0.27, 0.2, 9), 0x1f2328, a, 0.28, b, { rx: Math.PI / 2, dyn: 1 })));
+  });
+  hit(0, 0.9, 0, 4.4, 1.9, 1.6, truck);
+  const path = new THREE.CatmullRomCurve3([
+    V3(18, 0, 10.6), V3(22.5, 0, 10.6), V3(25.8, 0, 12.9), V3(28.2, 0, 16.2), V3(27.8, 0, 21.3),
+    V3(24.0, 0, 22.7), V3(20.4, 0, 21.9), V3(18.9, 0, 18.0), V3(18.6, 0, 14.0)
+  ], true, 'centripetal');
+  const plen = path.getLength();
+  hit(18, 1.4, 6.6, 7.4, 3, 3.8);
+  detail('Storage terminal', [16.2, 3.6, 6.2]);
+  detail('Tanker truck', [0, 2.3, 0], { obj: truck });
+  let u = 0, wait = 0;
+  const p = V3(0, 0, 0), q = V3(0, 0, 0);
+  onAnim((t, dt, active, k) => {
+    if (!active) {
+      // park at the terminal once the stage has faded out, so it doesn't jump while still visible
+      if (k === 0 && (u !== 0 || wait > 0)) { u = 0; wait = 0; truck.position.set(18, 0, 10.6); truck.rotation.y = 0; }
+      return;
+    }
+    if (wait > 0) { wait -= dt; return; }
+    const prev = u;
+    u = (u + dt * 3.2 / plen) % 1;
+    if (prev < 0.62 && u >= 0.62) wait = 1.4;              // unloading at the station
+    path.getPointAt(u, p);
+    path.getPointAt((u + 0.01) % 1, q);
+    truck.position.copy(p);
+    truck.rotation.y = Math.atan2(-(q.z - p.z), q.x - p.x);
+  });
+});
+
+stage('pump', () => {
+  box(11.5, 0.06, 11.4, 0x9a9ea3, 23.4, 0, 17.9, { cast: false });
+  box(6.4, 0.45, 4.4, 0xf3f5f7, 23.5, 3.6, 18);
+  box(6.46, 0.16, 4.46, COL.amber, 23.5, 3.72, 18);
+  [[21, 16.4], [26, 16.4], [21, 19.6], [26, 19.6]].forEach(([x, z]) => cyl(0.12, 0.12, 3.6, 0xd6dbe0, x, 0, z, { seg: 8 }));
+  box(4.6, 0.2, 0.9, 0xc9c6c0, 23.5, 0, 18);
+  const screens = mat(0x1e2a36, { own: true, em: 0x000000 });
+  [22.2, 24.8].forEach(x => {
+    box(0.7, 1.5, 0.5, 0xf3f5f7, x, 0.2, 18);
+    M(new THREE.BoxGeometry(0.46, 0.3, 0.04), 0, x, 1.35, 18.27, { m: screens });
+    box(0.72, 0.18, 0.52, COL.amber, x, 1.7, 18);
+    rod([x + 0.3, 1.1, 18.2], [x + 0.45, 0.6, 18.35], 0.035, 0x2a2f35, { seg: 4 });
+  });
+  carModel(23.6, 0, 19.75, 0x3d8bff);
+  cyl(0.08, 0.08, 3.3, 0x8796a3, 19.0, 0, 23.0, { seg: 8 });
+  box(1.9, 1.5, 0.12, 0xf3f5f7, 19.0, 3.0, 23.0);
+  const tex = textTexture([
+    { t: 'OCTANE', f: '700 30px', y: 30, c: '#9a5c00' },
+    { t: '87  89  91', f: '800 58px', y: 90 }
+  ], { w: 256, h: 128 });
+  const signMat = new THREE.MeshBasicMaterial({ map: tex });
+  signMat.userData = { base: new THREE.Color(0xffffff), baseOp: 1, baseEm: null, own: false };
+  ST.pump.mats.add(signMat);                              // so the sign dims with the path filter
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), signMat);
+  sign.position.set(19.0, 3.75, 23.07); ST.pump.group.add(sign);
+  box(3.2, 2.0, 2.2, 0xe7ecf0, 30.6, 0, 20.6);
+  box(3.25, 0.25, 2.25, COL.amber, 30.6, 1.75, 20.6);
+  box(1.6, 0.8, 0.05, 0x26323d, 30.6, 0.6, 21.72);
+  // underground tanks, visible on the cut face
+  [22.0, 25.6].forEach(x => {
+    const s = new THREE.Shape(), w = 3.0, h = 1.05, r = 0.5, x0 = -w / 2, y0 = -h / 2;
+    s.moveTo(x0 + r, y0); s.lineTo(x0 + w - r, y0); s.absarc(x0 + w - r, y0 + r, r, -Math.PI / 2, 0, false);
+    s.lineTo(x0 + w, y0 + h - r); s.absarc(x0 + w - r, y0 + h - r, r, 0, Math.PI / 2, false);
+    s.lineTo(x0 + r, y0 + h); s.absarc(x0 + r, y0 + h - r, r, Math.PI / 2, Math.PI, false);
+    s.lineTo(x0, y0 + r); s.absarc(x0 + r, y0 + r, r, Math.PI, Math.PI * 1.5, false);
+    const outer = M(new THREE.ShapeGeometry(s, 6), 0x3a3f45, x, -1.75, FACE + 0.02, { cast: false });
+    outer.scale.set(1.08, 1.16, 1);
+    M(new THREE.ShapeGeometry(s, 6), COL.amber, x, -1.75, FACE + 0.05, { cast: false });
+    faceStrip(x - 0.9, -0.15, -1.25, 0.13, 0x3a3f45, 0.06);
+  });
+  const drops = Array.from({ length: 5 }, () => { const m = ball(0.07, COL.amber, 0, 0, 0, { seg: 6, hseg: 4, dyn: 1, cast: false }); m.visible = false; return m; });
+  hit(23.5, 2.2, 18, 7.4, 4.8, 5.6);
+  hit(23.8, -1.75, 24, 7.8, 1.8, 1.2);
+  hit(30.6, 1.1, 20.6, 3.4, 2.4, 2.4);
+  hit(19.0, 2.6, 23.0, 2.2, 5.2, 0.8);
+  detail('Higher number = resists knocking better', [19.0, 4.95, 23.0]);
+  detail('Underground fuel tanks', [23.8, -3.05, FACE], { face: [0, 0, 1] });
+  onAnim((t, dt, active, k) => {
+    const on = k > 0.05;
+    const g = on ? 0.25 + 0.2 * (Math.sin(t * 6) > 0 ? 1 : 0) : 0.05;
+    screens.emissive.setRGB(g * 0.5, g, g * 0.6);
+    drops.forEach((m, i) => {
+      m.visible = on;
+      if (!on) return;
+      const p = ((t * 0.9) + i / drops.length) % 1;
+      m.position.set(lerp(22.65, 22.9, p), 0.6 - p * 0.05 + Math.sin(p * Math.PI) * 0.15, lerp(18.4, 19.0, p));
+    });
+  });
+});
+
+const ENG = { theta: 0, stroke: 0 };
+stage('engine', () => {
+  const { x: cx, z: cz } = SITE.car;
+  const car = carModel(cx, 0, cz, 0xe74c3c);              // only the wheels move, and they are dynamic already
+  hit(cx, 1, cz, 4.0, 2.2, 2.0);
+  const eng = popout(grp(cx, 4.6, cz));
+  const parts = {};
+  within(eng, () => {
+    M(new THREE.CylinderGeometry(0.86, 0.86, 2.3, 18, 1, true), 0xcfe2f0, 0, 0.55, 0, { op: 0.28, side: THREE.DoubleSide, cast: false, recv: false });
+    box(2.3, 0.36, 1.4, 0x8796a3, 0, 1.7, 0);
+    cyl(0.09, 0.09, 0.5, 0xf3f5f7, 0, 2.06, 0, { seg: 8 });
+    parts.spark = ball(0.24, 0xfff3a0, 0, 1.5, 0, { own: true, em: 0xffe066, op: 0.9, dyn: 1, cast: false });
+    rod([-0.45, 1.88, 0], [-1.7, 2.35, 0], 0.18, 0x6fa8dc);
+    rod([0.45, 1.88, 0], [1.7, 2.35, 0], 0.18, 0x8a8f96);
+    parts.iv = grp(-0.45, 0, 0, { dyn: 1 });
+    within(parts.iv, () => { cyl(0.04, 0.04, 0.7, 0x5c6873, 0, 1.0, 0, { dyn: 1, seg: 5 }); cyl(0.22, 0.22, 0.06, 0x5c6873, 0, 1.0, 0, { dyn: 1, seg: 12 }); });
+    parts.ev = grp(0.45, 0, 0, { dyn: 1 });
+    within(parts.ev, () => { cyl(0.04, 0.04, 0.7, 0x5c6873, 0, 1.0, 0, { dyn: 1, seg: 5 }); cyl(0.22, 0.22, 0.06, 0x5c6873, 0, 1.0, 0, { dyn: 1, seg: 12 }); });
+    parts.piston = grp(0, 0, 0, { dyn: 1 });
+    within(parts.piston, () => {
+      cyl(0.8, 0.8, 0.55, 0xb8c2cc, 0, -0.2, 0, { dyn: 1, seg: 18 });
+      [0.12, 0.24].forEach(y => cyl(0.81, 0.81, 0.05, 0x6f7d86, 0, y - 0.2 + 0.05, 0, { dyn: 1, seg: 18 }));
+    });
+    const gasMat = mat(0xffd98a, { own: true, op: 0.6 });
+    const u = new THREE.CylinderGeometry(0.8, 0.8, 1, 18); u.translate(0, 0.5, 0);
+    parts.gas = new THREE.Mesh(u, gasMat); parts.gas.userData.dyn = 1; eng.add(parts.gas);
+    parts.rod = box(0.2, 1, 0.2, 0x6f7d86, 0, -0.5, 0, { dyn: 1 });
+    parts.crank = grp(0, -1.75, 0, { dyn: 1 });
+    within(parts.crank, () => {
+      M(new THREE.CylinderGeometry(0.62, 0.62, 0.22, 16), 0x5c6873, 0, 0, -0.12, { rx: Math.PI / 2, dyn: 1 });
+      M(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8), 0xd0503f, 0, 0.5, 0.05, { rx: Math.PI / 2, dyn: 1 });
+      M(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), 0x3a444d, 0, 0, -0.1, { rx: Math.PI / 2, dyn: 1 });
+    });
+  });
+  hit(0, 0, 0, 3.6, 4.8, 1.8, eng);
+  const strokeLbl = detail('', [cx + 2.1, 6.9, cz], { big: true });
+  detail('Spark plug', [cx + 0.95, 7.1, cz]);
+  detail('Piston', [cx + 1.25, 4.0, cz]);
+  detail('Crankshaft', [cx + 1.0, 2.6, cz]);
+  detail('Fuel + air in', [cx - 2.1, 7.0, cz]);
+  detail('Exhaust out', [cx + 2.0, 6.25, cz]);
+  const colors = [0xffd98a, 0xffb31a, 0xff5a1f, 0x9aa1a8], ops = [0.5, 0.7, 0.85, 0.55];
+  const strokeNames = (STAGES.find(v => v.id === 'engine').strokes || []).map(st => st[0]);
+  const rc = 0.5, L = 1.6;
+  let shownStroke = -1;
+  function pose(th) {
+    const s = Math.floor(th / Math.PI) % 4;
+    const pinX = rc * Math.sin(th), pinY = -1.75 + rc * Math.cos(th);
+    const pY = pinY + Math.sqrt(L * L - pinX * pinX);
+    parts.crank.rotation.z = -th;
+    parts.piston.position.y = pY;
+    const top = pY + 0.35, head = 1.7;
+    parts.gas.position.y = top; parts.gas.scale.y = Math.max(0.02, head - top);
+    if (s !== shownStroke) {                               // only touch color and label when the stroke changes
+      shownStroke = s;
+      parts.gas.material.color.setHex(colors[s]); parts.gas.material.opacity = ops[s];
+      strokeLbl.text = `${s + 1} · ${strokeNames[s] || ''}`;
+    }
+    parts.rod.position.set(pinX / 2, (pinY + pY) / 2, 0.02);
+    parts.rod.scale.y = Math.hypot(pinX, pY - pinY);
+    parts.rod.rotation.z = Math.atan2(pinX, pY - pinY);
+    parts.iv.position.y = s === 0 ? -0.18 * Math.sin((th % Math.PI)) : 0;
+    parts.ev.position.y = s === 3 ? -0.18 * Math.sin((th % Math.PI)) : 0;
+    const fs = s === 2 ? Math.max(0, 1 - (th % Math.PI) / 0.9) : 0;
+    parts.spark.visible = fs > 0.02; parts.spark.scale.setScalar(0.4 + fs);
+    ENG.stroke = s;
+  }
+  pose(0);
+  onAnim((t, dt, active, k) => {
+    if (k <= 0.01) return;
+    ENG.theta = (ENG.theta + dt * 2.3) % (Math.PI * 4);
+    pose(ENG.theta);
+    car.userData.wheels.forEach(w => (w.rotation.y += dt * 6));
+  });
+});
+
+stage('tailpipe', () => {
+  const { x: cx, z: cz } = SITE.car, rear = cx - 1.8;    // the car's back bumper
+  rod([rear + 0.05, 0.36, cz + 0.5], [rear - 0.35, 0.36, cz + 0.5], 0.08, 0x5c6873);
+  const ex = puffs(9, 0xc9ced3, 0.6);
+  hit(rear - 1.1, 0.9, cz + 0.6, 2.0, 1.8, 2.0);
+  const cc = popout(grp(cx - 4.4, 3.0, cz + 2.6));
+  const cells = mat(0xd8c79a, { own: true, em: 0x000000 });
+  within(cc, () => {
+    M(new THREE.CylinderGeometry(0.62, 0.62, 2.0, 16, 1, true), 0xcfd6dc, 0, 0, 0, { rz: Math.PI / 2, op: 0.3, side: THREE.DoubleSide, cast: false });
+    M(new THREE.ConeGeometry(0.62, 0.6, 16, 1, true), 0x9aa5ae, -1.3, 0, 0, { rz: Math.PI / 2, cast: false });
+    M(new THREE.ConeGeometry(0.62, 0.6, 16, 1, true), 0x9aa5ae, 1.3, 0, 0, { rz: -Math.PI / 2, cast: false });
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      if (Math.abs(a) + Math.abs(b) === 2) continue;
+      M(new THREE.BoxGeometry(1.7, 0.26, 0.26), 0, 0, a * 0.3, b * 0.3, { m: cells, cast: false });
+    }
+    rod([-2.5, 0, 0], [-1.6, 0, 0], 0.13, 0x8a8f96, { cast: false });
+    rod([1.6, 0, 0], [2.5, 0, 0], 0.13, 0x8a8f96, { cast: false });
+  });
+  hit(0, 0, 0, 5, 1.6, 1.6, cc);
+  detail('In: CO, NOx, unburned fuel', [cx - 6.6, 3.9, cz + 2.6]);
+  detail('Out: CO₂, N₂, water vapor', [cx - 2.2, 3.9, cz + 2.6]);
+  detail('Catalytic converter', [cx - 4.4, 2.1, cz + 2.6]);
+  onAnim((t, dt, active, k) => {
+    const on = k > 0.05;
+    runPuffs(ex, t, on, [rear - 0.5, 0.4, cz + 0.5], 1.6, 0.5, 2.2);
+    ex.forEach(m => { if (on) m.position.x -= (m.position.y - 0.4) * 0.9; });
+    const g = on ? 0.35 + 0.2 * Math.sin(t * 4) : 0;
+    cells.emissive.setRGB(g, g * 0.55, 0.05 * g);
+  });
+});
+
+/* =====================================================================
+   ROUTES: color-coded lines with particles flowing along them
+   ===================================================================== */
+const ROUTE_G = new THREE.Group();
+scene.add(ROUTE_G);
+const PCOL = { oil: 0x2a1d14, water: 0x8ec9e8, gas: 0xe4f2ff, crude: 0x2a1d14, product: 0xffc94a };
+const TUBE = { shared: COL.stone, gas: COL.gasB, gasoline: COL.amber };
+const RZ = FACE + 0.12;   // lines drawn just in front of the cut face
+const RY = 0.3;           // lines along the ground
+const ROUTES = (() => {
+  const { oilWell: OW, gasWell: GW, separator: SEP, waterTank: WT, tower: TW, storage: SG, cityGate: CG, stove: SV, street: STR, car: CAR, gasMain: GM } = SITE;
+  return [
+    // shared start: up the wells, into the separator, water out to its tank
+    { path: 'shared', kind: 'oil', pts: [[OW.x, -6.6, RZ], [OW.x, RY, RZ], [OW.x, RY, 21.6], [OW.x + 2.8, RY, 16.4], [SEP.x - 2.7, RY, SEP.z + 0.7]] },
+    { path: 'shared', kind: 'gas', pts: [[GW.x, -5.45, RZ], [GW.x, RY, RZ], [GW.x, RY, 21.2], [GW.x - 0.1, RY, SEP.z + 1.2]] },
+    { path: 'shared', kind: 'water', pts: [[SEP.x - 1.6, RY, SEP.z - 0.9], [WT.x + 1.0, RY, WT.z + 0.4]] },
+    // natural gas: main line from the separator's gas outlet through the plant, compressor and city gate into town
+    { path: 'gas', kind: 'gas', pts: [[SEP.x + 1.6, RY, SEP.z - 1.3], [-23, RY, 4], [-20.6, RY, GM.z], [CG.x - 2, RY, GM.z], [CG.x + 2, RY, GM.z], [22.5, RY, GM.z], [22.5, RY, STR.z], [41, RY, STR.z]] },
+    { path: 'gas', kind: 'gas', pts: [[SG.x, RY, GM.z], [SG.x, RY, SG.z + 1.0]] },                       // storage spur
+    { path: 'gas', kind: 'gas', pts: [[10, RY, GM.z], [11.8, RY, -14], [15.4, RY, -16.9], [23.6, RY, -16.9], [24.9, RY, -22.4], [25.2, 0.35, -28.4], [26.2, 0.2, -30.8]] }, // LNG spur (see storage-lng stage)
+    { path: 'gas', kind: 'gas', pts: [[13.6, RY, GM.z], [13.6, RY, -13.2], [40.2, RY, -13.2]] },           // factory + power plant
+    { path: 'gas', kind: 'gas', pts: [[SV.x - 0.1, RY, STR.z], [SV.x, RY, SV.z - 1.1]] },                   // to the stove
+    // gasoline: crude from the separator's oil outlet to the tower, then products out to the car
+    { path: 'gasoline', kind: 'crude', pts: [[SEP.x + SEP.len / 2 + 1.6, RY, SEP.z], [TW.x - 5.4, RY, TW.z - 0.4], [TW.x - 2.6, 0.6, TW.z - 0.1], [TW.x - 0.4, 0.6, TW.z - 0.1]] },
+    { path: 'gasoline', kind: 'product', refineEnd: 0.4, pts: [[TW.x + 1.5, RY, TW.z - 1.6], [3, RY, 12.4], [8.2, RY, 12.4], [10.4, RY, 14.9], [15.4, RY, 14.9], [15.6, RY, 9.2], [17.6, RY, 8.6], [18.5, RY, 9.6], [21.8, RY, 13.2], [23.4, RY, 16.9], [27.6, RY, 13.0], [CAR.x - 2.6, RY, CAR.z + 1.6], [CAR.x - 1.4, RY, CAR.z + 0.6]] }
+  ];
+})();
+
+function roundedPath(pts, rad = 1.3) {
+  const P = pts.map(p => V3(...p)), path = new THREE.CurvePath();
+  let cur = P[0].clone();
+  for (let i = 1; i < P.length - 1; i++) {
+    const a = P[i - 1], b = P[i], c = P[i + 1];
+    const d1 = b.clone().sub(a), d2 = c.clone().sub(b);
+    const r = Math.min(rad, d1.length() * 0.45, d2.length() * 0.45);
+    const p1 = b.clone().sub(d1.normalize().multiplyScalar(r)), p2 = b.clone().add(d2.normalize().multiplyScalar(r));
+    if (cur.distanceTo(p1) > 1e-3) path.add(new THREE.LineCurve3(cur.clone(), p1));
+    path.add(new THREE.QuadraticBezierCurve3(p1, b.clone(), p2));
+    cur = p2;
+  }
+  path.add(new THREE.LineCurve3(cur, P[P.length - 1].clone()));
+  return path;
+}
+
+const DARK = new THREE.Color(PCOL.crude), AMBER = new THREE.Color(PCOL.product), _rc = new THREE.Color();
+/* put every particle at its spot along the route; refined product shades from crude-dark to amber */
+function placeParticles(rt) {
+  const pos = rt.pts.geometry.attributes.position.array, col = rt.pts.geometry.attributes.color.array;
+  rt.seeds.forEach((s, i) => {
+    const u = (s + rt.u) % 1, f = u * rt.S, k = Math.floor(f), w = f - k;
+    const a = rt.samples[k], b = rt.samples[Math.min(k + 1, rt.S)];
+    pos[i * 3] = a.x + (b.x - a.x) * w;
+    pos[i * 3 + 1] = a.y + (b.y - a.y) * w + 0.12;
+    pos[i * 3 + 2] = a.z + (b.z - a.z) * w;
+    if (rt.R.refineEnd) {
+      _rc.copy(DARK).lerp(AMBER, clamp(u / rt.R.refineEnd, 0, 1));
+      col[i * 3] = _rc.r; col[i * 3 + 1] = _rc.g; col[i * 3 + 2] = _rc.b;
+    }
+  });
+  rt.pts.geometry.attributes.position.needsUpdate = true;
+  if (rt.R.refineEnd) rt.pts.geometry.attributes.color.needsUpdate = true;
+}
+
+const routes = ROUTES.map(R => {
+  const path = roundedPath(R.pts);
+  const len = path.getLength();
+  const onFace = R.path === 'shared' && R.pts[0][2] > Z1;
+  const tube = new THREE.Mesh(
+    new THREE.TubeGeometry(path, Math.max(8, Math.ceil(len * 2)), onFace ? 0.11 : 0.15, 6, false),
+    new THREE.MeshBasicMaterial({ color: TUBE[R.path], transparent: true, opacity: 0.6, depthWrite: false })
+  );
+  tube.renderOrder = 2;
+  ROUTE_G.add(tube);
+  const S = Math.max(16, Math.ceil(len * 3));
+  const n = Math.max(2, Math.round(len / 1.7));
+  const pts = pointsCloud(n, 0.72, { p: ROUTE_G });
+  pts.renderOrder = 3;
+  const col = pts.geometry.attributes.color.array, c = new THREE.Color();
+  const seeds = Array.from({ length: n }, (_, i) => (i + Math.random() * 0.4) / n);
+  const pal = R.kind === 'oil' ? [PCOL.oil, PCOL.oil, PCOL.water] : [PCOL[R.kind]];
+  seeds.forEach((s, i) => { c.setHex(pal[i % pal.length]); col.set([c.r, c.g, c.b], i * 3); });
+  const rt = { R, len, tube, pts, samples: path.getSpacedPoints(S), S, seeds, u: 0, dim: 0, dimT: 0 };
+  placeParticles(rt);
+  return rt;
+});
+/* dt is real time (dimming eases even while motion is paused); particles move only when `moving` */
+function updateRoutes(dt, moving) {
+  routes.forEach(rt => {
+    if (moving && dt > 0) { rt.u = (rt.u + dt * 3 / rt.len) % 1; placeParticles(rt); }
+    if (rt.dim === rt.dimT) return;
+    rt.dim += (rt.dimT - rt.dim) * Math.min(1, dt * 6);
+    if (Math.abs(rt.dim - rt.dimT) < 0.01) rt.dim = rt.dimT;
+    rt.tube.material.opacity = 0.6 - 0.52 * rt.dim;
+    rt.pts.material.opacity = 1 - 0.88 * rt.dim;
+  });
+}
+
+/* =====================================================================
+   SCENERY: roads, streets, trees, hills, clouds
+   ===================================================================== */
+scenery(() => {
+  box(27.6, 0.05, 2.4, COL.road, 28.2, 0, 11, { cast: false });
+  for (let x = 15.5; x < 41.5; x += 2.1) box(1.0, 0.02, 0.12, COL.line, x, 0.05, 11, { cast: false });
+  box(19.6, 0.05, 1.5, 0x8b8f94, 31.8, 0, SITE.street.z, { cast: false });
+  box(1.5, 0.05, 7.8, 0x8b8f94, 22.5, 0, -5.2, { cast: false });
+  [[-35, -18.5, 5.5], [-26.5, -19.4, 4.2], [-38.4, -10, 3.2]].forEach(([x, z, r]) => {   // kept inside the slab edges
+    const h = M(new THREE.SphereGeometry(r, 9, 4, 0, Math.PI * 2, 0, Math.PI / 2), 0x92c561, x, 0, z, { cast: false });
+    h.scale.y = 0.42;
+  });
+  const trees = [
+    [-38, -14, 1.2], [-31, -22, 1], [-22, -17, 1.1], [-24.5, -13.5, 0.9], [-39.5, -4, 1], [-34.5, -1.5, 0.9], [-40, 5, 1.1], [-37.5, 8.6, 0.8],
+    [-17, 3, 1], [-12.5, 5.5, 0.9], [-8.5, 3.2, 1.1], [-3.5, -3.5, 1], [2.5, -4.5, 0.9], [8.5, -3.2, 1.1], [11.5, 1.5, 0.9], [3.2, 3.5, 0.8],
+    [-9, -20.5, 1.1], [-3.5, -21.5, 1], [1.5, -19.5, 0.9], [10.5, -16.5, 0.8], [41, -5.6, 0.9], [41, 5.5, 1], [26, 6.6, 0.8], [33.6, 6.2, 0.9],
+    [40.5, 15.5, 1.1], [37.8, 21.6, 1], [34.6, 17.4, 0.9], [-1.5, 21.5, 1], [3.5, 21.8, 0.9], [8.5, 21.6, 1.1], [-16.5, 9.6, 0.9], [-36, 15.6, 0.9],
+    [-2.6, 6.4, 0.9], [13.6, -3.6, 0.8], [28.6, -8.6, 0.8], [36.8, -8.8, 0.9]
+  ];
+  trees.forEach(([x, z, s], i) => tree(x, z, s, [0x5fa34a, 0x6fb04f, 0x4f9a46][i % 3]));
+  [[-22, 25, -30], [12, 28, -38], [34, 23, -6]].forEach(([x, y, z]) => {
+    [[0, 0, 0, 2.2], [2.2, -0.4, 0.4, 1.6], [-2.1, -0.5, -0.2, 1.5], [0.8, 0.9, -0.3, 1.4]].forEach(([a, b, c, r]) =>
+      M(new THREE.IcosahedronGeometry(r, 0), 0xffffff, x + a, y + b, z + c, { cast: false, recv: false, op: 0.92 }));
+  });
+});
+
+/* =====================================================================
+   MERGE static parts of each stage into a few meshes (fewer draw calls).
+   Skips anything marked dyn (or under a dyn group), hit boxes, transparent
+   or textured materials. Originals are removed only after a merge succeeds.
+   ===================================================================== */
+function mergeStatic(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const buckets = new Map();
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    for (let p = o; p && p !== root; p = p.parent) if (p.userData.dyn || !p.visible) return;
+    if (o.userData.hit || Array.isArray(o.material) || o.material.transparent || o.material.map) return;
+    if (!o.geometry.getAttribute('normal')) return;
+    const key = o.material.uuid + (o.castShadow ? 'c' : '') + (o.receiveShadow ? 'r' : '');
+    if (!buckets.has(key)) buckets.set(key, { m: o.material, cast: o.castShadow, recv: o.receiveShadow, meshes: [] });
+    buckets.get(key).meshes.push(o);
+  });
+  const merged = [];
+  buckets.forEach(b => {
+    if (b.meshes.length < 2) return;                        // nothing to gain from merging one mesh
+    const parts = b.meshes.map(o => {
+      const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', src.getAttribute('position').clone());
+      g.setAttribute('normal', src.getAttribute('normal').clone());
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+      return g;
+    });
+    let n = 0;
+    parts.forEach(g => (n += g.attributes.position.count));
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+    let off = 0;
+    parts.forEach(g => { pos.set(g.attributes.position.array, off * 3); nor.set(g.attributes.normal.array, off * 3); off += g.attributes.position.count; g.dispose(); });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, b.m);
+    mesh.castShadow = b.cast; mesh.receiveShadow = b.recv;
+    merged.push([b.meshes, mesh]);
+  });
+  merged.forEach(([meshes, mesh]) => { meshes.forEach(o => o.parent.remove(o)); root.add(mesh); });
+}
+[...Object.values(ST).map(s => s.group), SCENERY].forEach(root => {
+  try { mergeStatic(root); } catch (e) { console.warn('Mesh merge skipped for', root.name || 'scenery', e); }
+});
+
+/* =====================================================================
+   PATH FILTER: dim the route that isn't selected (the open stage never dims)
+   ===================================================================== */
+let FILTER = 'both';
+const DIM_COLOR = new THREE.Color(0xdfe5eb);
+function isDim(path) { return path !== 'shared' && FILTER !== 'both' && path !== FILTER; }
+function setFilterTargets() {
+  Object.values(ST).forEach(s => (s.dimT = isDim(s.data.path) && s.data.id !== SEL ? 1 : 0));
+  routes.forEach(rt => (rt.dimT = isDim(rt.R.path) ? 1 : 0));
+}
+/* own materials animate their own glow, so only shared ones get their emissive faded here */
+function applyDim(s) {
+  s.mats.forEach(m => {
+    m.color.copy(m.userData.base).lerp(DIM_COLOR, s.dim * 0.78);
+    if (m.transparent) m.opacity = m.userData.baseOp * (1 - s.dim * 0.55);
+    if (m.userData.baseEm && !m.userData.own) m.emissive.copy(m.userData.baseEm).multiplyScalar(1 - s.dim * 0.85);
+  });
+}
+function updateDims(dt) {
+  Object.values(ST).forEach(s => {
+    if (s.dim === s.dimT) return;
+    s.dim += (s.dimT - s.dim) * Math.min(1, dt * 6);
+    if (Math.abs(s.dim - s.dimT) < 0.01) s.dim = s.dimT;
+    applyDim(s);
+  });
+}
+
+/* =====================================================================
+   CAMERA: hand-written orbit controls (mouse + touch), fly-to, view offset
+   ===================================================================== */
+const CTL = { target: V3(0, -4, 0), radius: 120, theta: 0, phi: 1.0, minR: 7, maxR: 520, minPhi: 0.1, maxPhi: 1.64 };
+const DEFAULT_DIR = V3(0.06, 0.47, 0.88).normalize();
+const HOVER = { req: null, id: null };
+const PHONE_MQ = matchMedia('(max-width: 760px)');      // same breakpoint as the CSS
+const appEl = $('#app'), panelEl = $('#panel'), brandEl = $('.brand'), toolsEl = $('.tools');
+let FLY = null;
+
+function setFromPosLook(pos, look) {
+  CTL.target.copy(look);
+  const off = pos.clone().sub(look);
+  CTL.radius = clamp(off.length(), CTL.minR, CTL.maxR);
+  CTL.theta = Math.atan2(off.x, off.z);
+  CTL.phi = clamp(Math.acos(clamp(off.y / off.length(), -1, 1)), CTL.minPhi, CTL.maxPhi);
+}
+function applyCam() {
+  const r = CTL.radius, s = Math.sin(CTL.phi);
+  camera.position.set(CTL.target.x + r * s * Math.sin(CTL.theta), CTL.target.y + r * Math.cos(CTL.phi), CTL.target.z + r * s * Math.cos(CTL.theta));
+  camera.lookAt(CTL.target);
+  camera.updateMatrixWorld();
+}
+function clampTarget() {
+  CTL.target.x = clamp(CTL.target.x, -75, 70);
+  CTL.target.y = clamp(CTL.target.y, -22, 24);
+  CTL.target.z = clamp(CTL.target.z, -55, 48);
+}
+
+/* The part of the canvas the panel and toolbars leave free, in canvas pixels:
+   {x, y, w, h} plus the view offset {ox, oy} that centers the camera target in it.
+   Cached; call invalidateVisible() when the layout changes. */
+let VIS = null;
+function invalidateVisible() { VIS = null; }
+function visibleArea() {
+  if (VIS) return VIS;
+  const W = canvas.clientWidth || 1, H = canvas.clientHeight || 1;
+  const open = !panelEl.classList.contains('closed');
+  if (!PHONE_MQ.matches) {
+    const pw = open ? panelEl.offsetWidth + 16 : 0;
+    VIS = { x: 0, y: 0, w: W - pw, h: H, ox: pw / 2, oy: 0 };
+  } else {
+    // phones: the title sits on top, the toolbar and the sheet at the bottom
+    const appTop = appEl.getBoundingClientRect().top;
+    const top = brandEl.getBoundingClientRect().bottom - appTop + 4;
+    const sheet = open ? panelEl.offsetHeight : 0;
+    const bottom = H - sheet - toolsEl.offsetHeight - 16;
+    const h = Math.max(120, bottom - top);
+    VIS = { x: 0, y: top, w: W, h, ox: 0, oy: H / 2 - (top + h / 2) };
+  }
+  return VIS;
+}
+/* stage cameras are authored for a desktop view; back off when less of the view is visible */
+function fitted(pos, look) {
+  const H = canvas.clientHeight || 1, v = visibleArea();
+  const f = clamp(Math.pow(Math.max(1.05 * H / v.w, H / v.h, 1), 0.92), 1, 3);
+  return look.clone().add(pos.clone().sub(look).multiplyScalar(f));
+}
+/* distance at which a box of points fits inside the visible area */
+const SCENE_BOX = [];
+[-52, 46].forEach(x => [-17, 9].forEach(y => [-40, 30].forEach(z => SCENE_BOX.push(V3(x, y, z)))));
+function fitDistance(look, dir, pts = SCENE_BOX, margin = 0.04) {
+  const W = canvas.clientWidth || 1, H = canvas.clientHeight || 1, v = visibleArea();
+  const xMin = -1 + 2 * v.x / W + margin, xMax = -1 + 2 * (v.x + v.w) / W - margin;
+  const yMax = 1 - 2 * v.y / H - margin, yMin = 1 - 2 * (v.y + v.h) / H + margin;
+  const cam = camera.clone();
+  cam.aspect = W / H;
+  if (v.ox || v.oy) cam.setViewOffset(W, H, v.ox, v.oy, W, H); else cam.clearViewOffset();
+  cam.updateProjectionMatrix();
+  const q = V3(0, 0, 0);
+  const fits = d => {
+    cam.position.copy(look).addScaledVector(dir, d);
+    cam.lookAt(look);
+    cam.updateMatrixWorld();
+    return pts.every(p => { q.copy(p).project(cam); return q.z < 1 && q.x > xMin && q.x < xMax && q.y > yMin && q.y < yMax; });
+  };
+  let lo = 20, hi = 600;
+  for (let i = 0; i < 22; i++) { const mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
+  return hi;
+}
+function defaultView() {
+  const look = V3(-3, -4, -4);
+  const dist = clamp(fitDistance(look, DEFAULT_DIR), 40, CTL.maxR);
+  return { pos: look.clone().addScaledVector(DEFAULT_DIR, dist), look };
+}
+function flyTo(pos, look, dur = 1.5) {
+  if (REDUCED || dur === 0) { setFromPosLook(pos, look); applyCam(); FLY = null; return; }
+  FLY = { p0: camera.position.clone(), l0: CTL.target.clone(), p1: pos.clone(), l1: look.clone(), t: 0, dur };
+}
+const _fp = V3(0, 0, 0);
+function stepFly(dt) {
+  if (!FLY) return;
+  FLY.t = Math.min(1, FLY.t + dt / FLY.dur);
+  const e = ease(FLY.t);
+  _fp.copy(FLY.p0).lerp(FLY.p1, e);
+  _fp.y += Math.sin(Math.PI * e) * Math.min(22, FLY.p0.distanceTo(FLY.p1) * 0.22);
+  CTL.target.copy(FLY.l0).lerp(FLY.l1, e);
+  camera.position.copy(_fp);
+  camera.lookAt(CTL.target);
+  camera.updateMatrixWorld();
+  if (FLY.t >= 1) { const f = FLY; FLY = null; setFromPosLook(f.p1, f.l1); applyCam(); }
+}
+function flyToStage(s, dur) {
+  const look = V3(...s.camera.look);
+  flyTo(fitted(V3(...s.camera.pos), look), look, dur);
+}
+function resetView(dur = 1.4) { const d = defaultView(); flyTo(d.pos, d.look, dur); }
+
+/* view offset keeps the focus centered in the area the panel leaves free */
+const VOFF = { x: 0, y: 0 };
+function resize() {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return;
+  renderer.setSize(W, H, false);
+  camera.aspect = W / H;
+  invalidateVisible();
+  applyViewOffset();
+}
+function applyViewOffset() {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (Math.abs(VOFF.x) < 0.5 && Math.abs(VOFF.y) < 0.5) camera.clearViewOffset();
+  else camera.setViewOffset(W, H, VOFF.x, VOFF.y, W, H);
+  camera.updateProjectionMatrix();
+}
+function updateViewOffset(dt) {
+  const v = visibleArea();
+  const nx = VOFF.x + (v.ox - VOFF.x) * Math.min(1, dt * 6), ny = VOFF.y + (v.oy - VOFF.y) * Math.min(1, dt * 6);
+  if (Math.abs(nx - VOFF.x) > 0.05 || Math.abs(ny - VOFF.y) > 0.05) { VOFF.x = nx; VOFF.y = ny; applyViewOffset(); }
+}
+
+const pointers = new Map();
+let drag = null, pinch = null, down = null;
+const dist2 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const _right = V3(0, 0, 0), _up = V3(0, 0, 0);
+function pan(dx, dy) {
+  const s = CTL.radius * 1.1 / Math.max(400, canvas.clientHeight);
+  _right.setFromMatrixColumn(camera.matrixWorld, 0);
+  _up.setFromMatrixColumn(camera.matrixWorld, 1);
+  CTL.target.addScaledVector(_right, -dx * s).addScaledVector(_up, dy * s);
+  clampTarget();
+}
+/* the user takes over: stop any flight and continue the orbit from where the camera is now */
+function noteInteraction() {
+  if (!FLY) return;
+  FLY = null;
+  setFromPosLook(camera.position.clone(), CTL.target.clone());
+}
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture?.(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  noteInteraction();
+  hideTip();
+  closeTourMenu();
+  if (pointers.size === 1) {
+    drag = { x: e.clientX, y: e.clientY, mode: (e.button === 2 || e.shiftKey || e.ctrlKey || e.metaKey) ? 'pan' : 'rot' };
+    down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: dist2(a, b), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+    drag = null; down = null;
+  }
+});
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) { if (e.pointerType === 'mouse') HOVER.req = { x: e.clientX, y: e.clientY }; return; }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size >= 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.max(10, dist2(a, b)), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    CTL.radius = clamp(CTL.radius * pinch.d / d, CTL.minR, CTL.maxR);
+    pan(mx - pinch.mx, my - pinch.my);
+    pinch = { d, mx, my };
+    applyCam();
+    return;
+  }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) { down.moved = true; canvas.classList.add('dragging'); }
+  if (drag.mode === 'rot') {
+    CTL.theta -= dx * 0.0055;
+    CTL.phi = clamp(CTL.phi - dy * 0.0045, CTL.minPhi, CTL.maxPhi);
+  } else pan(dx, dy);
+  applyCam();
+});
+function endPointer(e, cancelled) {
+  const tap = !cancelled && down && !down.moved && pointers.size === 1 && performance.now() - down.t < 650;
+  pointers.delete(e.pointerId);
+  if (tap) {
+    const id = hitAt(e.clientX, e.clientY);
+    if (id) select(id, { fly: true });
+  }
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 1) { const [p] = [...pointers.values()]; drag = { x: p.x, y: p.y, mode: 'rot' }; down = null; }
+  if (pointers.size === 0) { drag = null; down = null; canvas.classList.remove('dragging'); }
+}
+canvas.addEventListener('pointerup', e => endPointer(e, false));
+canvas.addEventListener('pointercancel', e => endPointer(e, true));
+canvas.addEventListener('pointerleave', () => { HOVER.req = null; setHover(null); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+/* zoom also works with the pointer over a floating label (and blocks browser page zoom there) */
+function onWheel(e) {
+  e.preventDefault();
+  noteInteraction();
+  const k = Math.exp(e.deltaY * (e.deltaMode === 1 ? 0.04 : 0.0012));
+  CTL.radius = clamp(CTL.radius * k, CTL.minR, CTL.maxR);
+  applyCam();
+}
+canvas.addEventListener('wheel', onWheel, { passive: false });
+canvas.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;        // leave browser shortcuts alone
+  const step = 0.08, key = e.key.toLowerCase();
+  const act = {
+    '+': () => (CTL.radius = clamp(CTL.radius * 0.88, CTL.minR, CTL.maxR)), '=': () => (CTL.radius = clamp(CTL.radius * 0.88, CTL.minR, CTL.maxR)),
+    '-': () => (CTL.radius = clamp(CTL.radius / 0.88, CTL.minR, CTL.maxR)), '_': () => (CTL.radius = clamp(CTL.radius / 0.88, CTL.minR, CTL.maxR)),
+    a: () => (CTL.theta += step), d: () => (CTL.theta -= step),
+    w: () => (CTL.phi = clamp(CTL.phi - step, CTL.minPhi, CTL.maxPhi)), s: () => (CTL.phi = clamp(CTL.phi + step, CTL.minPhi, CTL.maxPhi))
+  }[key];
+  if (!act) return;
+  e.preventDefault();
+  noteInteraction();
+  act();
+  applyCam();
+});
+
+/* =====================================================================
+   PICKING
+   ===================================================================== */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const ALL_HITS = [];
+Object.values(ST).forEach(s => ALL_HITS.push(...s.hits));
+function shown(o) { for (let p = o.parent; p; p = p.parent) if (!p.visible) return false; return true; }
+function hitAt(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const list = ray.intersectObjects(ALL_HITS, false);
+  for (const h of list) if (shown(h.object)) return h.object.userData.hit;
+  return null;
+}
+function setHover(id) {
+  if (HOVER.id === id) return;
+  HOVER.id = id;
+  canvas.classList.toggle('hovering', !!id);
+}
+function doHover() {
+  if (!HOVER.req || pointers.size) return;
+  const { x, y } = HOVER.req;
+  HOVER.req = null;
+  setHover(hitAt(x, y));
+}
+
+/* =====================================================================
+   FLOATING LABELS (HTML overlays that follow their objects)
+   ===================================================================== */
+const labelsEl = $('#labels');
+labelsEl.addEventListener('wheel', onWheel, { passive: false });
+const PATH_NAME = { shared: 'Shared start', gas: 'Natural gas path', gasoline: 'Gasoline path' };
+const LBL = STAGES.filter(s => ST[s.id]).map(s => {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'lbl';
+  el.dataset.path = s.path;
+  el.innerHTML = `<span class="b">${s.step}</span><span class="t"></span>`;
+  el.querySelector('.t').textContent = s.label;
+  el.setAttribute('aria-label', `${PATH_NAME[s.path]}, stage ${s.step}: ${s.label}`);
+  el.addEventListener('click', () => select(s.id, { fly: true }));
+  labelsEl.appendChild(el);
+  const z = s.labelAt[2];
+  return { s, el, pos: V3(...s.labelAt), w: 120, h: 26, face: z >= Z1 ? V3(0, 0, 1) : z <= Z0 ? V3(0, 0, -1) : null, last: '' };
+});
+DETAILS.forEach(d => {
+  const el = document.createElement('div');
+  el.className = 'dlbl off' + (d.big ? ' big' : '');
+  el.setAttribute('aria-hidden', 'true');
+  labelsEl.appendChild(el);
+  d.el = el; d.shownText = null; d.last = '';
+  if (d.face) d.face = V3(...d.face);
+  else if (!d.obj && d.pos.z >= Z1) d.face = V3(0, 0, 1);
+});
+/* toolbar, title and hint areas, in canvas coordinates; labels keep clear of them */
+let CHROME = [];
+function measureChrome() {
+  const a = appEl.getBoundingClientRect();
+  CHROME = [brandEl, toolsEl, $('.hint')].filter(e => e && e.offsetParent !== null).map(e => {
+    const r = e.getBoundingClientRect();
+    return { x: r.left - a.left - 4, y: r.top - a.top - 4, w: r.width + 8, h: r.height + 8 };
+  });
+}
+function measureLabels() {
+  measureChrome();
+  LBL.forEach(L => { L.el.classList.remove('compact', 'off'); L.w = L.el.offsetWidth || 120; L.h = L.el.offsetHeight || 26; L.last = ''; });
+}
+const _v = V3(0, 0, 0), _w = V3(0, 0, 0);
+function project(p, W, H) {
+  _v.copy(p).project(camera);
+  return { x: (_v.x * 0.5 + 0.5) * W, y: (-_v.y * 0.5 + 0.5) * H, z: _v.z, ok: _v.z < 1 && _v.z > -1 };
+}
+function facing(face, p) { return !face || _w.copy(camera.position).sub(p).dot(face) > 0; }
+function overlaps(r, list) { for (const q of list) if (r.x < q.x + q.w && r.x + r.w > q.x && r.y < q.y + q.h && r.y + r.h > q.y) return true; return false; }
+function setLbl(item, x, y, cls) {
+  const key = `${x | 0},${y | 0}|${cls}`;
+  if (item.last === key) return;
+  item.last = key;
+  item.el.style.transform = `translate(${x | 0}px, ${y | 0}px)`;
+  item.el.className = cls;
+}
+const isSel = L => L.s.id === SEL, isHov = L => L.s.id === HOVER.id;
+function updateLabels() {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const placed = CHROME.slice();
+  // order: selected first, then hovered, then nearest to the camera
+  const order = LBL.map(L => {
+    const p = project(L.pos, W, H);
+    return { L, p, vis: p.ok && facing(L.face, L.pos) && p.x > -60 && p.x < W + 60 && p.y > -40 && p.y < H + 40 };
+  }).sort((a, b) => Number(isSel(b.L)) - Number(isSel(a.L)) || Number(isHov(b.L)) - Number(isHov(a.L)) || a.p.z - b.p.z);
+  const base = L => 'lbl' + (isSel(L) ? ' sel' : (isDim(L.s.path) ? ' dim' : ''));
+  // 1) the selected stage's label
+  const first = order.length && isSel(order[0].L) ? order.shift() : null;
+  if (first) {
+    const { L, p } = first;
+    const r = { x: p.x - L.w / 2, y: p.y - L.h - 4, w: L.w, h: L.h };
+    if (first.vis) { placed.push(r); setLbl(L, r.x, r.y, base(L)); } else setLbl(L, r.x, r.y, base(L) + ' off');
+  }
+  // 2) detail labels for the selected stage (and the time-lapse counter while it plays)
+  DETAILS.forEach(d => {
+    const want = (d.stage === SEL || (d.playing && TL.playing)) && !d.hide && d.text;
+    if (d.shownText !== d.text) { d.el.innerHTML = (d.swatch ? `<span class="sw" style="background:${d.swatch}"></span>` : '') + escapeHTML(d.text); d.shownText = d.text; d.w = d.el.offsetWidth; d.h = d.el.offsetHeight; }
+    if (!want) { if (!d.el.classList.contains('off')) d.el.classList.add('off'); return; }
+    const wp = d.obj ? d.obj.localToWorld(_w.copy(d.pos)).clone() : d.pos;
+    const p = project(wp, W, H);
+    const st = ST[d.stage];
+    const vis = p.ok && facing(d.face, wp) && (st ? st.k > 0.6 || (d.playing && TL.playing) : true);
+    const r = { x: p.x - d.w / 2, y: p.y - d.h / 2, w: d.w, h: d.h };
+    if (vis) placed.push(r);
+    const key = `${r.x | 0},${r.y | 0}|${vis}`;
+    if (d.last !== key) { d.last = key; d.el.style.transform = `translate(${r.x | 0}px, ${r.y | 0}px)`; d.el.classList.toggle('off', !vis); }
+  });
+  // 3) every other stage label; shrink to a numbered dot or hide when crowded
+  order.forEach(({ L, p, vis }) => {
+    if (!vis) { setLbl(L, p.x, p.y, base(L) + ' off'); return; }
+    const full = { x: p.x - L.w / 2, y: p.y - L.h - 4, w: L.w, h: L.h };
+    if (!overlaps(full, placed)) { placed.push(full); setLbl(L, full.x, full.y, base(L)); return; }
+    const c = { x: p.x - 13, y: p.y - 30, w: 26, h: 26 };
+    if (!overlaps(c, placed)) { placed.push(c); setLbl(L, c.x, c.y, base(L) + ' compact'); return; }
+    setLbl(L, c.x, c.y, base(L) + ' compact off');
+  });
+}
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* =====================================================================
+   INFO PANEL, TERM TOOLTIPS, TOURS, QUIZ, COMPARISON, MOLECULES
+   ===================================================================== */
+const panel = panelEl, pBody = $('#p-body'), pTitle = $('#p-title'), pChip = $('#p-chip'), pStep = $('#p-step');
+const tourbar = $('#tourbar'), tBack = $('#t-back'), tNext = $('#t-next'), tCount = $('#t-count'), tDots = $('#t-dots');
+const modal = $('#modal'), mBody = $('#m-body'), tip = $('#tip'), menu = $('#tour-menu'), bTour = $('#b-tour'), srLive = $('#sr-live');
+const TOUR = { key: null, i: 0, inQuiz: false };
+let MOTION = true;
+let MOL = null;          // molecule viewer, built on first open
+let LIVE = {};           // panel elements updated every frame (time-lapse counter, engine strokes)
+let QUIZ = [];
+let lastFocus = null;
+const ARROW = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
+const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z"/></svg>';
+const FORK = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8h5" stroke="var(--stone-fill)"/><path d="M7 8c2 0 2-4 7-4" stroke="var(--gas-fill)"/><path d="M7 8c2 0 2 4 7 4" stroke="var(--amber-fill)"/></svg>';
+
+/* short spoken updates for screen readers */
+function announce(msg) {
+  srLive.textContent = '';
+  requestAnimationFrame(() => (srLive.textContent = msg));
+}
+
+const ALL_TERMS = {};
+STAGES.forEach(s => Object.entries(s.terms || {}).forEach(([k, v]) => { if (!ALL_TERMS[k.toLowerCase()]) ALL_TERMS[k.toLowerCase()] = v; }));
+Object.entries(GLOSSARY).forEach(([k, v]) => { if (!ALL_TERMS[k.toLowerCase()]) ALL_TERMS[k.toLowerCase()] = v; });
+function defOf(key, sid) {
+  const k = key.toLowerCase(), s = STAGES.find(v => v.id === sid);
+  if (s && s.terms) for (const [a, v] of Object.entries(s.terms)) if (a.toLowerCase() === k) return v;
+  return ALL_TERMS[k] || '';
+}
+/* escape the text, then turn [[term]] / [[words|term]] into tooltip buttons */
+function rich(text, s) {
+  return escapeHTML(text || '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, label, key) => {
+    const k = (key || label).trim();
+    if (!defOf(k, s && s.id)) return label;
+    return `<button type="button" class="term" data-term="${k}" data-stage="${s ? s.id : ''}" aria-expanded="false">${label}</button>`;
+  });
+}
+
+/* ---------- tooltips for highlighted terms ---------- */
+let tipFor = null;
+function showTip(btn) {
+  const def = defOf(btn.dataset.term, btn.dataset.stage);
+  if (!def) return;
+  if (tipFor && tipFor !== btn) tipFor.setAttribute('aria-expanded', 'false');
+  tip.innerHTML = `<b>${escapeHTML(btn.textContent)}</b>${escapeHTML(def)}`;
+  tip.hidden = false;
+  const r = btn.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  let top = r.top - th - 8;
+  if (top < 8) top = r.bottom + 8;
+  tip.style.left = clamp(r.left + r.width / 2 - tw / 2, 8, window.innerWidth - tw - 8) + 'px';
+  tip.style.top = top + 'px';
+  btn.setAttribute('aria-expanded', 'true');
+  btn.setAttribute('aria-describedby', 'tip');
+  tipFor = btn;
+}
+function hideTip() {
+  if (!tipFor) return;
+  tipFor.setAttribute('aria-expanded', 'false');
+  tipFor.removeAttribute('aria-describedby');
+  tipFor = null;
+  tip.hidden = true;
+}
+function focusVisible(el) { try { return el.matches(':focus-visible'); } catch (err) { return true; } }
+const termOf = e => (e.target.closest ? e.target.closest('.term') : null);
+document.addEventListener('pointerover', e => { const t = termOf(e); if (t && e.pointerType === 'mouse') showTip(t); });
+document.addEventListener('pointerout', e => { const t = termOf(e); if (t && e.pointerType === 'mouse' && tipFor === t) hideTip(); });
+// keyboard focus shows the tip; a tap's focus doesn't, so the tap's click can toggle it
+document.addEventListener('focusin', e => { const t = termOf(e); if (t && focusVisible(t)) showTip(t); });
+document.addEventListener('focusout', e => { const t = termOf(e); if (t && tipFor === t) hideTip(); });
+document.addEventListener('click', e => {
+  const t = termOf(e);
+  if (t) { e.preventDefault(); if (tipFor === t && e.detail > 0 && !matchMedia('(hover: hover)').matches) hideTip(); else showTip(t); return; }
+  if (tipFor) hideTip();
+  if (!menu.hidden && !(e.target.closest && e.target.closest('.tool-wrap'))) closeTourMenu();
+});
+pBody.addEventListener('scroll', hideTip, { passive: true });
+
+/* ---------- panel views ---------- */
+function setPanelKind(kind) {
+  panel.classList.remove('p-shared', 'p-gas', 'p-gasoline', 'p-overview');
+  panel.classList.add('p-' + kind);
+}
+/* keep layout-dependent things in step with the panel: sheet height, camera framing, label no-go areas */
+function syncSheet() {
+  const open = !panel.classList.contains('closed');
+  document.documentElement.style.setProperty('--sheet-h', PHONE_MQ.matches && open ? panel.offsetHeight + 'px' : '0px');
+  appEl.classList.toggle('panel-open', open);
+  invalidateVisible();
+  setTimeout(() => { measureChrome(); invalidateVisible(); }, 380);   // after the slide transition
+}
+if (window.ResizeObserver) new ResizeObserver(syncSheet).observe(panel);
+function openPanel() {
+  panel.classList.remove('closed');
+  panel.removeAttribute('inert');
+  syncSheet();
+}
+function closePanel() {
+  const hadFocus = panel.contains(document.activeElement);
+  panel.classList.add('closed');
+  panel.setAttribute('inert', '');                     // hidden controls leave the tab order
+  syncSheet();
+  setSel(null);
+  hideTip();
+  if (TOUR.key) endTour();
+  if (hadFocus) canvas.focus({ preventScroll: true });
+}
+function setSel(id) {
+  SEL = id;
+  setFilterTargets();                                   // the open stage is never dimmed
+}
+function node(id, x, y, kind) {
+  const s = STAGES.find(v => v.id === id);
+  return `<g class="st ${kind}" tabindex="0" role="button" data-id="${id}" aria-label="${escapeHTML(PATH_NAME[s.path] + ', stage ' + s.step + ': ' + s.label)}"><title>${escapeHTML(s.label)}</title>` +
+    `<circle cx="${x}" cy="${y}" r="9.5"></circle><text x="${x}" y="${y + 3.5}" text-anchor="middle">${s.step}</text></g>`;
+}
+function routeMap() {
+  const sh = TOURS.gas.stages.slice(0, 4), g = TOURS.gas.stages.slice(4), a = TOURS.gasoline.stages.slice(4);
+  let s = '<div class="rmap-wrap"><svg class="rmap" viewBox="0 0 344 152" role="group" aria-label="Map of every stage: a shared start that forks into two paths">';
+  s += '<path class="ln shared" d="M16 76H112"></path>';
+  s += '<path class="ln gas" d="M112 76C130 76 128 34 150 34H330"></path>';
+  s += '<path class="ln gasoline" d="M112 76C130 76 128 118 150 118H330"></path>';
+  s += '<text class="lbt gas" x="150" y="16">Natural gas</text>';
+  s += '<text class="lbt gasoline" x="150" y="146">Gasoline</text>';
+  s += '<text class="lbt shared" x="8" y="58">Shared start</text>';
+  sh.forEach((id, i) => (s += node(id, 16 + i * 29, 76, 'shared')));
+  g.forEach((id, i) => (s += node(id, 150 + i * 36, 34, 'gas')));
+  a.forEach((id, i) => (s += node(id, 150 + i * 25.7, 118, 'gasoline')));
+  return s + '</svg></div>';
+}
+function renderOverview() {
+  setSel(null);
+  LIVE = {};
+  setPanelKind('overview');
+  pChip.className = 'chip'; pChip.textContent = 'Start here'; pStep.textContent = '';
+  pTitle.textContent = OVERVIEW.title;
+  pBody.innerHTML = `<p class="lead">${rich(OVERVIEW.text, null)}</p>${routeMap()}
+    <div class="tourpick">
+      <button type="button" data-act="tour-gas"><b><span class="dot"></span>Natural gas tour</b><small>10 steps, seafloor to stove</small></button>
+      <button type="button" data-act="tour-gasoline"><b><span class="dot a"></span>Gasoline tour</b><small>12 steps, seafloor to tailpipe</small></button>
+    </div>
+    <ul class="howto">
+      <li>Click any labeled object, or a dot on the map above, to learn about it.</li>
+      <li>Drag to turn the model, scroll or pinch to zoom, right-drag or two fingers to pan.</li>
+      <li>Underlined words have short definitions. Hover or tap them.</li>
+      <li>Keyboard: with the model focused, W A S D turn it and + or − zoom. ← and → step through stages.</li>
+    </ul>`;
+  pBody.scrollTop = 0;
+  openPanel();
+}
+function timelapseBox() {
+  return `<div class="tl"><div class="tl-count" id="tl-count">Today</div><div class="tl-bar"><i id="tl-bar"></i></div>
+    <p class="tl-cap" id="tl-cap"></p><div class="acts"><button type="button" class="btn solid" data-act="tl" id="tl-btn">${PLAY}Play the formation time-lapse</button></div>
+    <p class="tiny">Watch the glass column beside the model. Illustrative timeline: real ages vary widely from place to place.</p></div>`;
+}
+function seqFor(s) {
+  return (s.path === 'gasoline' || (s.path === 'shared' && FILTER === 'gasoline')) ? TOURS.gasoline.stages : TOURS.gas.stages;
+}
+function navRow(s) {
+  const seq = seqFor(s), i = seq.indexOf(s.id);
+  const prev = i > 0 ? STAGES.find(v => v.id === seq[i - 1]) : null;
+  let next;
+  if (s.id === 'lifting') next = '<button type="button" class="btn gas" data-go="gas-plant">Gas path ' + ARROW + '</button><button type="button" class="btn gasoline" data-go="crude-transport">Gasoline path ' + ARROW + '</button>';
+  else if (i < seq.length - 1) { const n = STAGES.find(v => v.id === seq[i + 1]); next = `<button type="button" class="btn solid" data-go="${n.id}">Next: ${escapeHTML(n.label)} ${ARROW}</button>`; }
+  else next = '<button type="button" class="btn solid" data-act="cmp">Compare the two fuels</button>';
+  return `<div class="acts split">${prev ? `<button type="button" class="btn" data-go="${prev.id}">← ${escapeHTML(prev.label)}</button>` : '<span></span>'}<span class="acts">${next}</span></div>`;
+}
+function renderStage(s) {
+  setPanelKind(s.path);
+  pChip.className = 'chip' + (s.path === 'shared' ? '' : ' ' + s.path);
+  pChip.textContent = PATH_NAME[s.path];
+  pStep.textContent = TOUR.key ? '' : `Stage ${s.step}`;
+  pTitle.textContent = s.title;
+  let h = `<p class="lead">${rich(s.text, s)}</p>`;
+  if (s.note) h += `<p class="note">${FORK}<span>${rich(s.note, s)}</span></p>`;
+  if (s.equation) h += `<div class="eq" role="img" aria-label="Equation: ${escapeHTML(s.equation)}">${escapeHTML(s.equation)}</div>`;
+  if (s.id === 'formation') h += timelapseBox();
+  if (s.strokes) h += `<div class="strokes" id="strokes">${s.strokes.map((st, i) => `<div data-i="${i}"><b>${i + 1} · ${escapeHTML(st[0])}</b>${escapeHTML(st[1])}</div>`).join('')}</div>`;
+  if (s.analogy) h += `<div class="box"><h3>Think of it like this</h3><p>${rich(s.analogy, s)}</p></div>`;
+  if (s.fact) h += `<div class="box fact"><h3>Did you know?</h3><p>${rich(s.fact, s)}</p></div>`;
+  if (s.tradeoff) {
+    const m = s.tradeoff.match(/^(Safety tip):\s*(.*)$/);
+    h += m ? `<p class="trade"><b>${m[1]}:</b> ${rich(m[2], s)}</p>` : `<p class="trade"><b>Weighing it up:</b> ${rich(s.tradeoff, s)}</p>`;
+  }
+  const mol = ['gas-plant', 'distillation', 'pump', 'gas-burning', 'tailpipe'].includes(s.id);
+  if (mol) h += `<div class="acts"><button type="button" class="btn" data-act="mol">Compare the molecules</button>${['gas-burning', 'tailpipe'].includes(s.id) ? '<button type="button" class="btn" data-act="cmp">Compare the two fuels</button>' : ''}</div>`;
+  if (!TOUR.key) h += navRow(s);
+  pBody.innerHTML = h;
+  pBody.scrollTop = 0;
+  LIVE = s.id === 'formation' ? { count: $('#tl-count'), bar: $('#tl-bar'), cap: $('#tl-cap'), btn: $('#tl-btn') }
+    : s.strokes ? { strokes: $('#strokes') } : {};
+}
+function select(id, o = {}) {
+  const st = ST[id];
+  if (!st) return;
+  const s = st.data;
+  if (TOUR.key && !o.fromTour) {
+    const idx = TOURS[TOUR.key].stages.indexOf(id);
+    if (idx >= 0) { TOUR.i = idx; TOUR.inQuiz = false; } else endTour();
+  }
+  if (isDim(s.path)) setFilter('both');
+  setSel(id);
+  hideTip();
+  renderStage(s);
+  openPanel();
+  renderTourBar();
+  announce(`${PATH_NAME[s.path]}, stage ${s.step}: ${s.title}`);
+  if (o.fly !== false) requestAnimationFrame(() => flyToStage(s));
+}
+
+/* ---------- guided tours ---------- */
+function startTour(key) {
+  closeTourMenu();
+  TOUR.key = key; TOUR.i = 0; TOUR.inQuiz = false;
+  setFilter(key);
+  goTour();
+  tNext.focus({ preventScroll: true });                 // the menu or overview button that started it is gone
+}
+function goTour() {
+  TOUR.inQuiz = false;
+  select(TOURS[TOUR.key].stages[TOUR.i], { fly: true, fromTour: true });
+}
+function endTour() {
+  TOUR.key = null; TOUR.inQuiz = false;
+  tourbar.hidden = true;
+  panel.classList.remove('t-gas', 't-gasoline');
+}
+function tourNext() {
+  if (!TOUR.key) return;
+  const n = TOURS[TOUR.key].stages.length;
+  if (TOUR.inQuiz) { finishTour(); return; }
+  if (TOUR.i < n - 1) { TOUR.i++; goTour(); } else showQuiz();
+}
+function tourBack() {
+  if (!TOUR.key) return;
+  if (TOUR.inQuiz) { goTour(); return; }
+  if (TOUR.i > 0) { TOUR.i--; goTour(); }
+}
+function finishTour() { endTour(); renderOverview(); resetView(); }
+function renderTourBar() {
+  if (!TOUR.key) { tourbar.hidden = true; return; }
+  tourbar.hidden = false;
+  panel.classList.toggle('t-gas', TOUR.key === 'gas');
+  panel.classList.toggle('t-gasoline', TOUR.key === 'gasoline');
+  const n = TOURS[TOUR.key].stages.length;
+  tCount.textContent = TOUR.inQuiz ? 'Quiz' : `Step ${TOUR.i + 1} of ${n}`;
+  tNext.innerHTML = (TOUR.inQuiz ? 'Finish' : TOUR.i === n - 1 ? 'Quiz' : 'Next') + ARROW;
+  tNext.setAttribute('aria-label', TOUR.inQuiz ? 'Finish the tour' : TOUR.i === n - 1 ? 'Take the quiz' : 'Next step');
+  tBack.disabled = !TOUR.inQuiz && TOUR.i === 0;
+  tDots.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${TOUR.inQuiz || i < TOUR.i ? 'done' : i === TOUR.i ? 'cur' : ''}"></i>`).join('');
+}
+tNext.addEventListener('click', tourNext);
+tBack.addEventListener('click', tourBack);
+
+/* ---------- quiz ---------- */
+function showQuiz() {
+  const key = TOUR.key, qs = QUIZZES[key];
+  TOUR.inQuiz = true;
+  setSel(null);
+  LIVE = {};
+  setPanelKind(key);
+  pChip.className = 'chip ' + key; pChip.textContent = `${TOURS[key].name} tour`; pStep.textContent = '';
+  pTitle.textContent = 'Quick check: 3 questions';
+  QUIZ = qs.map(() => null);
+  pBody.innerHTML = qs.map((q, i) => `<div class="q" data-q="${i}"><h4>${i + 1}. ${escapeHTML(q[0])}</h4><div class="opts">${q[1].map((o, j) => `<button type="button" data-o="${j}">${escapeHTML(o)}</button>`).join('')}</div><p class="fb" hidden></p></div>`).join('') + '<div id="q-end" hidden></div>';
+  pBody.scrollTop = 0;
+  renderTourBar();
+  announce('Quiz: 3 questions');
+  resetView();
+}
+function answer(qi, oi, byKeyboard) {
+  const q = QUIZZES[TOUR.key || 'gas'][qi], qEl = pBody.querySelector(`.q[data-q="${qi}"]`);
+  if (!qEl || QUIZ[qi] !== null) return;
+  QUIZ[qi] = oi === q[2];
+  qEl.querySelectorAll('.opts button').forEach((b, j) => {
+    b.disabled = true;
+    // marked in words as well as color
+    if (j === q[2]) { b.classList.add('right'); b.insertAdjacentHTML('beforeend', '<span class="mark">Correct answer</span>'); }
+    else if (j === oi) { b.classList.add('wrong'); b.insertAdjacentHTML('beforeend', '<span class="mark">Your answer</span>'); }
+  });
+  const fb = qEl.querySelector('.fb');
+  fb.hidden = false;
+  fb.innerHTML = (QUIZ[qi] ? '<b class="ok">Correct.</b> ' : '<b class="no">Not quite.</b> ') + escapeHTML(q[3]);
+  announce(fb.textContent);
+  let nextFocus = pBody.querySelector(`.q[data-q="${qi + 1}"] .opts button:not(:disabled)`);
+  if (QUIZ.every(v => v !== null)) {
+    const score = QUIZ.filter(Boolean).length, other = TOUR.key === 'gas' ? 'gasoline' : 'gas';
+    const end = $('#q-end');
+    end.hidden = false;
+    end.className = 'q';
+    end.innerHTML = `<p class="score">You got ${score} of ${QUIZ.length}.</p><p>${score === QUIZ.length ? 'Nicely done. You followed the whole journey.' : 'The tour is always here if you want another look.'}</p>
+      <div class="acts"><button type="button" class="btn solid" data-act="cmp">Compare the two fuels</button><button type="button" class="btn ${other}" data-act="tour-${other}">Take the ${TOURS[other].name.toLowerCase()} tour</button></div>`;
+    nextFocus = end.querySelector('button');
+  }
+  if (byKeyboard && nextFocus) nextFocus.focus();       // the answered buttons are now disabled
+}
+
+/* ---------- panel interactions ---------- */
+pBody.addEventListener('click', e => {
+  const opt = e.target.closest('.q .opts button');
+  if (opt) { answer(+opt.closest('.q').dataset.q, +opt.dataset.o, e.detail === 0); return; }
+  const go = e.target.closest('[data-go]');
+  if (go) { select(go.dataset.go, { fly: true }); return; }
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    const a = act.dataset.act;
+    if (a === 'mol') openMolecules();
+    else if (a === 'cmp') openCompare();
+    else if (a === 'tl') { if (!TL.playing) { if (!MOTION) setMotion(true); TL.play(); } }
+    else if (a === 'tour-gas') startTour('gas');
+    else if (a === 'tour-gasoline') startTour('gasoline');
+    return;
+  }
+  const st = e.target.closest('.st');
+  if (st) select(st.dataset.id, { fly: true });
+});
+pBody.addEventListener('keydown', e => {
+  const st = e.target.closest('.st');
+  if (st && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(st.dataset.id, { fly: true }); }
+});
+$('#p-close').addEventListener('click', closePanel);
+
+/* ---------- toolbar ---------- */
+function setFilter(f) {
+  FILTER = f;
+  $$('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === f)));
+  setFilterTargets();
+}
+$$('.seg button').forEach(b => b.addEventListener('click', () => setFilter(b.dataset.f)));
+function closeTourMenu() { menu.hidden = true; bTour.setAttribute('aria-expanded', 'false'); }
+bTour.addEventListener('click', e => {
+  e.stopPropagation();
+  menu.hidden = !menu.hidden;
+  bTour.setAttribute('aria-expanded', String(!menu.hidden));
+  if (!menu.hidden) menu.querySelector('button').focus();
+});
+menu.addEventListener('click', e => { const b = e.target.closest('[data-tour]'); if (b) startTour(b.dataset.tour); });
+$('#b-reset').addEventListener('click', () => resetView());
+$('#b-guide').addEventListener('click', () => { if (TOUR.key) endTour(); renderOverview(); });
+$('#b-mol').addEventListener('click', openMolecules);
+$('#b-cmp').addEventListener('click', openCompare);
+/* the button's name says what it will do; its visible text matches */
+function setMotion(on) {
+  MOTION = on;
+  const b = $('#b-motion');
+  $('#motion-txt').textContent = on ? 'Pause' : 'Play';
+  b.querySelector('svg').innerHTML = on ? '<rect x="4" y="3" width="2.6" height="10" rx=".8"/><rect x="9.4" y="3" width="2.6" height="10" rx=".8"/>' : '<path d="M4 2.5v11l9.5-5.5z"/>';
+  b.setAttribute('aria-label', on ? 'Pause motion' : 'Play motion');
+}
+$('#b-motion').addEventListener('click', () => setMotion(!MOTION));
+
+/* ---------- modals ---------- */
+function setBackgroundInert(on) {
+  [...appEl.children].forEach(el => { if (el !== modal) el.toggleAttribute('inert', on); });
+  if (!on) panel.toggleAttribute('inert', panel.classList.contains('closed'));
+}
+function openModal(html) {
+  lastFocus = document.activeElement;
+  hideTip();
+  closeTourMenu();
+  mBody.innerHTML = html;
+  modal.hidden = false;
+  setBackgroundInert(true);                             // keeps Tab inside the dialog
+  $('#m-close').focus();
+}
+function closeModal() {
+  modal.hidden = true;
+  setBackgroundInert(false);
+  if (MOL) MOL.open = false;
+  hideTip();
+  if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
+}
+$('#m-close').addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+function openCompare() {
+  openModal(`<h2 id="m-title">Natural gas and gasoline, side by side</h2>
+    <div class="cmp-scroll"><table class="cmp"><thead><tr><th scope="col">Feature</th><th scope="col" class="g">Natural gas</th><th scope="col" class="a">Gasoline</th></tr></thead>
+    <tbody>${COMPARISON.map(r => `<tr><th scope="row">${escapeHTML(r[0])}</th><td>${escapeHTML(r[1])}</td><td>${escapeHTML(r[2])}</td></tr>`).join('')}</tbody></table></div>
+    <p class="tiny">Both began as the same buried sea life, and both release CO₂ when burned.</p>`);
+}
+
+function buildMolecule(kind) {
+  const g = new THREE.Group(), C = [], H = [];
+  const cMat = new THREE.MeshPhongMaterial({ color: 0x3a3f45, shininess: 40 }), hMat = new THREE.MeshPhongMaterial({ color: 0xf3f5f7, shininess: 40 });
+  const bMat = new THREE.MeshPhongMaterial({ color: 0x9aa5ae, shininess: 20 });
+  const tet = [V3(1, 1, 1), V3(1, -1, -1), V3(-1, 1, -1), V3(-1, -1, 1)].map(v => v.normalize());
+  if (kind === 'methane') {
+    C.push(V3(0, 0, 0));
+    tet.forEach(d => H.push([0, d.clone().multiplyScalar(1.09)]));
+  } else {
+    // zigzag chain of 8 carbons; two hydrogens on each inner carbon, three on each end
+    for (let i = 0; i < 8; i++) C.push(V3(1.27 * i - 4.445, (i % 2) * 0.87 - 0.435, 0));
+    C.forEach((c, i) => {
+      const nb = [C[i - 1], C[i + 1]].filter(Boolean);
+      if (nb.length === 2) {
+        const u = c.clone().sub(nb[0]).normalize().add(c.clone().sub(nb[1]).normalize()).normalize();
+        const n = nb[0].clone().sub(c).cross(nb[1].clone().sub(c)).normalize();
+        [1, -1].forEach(sg => H.push([i, c.clone().add(u.clone().multiplyScalar(Math.cos(0.955)).add(n.clone().multiplyScalar(sg * Math.sin(0.955))).normalize().multiplyScalar(1.09))]));
+      } else {
+        const w = c.clone().sub(nb[0]).normalize(), p = V3(0, 0, 1), q = w.clone().cross(p).normalize();
+        for (let k = 0; k < 3; k++) {
+          const a = k * 2.094 + 0.4;
+          const d = w.clone().multiplyScalar(Math.cos(1.23)).add(p.clone().multiplyScalar(Math.cos(a) * Math.sin(1.23))).add(q.clone().multiplyScalar(Math.sin(a) * Math.sin(1.23)));
+          H.push([i, c.clone().add(d.normalize().multiplyScalar(1.09))]);
+        }
+      }
+    });
+  }
+  const bond = (a, b) => {
+    const d = b.clone().sub(a), m = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, d.length(), 10), bMat);
+    m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(V3(0, 1, 0), d.normalize()); g.add(m);
+  };
+  C.forEach((c, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.4, 22, 16), cMat); m.position.copy(c); g.add(m); if (i) bond(C[i - 1], c); });
+  H.forEach(([ci, h]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 12), hMat); m.position.copy(h); g.add(m); bond(C[ci], h); });
+  return g;
+}
+/* one hidden renderer draws both molecules into two plain 2D canvases */
+function initMolecules() {
+  if (!MOL) {
+    const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    r.setPixelRatio(1); r.setSize(640, 480, false); r.setClearColor(0x000000, 0);
+    const mk = (kind, dist) => {
+      const sc = new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.85));
+      const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(3, 5, 6); sc.add(dl);
+      const mol = buildMolecule(kind); sc.add(mol);
+      const cam = new THREE.PerspectiveCamera(35, 4 / 3, 0.1, 100); cam.position.set(0, 0.6, dist); cam.lookAt(0, 0, 0);
+      return { sc, mol, cam, drag: null, ry: 0.4, rx: 0.25 };
+    };
+    MOL = { r, a: mk('methane', 6.2), b: mk('octane', 15.5), open: false };
+  }
+  MOL.open = true;
+  // the canvases are new each time the modal opens, so their listeners are too
+  [['#mol-a', MOL.a], ['#mol-b', MOL.b]].forEach(([sel, m]) => {
+    const cv = $(sel);
+    if (!cv) return;
+    m.ctx = cv.getContext('2d');
+    cv.addEventListener('pointerdown', e => { m.drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture?.(e.pointerId); });
+    cv.addEventListener('pointermove', e => { if (!m.drag) return; m.ry += (e.clientX - m.drag.x) * 0.012; m.rx = clamp(m.rx + (e.clientY - m.drag.y) * 0.01, -1.2, 1.2); m.drag = { x: e.clientX, y: e.clientY }; });
+    const up = () => (m.drag = null);
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  });
+}
+function renderMolecules(dt) {
+  if (!MOL || !MOL.open) return;
+  [MOL.a, MOL.b].forEach(m => {
+    if (!m.ctx) return;
+    if (!m.drag && MOTION) m.ry += dt * 0.5;
+    m.mol.rotation.set(m.rx, m.ry, 0);
+    MOL.r.render(m.sc, m.cam);
+    m.ctx.clearRect(0, 0, 640, 480);
+    m.ctx.drawImage(MOL.r.domElement, 0, 0, 640, 480);
+  });
+}
+function openMolecules() {
+  openModal(`<h2 id="m-title">${escapeHTML(MOLECULES.title)}</h2>
+    <div class="mol-wrap">
+      <div class="mol"><canvas id="mol-a" width="640" height="480" role="img" aria-label="Rotating 3D model of a methane molecule: one carbon atom bonded to four hydrogen atoms"></canvas><h3>${escapeHTML(MOLECULES.methane[0])}</h3><p>${escapeHTML(MOLECULES.methane[1])}</p></div>
+      <div class="mol"><canvas id="mol-b" width="640" height="480" role="img" aria-label="Rotating 3D model of an octane molecule: a chain of eight carbon atoms with eighteen hydrogen atoms"></canvas><h3>${escapeHTML(MOLECULES.octane[0])}</h3><p>${escapeHTML(MOLECULES.octane[1])}</p></div>
+    </div>
+    <div class="legend-atoms"><span><i class="atom-c"></i>Carbon</span><span><i class="atom-h"></i>Hydrogen</span><span>Drag a model to turn it</span></div>
+    <p class="prose">${rich(MOLECULES.text, null)}</p>
+    <p class="tiny">${escapeHTML(MOLECULES.note)}</p>`);
+  initMolecules();
+}
+
+/* ---------- keyboard ---------- */
+function stepFree(dir) {
+  const s = STAGES.find(v => v.id === SEL);
+  if (!s) return;
+  if (s.id === 'lifting' && dir > 0) { select(FILTER === 'gasoline' ? 'crude-transport' : 'gas-plant'); return; }
+  const seq = seqFor(s), i = seq.indexOf(s.id) + dir;
+  if (i >= 0 && i < seq.length) select(seq[i]);
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!modal.hidden) closeModal();
+    else if (tipFor) hideTip();
+    else if (!menu.hidden) { closeTourMenu(); bTour.focus(); }
+    else if (!panel.classList.contains('closed')) closePanel();
+    return;
+  }
+  if (!modal.hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  // arrows belong to quiz answers, the tour menu and text fields when those have focus
+  if (TOUR.inQuiz || (e.target.closest && e.target.closest('.q, .menu, input, textarea, select, [contenteditable]'))) return;
+  const dir = e.key === 'ArrowRight' ? 1 : -1;
+  if (TOUR.key) { e.preventDefault(); if (dir > 0) tourNext(); else tourBack(); }
+  else if (SEL) { e.preventDefault(); stepFree(dir); }
+});
+
+/* ---------- theme ---------- */
+function refreshTheme() {
+  const attr = document.documentElement.getAttribute('data-theme');
+  const dark = attr ? attr === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  DIM_COLOR.setHex(dark ? 0x3b4756 : 0xdfe5eb);
+  Object.values(ST).forEach(s => { if (s.dim > 0) applyDim(s); });
+}
+const mqDark = matchMedia('(prefers-color-scheme: dark)');
+if (mqDark.addEventListener) mqDark.addEventListener('change', refreshTheme);
+new MutationObserver(refreshTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+refreshTheme();
+
+/* =====================================================================
+   MAIN LOOP
+   ===================================================================== */
+let last = performance.now(), TIME = 0;
+function updatePanelLive() {
+  if (LIVE.count) {
+    const txt = TL.ma > 0 ? `≈ ${TL.ma} <small>million years ago</small>` : 'Today';
+    if (LIVE.count.dataset.t !== txt) { LIVE.count.innerHTML = txt; LIVE.count.dataset.t = txt; }
+    const w = (TL.T * 100).toFixed(1) + '%';
+    if (LIVE.bar.style.width !== w) LIVE.bar.style.width = w;
+    if (LIVE.cap.textContent !== TL.cap) LIVE.cap.textContent = TL.cap;
+    const b = LIVE.btn;
+    if (TL.playing) b.dataset.started = '1';
+    if (b.dataset.started) {
+      const label = TL.playing ? 'Playing…' : 'Replay the time-lapse';
+      if (b.dataset.l !== label) { b.innerHTML = PLAY + label; b.dataset.l = label; b.setAttribute('aria-disabled', String(TL.playing)); }
+    }
+  }
+  if (LIVE.strokes && LIVE.strokes.dataset.on !== String(ENG.stroke)) {
+    LIVE.strokes.dataset.on = ENG.stroke;
+    LIVE.strokes.querySelectorAll('div').forEach((d, i) => d.classList.toggle('on', i === ENG.stroke));
+  }
+}
+function frame(now) {
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+  last = now;
+  const adt = MOTION ? dt : 0;                           // animation time stands still while paused
+  TIME += adt;
+  stepFly(dt);
+  updateViewOffset(dt);
+  Object.values(ST).forEach(s => {
+    const target = SEL === s.data.id ? 1 : 0;
+    s.k += (target - s.k) * Math.min(1, dt * 5);
+    if (Math.abs(target - s.k) < 0.003) s.k = target;
+    s.pops.forEach(p => { p.visible = s.k > 0.01; p.scale.setScalar(Math.max(0.001, ease(s.k))); });
+    if (s.anim) s.anim(TIME, adt, SEL === s.data.id, s.k);
+  });
+  updateRoutes(dt, MOTION);
+  updateDims(dt);
+  doHover();
+  renderer.render(scene, camera);
+  updateLabels();
+  updatePanelLive();
+  if (!modal.hidden) renderMolecules(dt);
+  requestAnimationFrame(frame);
+}
+
+/* =====================================================================
+   START
+   ===================================================================== */
+resize();
+renderOverview();
+{
+  const v = visibleArea();
+  VOFF.x = v.ox; VOFF.y = v.oy;
+  applyViewOffset();
+  const d = defaultView();
+  setFromPosLook(d.pos, d.look);
+  applyCam();
+}
+measureLabels();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measureLabels(); invalidateVisible(); DETAILS.forEach(d => (d.shownText = null)); });
+window.addEventListener('resize', () => { resize(); syncSheet(); measureLabels(); });
+if (REDUCED) setMotion(false);                          // respect "reduce motion"; the Play button starts it
+// test hook, only when the page is opened with #debug
+if (location.hash === '#debug') window.__app = { renderer, flyToStage, select, startTour, tourNext, tourBack, ST, TOURS, STAGES, hitAt, camera, setFilter, TOUR, openMolecules, openCompare, closeModal, TL, resetView, project: p => project(p, canvas.clientWidth, canvas.clientHeight) };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
