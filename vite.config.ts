@@ -38,6 +38,8 @@ export default defineConfig({
   build: {
     target: 'es2022',
     manifest: true,
+    // scripts/budgets.ts enforces gzip sizes per chunk; the 3D vendor chunk is ~760 KB minified.
+    chunkSizeWarningLimit: 800,
     rolldownOptions: {
       input: { 'frequency-lab': resolve(root, 'training/frequency-lab/index.html') },
       output: {
