@@ -62,6 +62,8 @@ export interface LabScene {
   readonly tier: Tier;
   /** Re-measures labels and layout, e.g. after fonts load or the panel changes. */
   relayout(): void;
+  /** Re-places labels without touching the camera, e.g. when a label gains focus or a sheet opens. */
+  refreshLabels(): void;
   resetView(): void;
   rotate(direction: -1 | 1): void;
   tilt(direction: -1 | 1): void;
@@ -129,7 +131,7 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
         if (moved || labelsDirty) {
           // camera-controls moves the camera; its matrices only refresh at render time.
           camera.updateMatrixWorld();
-          labels.update(stage.width, stage.height);
+          labels.update(stage.width, stage.height, freeArea());
           labelsDirty = false;
         }
         post.render(dt);
@@ -196,6 +198,11 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   });
   cam.reducedMotion = reducedMotion || o.capture;
   const labels = new LabelLayer(camera, o.noGo);
+  /** The part of the view the panel or sheet leaves free, as the label layer wants it. */
+  const freeArea = () => {
+    const v = o.visibleArea();
+    return { x: v.x, y: v.y, w: v.width, h: v.height };
+  };
   const hud = o.perf ? new PerfHud(document.body) : null;
 
   let shadowsFor: SetupId | null = null;
@@ -296,7 +303,7 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
     // One settled frame, then hold still for the screenshot.
     cam.update(1);
     camera.updateMatrixWorld();
-    labels.update(stage.width, stage.height);
+    labels.update(stage.width, stage.height, freeArea());
     firstPost.render(1 / 60);
     stage.stop();
   }
@@ -336,6 +343,10 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
         governor = null;
         await changeTier(next);
       }
+    },
+    refreshLabels() {
+      labelsDirty = true;
+      stage.requestFrame();
     },
     relayout() {
       labels.measure();

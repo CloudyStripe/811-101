@@ -1,24 +1,35 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import {
-  FREQUENCIES,
-  frequencyLabel,
-  frequencySpoken,
-  type Frequency,
-} from '../../../config/equipment.ts';
-import { APWA } from '../../design/apwa.ts';
+import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
+import { ABOUT } from '../../../content/training/frequency-lab.ts';
+import { Dialog } from '../../design/Dialog.tsx';
 import { Icon, type IconName } from '../../design/icons.tsx';
 import { Segmented } from '../../design/Segmented.tsx';
+import { Rich } from '../../design/Term.tsx';
 import type { ThemeName } from '../../design/tokens.ts';
+import type { VisibleArea } from '../../kit3d/camera.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import type { SetupId } from '../../signal/model.ts';
+import { Console } from './Console.tsx';
+import { Panel, define } from './Panel.tsx';
+import { SceneLabel } from './SceneLabel.tsx';
 import type { LabScene, Rect } from './scene/index.ts';
 import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
+import { SettingsMenu } from './SettingsMenu.tsx';
+import {
+  applyToDocument,
+  loadSettings,
+  reducesMotion,
+  saveSettings,
+  type Settings,
+} from './settings.ts';
+import { stateSummary } from './summary.ts';
 
 const params = new URLSearchParams(location.search);
 const INITIAL_SETUP: SetupId = params.get('setup') === 'plastic' ? 'plastic' : 'steel';
 const INITIAL_FREQUENCY: Frequency =
   FREQUENCIES.find((f) => String(f) === params.get('f')) ?? FREQUENCIES[0];
-const TIER = parseTier(params.get('tier')) ?? 'auto';
+/** `?tier=` pins a quality tier over the saved setting, for tests and comparisons. */
+const TIER_PARAM = parseTier(params.get('tier'));
 const CAPTURE = params.has('capture');
 const PERF = params.has('perf');
 
@@ -29,6 +40,8 @@ const SETUP_OPTIONS = [
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+/** Matches the phone layout in lab.css. */
+const phoneQuery = matchMedia('(max-width: 760px)');
 
 function resolvedTheme(): ThemeName {
   const forced = document.documentElement.dataset.theme;
@@ -36,8 +49,7 @@ function resolvedTheme(): ThemeName {
   return darkQuery.matches ? 'dark' : 'light';
 }
 
-function rectWithin(el: Element | null, container: DOMRect): Rect | null {
-  if (!el) return null;
+function rectWithin(el: Element, container: DOMRect): Rect | null {
   const r = el.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return null;
   return {
@@ -47,6 +59,8 @@ function rectWithin(el: Element | null, container: DOMRect): Rect | null {
     h: r.height + 12,
   };
 }
+
+const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 
 /** View controls shared by the keyboard and the toolbar. */
 const rotateLeft = (s: LabScene) => {
@@ -67,19 +81,46 @@ const zoomIn = (s: LabScene) => {
 const zoomOut = (s: LabScene) => {
   s.zoom(-1);
 };
+const resetView = (s: LabScene) => {
+  s.resetView();
+};
+
+const CAMERA_BUTTONS: { icon: IconName; label: string; run: (s: LabScene) => void }[] = [
+  { icon: 'rotate-left', label: 'Turn left', run: rotateLeft },
+  { icon: 'rotate-right', label: 'Turn right', run: rotateRight },
+  { icon: 'tilt-up', label: 'Look from higher', run: tiltUp },
+  { icon: 'tilt-down', label: 'Look from lower', run: tiltDown },
+  { icon: 'zoom-in', label: 'Zoom in', run: zoomIn },
+  { icon: 'zoom-out', label: 'Zoom out', run: zoomOut },
+  { icon: 'reset', label: 'Reset view', run: resetView },
+];
+
+const CANVAS_KEYS: Record<string, (s: LabScene) => void> = {
+  ArrowLeft: rotateLeft,
+  ArrowRight: rotateRight,
+  ArrowUp: tiltUp,
+  ArrowDown: tiltDown,
+  '+': zoomIn,
+  '=': zoomIn,
+  '-': zoomOut,
+  _: zoomOut,
+};
 
 export function App() {
   const [setup, setSetup] = useState<SetupId>(INITIAL_SETUP);
   const [frequency, setFrequency] = useState<Frequency>(INITIAL_FREQUENCY);
+  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chromeRefs = useRef<(HTMLElement | null)[]>([]);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const labelRefs = useRef(new Map<LabelId, HTMLElement>());
   const sceneRef = useRef<LabScene | null>(null);
-  const stateRef = useRef({ setup, frequency });
-  stateRef.current = { setup, frequency };
+  // The scene's callbacks outlive renders, so they read current state from here.
+  const live = useRef({ setup, frequency, settings, sheetOpen });
+  live.current = { setup, frequency, settings, sheetOpen };
+  const phoneArea = useRef<VisibleArea | null>(null);
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -93,17 +134,25 @@ export function App() {
 
     const noGo = (): Rect[] => {
       const box = stageEl.getBoundingClientRect();
-      return chromeRefs.current.flatMap((el) => rectWithin(el, box) ?? []);
+      return [...document.querySelectorAll('[data-chrome]')].flatMap(
+        (el) => rectWithin(el, box) ?? [],
+      );
     };
-    // On phones the chrome takes full-width bands at the top and bottom; frame the 3D between them.
-    const visibleArea = () => {
+    const visibleArea = (): VisibleArea => {
       const box = stageEl.getBoundingClientRect();
-      if (box.width > 760) return { x: 0, y: 0, width: box.width, height: box.height };
-      const setupEl = chromeRefs.current[1];
-      const bottomEl = bottomRef.current;
-      const top = setupEl ? setupEl.getBoundingClientRect().bottom - box.top : 0;
-      const bottom = bottomEl ? bottomEl.getBoundingClientRect().top - box.top : box.height;
-      return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
+      if (!phoneQuery.matches) {
+        // Wide screens: everything left of the panel.
+        const panel = rectOf('.lab-panel');
+        const right = panel ? panel.left - box.left - 8 : box.width;
+        return { x: 0, y: 0, width: Math.max(160, right), height: box.height };
+      }
+      // Phones: between the setup switch and the controls below the view. An open sheet
+      // covers most of the view, so the framing stays as it was.
+      if (live.current.sheetOpen && phoneArea.current) return phoneArea.current;
+      const top = (rectOf('.lab-setup')?.bottom ?? box.top) - box.top;
+      const bottom = (rectOf('.lab-camera')?.top ?? box.bottom) - box.top;
+      phoneArea.current = { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
+      return phoneArea.current;
     };
 
     void (async () => {
@@ -112,14 +161,15 @@ export function App() {
         // Capture renders one frame and stops, so labels must be measured with final fonts.
         if (CAPTURE) await document.fonts.ready;
         if (cancelled()) return;
+        const { settings: s } = live.current;
         scene = await createLabScene({
           canvas,
           labelElements: labelRefs.current,
-          setup: stateRef.current.setup,
-          frequency: stateRef.current.frequency,
-          tier: TIER,
+          setup: live.current.setup,
+          frequency: live.current.frequency,
+          tier: TIER_PARAM ?? s.quality,
           theme: resolvedTheme(),
-          reducedMotion: reducedMotionQuery.matches,
+          reducedMotion: reducesMotion(s.motion, reducedMotionQuery.matches),
           capture: CAPTURE,
           perf: PERF,
           visibleArea,
@@ -136,7 +186,7 @@ export function App() {
         }
         sceneRef.current = scene;
         void document.fonts.ready.then(() => {
-          scene?.setState(stateRef.current.setup, stateRef.current.frequency);
+          scene?.setState(live.current.setup, live.current.frequency);
           scene?.relayout();
         });
       } catch {
@@ -147,7 +197,11 @@ export function App() {
     })();
 
     const onTheme = () => scene?.setTheme(resolvedTheme());
-    const onMotion = () => scene?.setReducedMotion(reducedMotionQuery.matches);
+    const onMotion = () => {
+      scene?.setReducedMotion(
+        reducesMotion(live.current.settings.motion, reducedMotionQuery.matches),
+      );
+    };
     const onPageHide = (event: PageTransitionEvent) => {
       if (!event.persisted) scene?.dispose();
     };
@@ -176,43 +230,60 @@ export function App() {
     sceneRef.current?.relayout();
   }, [setup]);
 
+  // Settings apply at once and are remembered; the page applied the saved ones before first paint.
+  const firstSettings = useRef(true);
+  useEffect(() => {
+    applyToDocument(settings);
+    if (firstSettings.current) {
+      firstSettings.current = false;
+      return;
+    }
+    saveSettings(settings);
+    const scene = sceneRef.current;
+    scene?.setTheme(resolvedTheme());
+    scene?.setReducedMotion(reducesMotion(settings.motion, reducedMotionQuery.matches));
+  }, [settings]);
+
+  useEffect(() => {
+    if (!TIER_PARAM) void sceneRef.current?.setTier(settings.quality);
+  }, [settings.quality]);
+
+  useEffect(() => {
+    document.getElementById('app')?.setAttribute('data-sheet', sheetOpen ? 'open' : 'closed');
+    sceneRef.current?.refreshLabels();
+  }, [sheetOpen]);
+
   function onCanvasKey(event: KeyboardEvent) {
     const scene = sceneRef.current;
     if (!scene || event.altKey || event.ctrlKey || event.metaKey) return;
-    const actions: Record<string, (s: LabScene) => void> = {
-      ArrowLeft: rotateLeft,
-      ArrowRight: rotateRight,
-      ArrowUp: tiltUp,
-      ArrowDown: tiltDown,
-      '+': zoomIn,
-      '=': zoomIn,
-      '-': zoomOut,
-      _: zoomOut,
-    };
-    const action = actions[event.key];
+    const action = CANVAS_KEYS[event.key];
     if (!action) return;
     event.preventDefault();
     action(scene);
   }
 
-  const cameraButtons: { icon: IconName; label: string; run: (s: LabScene) => void }[] = [
-    { icon: 'rotate-left', label: 'Turn left', run: rotateLeft },
-    { icon: 'rotate-right', label: 'Turn right', run: rotateRight },
-    { icon: 'tilt-up', label: 'Look from higher', run: tiltUp },
-    { icon: 'tilt-down', label: 'Look from lower', run: tiltDown },
-    { icon: 'zoom-in', label: 'Zoom in', run: zoomIn },
-    { icon: 'zoom-out', label: 'Zoom out', run: zoomOut },
-    {
-      icon: 'reset',
-      label: 'Reset view',
-      run: (s) => {
-        s.resetView();
-      },
-    },
-  ];
+  function refreshLabels() {
+    sceneRef.current?.refreshLabels();
+  }
 
   return (
     <>
+      <header class="lab-title" data-chrome>
+        <div class="lab-title-row">
+          <h1>Frequency Lab</h1>
+          <SettingsMenu settings={settings} onChange={setSettings} />
+        </div>
+        <p>
+          Use the lowest frequency that works: it travels farther and bleeds less onto other lines.
+        </p>
+      </header>
+
+      <div class="lab-setup" data-chrome>
+        <Segmented label="Setup" value={setup} options={SETUP_OPTIONS} onChange={setSetup} />
+      </div>
+
+      <Console setup={setup} frequency={frequency} onFrequency={setFrequency} />
+
       <div class="stage" ref={stageRef}>
         <canvas
           ref={canvasRef}
@@ -220,34 +291,27 @@ export function App() {
           tabIndex={0}
           role="img"
           aria-label="3D cutaway of a street block showing buried lines and the locate signal. Use the arrow keys to turn the view, and plus or minus to zoom."
+          aria-describedby="lab-status"
           onKeyDown={onCanvasKey}
         />
         {/* Labels start hidden; the scene places and shows them once it has a frame to match. */}
-        <div class="labels" hidden={failed !== null}>
-          {LABEL_SPECS.map((spec) => {
-            const text = spec.text[setup];
-            return (
-              <button
-                key={spec.id}
-                type="button"
-                class="lbl off"
-                data-label={spec.id}
-                ref={(el) => {
-                  if (el) labelRefs.current.set(spec.id, el);
-                  else labelRefs.current.delete(spec.id);
-                }}
-                hidden={text === null}
-              >
-                <span
-                  class={`lbl-icon${spec.color ? ' lbl-icon-facility' : ''}`}
-                  style={spec.color ? { '--chip': APWA[spec.color].fill } : undefined}
-                >
-                  <Icon name={spec.icon} />
-                </span>
-                <span class="lbl-text">{text}</span>
-              </button>
-            );
-          })}
+        <div
+          class="labels"
+          hidden={failed !== null}
+          onFocusIn={refreshLabels}
+          onFocusOut={refreshLabels}
+        >
+          {LABEL_SPECS.map((spec) => (
+            <SceneLabel
+              key={spec.id}
+              spec={spec}
+              setup={setup}
+              register={(el) => {
+                if (el) labelRefs.current.set(spec.id, el);
+                else labelRefs.current.delete(spec.id);
+              }}
+            />
+          ))}
         </div>
         {failed && (
           <p class="stage-message" role="status">
@@ -256,75 +320,56 @@ export function App() {
         )}
       </div>
 
-      <header
-        class="lab-title"
-        ref={(el) => {
-          chromeRefs.current[0] = el;
-        }}
-      >
-        <h1>Frequency Lab</h1>
-        <p>
-          Use the lowest frequency that works: it travels farther and bleeds less onto other lines.
-        </p>
-      </header>
-
-      <div
-        class="lab-setup"
-        ref={(el) => {
-          chromeRefs.current[1] = el;
-        }}
-      >
-        <Segmented label="Setup" value={setup} options={SETUP_OPTIONS} onChange={setSetup} />
+      <div class="lab-camera" role="toolbar" aria-label="View" data-chrome>
+        {CAMERA_BUTTONS.map((b) => (
+          <button
+            key={b.icon}
+            type="button"
+            class="icon-button"
+            aria-label={b.label}
+            title={b.label}
+            onClick={() => {
+              if (sceneRef.current) b.run(sceneRef.current);
+            }}
+          >
+            <Icon name={b.icon} />
+          </button>
+        ))}
       </div>
 
-      <div class="lab-bottom" ref={bottomRef}>
-        <section
-          class="lab-console"
-          aria-label="Transmitter"
-          ref={(el) => {
-            chromeRefs.current[2] = el;
-          }}
-        >
-          <h2 class="console-title" id="frequency-label">
-            Transmitter frequency
-          </h2>
-          <Segmented
-            label="Transmitter frequency"
-            value={frequency}
-            options={FREQUENCIES.map((f) => ({
-              value: f,
-              label: frequencyLabel(f),
-              ariaLabel: frequencySpoken(f),
-            }))}
-            onChange={setFrequency}
-            class="frequency"
-          />
-        </section>
+      <Panel
+        setup={setup}
+        frequency={frequency}
+        sheetOpen={sheetOpen}
+        onSheetToggle={() => {
+          setSheetOpen(!sheetOpen);
+        }}
+        onAbout={() => {
+          setAboutOpen(true);
+        }}
+      />
 
-        <div
-          class="lab-camera"
-          role="toolbar"
-          aria-label="View"
-          ref={(el) => {
-            chromeRefs.current[3] = el;
-          }}
-        >
-          {cameraButtons.map((b) => (
-            <button
-              key={b.icon}
-              type="button"
-              class="icon-button"
-              aria-label={b.label}
-              title={b.label}
-              onClick={() => {
-                if (sceneRef.current) b.run(sceneRef.current);
-              }}
-            >
-              <Icon name={b.icon} />
-            </button>
+      {/* What the 3D view shows, announced when it changes. */}
+      <p id="lab-status" class="sr-only" role="status">
+        {stateSummary(setup, frequency)}
+      </p>
+
+      <Dialog
+        open={aboutOpen}
+        onClose={() => {
+          setAboutOpen(false);
+        }}
+        title={ABOUT.heading}
+      >
+        <ul class="about-list">
+          {ABOUT.claims.map((c) => (
+            <li key={c.id}>
+              <Rich text={c.text} define={define} />
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+        <p class="muted">{ABOUT.leftOut}</p>
+      </Dialog>
     </>
   );
 }

@@ -67,7 +67,11 @@ export class LabelLayer {
     for (const { copy } of copies) copy.remove();
   }
 
-  update(width: number, height: number): void {
+  /**
+   * Places every label for the current camera. `bounds` is the part of the view a focused label
+   * is pulled into, so the panel or sheet never covers it; it defaults to the whole view.
+   */
+  update(width: number, height: number, bounds: Rect = { x: 0, y: 0, w: width, h: height }): void {
     const placed: Rect[] = [...this.noGo()];
     const focused = document.activeElement;
     const items = this.labels
@@ -83,7 +87,7 @@ export class LabelLayer {
           y: (-p.y * 0.5 + 0.5) * height,
           depth: p.z,
           visible: !label.hidden && facingOk && p.z > -1 && p.z < 1,
-          focused: label.element === focused,
+          focused: !label.hidden && label.element.contains(focused),
         };
       })
       .sort(
@@ -98,21 +102,21 @@ export class LabelLayer {
       r.x >= margin && r.y >= margin && r.x + r.w <= width - margin && r.y + r.h <= height - margin;
     const clamp = (r: Rect): Rect => ({
       ...r,
-      x: Math.min(Math.max(r.x, margin), width - margin - r.w),
-      y: Math.min(Math.max(r.y, margin), height - margin - r.h),
+      x: Math.min(Math.max(r.x, bounds.x + margin), bounds.x + bounds.w - margin - r.w),
+      y: Math.min(Math.max(r.y, bounds.y + margin), bounds.y + bounds.h - margin - r.h),
     });
 
     for (const it of items) {
       const size = this.sizes.get(it.label.id) ?? { w: 120, h: 28 };
       const full = { x: it.x - size.w / 2, y: it.y - size.h - 6, w: size.w, h: size.h };
       const compact = { x: it.x - 15, y: it.y - 36, w: 30, h: 30 };
-      if (!it.visible) {
-        this.place(it.label, full, 'off');
-      } else if (it.focused) {
-        // A focused label is always shown, pulled inside the view if need be (WCAG 2.4.11).
+      if (it.focused) {
+        // A focused label is always shown, pulled into the free part of the view (WCAG 2.4.11).
         const r = clamp(full);
         placed.push(r);
         this.place(it.label, r, '');
+      } else if (!it.visible) {
+        this.place(it.label, full, 'off');
       } else if (inside(full) && !overlaps(full, placed)) {
         placed.push(full);
         this.place(it.label, full, '');

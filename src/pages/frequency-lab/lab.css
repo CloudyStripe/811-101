@@ -1,4 +1,8 @@
-/* Frequency Lab layout: full-bleed 3D stage with chrome floating over it. */
+/*
+ * Frequency Lab layout: a full-bleed 3D stage, with the chrome laid out on a grid over it.
+ * Wide screens: title, setup and transmitter on the left, the guide in a side panel on the right.
+ * Phones (760px and under): one column, with the guide as a bottom sheet above the transmitter.
+ */
 
 body {
   overflow: hidden;
@@ -7,14 +11,40 @@ body {
 .lab {
   position: fixed;
   inset: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title title panel'
+    'setup setup panel'
+    '. . panel'
+    'console camera panel';
+  gap: var(--space-3) var(--space-4);
+  padding: max(var(--space-4), env(safe-area-inset-top))
+    max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom))
+    max(var(--space-4), env(safe-area-inset-left));
   overflow: hidden;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  /* Empty grid space passes the pointer through to the 3D view. */
+  pointer-events: none;
+}
+
+.lab > * {
+  pointer-events: auto;
 }
 
 .stage {
   position: absolute;
   inset: 0;
+  z-index: 0;
+}
+
+.lab-title,
+.lab-setup,
+.lab-console,
+.lab-camera,
+.lab-panel {
+  position: relative;
+  z-index: 1;
 }
 
 .lab-canvas {
@@ -47,6 +77,7 @@ body {
 .lab-title,
 .lab-console,
 .lab-camera,
+.lab-panel,
 .segmented {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -56,12 +87,18 @@ body {
 }
 
 .lab-title {
-  position: absolute;
-  top: var(--space-4);
-  left: var(--space-4);
-  max-width: min(26rem, calc(100% - 2 * var(--space-4)));
-  padding: var(--space-3) var(--space-4);
+  grid-area: title;
+  justify-self: start;
+  max-width: 26rem;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
+}
+
+.lab-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .lab-title h1 {
@@ -72,16 +109,15 @@ body {
 }
 
 .lab-title p {
-  margin: 4px 0 0;
+  margin: 4px var(--space-1) 0 0;
   color: var(--ink-2);
   font-size: 0.92rem;
   line-height: 1.4;
 }
 
 .lab-setup {
-  position: absolute;
-  top: calc(var(--space-4) + 98px);
-  left: var(--space-4);
+  grid-area: setup;
+  justify-self: start;
 }
 
 .segmented {
@@ -117,24 +153,11 @@ body {
   color: var(--accent-ink);
 }
 
-/* Console bottom-left and view controls bottom-right on wide screens; stacked on phones. */
-.lab-bottom {
-  position: absolute;
-  left: var(--space-4);
-  right: var(--space-4);
-  bottom: var(--space-4);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: var(--space-3);
-  pointer-events: none;
-}
-
-.lab-bottom > * {
-  pointer-events: auto;
-}
-
+/* The transmitter: readout above the frequency dial. */
 .lab-console {
+  grid-area: console;
+  align-self: end;
+  justify-self: start;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-radius: var(--radius-lg);
 }
@@ -143,14 +166,47 @@ body {
   box-shadow: none;
 }
 
+.console-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
 .console-title {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-family: var(--font-body);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-2);
+}
+
+.readout {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.readout div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.readout dt {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.readout dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .frequency .segmented-option {
@@ -160,6 +216,9 @@ body {
 }
 
 .lab-camera {
+  grid-area: camera;
+  align-self: end;
+  justify-self: end;
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -168,6 +227,7 @@ body {
 
 .icon-button {
   display: grid;
+  flex: none;
   place-items: center;
   width: 36px;
   height: 36px;
@@ -187,7 +247,347 @@ body {
   height: 18px;
 }
 
-/* 3D labels */
+.text-button {
+  min-height: 24px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+/* The guide: side panel on wide screens, bottom sheet on phones. */
+.lab-panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.sheet-bar {
+  display: none;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-1) var(--space-5) var(--space-5);
+}
+
+.panel-section {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+}
+
+.panel-section:first-child {
+  border-top: 0;
+}
+
+.panel-section h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.panel-section p {
+  margin: 0 0 var(--space-2);
+}
+
+.panel-section p:last-child {
+  margin-bottom: 0;
+}
+
+.disclosure button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.try-list {
+  margin: 0;
+  padding-left: 1.15em;
+}
+
+.try-list li + li {
+  margin-top: var(--space-2);
+}
+
+.rule strong {
+  font-weight: 800;
+}
+
+.panel-footer {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+/* Inset chart */
+.chart {
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-block {
+  fill: var(--surface-2);
+}
+
+.chart-note,
+.chart-axis {
+  fill: var(--ink-2);
+  font: 600 10px var(--font-body);
+}
+
+.chart-tick {
+  fill: var(--ink-2);
+  font: 10px var(--font-mono);
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-threshold {
+  stroke: var(--ink-2);
+  stroke-width: 1.4;
+  stroke-dasharray: 1.5 3;
+  stroke-linecap: round;
+}
+
+.chart-target {
+  fill: none;
+  stroke: var(--apwa-yellow-ink);
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+
+.chart-telecom {
+  fill: none;
+  stroke: var(--apwa-orange-ink);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+}
+
+.chart-reach {
+  fill: var(--surface);
+  stroke: var(--apwa-yellow-ink);
+  stroke-width: 2;
+}
+
+.chart figcaption {
+  margin-top: var(--space-2);
+}
+
+.chart-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 0.82rem;
+}
+
+.chart-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-line {
+  width: 22px;
+  height: 0;
+}
+
+.key-target {
+  border-top: 2.6px solid var(--apwa-yellow-ink);
+}
+
+.key-telecom {
+  border-top: 2px dashed var(--apwa-orange-ink);
+}
+
+.key-threshold {
+  border-top: 2px dotted var(--ink-2);
+}
+
+.chart-reach-text {
+  margin: var(--space-2) 0 0;
+  font-weight: 700;
+}
+
+.chart-table {
+  margin-top: var(--space-2);
+}
+
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.chart-table caption {
+  margin-bottom: var(--space-1);
+  font-weight: 700;
+  text-align: left;
+}
+
+.chart-table th,
+.chart-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.chart-table td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-table th:first-child {
+  text-align: left;
+}
+
+/* Key */
+.legend-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.legend-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--chip);
+  color: #1c1a17;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+.chip .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sym {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 12px;
+  border-radius: 6px;
+}
+
+/* The signal glows over dark soil in the 3D view, so its symbols sit on dark too. */
+.sym-signal {
+  background: repeating-linear-gradient(90deg, var(--signal) 0 4px, #0e1a20 4px 8px);
+}
+
+.sym-soil {
+  background:
+    repeating-linear-gradient(90deg, var(--signal) 0 5px, transparent 5px 9px) center / 100% 3px
+      no-repeat,
+    #6c5846;
+}
+
+.sym-direction {
+  height: 24px;
+  color: var(--ink);
+}
+
+/* Terms in text: a dotted underline, with the definition in a tip below. */
+.term-wrap {
+  position: relative;
+}
+
+.term {
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.term:hover,
+.term-wrap:focus-within .term {
+  background: var(--surface-2);
+}
+
+.term-tip,
+.lbl-tip {
+  position: absolute;
+  z-index: 10;
+  width: max-content;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+
+.term-tip {
+  top: calc(100% + 6px);
+  max-width: min(17rem, calc(100vw - 32px));
+}
+
+.term-tip.above {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* 3D labels. The label layer positions `.lbl` and toggles `off` and `compact` on it. */
 .labels {
   position: absolute;
   inset: 0;
@@ -199,6 +599,16 @@ body {
   position: absolute;
   top: 0;
   left: 0;
+  pointer-events: auto;
+  transition: opacity var(--dur) var(--ease);
+  will-change: transform;
+}
+
+.lbl[data-tip='open'] {
+  z-index: 2;
+}
+
+.lbl-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -212,11 +622,8 @@ body {
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
-  pointer-events: auto;
   cursor: pointer;
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
-  transition: opacity var(--dur) var(--ease);
-  will-change: transform;
 }
 
 .lbl-icon {
@@ -241,13 +648,18 @@ body {
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
 }
 
-.lbl.compact {
+.lbl.compact .lbl-btn {
   padding: 2px;
   gap: 0;
 }
 
+/* A crowded label shrinks to its icon but keeps its name for screen readers. */
 .lbl.compact .lbl-text {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 .lbl.off {
@@ -257,6 +669,115 @@ body {
   transition:
     opacity var(--dur) var(--ease),
     visibility 0s var(--dur);
+}
+
+.lbl-tip {
+  top: calc(100% + 6px);
+  left: 50%;
+  max-width: 15rem;
+  transform: translateX(calc(-50% + var(--shift, 0px)));
+}
+
+.lbl-tip.above {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* About this model */
+.dialog {
+  width: min(34rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.3);
+}
+
+.dialog::backdrop {
+  background: rgb(20 18 15 / 0.5);
+}
+
+.dialog-body {
+  max-height: inherit;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5) var(--space-5) var(--space-6);
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.dialog-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.about-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding-left: 1.15em;
+}
+
+/* Settings */
+.settings[popover] {
+  position: fixed;
+  inset: auto;
+  width: 18rem;
+  max-height: calc(100dvh - 24px);
+  margin: 0;
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.22);
+}
+
+.settings h2 {
+  margin: 0 0 var(--space-3);
+  font-size: 1.05rem;
+}
+
+.settings-group {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+.settings-group legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.radio input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.8rem;
 }
 
 .perf-hud {
@@ -273,12 +794,27 @@ body {
 }
 
 @media (max-width: 760px) {
+  .lab {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      'title'
+      'setup'
+      '.'
+      'camera'
+      'panel'
+      'console';
+    gap: var(--space-2);
+    padding: max(var(--space-3), env(safe-area-inset-top))
+      max(var(--space-3), env(safe-area-inset-right))
+      max(var(--space-3), env(safe-area-inset-bottom))
+      max(var(--space-3), env(safe-area-inset-left));
+  }
+
   .lab-title {
-    top: var(--space-3);
-    left: var(--space-3);
-    right: var(--space-3);
+    justify-self: stretch;
     max-width: none;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   }
 
   .lab-title h1 {
@@ -290,9 +826,7 @@ body {
   }
 
   .lab-setup {
-    top: calc(var(--space-3) + 84px);
-    left: var(--space-3);
-    right: var(--space-3);
+    justify-self: stretch;
   }
 
   .lab-setup .segmented {
@@ -302,23 +836,11 @@ body {
   .lab-setup .segmented-option {
     flex: 1;
     padding: 6px 8px;
-    font-size: 0.82rem;
-  }
-
-  .lab-bottom {
-    left: var(--space-3);
-    right: var(--space-3);
-    bottom: var(--space-3);
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: var(--space-2);
-  }
-
-  .lab-camera {
-    align-self: flex-end;
+    font-size: 0.85rem;
   }
 
   .lab-console {
+    justify-self: stretch;
     padding: var(--space-2) var(--space-3) var(--space-3);
   }
 
@@ -330,5 +852,62 @@ body {
     flex: 1;
     min-width: 0;
     padding: 6px 4px;
+  }
+
+  /* An open sheet takes the room the view controls had. */
+  .lab[data-sheet='open'] .lab-camera {
+    display: none;
+  }
+
+  .sheet-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  }
+
+  .sheet-summary {
+    display: -webkit-box;
+    flex: 1;
+    margin: 0;
+    overflow: hidden;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .lab-panel[data-open] .sheet-summary {
+    display: block;
+    -webkit-line-clamp: unset;
+  }
+
+  .sheet-toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    padding: 0 8px 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .lab-panel:not([data-open]) .panel-body {
+    display: none;
+  }
+
+  .panel-body {
+    max-height: min(56dvh, 32rem);
+    padding: 0 var(--space-4) var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+
+  /* The sheet's bar already says it. */
+  .state-summary {
+    display: none;
   }
 }

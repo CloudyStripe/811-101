@@ -10,6 +10,19 @@
     />
     <meta name="theme-color" content="#f4f1ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#14120f" media="(prefers-color-scheme: dark)" />
+    <script>
+      // Apply saved display settings before first paint, so the page doesn't flash. The app
+      // applies them again (src/pages/frequency-lab/settings.ts).
+      try {
+        var saved = JSON.parse(localStorage.getItem('811-101.settings') || '{}');
+        if (saved.theme === 'light' || saved.theme === 'dark') {
+          document.documentElement.dataset.theme = saved.theme;
+        }
+        if (saved.motion === 'reduce' || saved.motion === 'full') {
+          document.documentElement.dataset.motion = saved.motion;
+        }
+      } catch (e) {}
+    </script>
     <script type="module" src="/src/pages/frequency-lab/main.tsx"></script>
   </head>
   <body>

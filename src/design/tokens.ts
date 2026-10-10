@@ -149,7 +149,7 @@ export function tokensCss(): string {
     `--space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;`,
     `--radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-pill: 999px;`,
     `--dur-fast: 120ms; --dur: 220ms; --dur-slow: 360ms; --ease: cubic-bezier(0.2, 0.8, 0.2, 1);`,
-    `--panel-w: 380px;`,
+    `--panel-w: clamp(19rem, 27vw, 24rem);`,
   ].join(' ');
   return [
     `:root { ${shared} ${light} }`,
@@ -158,5 +158,7 @@ export function tokensCss(): string {
     `:root[data-theme="light"] { ${light} }`,
     `@media (prefers-reduced-motion: reduce) { :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; } }`,
     `:root[data-motion="reduce"] { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }`,
+    // Chosen in Settings, full motion overrides the device's preference.
+    `:root[data-motion="full"] { --dur-fast: 120ms; --dur: 220ms; --dur-slow: 360ms; }`,
   ].join('\n');
 }
