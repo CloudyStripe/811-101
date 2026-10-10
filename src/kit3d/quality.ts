@@ -87,6 +87,9 @@ const STEP_DOWN_P95_MS = 20;
 const STEP_UP_P95_MS = 12;
 const WINDOW_MS = 3000;
 const STEP_UP_AFTER_MS = 10_000;
+/** Shader compilation makes the first seconds slow on every GPU; don't judge them. */
+const WARMUP_MS = 4000;
+const SETTLE_MS = 2500;
 
 /**
  * Watches frame times. Steps down when the 95th-percentile frame time over the last window
@@ -98,14 +101,28 @@ export class Governor {
   private samples: number[] = [];
   private windowStart = 0;
   private goodSince: number | null = null;
+  /** Frames before this time are ignored: start-up and post-switch hitches aren't real load. */
+  private ignoreUntil: number | null = null;
 
   constructor(tier: Tier, ceiling: Tier) {
     this.tier = tier;
     this.ceiling = ceiling;
   }
 
+  /** Ignores frames for a while, e.g. after a setup switch or a tier change. */
+  settle(now: number, ms = SETTLE_MS): void {
+    this.ignoreUntil = now + ms;
+    this.samples = [];
+    this.goodSince = null;
+  }
+
   /** Records one frame. Returns the new tier when it changes, otherwise null. */
   sample(frameMs: number, now: number): Tier | null {
+    this.ignoreUntil ??= now + WARMUP_MS;
+    if (now < this.ignoreUntil) {
+      this.samples = [];
+      return null;
+    }
     if (this.samples.length === 0) this.windowStart = now;
     this.samples.push(frameMs);
     if (now - this.windowStart < WINDOW_MS) return null;

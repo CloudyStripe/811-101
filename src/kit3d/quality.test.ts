@@ -43,21 +43,35 @@ describe('Governor', () => {
     return changed;
   };
 
-  it('steps down when frames are slow', () => {
+  it('ignores slow frames while shaders compile at start-up', () => {
     const g = new Governor('high', 'high');
-    expect(feed(g, 30, 0, 3100)).toBe('medium');
+    expect(feed(g, 60, 0, 3900)).toBeNull();
+    expect(g.tier).toBe('high');
+  });
+
+  it('steps down when frames stay slow after warm-up', () => {
+    const g = new Governor('high', 'high');
+    expect(feed(g, 30, 0, 7200)).toBe('medium');
+  });
+
+  it('ignores the hitch right after a setup switch', () => {
+    const g = new Governor('high', 'high');
+    expect(feed(g, 8, 0, 8000)).toBeNull();
+    g.settle(8016);
+    expect(feed(g, 80, 8016, 10_400)).toBeNull();
+    expect(g.tier).toBe('high');
   });
 
   it('steps up only after sustained fast frames, never above its ceiling', () => {
     const g = new Governor('low', 'medium');
-    expect(feed(g, 8, 0, 6000)).toBeNull();
-    expect(feed(g, 8, 6016, 16_000)).toBe('medium');
-    expect(feed(g, 8, 16_016, 40_000)).toBeNull();
+    expect(feed(g, 8, 0, 10_000)).toBeNull();
+    expect(feed(g, 8, 10_016, 20_000)).toBe('medium');
+    expect(feed(g, 8, 20_016, 60_000)).toBeNull();
     expect(g.tier).toBe('medium');
   });
 
   it('never steps below low', () => {
     const g = new Governor('low', 'high');
-    expect(feed(g, 50, 0, 10_000)).toBeNull();
+    expect(feed(g, 50, 0, 12_000)).toBeNull();
   });
 });
