@@ -23,6 +23,7 @@ import { Stage } from '../../../kit3d/stage.ts';
 import { SETUPS, labState, transmitterReading, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, type LabelId } from './labels.ts';
+import { buildContactShadows } from './contact.ts';
 import { BLOCK, viewFor } from './layout.ts';
 import {
   TransmitterScreen,
@@ -210,7 +211,10 @@ async function buildLabScene(
     () => false,
   );
   const setups = { steel: buildSetup('steel'), plastic: buildSetup('plastic') };
-  scene.add(street.group, shared.group, setups.steel, setups.plastic);
+  // Baked contact shadows stand in for ambient occlusion on the tier without it.
+  const contact = buildContactShadows();
+  contact.visible = !settings().ao;
+  scene.add(street.group, shared.group, setups.steel, setups.plastic, contact);
   setLineGlow(scene, THEMES[o.theme].scene.lineGlow);
   const fx = new SignalEffects(depthUniforms);
   fx.setTime(animTime);
@@ -278,6 +282,7 @@ async function buildLabScene(
         tier = want;
         lighting.setShadowQuality(settings().shadowMapSize, settings().shadowRadius);
         street.setDetail(settings().detail);
+        contact.visible = !settings().ao;
         await buildPost();
         stage.resize();
         governor?.settle(performance.now());

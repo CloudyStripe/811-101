@@ -85,7 +85,8 @@ export class LabCamera {
     c.dollyToCursor = true;
     c.setBoundary(options.targetBounds);
     c.boundaryFriction = 0.15;
-    c.addEventListener('controlstart', () => {
+    // 'control' covers dragging, touch and the mouse wheel ('controlstart' misses the wheel).
+    c.addEventListener('control', () => {
       this.moved = true;
     });
     this.controls = c;

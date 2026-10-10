@@ -217,7 +217,7 @@ export const ABOUT = {
     ),
     claim(
       'fl.about.slowed',
-      'The signal is slowed way down. A real one alternates hundreds to tens of thousands of times a second; here, the spacing of the bands stands in for frequency.',
+      'The signal is slowed way down. A real one cycles hundreds to tens of thousands of times a second; here, the spacing of the bands stands in for frequency.',
     ),
     claim(
       'fl.about.brightness',

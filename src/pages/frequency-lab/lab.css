@@ -925,7 +925,7 @@ body {
     overflow: hidden;
     font-size: 0.82rem;
     line-height: 1.35;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
   }
 

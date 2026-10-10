@@ -62,8 +62,9 @@ const PATHS: Record<IconName, JSX.Element> = {
   wire: <path d="M1.6 9.6c2.1-3.6 4.3-3.6 6.4 0s4.3 3.6 6.4 0" />,
   'rotate-left': <path d="M5.2 4.4H2.6V1.8M2.9 4.3a5.8 5.8 0 1 1-.6 4.6" />,
   'rotate-right': <path d="M10.8 4.4h2.6V1.8M13.1 4.3a5.8 5.8 0 1 0 .6 4.6" />,
-  'tilt-up': <path d="M3.4 10.2L8 5.6l4.6 4.6" />,
-  'tilt-down': <path d="M3.4 5.8L8 10.4l4.6-4.6" />,
+  // An eye-level line with an arc over or under it: look from higher or lower.
+  'tilt-up': <path d="M2.4 12.6h11.2M4 9.6a4.4 4.4 0 0 1 8 0M10.6 6.4l1.4 3.2-3.4.2" />,
+  'tilt-down': <path d="M2.4 3.4h11.2M4 6.4a4.4 4.4 0 0 0 8 0M10.6 9.6l1.4-3.2-3.4-.2" />,
   'zoom-in': (
     <>
       <circle cx="7" cy="7" r="4.4" />

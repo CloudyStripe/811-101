@@ -55,7 +55,8 @@ export function Panel({ setup, frequency, sheetOpen, onSheetToggle, onAbout }: P
       data-chrome
     >
       <div class="sheet-bar">
-        <p class="sheet-summary">{summary}</p>
+        {/* Collapsed, the bar gives the first sentence: how much is left at the far end. */}
+        <p class="sheet-summary">{summary.slice(0, summary.indexOf('. ') + 1)}</p>
         <p class="sheet-title" aria-hidden="true">
           Lab guide
         </p>

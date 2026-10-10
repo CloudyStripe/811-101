@@ -116,7 +116,7 @@ export function App() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef(new Map<LabelId, HTMLElement>());
   const sceneRef = useRef<LabScene | null>(null);
@@ -301,7 +301,7 @@ export function App() {
 
       <Console setup={setup} frequency={frequency} onFrequency={setFrequency} />
 
-      <div class="stage" ref={stageRef}>
+      <main class="stage" ref={stageRef}>
         <canvas
           ref={canvasRef}
           class="lab-canvas"
@@ -335,7 +335,7 @@ export function App() {
             {failed}
           </p>
         )}
-      </div>
+      </main>
 
       <div class="lab-camera" role="toolbar" aria-label="View" data-chrome>
         {CAMERA_BUTTONS.map((b) => (

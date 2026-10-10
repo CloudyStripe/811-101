@@ -39,7 +39,7 @@ import {
   type SetupId,
 } from '../../../signal/model.ts';
 import { GLOW_POWER, traceGlow } from './glow.ts';
-import { HOOKUP, LEADS, LINES, RISERS, STAKE_TIP } from './layout.ts';
+import { ARROWS, HOOKUP, LEADS, LINES, RISERS, STAKE_TIP, arrowPlacement } from './layout.ts';
 
 /** Band spacing per frequency, in feet: the slowed-down stand-in for wavelength. */
 const BAND_SPACING_FT: Record<Frequency, number> = { 512: 14, 8000: 7, 33000: 3.5, 83000: 1.8 };
@@ -49,9 +49,6 @@ const LINE_INTENSITY = 6.5;
 const FLOW_INTENSITY = 2.6;
 const WIRE_INTENSITY = 3.4;
 const CHEVRON_INTENSITY = 2.6;
-const CHEVRON_FROM_FT = 4;
-const CHEVRON_TO_FT = 138;
-const CHEVRON_STEP_FT = 9;
 const BLOCK_FT = GEOMETRY.blockLengthFt.value;
 
 const VERTEX = /* glsl */ `
@@ -174,9 +171,13 @@ function withTubeDistance(geometry: TubeGeometry, length: number): TubeGeometry 
   return geometry;
 }
 
-/** A flat V pointing +X, in the plane of the cut face, `size` ft tall. Drawn from both sides. */
+/**
+ * A flat V pointing +X, in the plane of the cut face: `size` ft tall and `size × stretch` ft long,
+ * tip to back (the shape layout.test.ts measures). Drawn from both sides.
+ */
 function chevronGeometry(size: number): BufferGeometry {
-  const arm = (y: number) => [-0.54 * size, y, 0, 0.23 * size, 0, 0, 0, 0, 0, -0.77 * size, y, 0];
+  const len = size * ARROWS.stretch;
+  const arm = (y: number) => [-0.54 * len, y, 0, 0.23 * len, 0, 0, 0, 0, 0, -0.77 * len, y, 0];
   const v = new Float32Array([...arm(size / 2), ...arm(-size / 2)]);
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(v, 3));
@@ -255,7 +256,7 @@ export class SignalEffects {
   /** Arrows along a line, on the cut-face side of it, `size` ft tall. */
   private chevrons(y: number, z: number, size: number, direction: 1 | -1): InstancedMesh {
     const xs: number[] = [];
-    for (let x = CHEVRON_FROM_FT; x <= CHEVRON_TO_FT; x += CHEVRON_STEP_FT) xs.push(x);
+    for (let x: number = ARROWS.fromFt; x <= ARROWS.toFt; x += ARROWS.stepFt) xs.push(x);
     const material = new ShaderMaterial({
       uniforms: {
         ...this.depth,
@@ -343,11 +344,11 @@ export class SignalEffects {
       uDir: { value: -1 },
       uMinX: { value: HOOKUP.pedestal.x },
     });
-    // The tracer's arrows stand in front of the plastic main, which sits just below the wire.
-    const pipe = setup === 'steel' ? LINES.steel : LINES.plastic;
+    const onTarget = arrowPlacement(setup);
+    const onTelecom = arrowPlacement('telecom');
     const chevrons = [
-      this.chevrons(line.y, pipe.radius + 0.14, Math.max(0.7, line.radius * 2.6), 1),
-      this.chevrons(t.y, t.radius + 0.14, 0.6, -1),
+      this.chevrons(onTarget.y, onTarget.z, ARROWS.target[setup], 1),
+      this.chevrons(onTelecom.y, onTelecom.z, ARROWS.telecom, -1),
     ];
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.

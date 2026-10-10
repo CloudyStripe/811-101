@@ -56,6 +56,32 @@ export const HOOKUP = {
 
 export const HYDRANT = { x: GEOMETRY.waterCrossingAtFt.value + 4, z: -4.6 } as const;
 
+/**
+ * Direction arrows: flat chevrons on the cut-face side of a line, from near the hookup to the end
+ * of the block. Sizes are in feet, large enough to read from either view (checked in tests).
+ */
+export const ARROWS = {
+  fromFt: 4,
+  toFt: 138,
+  stepFt: 9,
+  /** Arrows on the line carrying the signal, per setup. */
+  target: { steel: 1.1, plastic: 0.75 },
+  telecom: 0.75,
+  /**
+   * Arrow length along the line, as a multiple of its height. The views look along the lines, so
+   * an arrow's length is foreshortened; a long arrow still reads as one.
+   */
+  stretch: 2,
+} as const;
+
+/** Where a line's arrows sit: on its axis, just in front of it on the cut face. */
+export function arrowPlacement(line: 'steel' | 'plastic' | 'telecom'): { y: number; z: number } {
+  if (line === 'telecom') return { y: LINES.telecom.y, z: LINES.telecom.radius + 0.14 };
+  // The tracer's arrows stand in front of the plastic main, which sits just below the wire.
+  if (line === 'plastic') return { y: LINES.tracer.y, z: LINES.plastic.radius + 0.14 };
+  return { y: LINES.steel.y, z: LINES.steel.radius + 0.14 };
+}
+
 type Point = readonly [number, number, number];
 const TX = HOOKUP.transmitter;
 const ACCESS = HOOKUP.access;
