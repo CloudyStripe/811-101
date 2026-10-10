@@ -17,7 +17,7 @@ async function exercise(page: Page, afterEach: (step: string) => Promise<void>) 
   await setup.getByRole('radio', { name: 'Plastic main' }).click();
   await expect(page).toHaveURL(/setup=plastic/);
   await expect(tracer).toBeVisible();
-  await expect(page.locator('[data-label="target"]')).toHaveText('Plastic gas main');
+  await expect(page.locator('[data-label="target"] .lbl-text')).toHaveText('Plastic gas main');
   await afterEach('plastic at 512 Hz');
 
   const dial = page.getByRole('radiogroup', { name: 'Transmitter frequency' });
