@@ -7,8 +7,8 @@ import { expect, test } from './fixtures.ts';
 const STATES = [
   { name: 'steel-512', setup: 'steel', f: 512 },
   { name: 'steel-83k', setup: 'steel', f: 83_000 },
-  { name: 'tracer-512', setup: 'tracer', f: 512 },
-  { name: 'tracer-33k', setup: 'tracer', f: 33_000 },
+  { name: 'plastic-512', setup: 'plastic', f: 512 },
+  { name: 'plastic-83k', setup: 'plastic', f: 83_000 },
 ] as const;
 
 const VIEWPORTS = [
@@ -36,6 +36,8 @@ for (const theme of ['light', 'dark'] as const) {
           });
           await page.screenshot({
             path: `artifacts/screenshots/${theme}-${vp.name}-${s.name}.png`,
+            // Labels fade in once placed; settle the fade so it isn't caught halfway.
+            animations: 'disabled',
           });
 
           // No clipped or overlapping labels.

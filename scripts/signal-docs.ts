@@ -5,7 +5,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { FREQUENCIES, frequencyLabel } from '../config/equipment.ts';
 import {
-  BREAK_CROSSING_SHARE,
   CIRCUIT_RESISTANCE_OHMS,
   FADE_PER_100FT,
   GEOMETRY,
@@ -20,7 +19,7 @@ import { SETUPS, labState, lowestWorkingFrequency, type SetupId } from '../src/s
 const OUT = 'docs/SIGNAL_MODEL.md';
 const SETUP_NAMES: Record<SetupId, string> = {
   steel: 'Steel main',
-  tracer: 'Plastic main, broken tracer',
+  plastic: 'Plastic main (tracer wire)',
 };
 
 const ma = (n: number) => `${n.toFixed(1)} mA`;
@@ -80,10 +79,10 @@ The lab shows eight states: two setups × four frequencies. The model is a small
 
 ## What it models
 
-- **Fade:** each line's current falls off exponentially along its length, at a rate set per line type and per frequency. What fades leaks into the soil.
+- **What carries the signal:** the steel main itself, or, on the plastic main, its tracer wire. Plastic pipe can't carry a locate signal.
+- **Fade:** the current falls off exponentially along the line, at a rate set per conductor (steel main or tracer wire) and per frequency. What fades leaks into the soil.
 - **Bleed-over:** along the parallel run, the telecom cable carries a share of the target's current, set per frequency. It flows back toward the stake, in the return direction.
-- **The break:** in the plastic-main setup, a share of the tracer's current crosses the break, set per frequency. What doesn't cross leaks into the soil at the break.
-- **Earth return:** everything that leaves the target returns to the ground stake. That includes the fade, what's lost at the break, and what continues past the chart. The telecom cable's share is part of that return, not added to it.
+- **Earth return:** everything that leaves the target returns to the ground stake. That includes the fade and what continues past the chart. The telecom cable's share is part of that return, not added to it.
 - **Direction:** outgoing on the target, returning on the telecom cable, and through the earth toward the stake.
 - **Transmitter readout:** circuit resistance is set per setup and frequency. Current follows from a fixed output with internal resistance.
 - **Water main:** it isn't connected to anything, so the model gives it no signal. An unconnected crossing line picks up too little to show.
@@ -96,8 +95,6 @@ ${single(GEOMETRY.blockLengthFt)}
 
 ${single(GEOMETRY.chartLengthFt)}
 
-${single(GEOMETRY.breakAtFt)}
-
 ${single(GEOMETRY.waterCrossingAtFt)}
 
 ${perFrequency('Fade along the line', [
@@ -107,11 +104,9 @@ ${perFrequency('Fade along the line', [
 
 ${perFrequency(TELECOM_SHARE.name, [['Telecom cable', TELECOM_SHARE]])}
 
-${perFrequency(BREAK_CROSSING_SHARE.name, [['Tracer break', BREAK_CROSSING_SHARE]])}
-
 ${perFrequency('Circuit resistance', [
   ['Steel main', CIRCUIT_RESISTANCE_OHMS.steel],
-  ['Broken tracer', CIRCUIT_RESISTANCE_OHMS.tracer],
+  ['Tracer wire', CIRCUIT_RESISTANCE_OHMS.plastic],
 ])}
 
 ${single(TRANSMITTER.openCircuitVolts)}
@@ -124,7 +119,7 @@ ${single(WORKS_THRESHOLD_MA)}
 
 ${statesTable()}
 
-**Lowest frequency that works:** ${lowest('steel')}; ${lowest('tracer')}.
+**Lowest frequency that works:** ${lowest('steel')}; ${lowest('plastic')}.
 `;
 }
 

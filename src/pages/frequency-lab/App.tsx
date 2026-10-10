@@ -15,7 +15,7 @@ import type { LabScene, Rect } from './scene/index.ts';
 import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
 
 const params = new URLSearchParams(location.search);
-const INITIAL_SETUP: SetupId = params.get('setup') === 'tracer' ? 'tracer' : 'steel';
+const INITIAL_SETUP: SetupId = params.get('setup') === 'plastic' ? 'plastic' : 'steel';
 const INITIAL_FREQUENCY: Frequency =
   FREQUENCIES.find((f) => String(f) === params.get('f')) ?? FREQUENCIES[0];
 const TIER = parseTier(params.get('tier')) ?? 'auto';
@@ -24,7 +24,7 @@ const PERF = params.has('perf');
 
 const SETUP_OPTIONS = [
   { value: 'steel' as const, label: 'Steel main' },
-  { value: 'tracer' as const, label: 'Plastic main, broken tracer' },
+  { value: 'plastic' as const, label: 'Plastic main' },
 ];
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -222,14 +222,15 @@ export function App() {
           aria-label="3D cutaway of a street block showing buried lines and the locate signal. Use the arrow keys to turn the view, and plus or minus to zoom."
           onKeyDown={onCanvasKey}
         />
-        <div class="labels">
+        {/* Labels start hidden; the scene places and shows them once it has a frame to match. */}
+        <div class="labels" hidden={failed !== null}>
           {LABEL_SPECS.map((spec) => {
             const text = spec.text[setup];
             return (
               <button
                 key={spec.id}
                 type="button"
-                class="lbl"
+                class="lbl off"
                 data-label={spec.id}
                 ref={(el) => {
                   if (el) labelRefs.current.set(spec.id, el);
@@ -262,7 +263,9 @@ export function App() {
         }}
       >
         <h1>Frequency Lab</h1>
-        <p>Use the lowest frequency that works, and go higher when the circuit is poor.</p>
+        <p>
+          Use the lowest frequency that works: it travels farther and bleeds less onto other lines.
+        </p>
       </header>
 
       <div

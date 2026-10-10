@@ -23,7 +23,7 @@ export const SURFACE = {
   sidewalkBack: -34,
 } as const;
 
-/** A driveway crosses the verge; its newer patch sits over the tracer break. */
+/** A driveway crosses the verge, with a newer patched panel in its apron. */
 export const DRIVEWAY = { x0: 62, x1: 78 } as const;
 export const PATCH = { x0: 66.5, x1: 73.5 } as const;
 
@@ -41,13 +41,11 @@ export const TRENCH = { x0: -1.6, x1: BLOCK_END, zBack: -2.4, bottom: -4.6 } as 
 export const LINES = {
   steel: { y: -3.6, radius: 0.42, x0: -0.8, x1: BLOCK_END },
   plastic: { y: -3.6, radius: 0.33, x0: -0.8, x1: BLOCK_END },
-  tracer: { y: -3.6 + 0.33 + 0.07, radius: 0.06, x0: -0.6, x1: BLOCK_END, gap: 0.6 },
+  tracer: { y: -3.6 + 0.33 + 0.07, radius: 0.06, x0: -0.6, x1: BLOCK_END },
   // Ends where it turns back to its pedestal, so the ground stake stands clear of every line.
   telecom: { y: -2.3, radius: 0.18, x0: -13, x1: BLOCK_END },
   water: { x: GEOMETRY.waterCrossingAtFt.value, y: -6.6, radius: 0.48, z0: BLOCK.z0, z1: 0.35 },
 } as const;
-
-export const BREAK_X = GEOMETRY.breakAtFt.value;
 
 export const HOOKUP = {
   access: { x: 0, z: -1.5 },
@@ -65,8 +63,9 @@ export const STAKE_TIP: readonly [number, number, number] = [
   0.12,
 ];
 
-/** Looking down the street from the hookup end, so the near field is large and reach recedes. */
-export const VIEWS: Record<SetupId, View> = {
-  steel: { position: [-49, 12.5, 29], target: [19, -3, -4] },
-  tracer: { position: [26, 11, 34], target: [74, -3, -3] },
-};
+/**
+ * Looking down the street from the hookup end, so the near field is large and reach recedes. Both
+ * setups share one view, so switching swaps only what is underground and the two compare directly.
+ */
+const VIEW: View = { position: [-49, 12.5, 29], target: [19, -3, -4] };
+export const VIEWS: Record<SetupId, View> = { steel: VIEW, plastic: VIEW };

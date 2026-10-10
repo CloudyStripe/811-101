@@ -40,19 +40,12 @@ export const GEOMETRY = {
     value: 500,
     why: 'Reach differences between frequencies show clearly over a few hundred feet.',
   },
-  breakAtFt: {
-    name: 'Break position',
-    meaning: 'Where the tracer wire is broken, measured from the hookup.',
-    unit: 'ft',
-    value: 70,
-    why: 'Mid-block, so both sides of the break are in view.',
-  },
   waterCrossingAtFt: {
     name: 'Water main crossing',
     meaning: 'Where the unconnected water main crosses the target line, measured from the hookup.',
     unit: 'ft',
     value: 100,
-    why: 'Inside the block and away from the break, so it reads as a separate feature.',
+    why: 'Inside the block and well away from the hookup, so it reads as a separate feature.',
   },
 } as const satisfies Record<string, Constant<number>>;
 
@@ -84,29 +77,21 @@ export const TELECOM_SHARE = {
   why: 'Coupling onto a nearby metal line grows with frequency, so higher frequencies bleed over more.',
 } as const satisfies Constant<PerFrequency>;
 
-export const BREAK_CROSSING_SHARE = {
-  name: 'Crossing the break',
-  meaning:
-    'Share of the tracer current that gets past the break through the soil. The rest leaks into the soil at the break.',
-  unit: 'share of current at the break',
-  value: perFrequency([0.01, 0.04, 0.45, 0.65]),
-  why: 'Higher frequencies couple across a gap more easily, so they can jump a break that stops low ones.',
-} as const satisfies Constant<PerFrequency>;
-
 export const CIRCUIT_RESISTANCE_OHMS = {
   steel: {
     name: 'Circuit resistance, steel main',
     meaning: 'Resistance the transmitter sees when hooked up to the steel main.',
     unit: 'Ω',
     value: perFrequency([60, 56, 52, 48]),
-    why: 'A long, well-grounded metal main is a good circuit at every frequency.',
+    why: 'A long, well-grounded metal main is a good circuit at every frequency. Higher frequencies find a little more path through the soil.',
   },
-  tracer: {
-    name: 'Circuit resistance, broken tracer',
-    meaning: 'Resistance the transmitter sees when hooked up to the broken tracer wire.',
+  plastic: {
+    name: 'Circuit resistance, tracer wire',
+    meaning:
+      'Resistance the transmitter sees when hooked up to the tracer wire on the plastic main.',
     unit: 'Ω',
-    value: perFrequency([4000, 2200, 650, 320]),
-    why: 'The break makes a poor circuit. Higher frequencies find paths through the soil, so resistance falls.',
+    value: perFrequency([500, 490, 480, 470]),
+    why: 'A thin wire grounded at its far end makes a higher-resistance circuit than a big steel main, so less current flows.',
   },
 } as const satisfies Record<string, Constant<PerFrequency>>;
 
@@ -141,7 +126,6 @@ export const ALL_CONSTANTS: readonly Constant<number | PerFrequency>[] = [
   ...Object.values(GEOMETRY),
   ...Object.values(FADE_PER_100FT),
   TELECOM_SHARE,
-  BREAK_CROSSING_SHARE,
   ...Object.values(CIRCUIT_RESISTANCE_OHMS),
   ...Object.values(TRANSMITTER),
   WORKS_THRESHOLD_MA,

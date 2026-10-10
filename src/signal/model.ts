@@ -5,7 +5,6 @@
  */
 import { FREQUENCIES, type Frequency } from '../../config/equipment.ts';
 import {
-  BREAK_CROSSING_SHARE,
   CIRCUIT_RESISTANCE_OHMS,
   FADE_PER_100FT,
   GEOMETRY,
@@ -14,8 +13,15 @@ import {
   WORKS_THRESHOLD_MA,
 } from './constants.ts';
 
-export const SETUPS = ['steel', 'tracer'] as const;
+/** Steel main, or plastic main whose tracer wire carries the signal. */
+export const SETUPS = ['steel', 'plastic'] as const;
 export type SetupId = (typeof SETUPS)[number];
+
+/** Which conductor carries the signal in each setup. Plastic pipe can't; its tracer wire does. */
+export const CONDUCTOR: Record<SetupId, keyof typeof FADE_PER_100FT> = {
+  steel: 'steel',
+  plastic: 'tracer',
+};
 
 /** Signal current at a distance along a line, measured from the hookup. */
 export interface LinePoint {
@@ -37,12 +43,9 @@ export interface LabState {
   };
   /** The water main isn't connected to anything and carries no signal. */
   readonly water: { readonly ma: 0; readonly crossingAt: number };
-  readonly break: { readonly at: number; readonly crossingShare: number } | null;
   readonly earth: {
     /** Current leaking from the target into the soil, per sample interval (x is its midpoint). */
     readonly leakage: readonly LinePoint[];
-    /** Current lost into the soil at the break. */
-    readonly atBreak: number;
     /** Current still on the target at the end of the chart; it returns through the earth too. */
     readonly pastChart: number;
     /** Return current carried back toward the stake by the telecom cable. */
@@ -61,7 +64,9 @@ export interface LabState {
 const SAMPLE_STEP_FT = 5;
 
 /** Decay per foot for a "share left per 100 ft" value. */
-const decayPerFt = (sharePer100: number) => -Math.log(sharePer100) / 100;
+export function decayPerFt(setup: SetupId, frequency: Frequency): number {
+  return -Math.log(FADE_PER_100FT[CONDUCTOR[setup]].value[frequency]) / 100;
+}
 
 export function transmitterReading(
   setup: SetupId,
@@ -72,38 +77,24 @@ export function transmitterReading(
   return { ma: amps * 1000, ohms };
 }
 
-/**
- * Target current (mA) at `x` ft from the hookup. In the tracer setup, points past the break carry
- * only the crossing share; at the break itself this returns the near-side value.
- */
+/** Target current (mA) at `x` ft from the hookup. */
 export function targetCurrentAt(setup: SetupId, frequency: Frequency, x: number): number {
-  const start = transmitterReading(setup, frequency).ma;
-  const faded = start * Math.exp(-decayPerFt(FADE_PER_100FT[setup].value[frequency]) * x);
-  const pastBreak = setup === 'tracer' && x > GEOMETRY.breakAtFt.value;
-  return pastBreak ? faded * BREAK_CROSSING_SHARE.value[frequency] : faded;
+  return transmitterReading(setup, frequency).ma * Math.exp(-decayPerFt(setup, frequency) * x);
 }
 
 export function labState(setup: SetupId, frequency: Frequency): LabState {
   const transmitter = transmitterReading(setup, frequency);
-  const breakAt = setup === 'tracer' ? GEOMETRY.breakAtFt.value : null;
-  const crossingShare = BREAK_CROSSING_SHARE.value[frequency];
 
   const points: LinePoint[] = [];
   for (let x = 0; x <= GEOMETRY.chartLengthFt.value; x += SAMPLE_STEP_FT) {
-    const ma = targetCurrentAt(setup, frequency, x);
-    points.push({ x, ma });
-    // Two samples at the break: just before it, then just after.
-    if (x === breakAt) points.push({ x, ma: ma * crossingShare });
+    points.push({ x, ma: targetCurrentAt(setup, frequency, x) });
   }
 
   const leakage: LinePoint[] = [];
-  let atBreak = 0;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
     const b = points[i];
-    if (!a || !b) continue;
-    if (a.x === b.x) atBreak += a.ma - b.ma;
-    else leakage.push({ x: (a.x + b.x) / 2, ma: a.ma - b.ma });
+    if (a && b) leakage.push({ x: (a.x + b.x) / 2, ma: a.ma - b.ma });
   }
 
   const share = TELECOM_SHARE.value[frequency];
@@ -117,10 +108,8 @@ export function labState(setup: SetupId, frequency: Frequency): LabState {
     target: { direction: 1, points },
     telecom: { direction: -1, share, points: points.map((p) => ({ x: p.x, ma: p.ma * share })) },
     water: { ma: 0, crossingAt: GEOMETRY.waterCrossingAtFt.value },
-    break: breakAt === null ? null : { at: breakAt, crossingShare },
     earth: {
       leakage,
-      atBreak,
       pastChart: points.at(-1)?.ma ?? 0,
       viaTelecom,
       viaSoil: transmitter.ma - viaTelecom,

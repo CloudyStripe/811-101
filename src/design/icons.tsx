@@ -8,7 +8,7 @@ export type IconName =
   | 'transmitter'
   | 'stake'
   | 'access'
-  | 'break'
+  | 'wire'
   | 'rotate-left'
   | 'rotate-right'
   | 'tilt-up'
@@ -42,7 +42,7 @@ const PATHS: Record<IconName, JSX.Element> = {
       <path d="M5.4 13.4h5.2" />
     </>
   ),
-  break: <path d="M1.8 8h4l1.2-2 2 4 1.2-2h4" />,
+  wire: <path d="M1.6 9.6c2.1-3.6 4.3-3.6 6.4 0s4.3 3.6 6.4 0" />,
   'rotate-left': <path d="M5.2 4.4H2.6V1.8M2.9 4.3a5.8 5.8 0 1 1-.6 4.6" />,
   'rotate-right': <path d="M10.8 4.4h2.6V1.8M13.1 4.3a5.8 5.8 0 1 0 .6 4.6" />,
   'tilt-up': <path d="M3.4 10.2L8 5.6l4.6 4.6" />,

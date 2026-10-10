@@ -2,8 +2,8 @@
  * The Frequency Lab's 3D scene: the street block, both setups, the signal effects and the
  * labels, behind a small API the UI drives.
  */
-import { Box3, PerspectiveCamera, Scene, Vector3 } from 'three';
-import { frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
+import { Box3, HalfFloatType, PerspectiveCamera, Scene, Vector3, WebGLRenderTarget } from 'three';
+import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
 import { THEMES, type ThemeName } from '../../../design/tokens.ts';
 import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
@@ -20,11 +20,11 @@ import {
 } from '../../../kit3d/quality.ts';
 import { createDepthUniforms } from '../../../kit3d/signal-pass.ts';
 import { Stage } from '../../../kit3d/stage.ts';
-import { labState, type SetupId } from '../../../signal/model.ts';
+import { SETUPS, labState, transmitterReading, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, type LabelId } from './labels.ts';
 import { BLOCK, VIEWS } from './layout.ts';
-import { buildSetup, buildShared } from './lines.ts';
+import { TransmitterScreen, buildSetup, buildShared, type ScreenReading } from './lines.ts';
 import { SignalEffects } from './signal.ts';
 import { buildStreet } from './street.ts';
 
@@ -70,6 +70,16 @@ export interface LabScene {
 }
 
 const FACE_NORMAL = new Vector3(0, 0, 1);
+
+/** Every reading the transmitter's screen can show, one per setup and frequency. */
+const READINGS: ScreenReading[] = SETUPS.flatMap((s) =>
+  FREQUENCIES.map((f) => ({
+    frequency: frequencyLabel(f),
+    current: `${String(Math.round(transmitterReading(s, f).ma))} mA`,
+  })),
+);
+const readingIndex = (s: SetupId, f: Frequency) =>
+  SETUPS.indexOf(s) * FREQUENCIES.length + FREQUENCIES.indexOf(f);
 
 function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[] {
   return LABEL_SPECS.flatMap((spec) => {
@@ -164,9 +174,13 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   });
   const street = buildStreet();
   street.setDetail(settings().detail);
-  const shared = buildShared();
-  const setups = { steel: buildSetup('steel'), tracer: buildSetup('tracer') };
-  scene.add(street.group, shared.group, setups.steel, setups.tracer);
+  const shared = buildShared(READINGS);
+  const screenFonts = Promise.all(TransmitterScreen.FONTS.map((f) => document.fonts.load(f))).then(
+    () => true,
+    () => false,
+  );
+  const setups = { steel: buildSetup('steel'), plastic: buildSetup('plastic') };
+  scene.add(street.group, shared.group, setups.steel, setups.plastic);
   const fx = new SignalEffects(depthUniforms);
   fx.setTime(animTime);
   fxScene.add(fx.group);
@@ -184,24 +198,30 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   const labels = new LabelLayer(camera, o.noGo);
   const hud = o.perf ? new PerfHud(document.body) : null;
 
-  function applyState(flyCamera: boolean) {
-    const state = labState(setup, frequency);
+  let shadowsFor: SetupId | null = null;
+
+  function applyState() {
     setups.steel.visible = setup === 'steel';
-    setups.tracer.visible = setup === 'tracer';
-    fx.setState(state);
-    shared.screen.draw(frequencyLabel(frequency), `${Math.round(state.transmitter.ma)} mA`);
+    setups.plastic.visible = setup === 'plastic';
+    fx.setState(labState(setup, frequency));
+    shared.screen.show(readingIndex(setup, frequency));
     labels.setLabels(labelsFor(o.labelElements, setup));
-    renderer.shadowMap.needsUpdate = true;
+    // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
+    if (shadowsFor !== setup) {
+      shadowsFor = setup;
+      renderer.shadowMap.needsUpdate = true;
+    }
     labelsDirty = true;
-    if (flyCamera) void cam.goTo(VIEWS[setup]);
     stage.requestFrame();
   }
 
+  /** Builds the new post chain before retiring the old one, so no frame renders without one. */
   async function buildPost(): Promise<Post> {
-    post?.dispose();
     const next = await createPost(renderer, scene, fxScene, camera, settings(), depthUniforms);
     next.setSize(stage.width, stage.height);
+    const old = post;
     post = next;
+    old?.dispose();
     return next;
   }
 
@@ -213,22 +233,64 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
       street.setDetail(settings().detail);
       await buildPost();
       stage.resize();
+      governor?.settle(performance.now());
       o.onTierChange?.(tier);
       stage.requestFrame();
     })();
-    await rebuilding;
-    rebuilding = null;
+    try {
+      await rebuilding;
+    } finally {
+      rebuilding = null;
+    }
   }
 
+  /**
+   * Compiles every setup's shaders, effects included, so switching setups never stalls or blanks
+   * the view. three keys programs on the render target, so this compiles against an offscreen
+   * target like the post chain's, not the canvas. Async needs KHR_parallel_shader_compile; three
+   * warns without it.
+   */
+  async function precompile() {
+    setups.steel.visible = true;
+    setups.plastic.visible = true;
+    fx.showAll();
+    const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType });
+    renderer.setRenderTarget(target);
+    // compileAsync starts compiling before it returns, so the target only needs binding until then.
+    let ready: Promise<unknown> | null = null;
+    if (renderer.extensions.has('KHR_parallel_shader_compile')) {
+      ready = Promise.all([
+        renderer.compileAsync(scene, camera),
+        renderer.compileAsync(fxScene, camera),
+      ]);
+    } else {
+      renderer.compile(scene, camera);
+      renderer.compile(fxScene, camera);
+    }
+    renderer.setRenderTarget(null);
+    target.dispose();
+    await ready;
+  }
+
+  // Everything is built and compiled before the loop starts, so the first frame is the real one.
+  stage.resize();
   const firstPost = await buildPost();
-  stage.start();
-  cam.setLayout(stage.width, stage.height, o.visibleArea());
   await cam.goTo(VIEWS[setup], false);
-  applyState(false);
-  // Compile shaders up front. Async needs KHR_parallel_shader_compile; three warns without it.
-  if (renderer.extensions.has('KHR_parallel_shader_compile'))
-    await renderer.compileAsync(scene, camera);
-  else renderer.compile(scene, camera);
+  await precompile();
+  // The screen draws with its own font from the first frame. If the font is slow, it shows a
+  // fallback and redraws when the font arrives.
+  const timeout = new Promise<boolean>((resolve) => setTimeout(resolve, 2000, false));
+  if (await Promise.race([screenFonts, timeout])) {
+    shared.screen.draw();
+  } else {
+    void screenFonts.then((loaded) => {
+      if (!loaded || disposed) return;
+      shared.screen.draw();
+      stage.requestFrame();
+    });
+  }
+  applyState();
+  stage.start();
 
   if (o.capture) {
     // One settled frame, then hold still for the screenshot.
@@ -246,10 +308,11 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
       return tier;
     },
     setState(nextSetup, nextFrequency) {
-      const fly = nextSetup !== setup;
+      // A setup switch swaps what's underground; the view stays where the learner left it.
+      if (nextSetup !== setup) governor?.settle(performance.now());
       setup = nextSetup;
       frequency = nextFrequency;
-      applyState(fly);
+      applyState();
     },
     setTheme(theme) {
       lighting.setTheme(THEMES[theme].scene);

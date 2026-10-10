@@ -27,7 +27,7 @@ import {
 } from '../../../kit3d/geometry.ts';
 import { surface, tint } from '../../../kit3d/materials.ts';
 import type { SetupId } from '../../../signal/model.ts';
-import { BREAK_X, HOOKUP, LINES } from './layout.ts';
+import { HOOKUP, LINES } from './layout.ts';
 
 function mesh(geometry: BufferGeometry, material: Material, cast = true): Mesh {
   const m = new Mesh(geometry, material);
@@ -52,37 +52,82 @@ const MATERIALS = {
     surface(tint('#4b4f55', APWA.blue.fill, strength), { roughness: 0.6, metalness: 0.1 }),
   graphite: () => surface(C.graphite, { roughness: 0.45 }),
   steel: () => surface(C.steel, { roughness: 0.35, metalness: 0.8 }),
-  copper: () => surface('#b87333', { roughness: 0.35, metalness: 0.9 }),
   yellowPost: () => surface(APWA.yellow.fill, { roughness: 0.5 }),
   casing: () => surface(C.casing, { roughness: 0.5 }),
 };
 
-/** The transmitter's screen: frequency and current, redrawn when the state changes. */
+export interface ScreenReading {
+  frequency: string;
+  current: string;
+}
+
+const CELL_W = 256;
+const CELL_H = 128;
+const COLUMNS = 2;
+
+/** Texture offset that shows reading `index` of an atlas `rows` cells high. */
+export function screenCellOffset(index: number, rows: number): [number, number] {
+  const column = index % COLUMNS;
+  const row = Math.floor(index / COLUMNS);
+  // Readings fill the canvas from its top left, and the canvas's top row is at v = 1.
+  return [column / COLUMNS, 1 - (row + 1) / rows];
+}
+
+/**
+ * The transmitter's screen. Every reading it can show is drawn once into one texture, and a state
+ * change only moves which part is shown: re-uploading a canvas texture on each change stalled
+ * some GPUs for most of a second. Each cell keeps a plain margin, so mipmaps don't bleed text
+ * from one cell into the next.
+ */
 export class TransmitterScreen {
+  /** Fonts the screen draws with, for loading before a redraw. */
+  static readonly FONTS = [
+    '600 46px "IBM Plex Mono", ui-monospace, monospace',
+    '400 30px "IBM Plex Mono", ui-monospace, monospace',
+  ] as const;
+
   readonly texture: CanvasTexture;
   private readonly canvas = document.createElement('canvas');
+  private readonly readings: readonly ScreenReading[];
+  private readonly rows: number;
 
-  constructor() {
-    this.canvas.width = 256;
-    this.canvas.height = 128;
+  constructor(readings: readonly ScreenReading[]) {
+    this.readings = readings;
+    this.rows = Math.ceil(readings.length / COLUMNS);
+    this.canvas.width = CELL_W * COLUMNS;
+    this.canvas.height = CELL_H * this.rows;
     this.texture = new CanvasTexture(this.canvas);
     this.texture.colorSpace = SRGBColorSpace;
     this.texture.anisotropy = 4;
+    this.texture.repeat.set(1 / COLUMNS, 1 / this.rows);
+    this.draw();
+    this.show(0);
   }
 
-  draw(frequency: string, current: string): void {
+  /** Draws every reading. Call again once the fonts have loaded. */
+  draw(): void {
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return;
+    const [big, small] = TransmitterScreen.FONTS;
     ctx.fillStyle = '#10161a';
-    ctx.fillRect(0, 0, 256, 128);
-    ctx.fillStyle = '#e8eef0';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.textBaseline = 'middle';
-    ctx.font = '600 46px "IBM Plex Mono", ui-monospace, monospace';
-    ctx.fillText(frequency, 18, 46);
-    ctx.font = '500 30px "IBM Plex Mono", ui-monospace, monospace';
-    ctx.fillStyle = '#9fb0b6';
-    ctx.fillText(current, 18, 98);
+    this.readings.forEach((r, i) => {
+      const x = (i % COLUMNS) * CELL_W + 18;
+      const y = Math.floor(i / COLUMNS) * CELL_H;
+      ctx.font = big;
+      ctx.fillStyle = '#e8eef0';
+      ctx.fillText(r.frequency, x, y + 46, CELL_W - 36);
+      ctx.font = small;
+      ctx.fillStyle = '#9fb0b6';
+      ctx.fillText(r.current, x, y + 98, CELL_W - 36);
+    });
     this.texture.needsUpdate = true;
+  }
+
+  /** Shows one reading by moving the texture's offset; nothing is re-uploaded. */
+  show(index: number): void {
+    this.texture.offset.set(...screenCellOffset(index, this.rows));
   }
 
   dispose(): void {
@@ -96,7 +141,7 @@ export interface SharedLines {
 }
 
 /** Lines and equipment present in both setups. */
-export function buildShared(): SharedLines {
+export function buildShared(readings: readonly ScreenReading[]): SharedLines {
   const group = new Group();
   group.name = 'shared-lines';
   const t = LINES.telecom;
@@ -140,7 +185,7 @@ export function buildShared(): SharedLines {
       MATERIALS.steel(),
     ),
   );
-  const screen = new TransmitterScreen();
+  const screen = new TransmitterScreen(readings);
   const screenMaterial = new MeshStandardMaterial({
     color: '#000000',
     emissive: '#ffffff',
@@ -251,28 +296,7 @@ export function buildSetup(setup: SetupId): Group {
       MATERIALS.plasticMain(),
     ),
   );
-  const half = tr.gap / 2;
-  group.add(
-    mesh(
-      merge([
-        pipeAlongX(tr.x0, BREAK_X - half, tr.y, 0, tr.radius, 12),
-        pipeAlongX(BREAK_X + half, tr.x1, tr.y, 0, tr.radius, 12),
-      ]),
-      MATERIALS.tracer(),
-    ),
-    // Bare copper showing at the broken ends.
-    mesh(
-      merge([
-        new ConeGeometry(0.035, 0.14, 8)
-          .rotateZ(-Math.PI / 2)
-          .translate(BREAK_X - half + 0.06, tr.y, 0),
-        new ConeGeometry(0.035, 0.14, 8)
-          .rotateZ(Math.PI / 2)
-          .translate(BREAK_X + half - 0.06, tr.y, 0),
-      ]),
-      MATERIALS.copper(),
-    ),
-  );
+  group.add(mesh(pipeAlongX(tr.x0, tr.x1, tr.y, 0, tr.radius, 12), MATERIALS.tracer()));
   // Tracer-wire test box, flush with the grass; the wire comes up the cut face to it.
   group.add(
     mesh(

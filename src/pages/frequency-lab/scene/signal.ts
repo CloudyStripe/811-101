@@ -5,18 +5,18 @@
  * formula as the model (src/signal/model.ts), so the 3D view and the chart always agree.
  */
 import {
-  CustomBlending,
-  OneFactor,
-  OneMinusSrcAlphaFactor,
   BufferAttribute,
   BufferGeometry,
   Color,
   CubicBezierCurve3,
+  CustomBlending,
   Group,
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   Mesh,
+  OneFactor,
+  OneMinusSrcAlphaFactor,
   ShaderMaterial,
   TubeGeometry,
   Vector3,
@@ -26,9 +26,15 @@ import { FREQUENCIES, type Frequency } from '../../../../config/equipment.ts';
 import { SIGNAL_COLOR } from '../../../design/tokens.ts';
 import { pipeAlongX } from '../../../kit3d/geometry.ts';
 import { DEPTH_TEST_GLSL, type DepthUniforms } from '../../../kit3d/signal-pass.ts';
-import { FADE_PER_100FT, GEOMETRY } from '../../../signal/constants.ts';
-import { SETUPS, transmitterReading, type LabState, type SetupId } from '../../../signal/model.ts';
-import { BREAK_X, HOOKUP, LINES, STAKE_TIP } from './layout.ts';
+import { GEOMETRY } from '../../../signal/constants.ts';
+import {
+  SETUPS,
+  decayPerFt,
+  transmitterReading,
+  type LabState,
+  type SetupId,
+} from '../../../signal/model.ts';
+import { HOOKUP, LINES, STAKE_TIP } from './layout.ts';
 
 /** Band spacing per frequency, in feet: the slowed-down stand-in for wavelength. */
 const BAND_SPACING_FT: Record<Frequency, number> = { 512: 14, 8000: 7, 33000: 3.5, 83000: 1.8 };
@@ -63,8 +69,6 @@ uniform float uSpeed;
 uniform float uDir;
 uniform float uI0;
 uniform float uK;
-uniform float uBreakAt;
-uniform float uCrossing;
 uniform float uShare;
 uniform float uMinX;
 uniform float uRef;
@@ -82,10 +86,7 @@ varying vec3 vViewDir;
 // Same formula as targetCurrentAt() in src/signal/model.ts.
 float currentAt(float x) {
   if (x < uMinX) return 0.0;
-  float d = max(x, 0.0);
-  float c = uI0 * exp(-uK * d);
-  if (uBreakAt >= 0.0 && d > uBreakAt) c *= uCrossing;
-  return c * uShare;
+  return uI0 * exp(-uK * max(x, 0.0)) * uShare;
 }
 
 void main() {
@@ -121,6 +122,15 @@ void main() {
 
 type Uniforms = Record<string, IUniform>;
 
+const BLENDING = {
+  blending: CustomBlending,
+  blendSrc: OneFactor,
+  blendDst: OneMinusSrcAlphaFactor,
+  transparent: true,
+  depthTest: false,
+  depthWrite: false,
+} as const;
+
 /** Distance along the line for a straight line along X: just its x. */
 function withXDistance(geometry: BufferGeometry): BufferGeometry {
   const pos = geometry.getAttribute('position');
@@ -154,18 +164,13 @@ function chevronGeometry(): BufferGeometry {
 
 interface Flow {
   material: ShaderMaterial;
-  /** Which current this path carries: soil leakage from a stretch of the line, the break, past the block, or the telecom's share. */
-  source:
-    | { kind: 'leak'; from: number; to: number }
-    | { kind: 'break' }
-    | { kind: 'beyond' }
-    | { kind: 'telecom' };
-  share: number;
+  /** What this path carries: soil leakage from a stretch of the line, current from past the block, or the telecom's share. */
+  source: { kind: 'leak'; from: number; to: number } | { kind: 'beyond' } | { kind: 'telecom' };
 }
 
 interface SetupFx {
   group: Group;
-  target: ShaderMaterial[];
+  target: ShaderMaterial;
   telecom: ShaderMaterial;
   chevrons: InstancedMesh[];
   flows: Flow[];
@@ -181,10 +186,7 @@ export class SignalEffects {
   constructor(depth: DepthUniforms) {
     this.depth = depth;
     this.group.name = 'signal';
-    this.setups = {
-      steel: this.buildSetup('steel'),
-      tracer: this.buildSetup('tracer'),
-    };
+    this.setups = { steel: this.buildSetup('steel'), plastic: this.buildSetup('plastic') };
     for (const id of SETUPS) this.group.add(this.setups[id].group);
   }
 
@@ -200,8 +202,6 @@ export class SignalEffects {
         uDir: { value: 1 },
         uI0: { value: 0 },
         uK: { value: 0 },
-        uBreakAt: { value: -1 },
-        uCrossing: { value: 1 },
         uShare: { value: 1 },
         uMinX: { value: -1e6 },
         uRef: { value: 1 },
@@ -214,16 +214,11 @@ export class SignalEffects {
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
-      blending: CustomBlending,
-      blendSrc: OneFactor,
-      blendDst: OneMinusSrcAlphaFactor,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
+      ...BLENDING,
     });
   }
 
-  private sleeve(x0: number, x1: number, y: number, radius: number, extra: Uniforms): Mesh {
+  private sleeve(x0: number, x1: number, y: number, radius: number, extra: Uniforms = {}): Mesh {
     const geometry = withXDistance(pipeAlongX(x0, x1, y, 0, radius * 1.18 + 0.025, 24));
     const material = this.material({ uStart: { value: x0 }, uEnd: { value: x1 }, ...extra });
     const m = new Mesh(geometry, material);
@@ -242,12 +237,7 @@ export class SignalEffects {
       },
       vertexShader: CHEVRON_VERTEX,
       fragmentShader: CHEVRON_FRAGMENT,
-      blending: CustomBlending,
-      blendSrc: OneFactor,
-      blendDst: OneMinusSrcAlphaFactor,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
+      ...BLENDING,
     });
     const mesh = new InstancedMesh(chevronGeometry(), material, xs.length);
     const m = new Matrix4();
@@ -264,13 +254,7 @@ export class SignalEffects {
     return mesh;
   }
 
-  private flow(
-    start: Vector3,
-    depth: number,
-    source: Flow['source'],
-    share: number,
-    group: Group,
-  ): Flow {
+  private flow(start: Vector3, depth: number, source: Flow['source'], group: Group): Flow {
     const end = new Vector3(...STAKE_TIP);
     const span = start.x - end.x;
     const curve = new CubicBezierCurve3(
@@ -297,46 +281,29 @@ export class SignalEffects {
     const m = new Mesh(geometry, material);
     m.frustumCulled = false;
     group.add(m);
-    return { material, source, share };
+    return { material, source };
   }
 
   private buildSetup(setup: SetupId): SetupFx {
     const group = new Group();
+    // The conductor that carries the signal: the steel main, or the plastic main's tracer wire.
     const line = setup === 'steel' ? LINES.steel : LINES.tracer;
-    const target: ShaderMaterial[] = [];
-    if (setup === 'steel') {
-      const s = this.sleeve(LINES.steel.x0, LINES.steel.x1, line.y, line.radius, {});
-      group.add(s);
-      target.push(s.material as ShaderMaterial);
-    } else {
-      const half = LINES.tracer.gap / 2;
-      for (const [x0, x1] of [
-        [LINES.tracer.x0, BREAK_X - half],
-        [BREAK_X + half, LINES.tracer.x1],
-      ] as const) {
-        const s = this.sleeve(x0, x1, line.y, line.radius * 2.2, {});
-        group.add(s);
-        target.push(s.material as ShaderMaterial);
-      }
-    }
+    const glowRadius = setup === 'steel' ? line.radius : line.radius * 2.2;
+    const targetSleeve = this.sleeve(line.x0, line.x1, line.y, glowRadius);
     const t = LINES.telecom;
     const telecomSleeve = this.sleeve(t.x0, t.x1, t.y, t.radius, {
       uDir: { value: -1 },
       uMinX: { value: HOOKUP.pedestal.x },
     });
-    group.add(telecomSleeve);
-
     const chevrons = [
-      this.chevrons(4, 138, line.y, line.radius + 0.12, 1),
+      this.chevrons(4, 138, line.y, glowRadius + 0.12, 1),
       this.chevrons(4, 138, t.y, t.radius + 0.12, -1),
     ];
-    group.add(...chevrons);
+    group.add(targetSleeve, telecomSleeve, ...chevrons);
 
     const flows: Flow[] = [];
-    const startY =
-      (setup === 'steel'
-        ? LINES.steel.y - LINES.steel.radius
-        : LINES.plastic.y - LINES.plastic.radius) - 0.15;
+    const pipe = setup === 'steel' ? LINES.steel : LINES.plastic;
+    const startY = pipe.y - pipe.radius - 0.15;
     // A few return paths, each carrying the soil leakage from a 20 ft stretch of the target.
     const bins = 7;
     for (let i = 0; i < bins; i++) {
@@ -347,22 +314,22 @@ export class SignalEffects {
           new Vector3(x, startY, 0.12),
           depthY,
           { kind: 'leak', from: x - 10, to: x + 10 },
-          1,
           group,
         ),
       );
     }
     // Current still on the target at the end of the block returns from beyond it.
+    flows.push(this.flow(new Vector3(BLOCK_FT - 2, startY, 0.12), -8.6, { kind: 'beyond' }, group));
     flows.push(
-      this.flow(new Vector3(BLOCK_FT - 2, startY, 0.12), -8.6, { kind: 'beyond' }, 1, group),
+      this.flow(new Vector3(t.x0, t.y - t.radius - 0.1, 0.12), -3.6, { kind: 'telecom' }, group),
     );
-    if (setup === 'tracer') {
-      flows.push(this.flow(new Vector3(BREAK_X, startY, 0.12), -6.2, { kind: 'break' }, 1, group));
-    }
-    flows.push(
-      this.flow(new Vector3(t.x0, t.y - t.radius - 0.1, 0.12), -3.6, { kind: 'telecom' }, 1, group),
-    );
-    return { group, target, telecom: telecomSleeve.material as ShaderMaterial, chevrons, flows };
+    return {
+      group,
+      target: targetSleeve.material as ShaderMaterial,
+      telecom: telecomSleeve.material as ShaderMaterial,
+      chevrons,
+      flows,
+    };
   }
 
   /** Points every effect at a new state. */
@@ -371,27 +338,19 @@ export class SignalEffects {
     for (const id of SETUPS) this.setups[id].group.visible = id === setup;
     const fx = this.setups[setup];
     const ref = Math.max(...FREQUENCIES.map((f) => transmitterReading(setup, f).ma));
-    const k = -Math.log(FADE_PER_100FT[setup].value[frequency]) / 100;
-    const breakAt = state.break?.at ?? -1;
-    const crossing = state.break?.crossingShare ?? 1;
+    const k = decayPerFt(setup, frequency);
     const common = (m: ShaderMaterial, share: number) => {
       const u = m.uniforms as Record<string, IUniform<number>>;
       Object.assign(u.uI0 ?? {}, { value: state.transmitter.ma });
       Object.assign(u.uK ?? {}, { value: k });
-      Object.assign(u.uBreakAt ?? {}, { value: breakAt });
-      Object.assign(u.uCrossing ?? {}, { value: crossing });
       Object.assign(u.uShare ?? {}, { value: share });
       Object.assign(u.uRef ?? {}, { value: ref });
       Object.assign(u.uSpacing ?? {}, { value: BAND_SPACING_FT[frequency] });
     };
-    for (const m of fx.target) common(m, 1);
+    common(fx.target, 1);
     common(fx.telecom, state.telecom.share);
 
-    const at = (x: number) => {
-      const d = Math.max(0, x);
-      const c = state.transmitter.ma * Math.exp(-k * d);
-      return breakAt >= 0 && d > breakAt ? c * crossing : c;
-    };
+    const at = (x: number) => state.transmitter.ma * Math.exp(-k * Math.max(0, x));
     fx.chevrons.forEach((mesh, i) => {
       const xs = mesh.userData.xs as number[];
       const share = i === 0 ? 1 : state.telecom.share;
@@ -410,10 +369,7 @@ export class SignalEffects {
           current = leak(f.source.from, f.source.to) * soil;
           break;
         case 'beyond':
-          current = at(BLOCK_FT) * soil * f.share;
-          break;
-        case 'break':
-          current = state.earth.atBreak * soil * f.share;
+          current = at(BLOCK_FT) * soil;
           break;
         case 'telecom':
           current = state.earth.viaTelecom;
@@ -423,6 +379,11 @@ export class SignalEffects {
       Object.assign(u.uI0 ?? {}, { value: current });
       Object.assign(u.uRef ?? {}, { value: ref * 0.12 });
     }
+  }
+
+  /** Shows every setup's effects at once, so all their shaders can compile up front. */
+  showAll(): void {
+    for (const id of SETUPS) this.setups[id].group.visible = true;
   }
 
   /** Advances the bands. Pass a fixed time to freeze them (reduced motion, screenshots). */

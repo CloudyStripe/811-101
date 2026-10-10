@@ -6,10 +6,10 @@ The lab shows eight states: two setups × four frequencies. The model is a small
 
 ## What it models
 
-- **Fade:** each line's current falls off exponentially along its length, at a rate set per line type and per frequency. What fades leaks into the soil.
+- **What carries the signal:** the steel main itself, or, on the plastic main, its tracer wire. Plastic pipe can't carry a locate signal.
+- **Fade:** the current falls off exponentially along the line, at a rate set per conductor (steel main or tracer wire) and per frequency. What fades leaks into the soil.
 - **Bleed-over:** along the parallel run, the telecom cable carries a share of the target's current, set per frequency. It flows back toward the stake, in the return direction.
-- **The break:** in the plastic-main setup, a share of the tracer's current crosses the break, set per frequency. What doesn't cross leaks into the soil at the break.
-- **Earth return:** everything that leaves the target returns to the ground stake. That includes the fade, what's lost at the break, and what continues past the chart. The telecom cable's share is part of that return, not added to it.
+- **Earth return:** everything that leaves the target returns to the ground stake. That includes the fade and what continues past the chart. The telecom cable's share is part of that return, not added to it.
 - **Direction:** outgoing on the target, returning on the telecom cable, and through the earth toward the stake.
 - **Transmitter readout:** circuit resistance is set per setup and frequency. Current follows from a fixed output with internal resistance.
 - **Water main:** it isn't connected to anything, so the model gives it no signal. An unconnected crossing line picks up too little to show.
@@ -34,21 +34,13 @@ How far the inset chart follows each line past the hookup.
 
 **Why:** Reach differences between frequencies show clearly over a few hundred feet.
 
-### Break position
-
-Where the tracer wire is broken, measured from the hookup.
-
-**Value:** 70 ft
-
-**Why:** Mid-block, so both sides of the break are in view.
-
 ### Water main crossing
 
 Where the unconnected water main crosses the target line, measured from the hookup.
 
 **Value:** 100 ft
 
-**Why:** Inside the block and away from the break, so it reads as a separate feature.
+**Why:** Inside the block and well away from the hookup, so it reads as a separate feature.
 
 ### Fade along the line
 
@@ -78,33 +70,21 @@ Unit: share of target current.
 
 **Why (bleed-over onto the telecom cable):** Coupling onto a nearby metal line grows with frequency, so higher frequencies bleed over more.
 
-### Crossing the break
-
-- **Crossing the break:** Share of the tracer current that gets past the break through the soil. The rest leaks into the soil at the break.
-
-Unit: share of current at the break.
-
-| | 512 Hz | 8 kHz | 33 kHz | 83 kHz |
-|---|---|---|---|---|
-| Tracer break | 0.01 | 0.04 | 0.45 | 0.65 |
-
-**Why (crossing the break):** Higher frequencies couple across a gap more easily, so they can jump a break that stops low ones.
-
 ### Circuit resistance
 
 - **Circuit resistance, steel main:** Resistance the transmitter sees when hooked up to the steel main.
-- **Circuit resistance, broken tracer:** Resistance the transmitter sees when hooked up to the broken tracer wire.
+- **Circuit resistance, tracer wire:** Resistance the transmitter sees when hooked up to the tracer wire on the plastic main.
 
 Unit: Ω.
 
 | | 512 Hz | 8 kHz | 33 kHz | 83 kHz |
 |---|---|---|---|---|
 | Steel main | 60 | 56 | 52 | 48 |
-| Broken tracer | 4000 | 2200 | 650 | 320 |
+| Tracer wire | 500 | 490 | 480 | 470 |
 
-**Why (circuit resistance, steel main):** A long, well-grounded metal main is a good circuit at every frequency.
+**Why (circuit resistance, steel main):** A long, well-grounded metal main is a good circuit at every frequency. Higher frequencies find a little more path through the soil.
 
-**Why (circuit resistance, broken tracer):** The break makes a poor circuit. Higher frequencies find paths through the soil, so resistance falls.
+**Why (circuit resistance, tracer wire):** A thin wire grounded at its far end makes a higher-resistance circuit than a big steel main, so less current flows.
 
 ### Transmitter output
 
@@ -138,9 +118,9 @@ The target current the lab treats as enough to trace at the far end of the block
 | Steel main | 8 kHz | 471.7 mA | 56 Ω | 426.1 mA | 28.3 mA | Yes |
 | Steel main | 33 kHz | 490.2 mA | 52 Ω | 390.4 mA | 73.5 mA | Yes |
 | Steel main | 83 kHz | 510.2 mA | 48 Ω | 322.1 mA | 163.3 mA | Yes |
-| Plastic main, broken tracer | 512 Hz | 12.3 mA | 4000 Ω | 0.1 mA | 0.2 mA | No |
-| Plastic main, broken tracer | 8 kHz | 22.2 mA | 2200 Ω | 0.8 mA | 1.3 mA | No |
-| Plastic main, broken tracer | 33 kHz | 71.4 mA | 650 Ω | 26.9 mA | 10.7 mA | Yes |
-| Plastic main, broken tracer | 83 kHz | 135.1 mA | 320 Ω | 62.0 mA | 43.2 mA | Yes |
+| Plastic main (tracer wire) | 512 Hz | 90.9 mA | 500 Ω | 88.4 mA | 1.8 mA | Yes |
+| Plastic main (tracer wire) | 8 kHz | 92.6 mA | 490 Ω | 86.2 mA | 5.6 mA | Yes |
+| Plastic main (tracer wire) | 33 kHz | 94.3 mA | 480 Ω | 78.9 mA | 14.2 mA | Yes |
+| Plastic main (tracer wire) | 83 kHz | 96.2 mA | 470 Ω | 67.9 mA | 30.8 mA | Yes |
 
-**Lowest frequency that works:** Steel main: 512 Hz; Plastic main, broken tracer: 33 kHz.
+**Lowest frequency that works:** Steel main: 512 Hz; Plastic main (tracer wire): 512 Hz.
