@@ -46,6 +46,8 @@ export interface VisibleArea {
   y: number;
   width: number;
   height: number;
+  /** Frame a portrait view here. Left out, it follows the area's shape. */
+  portrait?: boolean;
 }
 
 export interface CameraOptions {

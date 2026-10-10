@@ -717,18 +717,30 @@ body {
   background: rgb(20 18 15 / 0.5);
 }
 
+/* The dialog itself never scrolls; its body does, under a header that stays put. */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .dialog-body {
-  max-height: inherit;
+  min-height: 0;
   overflow-y: auto;
-  padding: var(--space-4) var(--space-5) var(--space-5) var(--space-6);
+  padding: 0 var(--space-5) var(--space-5) var(--space-6);
 }
 
 .dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-2);
+  margin: 0 calc(-1 * var(--space-5)) var(--space-2) 0;
+  padding: var(--space-4) var(--space-5) var(--space-2) 0;
+  background: var(--surface);
 }
 
 .dialog-head h2 {
@@ -812,6 +824,7 @@ body {
 }
 
 /* Medium widths: too narrow for the transmitter and view toolbar side by side. */
+/* Medium widths: too narrow for the transmitter and view toolbar side by side. */
 @media (min-width: 761px) and (max-width: 1100px) {
   .lab-grid {
     grid-template-columns: minmax(0, 1fr) var(--panel-w);
@@ -829,24 +842,11 @@ body {
   }
 }
 
-@media (max-width: 760px) {
-  .lab-grid {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(200px, 1fr) auto auto auto;
-    grid-template-areas:
-      'title'
-      'setup'
-      '.'
-      'camera'
-      'panel'
-      'console';
-    gap: var(--space-2);
-    padding: max(var(--space-3), env(safe-area-inset-top))
-      max(var(--space-3), env(safe-area-inset-right))
-      max(var(--space-3), env(safe-area-inset-bottom))
-      max(var(--space-3), env(safe-area-inset-left));
-  }
-
+/*
+ * Phones, and short screens such as phones held sideways: the guide is a sheet that opens over
+ * the 3D view. Collapsed, it's a bar that sums up what the view shows.
+ */
+@media (max-width: 760px), (max-height: 500px) and (min-width: 561px) {
   .lab-title {
     justify-self: stretch;
     max-width: none;
@@ -865,7 +865,8 @@ body {
     justify-self: stretch;
   }
 
-  .lab-setup .segmented {
+  .lab-setup .segmented,
+  .frequency {
     display: flex;
   }
 
@@ -880,19 +881,14 @@ body {
     padding: var(--space-2) var(--space-3) var(--space-3);
   }
 
-  .frequency {
-    display: flex;
-  }
-
   .frequency .segmented-option {
     flex: 1;
     min-width: 0;
     padding: 6px 4px;
   }
 
-  /* An open sheet takes the room the view and its controls had, and scrolls inside it. */
-  .lab-grid[data-sheet='open'] {
-    grid-template-rows: auto auto 0 auto minmax(240px, 1fr) auto;
+  .lab-grid[data-sheet='open'] .lab-camera {
+    display: none;
   }
 
   .lab-grid[data-sheet='open'] .lab-panel {
@@ -900,11 +896,7 @@ body {
     contain: size;
   }
 
-  .lab-grid[data-sheet='open'] .lab-camera {
-    display: none;
-  }
-
-  /* The sheet keeps its own height, so it never collapses on a short screen. */
+  /* Collapsed, the sheet keeps its own height, so it never collapses on a short screen. */
   .lab-panel {
     min-height: auto;
     contain: none;
@@ -919,14 +911,10 @@ body {
   }
 
   .sheet-summary {
-    display: -webkit-box;
     flex: 1;
     margin: 0;
-    overflow: hidden;
     font-size: 0.82rem;
     line-height: 1.35;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
   }
 
   /* Open, the bar names the sheet; the summary leads "What's happening" inside it. */
@@ -965,5 +953,64 @@ body {
   .panel-body {
     padding: 0 var(--space-4) var(--space-4);
     border-top: 1px solid var(--line);
+  }
+}
+
+/* Phones: one column, the view between the setup switch and the controls below it. */
+@media (max-width: 760px) {
+  .lab-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(200px, 1fr) auto auto auto;
+    grid-template-areas:
+      'title'
+      'setup'
+      '.'
+      'camera'
+      'panel'
+      'console';
+    gap: var(--space-2);
+    padding: max(var(--space-3), env(safe-area-inset-top))
+      max(var(--space-3), env(safe-area-inset-right))
+      max(var(--space-3), env(safe-area-inset-bottom))
+      max(var(--space-3), env(safe-area-inset-left));
+  }
+
+  /* An open sheet takes the room the view and its controls had, and scrolls inside it. */
+  .lab-grid[data-sheet='open'] {
+    grid-template-rows: auto auto 0 auto minmax(240px, 1fr) auto;
+  }
+}
+
+/* Short screens: the controls in a column on the left, the 3D view on the right. */
+@media (max-height: 500px) and (min-width: 561px) {
+  .lab-grid {
+    grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-areas:
+      'title view'
+      'setup view'
+      'panel view'
+      '. view'
+      'console view';
+    gap: var(--space-2);
+    padding: max(var(--space-2), env(safe-area-inset-top))
+      max(var(--space-3), env(safe-area-inset-right))
+      max(var(--space-2), env(safe-area-inset-bottom))
+      max(var(--space-3), env(safe-area-inset-left));
+  }
+
+  .lab-title p {
+    font-size: 0.78rem;
+  }
+
+  .lab-camera {
+    grid-area: view;
+    align-self: end;
+    justify-self: end;
+  }
+
+  /* Open, the sheet covers the view, beside the controls. */
+  .lab-grid[data-sheet='open'] .lab-panel {
+    grid-area: view;
   }
 }

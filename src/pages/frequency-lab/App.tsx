@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
-import { ABOUT } from '../../../content/training/frequency-lab.ts';
+import { ABOUT, TAGLINE } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
 import { Icon, type IconName } from '../../design/icons.tsx';
 import { Segmented } from '../../design/Segmented.tsx';
@@ -43,8 +43,11 @@ const NO_WEBGL =
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
-/** Matches the phone layout in lab.css. */
+/** Match the layouts in lab.css: phones, and short screens such as phones held sideways. */
 const phoneQuery = matchMedia('(max-width: 760px)');
+const shortQuery = matchMedia('(max-height: 500px) and (min-width: 561px)');
+/** Layouts where the guide is a sheet that opens over the 3D view. */
+const sheetLayout = () => phoneQuery.matches || shortQuery.matches;
 
 function resolvedTheme(): ThemeName {
   const forced = document.documentElement.dataset.theme;
@@ -123,7 +126,7 @@ export function App() {
   // The scene's callbacks outlive renders, so they read current state from here.
   const live = useRef({ setup, frequency, settings, sheetOpen });
   live.current = { setup, frequency, settings, sheetOpen };
-  const phoneArea = useRef<VisibleArea | null>(null);
+  const lastArea = useRef<VisibleArea | null>(null);
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -141,21 +144,39 @@ export function App() {
         (el) => rectWithin(el, box) ?? [],
       );
     };
+    /** The part of the 3D view the chrome leaves free, which the camera frames. */
     const visibleArea = (): VisibleArea => {
       const box = stageEl.getBoundingClientRect();
-      if (!phoneQuery.matches) {
-        // Wide screens: everything left of the panel.
-        const panel = rectOf('.lab-panel');
-        const right = panel ? panel.left - box.left - 8 : box.width;
-        return { x: 0, y: 0, width: Math.max(160, right), height: box.height };
-      }
-      // Phones: between the setup switch and the controls below the view. An open sheet
-      // covers most of the view, so the framing stays as it was.
-      if (live.current.sheetOpen && phoneArea.current) return phoneArea.current;
+      // An open sheet covers the view, so the framing stays as it was.
+      if (live.current.sheetOpen && sheetLayout() && lastArea.current) return lastArea.current;
+      lastArea.current = freeArea(box);
+      return lastArea.current;
+    };
+    const freeArea = (box: DOMRect): VisibleArea => {
       const top = (rectOf('.lab-setup')?.bottom ?? box.top) - box.top;
-      const bottom = (rectOf('.lab-camera')?.top ?? box.bottom) - box.top;
-      phoneArea.current = { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
-      return phoneArea.current;
+      if (shortQuery.matches) {
+        // Short screens: right of the column of controls.
+        const left = (rectOf('.lab-title')?.right ?? box.left) - box.left + 8;
+        return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
+      }
+      if (phoneQuery.matches) {
+        // Phones: between the setup switch and the controls below the view.
+        const bottom = (rectOf('.lab-camera')?.top ?? box.bottom) - box.top;
+        return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
+      }
+      // Wider screens: left of the panel. When the band between the controls above and below
+      // is taller than wide, frame the portrait view inside it, clear of the controls; otherwise
+      // the wide view uses the full height, since the bottom controls only take the corners.
+      const panel = rectOf('.lab-panel');
+      const right = Math.max(160, panel ? panel.left - box.left - 8 : box.width);
+      const bottom =
+        Math.min(
+          rectOf('.lab-camera')?.top ?? box.bottom,
+          rectOf('.lab-console')?.top ?? box.bottom,
+        ) - box.top;
+      const band = { x: 0, y: top, width: right, height: Math.max(120, bottom - top) };
+      if (band.width < band.height) return { ...band, portrait: true };
+      return { x: 0, y: 0, width: right, height: box.height, portrait: false };
     };
 
     void (async () => {
@@ -184,7 +205,7 @@ export function App() {
           noGo,
           onContextLost: () => {
             setFailed(
-              'The 3D view stopped because the graphics context was lost. Reload the page to restart it.',
+              "The 3D view paused because the graphics context was lost. It usually comes back on its own; if it doesn't, reload the page.",
             );
           },
           onContextRestored: () => {
@@ -243,10 +264,6 @@ export function App() {
     history.replaceState(null, '', url);
   }, [setup, frequency]);
 
-  useEffect(() => {
-    sceneRef.current?.relayout();
-  }, [setup]);
-
   // Settings apply at once and are remembered; the page applied the saved ones before first paint.
   const firstSettings = useRef(true);
   useEffect(() => {
@@ -290,9 +307,7 @@ export function App() {
           <h1>Frequency Lab</h1>
           <SettingsMenu settings={settings} onChange={setSettings} />
         </div>
-        <p>
-          Use the lowest frequency that works: it travels farther and bleeds less onto other lines.
-        </p>
+        <p>{TAGLINE.text}</p>
       </header>
 
       <div class="lab-setup" data-chrome>
@@ -305,7 +320,8 @@ export function App() {
         <canvas
           ref={canvasRef}
           class="lab-canvas"
-          tabIndex={0}
+          // Under an open sheet the view can't be seen, so it leaves the tab order.
+          tabIndex={sheetOpen && sheetLayout() ? -1 : 0}
           role="img"
           aria-label="3D cutaway of a street block showing buried lines and the locate signal. Use the arrow keys to turn the view, and plus or minus to zoom."
           aria-describedby="lab-status"

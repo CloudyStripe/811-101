@@ -65,8 +65,8 @@ export const ARROWS = {
   toFt: 138,
   stepFt: 9,
   /** Arrows on the line carrying the signal, per setup. */
-  target: { steel: 1.1, plastic: 0.75 },
-  telecom: 0.75,
+  target: { steel: 1.1, plastic: 0.8 },
+  telecom: 0.8,
   /**
    * Arrow length along the line, as a multiple of its height. The views look along the lines, so
    * an arrow's length is foreshortened; a long arrow still reads as one.
@@ -142,9 +142,10 @@ export const WIDE_VIEW: View = { position: [-49, 12.5, 29], target: [19, -3, -4]
  * For portrait screens: higher and further back, so the whole block runs diagonally up the screen
  * and the cut face still reads. (A phone held upright sees only about 16° across.)
  */
-export const TALL_VIEW: View = { position: [-62, 40, 24], target: [46, -4, -8], aspect: 0.8 };
+export const TALL_VIEW: View = { position: [-72, 40, 24], target: [36, -4, -8], aspect: 0.8 };
 
 /** The view that suits the free part of the canvas. */
 export function viewFor(area: VisibleArea): View {
-  return area.width / Math.max(1, area.height) < 1 ? TALL_VIEW : WIDE_VIEW;
+  const portrait = area.portrait ?? area.width / Math.max(1, area.height) < 1;
+  return portrait ? TALL_VIEW : WIDE_VIEW;
 }

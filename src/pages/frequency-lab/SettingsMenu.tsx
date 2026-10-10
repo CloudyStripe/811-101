@@ -3,7 +3,7 @@
  * outside and returning focus; it opens just below its button.
  */
 import type { TargetedToggleEvent } from 'preact';
-import { useRef } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { Icon } from '../../design/icons.tsx';
 import type { Settings } from './settings.ts';
 
@@ -82,6 +82,19 @@ export function SettingsMenu({
   onChange: (next: Settings) => void;
 }) {
   const button = useRef<HTMLButtonElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
+  const close = () => {
+    if (popover.current?.matches(':popover-open')) popover.current.hidePopover();
+  };
+
+  // It stays put while the page scrolls under it, so it closes instead.
+  useEffect(() => {
+    const page = document.getElementById('app');
+    page?.addEventListener('scroll', close, { passive: true });
+    return () => {
+      page?.removeEventListener('scroll', close);
+    };
+  }, []);
 
   function place(event: TargetedToggleEvent<HTMLDivElement>) {
     const r = button.current?.getBoundingClientRect();
@@ -113,7 +126,13 @@ export function SettingsMenu({
         class="settings"
         role="dialog"
         aria-labelledby={`${POPOVER_ID}-title`}
+        ref={popover}
         onBeforeToggle={place}
+        onFocusOut={(event) => {
+          // Tabbing out of it closes it, so it never covers what has focus.
+          const next = event.relatedTarget as Node | null;
+          if (next && !popover.current?.contains(next) && next !== button.current) close();
+        }}
       >
         <h2 id={`${POPOVER_ID}-title`}>Settings</h2>
         <Group

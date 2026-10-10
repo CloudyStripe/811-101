@@ -7,10 +7,15 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 
 const SIZES = [
-  { name: 'tablet-portrait', width: 820, height: 1180, touch: true },
-  { name: 'phone-landscape', width: 844, height: 390, touch: true },
-  { name: 'small-laptop', width: 1024, height: 768, touch: false },
-  { name: 'zoomed-400', width: 320, height: 256, touch: false },
+  { name: 'tablet-portrait', width: 820, height: 1180, touch: true, framed: true },
+  { name: 'large-tablet-portrait', width: 1024, height: 1366, touch: true, framed: true },
+  { name: 'phone-landscape', width: 844, height: 390, touch: true, framed: true },
+  { name: 'small-laptop', width: 1024, height: 768, touch: false, framed: true },
+  { name: 'small-window', width: 900, height: 600, touch: false, framed: true },
+  { name: 'narrow-window', width: 761, height: 900, touch: false, framed: true },
+  { name: 'tablet-landscape', width: 1112, height: 834, touch: true, framed: true },
+  // 1280 × 1024 at 400%: a reflow check, too small to frame the hookup as well.
+  { name: 'zoomed-400', width: 320, height: 256, touch: false, framed: false },
 ] as const;
 
 /** Whether the control is what's actually on top at its center, after scrolling it into view. */
@@ -49,6 +54,15 @@ for (const size of SIZES) {
       ] as const) {
         for (let i = 0; i < count; i++) {
           expect(await onTop(page, selector, i), `${selector} #${String(i)} is covered`).toBe(true);
+        }
+      }
+
+      // The hookup, where the lesson starts, is framed clear of the controls.
+      if (size.framed) {
+        for (const id of ['transmitter', 'stake']) {
+          await expect(page.locator(`[data-label="${id}"]`), `${id} label`).not.toHaveClass(
+            /\boff\b/,
+          );
         }
       }
 
