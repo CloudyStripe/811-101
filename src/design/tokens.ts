@@ -31,6 +31,8 @@ export interface SceneTokens {
   sunIntensity: number;
   envIntensity: number;
   fogDensity: number;
+  /** A faint glow of each buried line's own tint, so its color still reads in dim light. */
+  lineGlow: number;
 }
 
 export interface Theme {
@@ -60,6 +62,7 @@ export const THEMES: Record<ThemeName, Theme> = {
       sunIntensity: 3.1,
       envIntensity: 0.72,
       fogDensity: 0.0018,
+      lineGlow: 0,
     },
   },
   dark: {
@@ -83,6 +86,7 @@ export const THEMES: Record<ThemeName, Theme> = {
       sunIntensity: 1.5,
       envIntensity: 0.62,
       fogDensity: 0.0024,
+      lineGlow: 0.22,
     },
   },
 };
@@ -94,7 +98,6 @@ export const MATERIAL_COLORS = {
   clay: '#ab8a62',
   deep: '#6c5846',
   backfill: '#a8916f',
-  bedding: '#bba98d',
   grass: '#788f55',
   grassDark: '#5b7142',
   concrete: '#cbc4b9',

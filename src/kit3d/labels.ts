@@ -106,9 +106,17 @@ export class LabelLayer {
       y: Math.min(Math.max(r.y, bounds.y + margin), bounds.y + bounds.h - margin - r.h),
     });
 
+    // Near an edge, a label may slide inward along its row, up to a little over half its width,
+    // so it stays readable and still sits by its anchor.
+    const slide = (r: Rect): Rect | null => {
+      const x = Math.min(Math.max(r.x, margin), width - margin - r.w);
+      return Math.abs(x - r.x) <= r.w * 0.6 ? { ...r, x } : null;
+    };
+
     for (const it of items) {
       const size = this.sizes.get(it.label.id) ?? { w: 120, h: 28 };
       const full = { x: it.x - size.w / 2, y: it.y - size.h - 6, w: size.w, h: size.h };
+      const slid = slide(full);
       const compact = { x: it.x - 15, y: it.y - 36, w: 30, h: 30 };
       if (it.focused) {
         // A focused label is always shown, pulled into the free part of the view (WCAG 2.4.11).
@@ -117,9 +125,9 @@ export class LabelLayer {
         this.place(it.label, r, '');
       } else if (!it.visible) {
         this.place(it.label, full, 'off');
-      } else if (inside(full) && !overlaps(full, placed)) {
-        placed.push(full);
-        this.place(it.label, full, '');
+      } else if (slid && inside(slid) && !overlaps(slid, placed)) {
+        placed.push(slid);
+        this.place(it.label, slid, '');
       } else if (inside(compact) && !overlaps(compact, placed)) {
         placed.push(compact);
         this.place(it.label, compact, 'compact');

@@ -5,7 +5,7 @@
  */
 import { GEOMETRY } from '../../../signal/constants.ts';
 import type { SetupId } from '../../../signal/model.ts';
-import type { View } from '../../../kit3d/camera.ts';
+import type { View, VisibleArea } from '../../../kit3d/camera.ts';
 
 const BLOCK_END = GEOMETRY.blockLengthFt.value + 6;
 
@@ -56,6 +56,49 @@ export const HOOKUP = {
 
 export const HYDRANT = { x: GEOMETRY.waterCrossingAtFt.value + 4, z: -4.6 } as const;
 
+type Point = readonly [number, number, number];
+const TX = HOOKUP.transmitter;
+const ACCESS = HOOKUP.access;
+const STAKE = HOOKUP.stake;
+
+/**
+ * The transmitter's leads, lying in the grass, from the transmitter outward: the signal lead to
+ * the access point and the ground lead to the stake. The signal glows along both, closing the loop.
+ */
+export const LEADS: { signal: readonly Point[]; ground: readonly Point[] } = {
+  signal: [
+    [TX.x + 0.3, 0.35, TX.z + 0.5],
+    [TX.x + 1.6, 0.16, TX.z + 1.4],
+    [ACCESS.x - 1.4, 0.16, ACCESS.z - 0.4],
+    [ACCESS.x - 0.3, 0.3, ACCESS.z],
+  ],
+  ground: [
+    [TX.x - 0.4, 0.35, TX.z + 0.5],
+    [TX.x - 3, 0.16, TX.z + 1.6],
+    [STAKE.x + 6, 0.16, -1.4],
+    [STAKE.x + 0.6, 0.18, -0.5],
+    [STAKE.x + 0.08, STAKE.top - 0.3, 0],
+  ],
+};
+
+/** The wire up the cut face from the line to its access point, from the line upward. */
+export const RISERS: Record<SetupId, readonly Point[]> = {
+  steel: [
+    [0.4, LINES.steel.y + LINES.steel.radius, 0.2],
+    [0.4, -1.6, 0.22],
+    [0.38, -0.2, 0.2],
+    [0.25, 0.14, -0.45],
+    [ACCESS.x + 0.05, 0.3, ACCESS.z + 0.05],
+  ],
+  plastic: [
+    [LINES.tracer.x0 + 0.1, LINES.tracer.y, 0.06],
+    [-0.5, -1.8, 0.12],
+    [-0.4, -0.25, 0.12],
+    [-0.25, 0.1, -0.5],
+    [ACCESS.x, 0.12, ACCESS.z + 0.05],
+  ],
+};
+
 /** Where the earth-return flow lines converge: the stake's tip, on the cut face. */
 export const STAKE_TIP: readonly [number, number, number] = [
   HOOKUP.stake.x,
@@ -65,7 +108,17 @@ export const STAKE_TIP: readonly [number, number, number] = [
 
 /**
  * Looking down the street from the hookup end, so the near field is large and reach recedes. Both
- * setups share one view, so switching swaps only what is underground and the two compare directly.
+ * setups share each view, so switching swaps only what is underground and the two compare directly.
  */
-const VIEW: View = { position: [-49, 12.5, 29], target: [19, -3, -4] };
-export const VIEWS: Record<SetupId, View> = { steel: VIEW, plastic: VIEW };
+export const WIDE_VIEW: View = { position: [-49, 12.5, 29], target: [19, -3, -4], aspect: 1.6 };
+
+/**
+ * For portrait screens: higher and further back, so the whole block runs diagonally up the screen
+ * and the cut face still reads. (A phone held upright sees only about 16° across.)
+ */
+export const TALL_VIEW: View = { position: [-62, 40, 24], target: [46, -4, -8], aspect: 0.8 };
+
+/** The view that suits the free part of the canvas. */
+export function viewFor(area: VisibleArea): View {
+  return area.width / Math.max(1, area.height) < 1 ? TALL_VIEW : WIDE_VIEW;
+}

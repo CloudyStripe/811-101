@@ -23,8 +23,14 @@ import { Stage } from '../../../kit3d/stage.ts';
 import { SETUPS, labState, transmitterReading, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, type LabelId } from './labels.ts';
-import { BLOCK, VIEWS } from './layout.ts';
-import { TransmitterScreen, buildSetup, buildShared, type ScreenReading } from './lines.ts';
+import { BLOCK, viewFor } from './layout.ts';
+import {
+  TransmitterScreen,
+  buildSetup,
+  buildShared,
+  setLineGlow,
+  type ScreenReading,
+} from './lines.ts';
 import { SignalEffects } from './signal.ts';
 import { buildStreet } from './street.ts';
 
@@ -50,8 +56,8 @@ export interface LabSceneOptions {
   visibleArea: () => VisibleArea;
   /** Rectangles labels must avoid, in the canvas's CSS pixels. */
   noGo: () => Rect[];
-  onTierChange?: (tier: Tier) => void;
   onContextLost?: () => void;
+  onContextRestored?: () => void;
 }
 
 export interface LabScene {
@@ -100,7 +106,23 @@ function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[]
   });
 }
 
+/** Builds the scene. If building fails, the renderer it created is released before the error is passed on. */
 export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
+  let stage: Stage | null = null;
+  try {
+    return await buildLabScene(o, (s) => {
+      stage = s;
+    });
+  } catch (error) {
+    (stage as Stage | null)?.dispose();
+    throw error;
+  }
+}
+
+async function buildLabScene(
+  o: LabSceneOptions,
+  onStage: (stage: Stage) => void,
+): Promise<LabScene> {
   const scene = new Scene();
   const fxScene = new Scene();
   const camera = new PerspectiveCamera(34, 1, 0.5, 900);
@@ -114,7 +136,9 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   let reducedMotion = o.reducedMotion;
   let setup = o.setup;
   let frequency = o.frequency;
-  let rebuilding: Promise<void> | null = null;
+  let rebuilding = false;
+  /** The tier asked for most recently, which a rebuild in progress picks up when it's done. */
+  let wantedTier: Tier | null = null;
   let disposed = false;
 
   const stage = new Stage(
@@ -142,7 +166,10 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
         return animating || moved;
       },
       resize(width, height) {
-        cam.setLayout(width, height, o.visibleArea());
+        const area = o.visibleArea();
+        cam.setLayout(width, height, area);
+        // A rotation or resize reframes, unless the learner has moved the camera.
+        cam.refit(viewFor(area));
         post?.setSize(width, height);
         labelsDirty = true;
       },
@@ -151,12 +178,13 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
       },
       contextRestored() {
         labelsDirty = true;
+        o.onContextRestored?.();
       },
     },
     (w, h) => pixelRatioFor(tier, w, h, window.devicePixelRatio || 1),
   );
   const { renderer } = stage;
-
+  onStage(stage);
   if (o.tier === 'auto') {
     const gl = renderer.getContext();
     const gpu = String(gl.getParameter(gl.RENDERER));
@@ -183,6 +211,7 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   );
   const setups = { steel: buildSetup('steel'), plastic: buildSetup('plastic') };
   scene.add(street.group, shared.group, setups.steel, setups.plastic);
+  setLineGlow(scene, THEMES[o.theme].scene.lineGlow);
   const fx = new SignalEffects(depthUniforms);
   fx.setTime(animTime);
   fxScene.add(fx.group);
@@ -206,13 +235,18 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   const hud = o.perf ? new PerfHud(document.body) : null;
 
   let shadowsFor: SetupId | null = null;
+  let labelsFor_: SetupId | null = null;
 
   function applyState() {
     setups.steel.visible = setup === 'steel';
     setups.plastic.visible = setup === 'plastic';
     fx.setState(labState(setup, frequency));
     shared.screen.show(readingIndex(setup, frequency));
-    labels.setLabels(labelsFor(o.labelElements, setup));
+    // Label text only changes with the setup, so a frequency change needn't re-measure them.
+    if (labelsFor_ !== setup) {
+      labelsFor_ = setup;
+      labels.setLabels(labelsFor(o.labelElements, setup));
+    }
     // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
     if (shadowsFor !== setup) {
       shadowsFor = setup;
@@ -232,22 +266,26 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
     return next;
   }
 
+  /** Rebuilds for a new tier. A tier asked for during a rebuild is applied right after it. */
   async function changeTier(next: Tier) {
-    if (rebuilding || next === tier) return;
-    tier = next;
-    rebuilding = (async () => {
-      lighting.setShadowQuality(settings().shadowMapSize, settings().shadowRadius);
-      street.setDetail(settings().detail);
-      await buildPost();
-      stage.resize();
-      governor?.settle(performance.now());
-      o.onTierChange?.(tier);
-      stage.requestFrame();
-    })();
+    wantedTier = next;
+    if (rebuilding) return;
+    rebuilding = true;
+    // Read through a function: another call can change it during the await below.
+    const wanted = (): Tier | null => wantedTier;
     try {
-      await rebuilding;
+      for (let want = wanted(); want !== null && want !== tier && !disposed; want = wanted()) {
+        tier = want;
+        lighting.setShadowQuality(settings().shadowMapSize, settings().shadowRadius);
+        street.setDetail(settings().detail);
+        await buildPost();
+        stage.resize();
+        governor?.settle(performance.now());
+        stage.requestFrame();
+      }
     } finally {
-      rebuilding = null;
+      rebuilding = false;
+      wantedTier = null;
     }
   }
 
@@ -282,7 +320,7 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
   // Everything is built and compiled before the loop starts, so the first frame is the real one.
   stage.resize();
   const firstPost = await buildPost();
-  await cam.goTo(VIEWS[setup], false);
+  await cam.goTo(viewFor(o.visibleArea()), false);
   await precompile();
   // The screen draws with its own font from the first frame. If the font is slow, it shows a
   // fallback and redraws when the font arrives.
@@ -323,6 +361,7 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
     },
     setTheme(theme) {
       lighting.setTheme(THEMES[theme].scene);
+      setLineGlow(scene, THEMES[theme].scene.lineGlow);
       stage.requestFrame();
     },
     setReducedMotion(reduced) {
@@ -355,7 +394,7 @@ export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
       stage.requestFrame();
     },
     resetView() {
-      void cam.goTo(VIEWS[setup]);
+      void cam.goTo(viewFor(o.visibleArea()));
       stage.requestFrame();
     },
     rotate(direction) {

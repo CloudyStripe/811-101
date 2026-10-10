@@ -36,6 +36,8 @@ CameraControls.install({
 export interface View {
   position: readonly [number, number, number];
   target: readonly [number, number, number];
+  /** Width over height of the free area the view is framed for. Narrower areas back off. */
+  aspect: number;
 }
 
 /** The part of the canvas left free by the panel or sheet, in CSS pixels. */
@@ -65,6 +67,8 @@ export class LabCamera {
   private visible: VisibleArea | null = null;
   private canvasSize = { width: 1, height: 1 };
   private view: View | null = null;
+  /** Set once the learner turns or zooms the camera, so a resize doesn't undo it. */
+  private moved = false;
   reducedMotion = false;
 
   constructor(camera: PerspectiveCamera, element: HTMLElement, options: CameraOptions) {
@@ -81,12 +85,16 @@ export class LabCamera {
     c.dollyToCursor = true;
     c.setBoundary(options.targetBounds);
     c.boundaryFriction = 0.15;
+    c.addEventListener('controlstart', () => {
+      this.moved = true;
+    });
     this.controls = c;
   }
 
   /** Frames a view, backing off when less of the canvas is visible (phones, open panel). */
   goTo(view: View, transition = true): Promise<void> {
     this.view = view;
+    this.moved = false;
     const [px, py, pz] = view.position;
     const [tx, ty, tz] = view.target;
     const k = this.backOff();
@@ -101,21 +109,19 @@ export class LabCamera {
     );
   }
 
-  /** Re-frames the current view, e.g. after the layout changes. */
-  reframe(): Promise<void> | undefined {
-    return this.view ? this.goTo(this.view, false) : undefined;
+  /** Frames `view` again after the layout changes, unless the learner has moved the camera. */
+  refit(view: View): void {
+    if (!this.moved) void this.goTo(view, false);
   }
 
   rotateBy(azimuth: number, polar: number): void {
+    this.moved = true;
     void this.controls.rotate(azimuth, polar, !this.reducedMotion);
   }
 
   dollyBy(distance: number): void {
+    this.moved = true;
     void this.controls.dolly(distance, !this.reducedMotion);
-  }
-
-  truckBy(x: number, y: number): void {
-    void this.controls.truck(x, y, !this.reducedMotion);
   }
 
   /** Updates the visible area and shifts the projection so the target sits at its center. */
@@ -139,14 +145,15 @@ export class LabCamera {
   }
 
   /**
-   * Views are authored for a wide desktop canvas; narrower visible areas pull the camera back,
-   * gently, since a long street block can run off the sides of a portrait screen.
+   * Each view is framed for a free area of its own aspect; a narrower or shorter free area pulls
+   * the camera back, gently.
    */
   private backOff(): number {
     const v = this.visible;
+    const aspect = this.view?.aspect ?? 1.6;
     if (!v) return 1;
     const h = this.canvasSize.height;
-    const f = Math.max((1.6 * h) / Math.max(1, v.width), h / Math.max(1, v.height), 1);
+    const f = Math.max((aspect * h) / Math.max(1, v.width), h / Math.max(1, v.height), 1);
     return MathUtils.clamp(f ** 0.55, 1, 2);
   }
 

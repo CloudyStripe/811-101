@@ -7,6 +7,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
+  type Object3D,
   SphereGeometry,
   SRGBColorSpace,
   TorusGeometry,
@@ -25,9 +26,9 @@ import {
   ringAlongX,
   roundedBox,
 } from '../../../kit3d/geometry.ts';
-import { surface, tint } from '../../../kit3d/materials.ts';
+import { surface, tint, type SurfaceOptions } from '../../../kit3d/materials.ts';
 import type { SetupId } from '../../../signal/model.ts';
-import { HOOKUP, LINES } from './layout.ts';
+import { HOOKUP, LEADS, LINES, RISERS } from './layout.ts';
 
 function mesh(geometry: BufferGeometry, material: Material, cast = true): Mesh {
   const m = new Mesh(geometry, material);
@@ -36,20 +37,43 @@ function mesh(geometry: BufferGeometry, material: Material, cast = true): Mesh {
   return m;
 }
 
-function cable(points: [number, number, number][], radius: number, material: Material): Mesh {
+function cable(
+  points: readonly (readonly [number, number, number])[],
+  radius: number,
+  material: Material,
+): Mesh {
   const curve = new CatmullRomCurve3(points.map(([x, y, z]) => new Vector3(x, y, z)));
   return mesh(new TubeGeometry(curve, 64, radius, 10, false), material);
+}
+
+/**
+ * A buried line's material: its APWA tint, able to glow faintly in the same color so the hue still
+ * reads in dim light (see `setLineGlow`).
+ */
+function line(base: string, apwa: string, strength: number, params: SurfaceOptions) {
+  const m = surface(tint(base, apwa, strength), params);
+  m.emissive.copy(m.color);
+  m.emissiveIntensity = 0;
+  m.userData.line = true;
+  return m;
+}
+
+/** Sets how strongly every buried line under `root` glows in its own tint. */
+export function setLineGlow(root: Object3D, level: number): void {
+  root.traverse((o) => {
+    const m = (o as Partial<Mesh>).material;
+    if (m instanceof MeshStandardMaterial && m.userData.line === true) m.emissiveIntensity = level;
+  });
 }
 
 const strength = FACILITY_TINT_STRENGTH;
 const MATERIALS = {
   steelMain: () =>
-    surface(tint(C.coatedSteel, APWA.yellow.fill, strength), { roughness: 0.5, metalness: 0.15 }),
-  plasticMain: () => surface(tint(C.casing, APWA.yellow.fill, 0.82), { roughness: 0.42 }),
-  tracer: () => surface(tint(C.graphite, APWA.yellow.fill, 0.85), { roughness: 0.5 }),
-  telecom: () => surface(tint(C.graphite, APWA.orange.fill, strength), { roughness: 0.55 }),
-  water: () =>
-    surface(tint('#4b4f55', APWA.blue.fill, strength), { roughness: 0.6, metalness: 0.1 }),
+    line(C.coatedSteel, APWA.yellow.fill, strength, { roughness: 0.5, metalness: 0.15 }),
+  plasticMain: () => line(C.casing, APWA.yellow.fill, 0.82, { roughness: 0.42 }),
+  tracer: () => line(C.graphite, APWA.yellow.fill, 0.85, { roughness: 0.5 }),
+  telecom: () => line(C.graphite, APWA.orange.fill, strength, { roughness: 0.55 }),
+  water: () => line('#4b4f55', APWA.blue.fill, strength, { roughness: 0.6, metalness: 0.1 }),
   graphite: () => surface(C.graphite, { roughness: 0.45 }),
   steel: () => surface(C.steel, { roughness: 0.35, metalness: 0.8 }),
   yellowPost: () => surface(APWA.yellow.fill, { roughness: 0.5 }),
@@ -212,30 +236,7 @@ export function buildShared(readings: readonly ScreenReading[]): SharedLines {
 
   // Leads lying in the grass: signal lead to the access point, ground lead to the stake.
   const lead = MATERIALS.graphite();
-  const a = HOOKUP.access;
-  group.add(
-    cable(
-      [
-        [tx.x + 0.3, 0.35, tx.z + 0.5],
-        [tx.x + 1.6, 0.16, tx.z + 1.4],
-        [a.x - 1.4, 0.16, a.z - 0.4],
-        [a.x - 0.3, 0.3, a.z],
-      ],
-      0.045,
-      lead,
-    ),
-    cable(
-      [
-        [tx.x - 0.4, 0.35, tx.z + 0.5],
-        [tx.x - 3, 0.16, tx.z + 1.6],
-        [s.x + 6, 0.16, -1.4],
-        [s.x + 0.6, 0.18, -0.5],
-        [s.x + 0.08, s.top - 0.3, 0],
-      ],
-      0.045,
-      lead,
-    ),
-  );
+  group.add(cable(LEADS.signal, 0.045, lead), cable(LEADS.ground, 0.045, lead));
   return { group, screen };
 }
 
@@ -267,17 +268,7 @@ export function buildSetup(setup: SetupId): Group {
         new SphereGeometry(0.19, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).translate(a.x, 3.0, a.z),
         MATERIALS.graphite(),
       ),
-      cable(
-        [
-          [0.4, m.y + m.radius, 0.2],
-          [0.4, -1.6, 0.22],
-          [0.38, -0.2, 0.2],
-          [0.25, 0.14, -0.45],
-          [a.x + 0.05, 0.3, a.z + 0.05],
-        ],
-        0.035,
-        MATERIALS.graphite(),
-      ),
+      cable(RISERS.steel, 0.035, MATERIALS.graphite()),
     );
     return group;
   }
@@ -307,17 +298,7 @@ export function buildSetup(setup: SetupId): Group {
       new CylinderGeometry(0.37, 0.37, 0.05, 32).translate(a.x, 0.2, a.z),
       MATERIALS.yellowPost(),
     ),
-    cable(
-      [
-        [tr.x0 + 0.1, tr.y, 0.06],
-        [-0.5, -1.8, 0.12],
-        [-0.4, -0.25, 0.12],
-        [-0.25, 0.1, -0.5],
-        [a.x, 0.12, a.z + 0.05],
-      ],
-      tr.radius,
-      MATERIALS.tracer(),
-    ),
+    cable(RISERS.plastic, tr.radius, MATERIALS.tracer()),
   );
   return group;
 }
