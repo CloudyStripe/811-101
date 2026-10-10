@@ -48,19 +48,23 @@ export class LabelLayer {
   }
 
   /**
-   * Re-measures label sizes (after fonts load or text changes) at their full size, then restores
-   * each label's state, so nothing flashes and a stopped loop leaves labels as they were.
+   * Re-measures label sizes (after fonts load or text changes) at full size, on hidden copies.
+   * Toggling the labels' own classes would restart their fade transitions and flash them.
    */
   measure(): void {
-    for (const l of this.labels) {
-      const { classList } = l.element;
-      const compact = classList.contains('compact');
-      const off = classList.contains('off');
-      classList.remove('compact', 'off');
-      this.sizes.set(l.id, { w: l.element.offsetWidth || 120, h: l.element.offsetHeight || 28 });
-      classList.toggle('compact', compact);
-      classList.toggle('off', off);
+    const copies = this.labels.map((l) => {
+      const copy = l.element.cloneNode(true) as HTMLElement;
+      copy.classList.remove('compact', 'off');
+      copy.setAttribute('aria-hidden', 'true');
+      copy.style.cssText = 'visibility: hidden; transition: none; transform: none';
+      l.element.after(copy);
+      return { id: l.id, copy };
+    });
+    // All copies are in place before the first read, so this lays out once.
+    for (const { id, copy } of copies) {
+      this.sizes.set(id, { w: copy.offsetWidth || 120, h: copy.offsetHeight || 28 });
     }
+    for (const { copy } of copies) copy.remove();
   }
 
   update(width: number, height: number): void {
@@ -122,11 +126,17 @@ export class LabelLayer {
   }
 
   private place(label: Label, r: Rect, state: '' | 'compact' | 'off'): void {
-    const key = `${Math.round(r.x)},${Math.round(r.y)},${state}`;
+    const { classList, style } = label.element;
+    // A label being hidden fades out where it is, at its current size, rather than jumping first.
+    const key = state === 'off' ? 'off' : `${Math.round(r.x)},${Math.round(r.y)},${state}`;
     if (this.lastKey.get(label.id) === key) return;
     this.lastKey.set(label.id, key);
-    label.element.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
-    label.element.classList.toggle('compact', state === 'compact');
-    label.element.classList.toggle('off', state === 'off');
+    if (state === 'off') {
+      classList.add('off');
+      return;
+    }
+    style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
+    classList.toggle('compact', state === 'compact');
+    classList.remove('off');
   }
 }
