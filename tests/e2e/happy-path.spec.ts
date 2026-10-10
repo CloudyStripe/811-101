@@ -143,3 +143,31 @@ test.describe('on a phone', () => {
     await expect(view).toBeVisible();
   });
 });
+
+test('only one definition shows at a time, and Escape closes it from anywhere', async ({
+  page,
+}) => {
+  await open(page);
+  const visibleTips = page.locator('[role="tooltip"]:visible');
+  const terms = page.locator('.lab-panel .term');
+
+  // Tabbing through terms, pressing Enter on each, never leaves more than one tip open.
+  await terms.first().focus();
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press('Enter');
+    await expect(visibleTips).toHaveCount(1);
+    await page.keyboard.press('Tab');
+  }
+
+  // With focus on one term, hovering another, a paragraph away, swaps which tip shows.
+  await terms.nth(0).focus();
+  await expect(visibleTips).toHaveCount(1);
+  await terms.nth(5).hover();
+  await expect(visibleTips).toHaveCount(1);
+  await expect(page.locator('.lab-panel .term-wrap').nth(5).getByRole('tooltip')).toBeVisible();
+
+  // Escape closes it, wherever focus is, and focus stays put.
+  await page.keyboard.press('Escape');
+  await expect(visibleTips).toHaveCount(0);
+  await expect(terms.nth(0)).toBeFocused();
+});
