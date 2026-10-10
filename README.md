@@ -2,7 +2,7 @@
 
 An interactive 3D diorama that teaches how natural gas and gasoline form, get processed and burn.
 
-**Live site:** _link coming soon_
+**Live site:** <https://cloudystripe.github.io/811-101/>
 
 ## Editing the content
 
