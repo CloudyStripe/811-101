@@ -29,6 +29,20 @@ export function useTip<T extends HTMLElement>() {
     };
   }, [pinned]);
 
+  // A tip opened by hover closes on Escape wherever focus is (WCAG 1.4.13).
+  useEffect(() => {
+    if (!open || focus) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setDismissed(true);
+      setPinned(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, focus]);
+
   // Once hover, focus and pin have all gone, a dismissed tip can open again next time.
   useEffect(() => {
     if (!hover && !focus && !pinned) setDismissed(false);

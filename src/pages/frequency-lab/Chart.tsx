@@ -1,7 +1,9 @@
 /**
  * The inset chart: signal current along the target and the telecom cable, from the hookup to the
- * end of the chart. The block in the 3D view is shaded and the trace threshold is marked, so reach
- * reads at a glance. "Show as table" gives the same numbers.
+ * end of the chart. Current is on a log scale, so each fade is a straight line, steeper for higher
+ * frequencies, and a weak signal still reads beside a strong one. The block in the 3D view is
+ * shaded and the trace threshold is marked, so reach reads at a glance. "Show as table" gives the
+ * same numbers.
  */
 import { useId, useState } from 'preact/hooks';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../config/equipment.ts';
@@ -15,7 +17,7 @@ import {
   type LinePoint,
   type SetupId,
 } from '../../signal/model.ts';
-import { formatMa, niceCeil } from './format.ts';
+import { feetAndMeters, formatMa } from './format.ts';
 import { reachSummary } from './summary.ts';
 
 const W = 340;
@@ -26,6 +28,8 @@ const BLOCK_FT = GEOMETRY.blockLengthFt.value;
 const CHART_FT = GEOMETRY.chartLengthFt.value;
 const THRESHOLD = WORKS_THRESHOLD_MA.value;
 const TABLE_FT = [0, 50, 100, BLOCK_FT, 200, 300, 400, CHART_FT];
+/** The bottom of the current scale, in mA; weaker currents sit on the axis. */
+const Y_MIN = 1;
 
 export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequency }) {
   const [table, setTable] = useState(false);
@@ -33,16 +37,18 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
   const state = labState(setup, frequency);
   const target = SETUP_TEXT[setup].carrier;
   // One scale per setup, so changing frequency shows the change rather than rescaling it away.
-  const yMax = niceCeil(Math.max(...FREQUENCIES.map((f) => transmitterReading(setup, f).ma)));
+  const strongest = Math.max(...FREQUENCIES.map((f) => transmitterReading(setup, f).ma));
+  const decades = Math.ceil(Math.log10(strongest / Y_MIN));
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
   const sx = (ft: number) => PAD.left + (ft / CHART_FT) * plotW;
-  const sy = (ma: number) => PAD.top + (1 - Math.min(ma, yMax) / yMax) * plotH;
+  const sy = (ma: number) =>
+    PAD.top + (1 - Math.log10(Math.max(ma, Y_MIN) / Y_MIN) / decades) * plotH;
   const path = (points: readonly LinePoint[]) =>
     points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)} ${sy(p.ma).toFixed(1)}`).join('');
   const reach = reachFt(setup, frequency);
   const xTicks = Array.from({ length: CHART_FT / X_STEP_FT + 1 }, (_, i) => i * X_STEP_FT);
-  const yTicks = [0, yMax / 2, yMax];
+  const yTicks = Array.from({ length: decades + 1 }, (_, i) => Y_MIN * 10 ** i);
 
   return (
     <figure class="chart">
@@ -70,7 +76,7 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
           <g key={t}>
             <line class="chart-grid" x1={sx(0)} x2={sx(CHART_FT)} y1={sy(t)} y2={sy(t)} />
             <text class="chart-tick" x={PAD.left - 6} y={sy(t) + 3.5} text-anchor="end">
-              {t}
+              {t.toLocaleString('en-US')}
             </text>
           </g>
         ))}
@@ -83,7 +89,7 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
           mA
         </text>
         <text class="chart-axis" x={sx(CHART_FT / 2)} y={H - 4} text-anchor="middle">
-          Distance from the hookup (ft)
+          Distance from the hookup (ft; 100 ft is about 30 m)
         </text>
         <line
           class="chart-threshold"
@@ -119,6 +125,7 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
           </li>
         </ul>
         <p class="chart-reach-text">{reachSummary(setup, frequency)}</p>
+        <p class="chart-scale-note">Current scale: each gridline is 10 times the one below.</p>
       </figcaption>
       <button
         type="button"
@@ -138,7 +145,7 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
           </caption>
           <thead>
             <tr>
-              <th scope="col">From the hookup (ft)</th>
+              <th scope="col">From the hookup</th>
               <th scope="col">{target} (mA)</th>
               <th scope="col">Telecom cable (mA)</th>
             </tr>
@@ -148,7 +155,10 @@ export function Chart({ setup, frequency }: { setup: SetupId; frequency: Frequen
               const ma = targetCurrentAt(setup, frequency, ft);
               return (
                 <tr key={ft}>
-                  <th scope="row">{ft === BLOCK_FT ? `${String(ft)}, end of block` : ft}</th>
+                  <th scope="row">
+                    {feetAndMeters(ft)}
+                    {ft === BLOCK_FT ? ', end of block' : ''}
+                  </th>
                   <td>{formatMa(ma)}</td>
                   <td>{formatMa(ma * state.telecom.share)}</td>
                 </tr>

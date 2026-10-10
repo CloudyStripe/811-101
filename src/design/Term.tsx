@@ -7,6 +7,7 @@ import { parseTerms } from '../content-kit/terms.ts';
 import { useTip } from './useTip.ts';
 
 const GAP = 6;
+const LEADING_PUNCTUATION = /^[.,;:!?)]+/;
 const EDGE = 8;
 
 /** The box a tip must stay inside: the nearest scrolling ancestor, or the window. */
@@ -18,7 +19,16 @@ function boundsOf(el: Element): { left: number; right: number; top: number; bott
   return { left: 0, right: innerWidth, top: 0, bottom: innerHeight };
 }
 
-export function Term({ text, definition }: { text: string; definition: string }) {
+export function Term({
+  text,
+  definition,
+  trailing = '',
+}: {
+  text: string;
+  definition: string;
+  /** Punctuation right after the term, kept on its line. */
+  trailing?: string;
+}) {
   const tip = useTip<HTMLSpanElement>();
   const id = useId();
   const bubble = useRef<HTMLSpanElement>(null);
@@ -45,6 +55,7 @@ export function Term({ text, definition }: { text: string; definition: string })
       <button type="button" class="term" aria-describedby={id} onClick={tip.toggle}>
         {text}
       </button>
+      {trailing}
       <span
         id={id}
         ref={bubble}
@@ -67,12 +78,25 @@ export function Rich({
   text: string;
   define: (key: string) => string | undefined;
 }) {
+  const segments = parseTerms(text);
   return (
     <>
-      {parseTerms(text).map((s, i) => {
-        if (s.kind === 'text') return s.text;
+      {segments.map((s, i) => {
+        if (s.kind === 'text') {
+          // Punctuation that follows a term was rendered with it.
+          return segments[i - 1]?.kind === 'term'
+            ? s.text.replace(LEADING_PUNCTUATION, '')
+            : s.text;
+        }
+        const next = segments[i + 1];
+        const trailing =
+          next?.kind === 'text' ? (LEADING_PUNCTUATION.exec(next.text)?.[0] ?? '') : '';
         const definition = define(s.key);
-        return definition ? <Term key={i} text={s.text} definition={definition} /> : s.text;
+        return definition ? (
+          <Term key={i} text={s.text} definition={definition} trailing={trailing} />
+        ) : (
+          s.text + trailing
+        );
       })}
     </>
   );

@@ -8,12 +8,20 @@ body {
   overflow: hidden;
 }
 
+/* The page scrolls only when the screen is too short for the lab, e.g. when zoomed in. */
 .lab {
   position: fixed;
   inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.lab-grid {
+  position: relative;
   display: grid;
+  min-height: 100%;
   grid-template-columns: auto minmax(0, 1fr) var(--panel-w);
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(180px, 1fr) auto;
   grid-template-areas:
     'title title panel'
     'setup setup panel'
@@ -23,12 +31,11 @@ body {
   padding: max(var(--space-4), env(safe-area-inset-top))
     max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom))
     max(var(--space-4), env(safe-area-inset-left));
-  overflow: hidden;
   /* Empty grid space passes the pointer through to the 3D view. */
   pointer-events: none;
 }
 
-.lab > * {
+.lab-grid > * {
   pointer-events: auto;
 }
 
@@ -272,9 +279,12 @@ body {
   min-height: 0;
   overflow: hidden;
   border-radius: var(--radius-lg);
+  /* Its text scrolls inside it, so it mustn't stretch the rows it spans beside the 3D view. */
+  contain: size;
 }
 
-.sheet-bar {
+.sheet-bar,
+.sheet-title {
   display: none;
 }
 
@@ -446,6 +456,12 @@ body {
   font-weight: 700;
 }
 
+.chart-scale-note {
+  margin: var(--space-1) 0 var(--space-1);
+  color: var(--ink-2);
+  font-size: 0.8rem;
+}
+
 .chart-table {
   margin-top: var(--space-2);
 }
@@ -537,8 +553,10 @@ body {
 }
 
 /* Terms in text: a dotted underline, with the definition in a tip below. */
+/* A term and any punctuation after it stay on one line. */
 .term-wrap {
   position: relative;
+  white-space: nowrap;
 }
 
 .term {
@@ -793,10 +811,28 @@ body {
   pointer-events: none;
 }
 
+/* Medium widths: too narrow for the transmitter and view toolbar side by side. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .lab-grid {
+    grid-template-columns: minmax(0, 1fr) var(--panel-w);
+    grid-template-rows: auto auto minmax(180px, 1fr) auto auto;
+    grid-template-areas:
+      'title panel'
+      'setup panel'
+      '. panel'
+      'camera panel'
+      'console panel';
+  }
+
+  .lab-camera {
+    justify-self: start;
+  }
+}
+
 @media (max-width: 760px) {
-  .lab {
+  .lab-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-rows: auto auto minmax(200px, 1fr) auto auto auto;
     grid-template-areas:
       'title'
       'setup'
@@ -854,13 +890,29 @@ body {
     padding: 6px 4px;
   }
 
-  /* An open sheet takes the room the view controls had. */
-  .lab[data-sheet='open'] .lab-camera {
+  /* An open sheet takes the room the view and its controls had, and scrolls inside it. */
+  .lab-grid[data-sheet='open'] {
+    grid-template-rows: auto auto 0 auto minmax(240px, 1fr) auto;
+  }
+
+  .lab-grid[data-sheet='open'] .lab-panel {
+    min-height: 0;
+    contain: size;
+  }
+
+  .lab-grid[data-sheet='open'] .lab-camera {
     display: none;
+  }
+
+  /* The sheet keeps its own height, so it never collapses on a short screen. */
+  .lab-panel {
+    min-height: auto;
+    contain: none;
   }
 
   .sheet-bar {
     display: flex;
+    flex: none;
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
@@ -877,14 +929,24 @@ body {
     -webkit-box-orient: vertical;
   }
 
-  .lab-panel[data-open] .sheet-summary {
+  /* Open, the bar names the sheet; the summary leads "What's happening" inside it. */
+  .lab-panel[data-open] .sheet-summary,
+  .lab-panel:not([data-open]) .sheet-title {
+    display: none;
+  }
+
+  .sheet-title {
     display: block;
-    -webkit-line-clamp: unset;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 800;
   }
 
   .sheet-toggle {
     display: inline-flex;
     flex: none;
+    margin-left: auto;
     align-items: center;
     gap: 4px;
     min-height: 36px;
@@ -901,13 +963,7 @@ body {
   }
 
   .panel-body {
-    max-height: min(56dvh, 32rem);
     padding: 0 var(--space-4) var(--space-4);
     border-top: 1px solid var(--line);
-  }
-
-  /* The sheet's bar already says it. */
-  .state-summary {
-    display: none;
   }
 }

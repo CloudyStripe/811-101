@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FREQUENCIES } from '../../../config/equipment.ts';
 import { GEOMETRY } from '../../signal/constants.ts';
 import { SETUPS, reachFt } from '../../signal/model.ts';
+import { feetAndMeters } from './format.ts';
 import { reachSummary, ruleSummary, stateSummary } from './summary.ts';
 
 const percents = (text: string) => [...text.matchAll(/(\d+)%/g)].map((m) => Number(m[1]));
@@ -29,7 +30,7 @@ describe('stateSummary', () => {
 describe('reachSummary', () => {
   it('says when the signal outlasts the chart', () => {
     expect(reachSummary('steel', 512)).toBe(
-      `Still strong enough to trace at ${String(GEOMETRY.chartLengthFt.value)} ft.`,
+      `Still strong enough to trace at ${feetAndMeters(GEOMETRY.chartLengthFt.value)}.`,
     );
   });
 
@@ -37,7 +38,7 @@ describe('reachSummary', () => {
     const reach = reachFt('steel', 83_000);
     expect(reach).toBeLessThan(GEOMETRY.chartLengthFt.value);
     expect(reachSummary('steel', 83_000)).toBe(
-      `Strong enough to trace for about ${String(Math.round(reach / 10) * 10)} ft.`,
+      `Strong enough to trace for about ${feetAndMeters(Math.round(reach / 10) * 10)}.`,
     );
   });
 });

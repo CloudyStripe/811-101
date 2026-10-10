@@ -17,6 +17,8 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  /** Whether the pointer went down on the backdrop, so a drag out of the text doesn't close it. */
+  const downOnBackdrop = useRef(false);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -39,9 +41,14 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
         onClose();
         returnTo.current?.focus();
       }}
+      onPointerDown={(event) => {
+        downOnBackdrop.current = event.target === event.currentTarget;
+      }}
       onClick={(event) => {
         // The dialog's own box is only the backdrop: its content fills an inner wrapper.
-        if (event.target === event.currentTarget) event.currentTarget.close();
+        if (downOnBackdrop.current && event.target === event.currentTarget) {
+          event.currentTarget.close();
+        }
       }}
     >
       <div class="dialog-body">

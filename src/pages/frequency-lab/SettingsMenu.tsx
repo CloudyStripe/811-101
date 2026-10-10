@@ -87,8 +87,12 @@ export function SettingsMenu({
     const r = button.current?.getBoundingClientRect();
     if (event.newState !== 'open' || !r) return;
     const left = Math.max(EDGE, Math.min(r.right - WIDTH, innerWidth - EDGE - WIDTH));
-    event.currentTarget.style.top = `${String(Math.round(r.bottom + 8))}px`;
-    event.currentTarget.style.left = `${String(Math.round(left))}px`;
+    const top = Math.round(r.bottom + 8);
+    const { style } = event.currentTarget;
+    style.top = `${String(top)}px`;
+    style.left = `${String(Math.round(left))}px`;
+    // On a short screen it scrolls within the room below its button.
+    style.maxHeight = `${String(Math.max(160, innerHeight - top - EDGE))}px`;
   }
 
   return (

@@ -76,7 +76,8 @@ const PATHS: Record<IconName, JSX.Element> = {
       <path d="M10.2 10.2l3.4 3.4M5 7h4" />
     </>
   ),
-  reset: <path d="M2.6 8a5.4 5.4 0 1 0 1.6-3.8M2.6 2.6v3h3" />,
+  // A house: back to the home view. Distinct from the turn arrows.
+  reset: <path d="M2.6 7.6L8 3l5.4 4.6M4.2 6.3v6.5h7.6V6.3M6.8 12.8V9.8h2.4v3" />,
 };
 
 export function Icon({ name, class: className }: { name: IconName; class?: string }) {

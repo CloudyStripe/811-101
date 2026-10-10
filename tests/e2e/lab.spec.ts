@@ -84,7 +84,8 @@ test.describe('with reduced motion', () => {
   /** Spread of brightness across the 3D view alone. A blank or cleared canvas is close to 0. */
   async function canvasSpread(page: Page): Promise<number> {
     const png = await page.locator('canvas').screenshot({
-      style: '.labels, .lab-title, .lab-setup, .lab-bottom { visibility: hidden !important; }',
+      // Everything over the canvas is hidden, so only the 3D view itself is measured.
+      style: '.labels, [data-chrome] { visibility: hidden !important; }',
     });
     return page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));

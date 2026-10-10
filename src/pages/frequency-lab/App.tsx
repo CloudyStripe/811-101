@@ -38,6 +38,9 @@ const SETUP_OPTIONS = [
   { value: 'plastic' as const, label: 'Plastic main' },
 ];
 
+const NO_WEBGL =
+  'This lab draws a 3D view with WebGL, which this browser or device has turned off. The controls and explanations still work.';
+
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 /** Matches the phone layout in lab.css. */
@@ -156,6 +159,11 @@ export function App() {
     };
 
     void (async () => {
+      // three needs WebGL 2; without it, say so rather than report a generic failure.
+      if (!document.createElement('canvas').getContext('webgl2')) {
+        setFailed(NO_WEBGL);
+        return;
+      }
       try {
         const { createLabScene } = await import('./scene/index.ts');
         // Capture renders one frame and stops, so labels must be measured with final fonts.
@@ -179,19 +187,28 @@ export function App() {
               'The 3D view stopped because the graphics context was lost. Reload the page to restart it.',
             );
           },
+          onContextRestored: () => {
+            setFailed(null);
+          },
         });
         if (cancelled()) {
           scene.dispose();
           return;
         }
         sceneRef.current = scene;
+        // Settings changed while the scene was loading apply now.
+        const now = live.current.settings;
+        scene.setTheme(resolvedTheme());
+        scene.setReducedMotion(reducesMotion(now.motion, reducedMotionQuery.matches));
+        if (!TIER_PARAM && now.quality !== s.quality) void scene.setTier(now.quality);
         void document.fonts.ready.then(() => {
           scene?.setState(live.current.setup, live.current.frequency);
           scene?.relayout();
         });
-      } catch {
+      } catch (error) {
+        console.error(error);
         setFailed(
-          'This lab draws a 3D view with WebGL, which this browser or device has turned off. The controls and explanations still work.',
+          "The 3D view couldn't load. Reload the page to try again. The controls and explanations still work.",
         );
       }
     })();
@@ -248,8 +265,8 @@ export function App() {
     if (!TIER_PARAM) void sceneRef.current?.setTier(settings.quality);
   }, [settings.quality]);
 
+  // The sheet covers part of the view on phones, so labels move out from under it.
   useEffect(() => {
-    document.getElementById('app')?.setAttribute('data-sheet', sheetOpen ? 'open' : 'closed');
     sceneRef.current?.refreshLabels();
   }, [sheetOpen]);
 
@@ -267,7 +284,7 @@ export function App() {
   }
 
   return (
-    <>
+    <div class="lab-grid" data-sheet={sheetOpen ? 'open' : 'closed'}>
       <header class="lab-title" data-chrome>
         <div class="lab-title-row">
           <h1>Frequency Lab</h1>
@@ -370,6 +387,6 @@ export function App() {
         </ul>
         <p class="muted">{ABOUT.leftOut}</p>
       </Dialog>
-    </>
+    </div>
   );
 }

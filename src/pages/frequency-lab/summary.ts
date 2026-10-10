@@ -6,7 +6,7 @@ import { frequencyLabel, type Frequency } from '../../../config/equipment.ts';
 import { SETUP_TEXT } from '../../../content/training/frequency-lab.ts';
 import { GEOMETRY } from '../../signal/constants.ts';
 import { labState, lowestWorkingFrequency, reachFt, type SetupId } from '../../signal/model.ts';
-import { percent } from './format.ts';
+import { feetAndMeters, percent } from './format.ts';
 
 /** What the signal is doing in this state, in two sentences. */
 export function stateSummary(setup: SetupId, frequency: Frequency): string {
@@ -21,8 +21,8 @@ export function stateSummary(setup: SetupId, frequency: Frequency): string {
 export function reachSummary(setup: SetupId, frequency: Frequency): string {
   const reach = reachFt(setup, frequency);
   const chartEnd = GEOMETRY.chartLengthFt.value;
-  if (reach >= chartEnd) return `Still strong enough to trace at ${String(chartEnd)} ft.`;
-  return `Strong enough to trace for about ${String(Math.round(reach / 10) * 10)} ft.`;
+  if (reach >= chartEnd) return `Still strong enough to trace at ${feetAndMeters(chartEnd)}.`;
+  return `Strong enough to trace for about ${feetAndMeters(Math.round(reach / 10) * 10)}.`;
 }
 
 /** The rule, applied to this setup. */
