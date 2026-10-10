@@ -1,0 +1,18 @@
+dist/
+node_modules/
+playwright-report/
+test-results/
+artifacts/
+package-lock.json
+
+# The legacy diorama is published byte-for-byte; never reformat it.
+index.html
+
+# Local-only docs
+docs/BRIEF.md
+docs/PLAN.md
+docs/private/
+
+# Generated; their freshness is checked by `npm run docs:check`.
+docs/SIGNAL_MODEL.md
+docs/CONTENT_REVIEW.md

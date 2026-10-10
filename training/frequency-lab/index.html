@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Frequency Lab</title>
+    <meta
+      name="description"
+      content="An interactive 3D lab about a locator's transmitter frequency: how far the signal travels, how much bleeds onto nearby lines, and whether it crosses a broken tracer wire."
+    />
+    <meta name="theme-color" content="#f4f1ec" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14120f" media="(prefers-color-scheme: dark)" />
+    <script type="module" src="/src/pages/frequency-lab/main.tsx"></script>
+  </head>
+  <body>
+    <div id="app" class="lab">
+      <header class="lab-title">
+        <h1>Frequency Lab</h1>
+        <p>Use the lowest frequency that works, and go higher when the circuit is poor.</p>
+      </header>
+      <noscript>
+        <p class="noscript">
+          This lab is interactive and needs JavaScript. Turn it on to explore how a transmitter's
+          frequency changes the signal on a buried line.
+        </p>
+      </noscript>
+    </div>
+  </body>
+</html>
