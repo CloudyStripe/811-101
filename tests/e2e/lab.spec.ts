@@ -138,3 +138,51 @@ test.describe('with reduced motion', () => {
     });
   });
 });
+
+test.describe('losing the graphics context', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  for (const size of [
+    { width: 1024, height: 768 },
+    { width: 844, height: 390 },
+  ]) {
+    test(`at ${String(size.width)}×${String(size.height)}: a clear message, then a clean recovery`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(size);
+      await open(page);
+      await page.evaluate(() => {
+        const ext = document
+          .querySelector('canvas')
+          ?.getContext('webgl2')
+          ?.getExtension('WEBGL_lose_context');
+        (window as Window & { restoreGl?: () => void }).restoreGl = () => ext?.restoreContext();
+        ext?.loseContext();
+      });
+
+      // The message sits in the view's free area, clear of every control.
+      const message = page.locator('.stage-message');
+      await expect(message).toBeVisible();
+      const box = await message.boundingBox();
+      const chrome = await page.$$eval('[data-chrome]', (els) =>
+        els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0),
+      );
+      for (const c of chrome) {
+        const overlap =
+          box !== null &&
+          box.x < c.right &&
+          box.x + box.width > c.left &&
+          box.y < c.bottom &&
+          box.y + box.height > c.top;
+        expect(overlap, 'message under a control').toBe(false);
+      }
+
+      // Recovery clears the message; the fixture fails the test on any warning it logs.
+      await page.evaluate(() => {
+        (window as Window & { restoreGl?: () => void }).restoreGl?.();
+      });
+      await expect(message).toBeHidden();
+      await expect(page.locator('[data-label="transmitter"]')).not.toHaveClass(/\boff\b/);
+    });
+  }
+});

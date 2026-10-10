@@ -180,7 +180,7 @@ async function buildLabScene(
       },
       contextRestored() {
         // The sky and its lighting were rendered into a texture the lost context took with it.
-        lighting.setTheme(THEMES[theme].scene);
+        lighting.restore(THEMES[theme].scene);
         labelsDirty = true;
         o.onContextRestored?.();
       },
@@ -433,12 +433,17 @@ async function buildLabScene(
     },
     relayout() {
       labels.measure();
-      cam.setLayout(stage.width, stage.height, o.visibleArea());
+      const area = o.visibleArea();
+      cam.setLayout(stage.width, stage.height, area);
+      cam.refit(viewFor(area));
       labelsDirty = true;
       stage.requestFrame();
     },
     resetView() {
-      void cam.goTo(viewFor(o.visibleArea()));
+      const area = o.visibleArea();
+      cam.setLayout(stage.width, stage.height, area);
+      void cam.goTo(viewFor(area));
+      labelsDirty = true;
       stage.requestFrame();
     },
     rotate(direction) {

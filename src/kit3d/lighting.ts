@@ -73,6 +73,8 @@ function buildSky(tokens: SceneTokens): Scene {
 
 export interface Lighting {
   setTheme(tokens: SceneTokens): void;
+  /** After a lost graphics context comes back: renders the sky again from scratch. */
+  restore(tokens: SceneTokens): void;
   setShadowQuality(mapSize: number, radius: number): void;
   dispose(): void;
 }
@@ -137,6 +139,12 @@ export function createLighting(
 
   return {
     setTheme,
+    restore(t: SceneTokens) {
+      // The old sky's GPU objects went with the lost context; disposing them now would only
+      // ask the new context to delete objects it never had.
+      envTarget = null;
+      setTheme(t);
+    },
     setShadowQuality,
     dispose() {
       envTarget?.dispose();
