@@ -20,7 +20,8 @@ export type IconName =
   | 'close'
   | 'chevron-up'
   | 'chevron-down'
-  | 'direction';
+  | 'direction'
+  | 'back';
 
 const PATHS: Record<IconName, JSX.Element> = {
   settings: (
@@ -33,6 +34,7 @@ const PATHS: Record<IconName, JSX.Element> = {
   close: <path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" />,
   'chevron-up': <path d="M3.4 10.2L8 5.6l4.6 4.6" />,
   'chevron-down': <path d="M3.4 5.8L8 10.4l4.6-4.6" />,
+  back: <path d="M13 8H3.5M7.5 4L3.5 8l4 4" />,
   // The same flat V the 3D view draws along each line.
   direction: <path d="M5.4 3.6L10 8l-4.6 4.4" />,
   gas: (
