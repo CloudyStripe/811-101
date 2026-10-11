@@ -3,8 +3,8 @@
  * target as luminous bands, into the soil and back to the ground stake, and up the ground lead.
  * Band spacing stands in for frequency. Brightness shows strength: on the target it fades out where
  * the signal gets too weak to trace (see glow.ts), and bleed-over glows as a share of the target.
- * Chevrons show direction. The shaders use the model's current formula (src/signal/model.ts), so
- * the 3D view and the chart agree.
+ * The shaders use the model's current formula (src/signal/model.ts), so the view and the text
+ * agree.
  */
 import {
   BufferAttribute,
@@ -13,11 +13,7 @@ import {
   Color,
   CubicBezierCurve3,
   CustomBlending,
-  DoubleSide,
   Group,
-  InstancedBufferAttribute,
-  InstancedMesh,
-  Matrix4,
   Mesh,
   OneFactor,
   OneMinusSrcAlphaFactor,
@@ -38,8 +34,8 @@ import {
   type LabState,
   type SetupId,
 } from '../../../signal/model.ts';
-import { GLOW_POWER, traceGlow } from './glow.ts';
-import { ARROWS, HOOKUP, LEADS, LINES, RISERS, STAKE_TIP, arrowPlacement } from './layout.ts';
+import { GLOW_POWER } from './glow.ts';
+import { HOOKUP, LEADS, LINES, RISERS, STAKE_TIP } from './layout.ts';
 
 /** Band spacing per frequency, in feet: the slowed-down stand-in for wavelength. */
 const BAND_SPACING_FT: Record<Frequency, number> = { 512: 14, 8000: 7, 33000: 3.5, 83000: 1.8 };
@@ -48,7 +44,6 @@ const BAND_SPEED_FT_S = 4;
 const LINE_INTENSITY = 6.5;
 const FLOW_INTENSITY = 2.6;
 const WIRE_INTENSITY = 3.4;
-const CHEVRON_INTENSITY = 2.6;
 const BLOCK_FT = GEOMETRY.blockLengthFt.value;
 
 const VERTEX = /* glsl */ `
@@ -121,24 +116,6 @@ void main() {
   gl_FragColor = vec4(uColor * uIntensity * glow, clamp(glow * 1.8, 0.0, 1.0));
 }`;
 
-const CHEVRON_VERTEX = /* glsl */ `
-attribute float aBright;
-varying float vBright;
-void main() {
-  vBright = aBright;
-  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-}`;
-
-const CHEVRON_FRAGMENT = /* glsl */ `
-${DEPTH_TEST_GLSL}
-uniform vec3 uColor;
-uniform float uIntensity;
-varying float vBright;
-void main() {
-  if (behindScene()) discard;
-  gl_FragColor = vec4(uColor * uIntensity * vBright, clamp(vBright * 1.8, 0.0, 1.0));
-}`;
-
 type Uniforms = Record<string, IUniform>;
 
 const BLENDING = {
@@ -171,20 +148,6 @@ function withTubeDistance(geometry: TubeGeometry, length: number): TubeGeometry 
   return geometry;
 }
 
-/**
- * A flat V pointing +X, in the plane of the cut face: `size` ft tall and `size × stretch` ft long,
- * tip to back (the shape layout.test.ts measures). Drawn from both sides.
- */
-function chevronGeometry(size: number): BufferGeometry {
-  const len = size * ARROWS.stretch;
-  const arm = (y: number) => [-0.54 * len, y, 0, 0.23 * len, 0, 0, 0, 0, 0, -0.77 * len, y, 0];
-  const v = new Float32Array([...arm(size / 2), ...arm(-size / 2)]);
-  const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(v, 3));
-  g.setIndex([0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6]);
-  return g;
-}
-
 interface Flow {
   material: ShaderMaterial;
   /** What this path carries: soil leakage from a stretch of the line, current from past the block, or the telecom's share. */
@@ -197,7 +160,6 @@ interface SetupFx {
   telecom: ShaderMaterial;
   /** Leads and riser, carrying the transmitter's full current. */
   wires: ShaderMaterial[];
-  chevrons: InstancedMesh[];
   flows: Flow[];
 }
 
@@ -251,37 +213,6 @@ export class SignalEffects {
     const m = new Mesh(geometry, material);
     m.frustumCulled = false;
     return m;
-  }
-
-  /** Arrows along a line, on the cut-face side of it, `size` ft tall. */
-  private chevrons(y: number, z: number, size: number, direction: 1 | -1): InstancedMesh {
-    const xs: number[] = [];
-    for (let x: number = ARROWS.fromFt; x <= ARROWS.toFt; x += ARROWS.stepFt) xs.push(x);
-    const material = new ShaderMaterial({
-      uniforms: {
-        ...this.depth,
-        uColor: { value: this.color },
-        uIntensity: { value: CHEVRON_INTENSITY },
-      },
-      vertexShader: CHEVRON_VERTEX,
-      fragmentShader: CHEVRON_FRAGMENT,
-      ...BLENDING,
-      // The camera can see either side of the cut face.
-      side: DoubleSide,
-    });
-    const mesh = new InstancedMesh(chevronGeometry(size), material, xs.length);
-    const m = new Matrix4();
-    xs.forEach((x, i) => {
-      m.makeRotationY(direction === 1 ? 0 : Math.PI).setPosition(x, y, z);
-      mesh.setMatrixAt(i, m);
-    });
-    mesh.geometry.setAttribute(
-      'aBright',
-      new InstancedBufferAttribute(new Float32Array(xs.length), 1),
-    );
-    mesh.userData.xs = xs;
-    mesh.frustumCulled = false;
-    return mesh;
   }
 
   private flow(start: Vector3, depth: number, source: Flow['source'], group: Group): Flow {
@@ -344,12 +275,6 @@ export class SignalEffects {
       uDir: { value: -1 },
       uMinX: { value: HOOKUP.pedestal.x },
     });
-    const onTarget = arrowPlacement(setup);
-    const onTelecom = arrowPlacement('telecom');
-    const chevrons = [
-      this.chevrons(onTarget.y, onTarget.z, ARROWS.target[setup], 1),
-      this.chevrons(onTelecom.y, onTelecom.z, ARROWS.telecom, -1),
-    ];
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.
     const wires = [
@@ -357,7 +282,7 @@ export class SignalEffects {
       this.wireGlow(RISERS[setup], -1),
       this.wireGlow(LEADS.ground, -1),
     ];
-    group.add(targetSleeve, telecomSleeve, ...chevrons, ...wires);
+    group.add(targetSleeve, telecomSleeve, ...wires);
 
     const flows: Flow[] = [];
     // Current leaks into the soil from whatever carries it: from under the steel main, or from
@@ -383,7 +308,6 @@ export class SignalEffects {
       target: targetSleeve.material as ShaderMaterial,
       telecom: telecomSleeve.material as ShaderMaterial,
       wires: wires.map((w) => w.material),
-      chevrons,
       flows,
     };
   }
@@ -408,17 +332,6 @@ export class SignalEffects {
     for (const wire of fx.wires) common(wire, 1);
 
     const at = (x: number) => state.transmitter.ma * Math.exp(-k * Math.max(0, x));
-    const threshold = WORKS_THRESHOLD_MA.value;
-    fx.chevrons.forEach((mesh, i) => {
-      const xs = mesh.userData.xs as number[];
-      const share = i === 0 ? 1 : state.telecom.share;
-      const attr = mesh.geometry.getAttribute('aBright') as InstancedBufferAttribute;
-      xs.forEach((x, j) => {
-        const ma = at(x) * share;
-        attr.setX(j, i === 0 ? traceGlow(ma, ref, threshold) : Math.min(1, ma / ref) ** GLOW_POWER);
-      });
-      attr.needsUpdate = true;
-    });
 
     const soil = 1 - state.telecom.share;
     const leak = (from: number, to: number) =>

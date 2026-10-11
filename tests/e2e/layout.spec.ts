@@ -212,19 +212,17 @@ for (const size of SIZES) {
       }
 
       const radios = '[role="radio"]';
-      const buttons = '.lab-camera button';
-      for (const [selector, count] of [
-        [radios, await page.locator(radios).count()],
-        [buttons, await page.locator(buttons).count()],
-      ] as const) {
-        for (let i = 0; i < count; i++) {
-          expect(await onTop(page, selector, i), `${selector} #${String(i)} is covered`).toBe(true);
-        }
+      const count = await page.locator(radios).count();
+      for (let i = 0; i < count; i++) {
+        expect(await onTop(page, radios, i), `radio #${String(i)} is covered`).toBe(true);
       }
 
       // Clicking the last frequency works even when the page had to scroll to it.
       await page.getByRole('radio', { name: '83 kilohertz' }).click();
-      await expect(page.locator('.readout')).toContainText('510 mA');
+      await expect(page.getByRole('radio', { name: '83 kilohertz' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
 
       const chrome = await page.$$eval('[data-chrome]', (els) =>
         els.flatMap((e) => {

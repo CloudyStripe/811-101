@@ -1,40 +1,32 @@
 /**
- * Plain-language readings of the signal model, for the live summary, the chart and the rule:
- * the numbers come from the model, the names from the lab's content.
+ * Plain-language readings of the lab's state, for the live summary, the guide and the rule. The
+ * words come from the lab's content; which ones apply comes from the model.
  */
 import { frequencyLabel, type Frequency } from '../../../config/equipment.ts';
-import { SETUP_TEXT, SUMMARY, SUMMARY_TOO_WEAK } from '../../../content/training/frequency-lab.ts';
-import { GEOMETRY } from '../../signal/constants.ts';
-import { labState, lowestWorkingFrequency, reachFt, type SetupId } from '../../signal/model.ts';
-import { feetAndMeters, percent } from './format.ts';
+import { FREQUENCY_NOTES, SETUP_TEXT } from '../../../content/training/frequency-lab.ts';
+import { plainText } from '../../content-kit/terms.ts';
+import { lowestWorkingFrequency, type SetupId } from '../../signal/model.ts';
 
-/** What the signal is doing in this state, in two sentences. */
-export function stateSummary(setup: SetupId, frequency: Frequency): string {
-  const s = labState(setup, frequency);
-  const { name, target } = SETUP_TEXT[setup];
-  const fill: Record<string, string> = {
-    setup: name,
-    frequency: frequencyLabel(frequency),
-    left: percent(s.farEndMa / s.transmitter.ma),
-    short: s.works ? '' : SUMMARY_TOO_WEAK,
-    share: percent(s.telecom.share),
-    target,
-  };
-  return SUMMARY.text.replaceAll(/\{(\w+)\}/g, (whole, key: string) => fill[key] ?? whole);
+/** "Steel main at 83 kHz": what the view shows, by name. */
+export function stateLead(setup: SetupId, frequency: Frequency): string {
+  return `${SETUP_TEXT[setup].name} at ${frequencyLabel(frequency)}`;
 }
 
-/** How far along the line the signal stays strong enough to trace, within the chart. */
-export function reachSummary(setup: SetupId, frequency: Frequency): string {
-  const reach = reachFt(setup, frequency);
-  const chartEnd = GEOMETRY.chartLengthFt.value;
-  if (reach >= chartEnd) return `Still strong enough to trace at ${feetAndMeters(chartEnd)}.`;
-  return `Strong enough to trace for about ${feetAndMeters(Math.round(reach / 10) * 10)}.`;
+/** What the signal does at this frequency, to follow the lead (term markup kept). */
+export function stateNote(frequency: Frequency): string {
+  const note = FREQUENCY_NOTES[frequency].text;
+  return note.charAt(0).toLowerCase() + note.slice(1);
+}
+
+/** What the 3D view shows, in one plain sentence. */
+export function stateSummary(setup: SetupId, frequency: Frequency): string {
+  return `${stateLead(setup, frequency)}: ${plainText(stateNote(frequency))}`;
 }
 
 /** The rule, applied to this setup. */
 export function ruleSummary(setup: SetupId): string {
   const f = lowestWorkingFrequency(setup);
   return f === null
-    ? 'Here, no frequency gets enough signal to the far end of the block.'
+    ? 'Here, no frequency gets enough signal to the end of the block.'
     : `Here, that's ${frequencyLabel(f)}.`;
 }

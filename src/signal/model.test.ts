@@ -46,9 +46,9 @@ describe('constants', () => {
     }
   });
 
-  it('put the water crossing inside the block, and the block inside the chart', () => {
+  it('put the water crossing inside the block, and the block inside the model', () => {
     expect(GEOMETRY.waterCrossingAtFt.value).toBeLessThan(GEOMETRY.blockLengthFt.value);
-    expect(GEOMETRY.blockLengthFt.value).toBeLessThan(GEOMETRY.chartLengthFt.value);
+    expect(GEOMETRY.blockLengthFt.value).toBeLessThan(GEOMETRY.modelLengthFt.value);
   });
 });
 
@@ -86,7 +86,7 @@ describe('the plastic main', () => {
 
 describe('conservation', () => {
   it.each(STATES)('$setup at $frequency Hz: everything that leaves returns to the stake', (s) => {
-    const leaked = s.earth.leakage.reduce((sum, p) => sum + p.ma, 0) + s.earth.pastChart;
+    const leaked = s.earth.leakage.reduce((sum, p) => sum + p.ma, 0) + s.earth.pastEnd;
     expect(leaked).toBeCloseTo(s.transmitter.ma, 9);
     expect(s.earth.stake).toBeCloseTo(s.transmitter.ma, 9);
     expect(s.earth.viaSoil + s.earth.viaTelecom).toBeCloseTo(s.earth.stake, 9);
@@ -156,10 +156,10 @@ describe('labState', () => {
     expect(labState('plastic', 33_000)).toEqual(labState('plastic', 33_000));
   });
 
-  it('samples the target from the hookup to the end of the chart', () => {
+  it('samples the target from the hookup to the end of the model', () => {
     const s = labState('steel', 512);
     expect(s.target.points[0]?.x).toBe(0);
-    expect(s.target.points.at(-1)?.x).toBe(GEOMETRY.chartLengthFt.value);
+    expect(s.target.points.at(-1)?.x).toBe(GEOMETRY.modelLengthFt.value);
     expect(s.target.points[0]?.ma).toBeCloseTo(s.transmitter.ma, 9);
   });
 });

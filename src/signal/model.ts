@@ -46,8 +46,8 @@ export interface LabState {
   readonly earth: {
     /** Current leaking from the target into the soil, per sample interval (x is its midpoint). */
     readonly leakage: readonly LinePoint[];
-    /** Current still on the target at the end of the chart; it returns through the earth too. */
-    readonly pastChart: number;
+    /** Current still on the target where the model stops following it; it returns through the earth too. */
+    readonly pastEnd: number;
     /** Return current carried back toward the stake by the telecom cable. */
     readonly viaTelecom: number;
     /** Return current that travels through the soil directly. */
@@ -86,7 +86,7 @@ export function labState(setup: SetupId, frequency: Frequency): LabState {
   const transmitter = transmitterReading(setup, frequency);
 
   const points: LinePoint[] = [];
-  for (let x = 0; x <= GEOMETRY.chartLengthFt.value; x += SAMPLE_STEP_FT) {
+  for (let x = 0; x <= GEOMETRY.modelLengthFt.value; x += SAMPLE_STEP_FT) {
     points.push({ x, ma: targetCurrentAt(setup, frequency, x) });
   }
 
@@ -110,7 +110,7 @@ export function labState(setup: SetupId, frequency: Frequency): LabState {
     water: { ma: 0, crossingAt: GEOMETRY.waterCrossingAtFt.value },
     earth: {
       leakage,
-      pastChart: points.at(-1)?.ma ?? 0,
+      pastEnd: points.at(-1)?.ma ?? 0,
       viaTelecom,
       viaSoil: transmitter.ma - viaTelecom,
       stake: transmitter.ma,

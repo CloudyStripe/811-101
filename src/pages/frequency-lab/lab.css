@@ -26,7 +26,7 @@ body {
     'title title panel'
     'setup setup panel'
     'view view panel'
-    'console camera panel';
+    'console . panel';
   gap: var(--space-3) var(--space-4);
   padding: max(var(--space-4), env(safe-area-inset-top))
     max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom))
@@ -48,7 +48,6 @@ body {
 .lab-title,
 .lab-setup,
 .lab-console,
-.lab-camera,
 .lab-panel {
   position: relative;
   z-index: 1;
@@ -58,14 +57,6 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;
-  outline: none;
-}
-
-.lab-canvas:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -4px;
-  box-shadow: none;
 }
 
 /* Shown when the 3D view can't draw: centered in the part of the screen the view would use. */
@@ -87,7 +78,6 @@ body {
 /* Chrome surfaces are opaque, so text contrast holds over any part of the 3D view. */
 .lab-title,
 .lab-console,
-.lab-camera,
 .lab-panel,
 .segmented {
   background: var(--surface);
@@ -172,7 +162,7 @@ body {
   color: var(--accent-ink);
 }
 
-/* The transmitter: readout above the frequency dial. */
+/* The transmitter: its frequency dial. */
 .lab-console {
   grid-area: console;
   align-self: end;
@@ -185,16 +175,8 @@ body {
   box-shadow: none;
 }
 
-.console-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-2);
-}
-
 .console-title {
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-family: var(--font-body);
   font-size: 0.78rem;
   font-weight: 700;
@@ -203,45 +185,10 @@ body {
   color: var(--ink-2);
 }
 
-.readout {
-  display: flex;
-  gap: var(--space-4);
-  margin: 0;
-}
-
-.readout div {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.readout dt {
-  font-size: 0.75rem;
-  color: var(--ink-2);
-}
-
-.readout dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .frequency .segmented-option {
   font-family: var(--font-mono);
   font-weight: 600;
   min-width: 4.6rem;
-}
-
-.lab-camera {
-  grid-area: camera;
-  align-self: end;
-  justify-self: end;
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 12px;
 }
 
 .icon-button {
@@ -300,6 +247,22 @@ body {
   display: none;
 }
 
+/* Wide screens: the panel's title, and the button that closes it down to just that. */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
 .panel-body {
   flex: 1;
   min-height: 0;
@@ -317,7 +280,7 @@ body {
   border-top: 0;
 }
 
-.panel-section h2 {
+.panel-section h3 {
   margin: 0 0 var(--space-2);
   font-size: 1.05rem;
   font-weight: 800;
@@ -329,22 +292,6 @@ body {
 
 .panel-section p:last-child {
   margin-bottom: 0;
-}
-
-.disclosure button {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
 .try-list {
@@ -363,147 +310,6 @@ body {
 .panel-footer {
   padding-top: var(--space-3);
   border-top: 1px solid var(--line);
-}
-
-/* Inset chart */
-.chart {
-  margin: var(--space-3) 0 var(--space-4);
-}
-
-.chart svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-
-.chart-block {
-  fill: var(--surface-2);
-}
-
-.chart-note,
-.chart-axis {
-  fill: var(--ink-2);
-  font: 600 10px var(--font-body);
-}
-
-.chart-tick {
-  fill: var(--ink-2);
-  font: 10px var(--font-mono);
-}
-
-.chart-grid {
-  stroke: var(--line);
-  stroke-width: 1;
-}
-
-.chart-threshold {
-  stroke: var(--ink-2);
-  stroke-width: 1.4;
-  stroke-dasharray: 1.5 3;
-  stroke-linecap: round;
-}
-
-.chart-target {
-  fill: none;
-  stroke: var(--apwa-yellow-ink);
-  stroke-width: 2.6;
-  stroke-linejoin: round;
-}
-
-.chart-telecom {
-  fill: none;
-  stroke: var(--apwa-orange-ink);
-  stroke-width: 2;
-  stroke-dasharray: 6 4;
-  stroke-linejoin: round;
-}
-
-.chart-reach {
-  fill: var(--surface);
-  stroke: var(--apwa-yellow-ink);
-  stroke-width: 2;
-}
-
-.chart figcaption {
-  margin-top: var(--space-2);
-}
-
-.chart-key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px var(--space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--ink-2);
-  font-size: 0.82rem;
-}
-
-.chart-key li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.key-line {
-  width: 22px;
-  height: 0;
-}
-
-.key-target {
-  border-top: 2.6px solid var(--apwa-yellow-ink);
-}
-
-.key-telecom {
-  border-top: 2px dashed var(--apwa-orange-ink);
-}
-
-.key-threshold {
-  border-top: 2px dotted var(--ink-2);
-}
-
-.chart-reach-text {
-  margin: var(--space-2) 0 0;
-  font-weight: 700;
-}
-
-.chart-scale-note {
-  margin: var(--space-1) 0 var(--space-1);
-  color: var(--ink-2);
-  font-size: 0.8rem;
-}
-
-.chart-table {
-  margin-top: var(--space-2);
-}
-
-.chart-table table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.chart-table caption {
-  margin-bottom: var(--space-1);
-  font-weight: 700;
-  text-align: left;
-}
-
-.chart-table th,
-.chart-table td {
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--line);
-  text-align: right;
-}
-
-.chart-table td {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.chart-table th:first-child {
-  text-align: left;
 }
 
 /* Key */
@@ -557,11 +363,6 @@ body {
     repeating-linear-gradient(90deg, var(--signal) 0 5px, transparent 5px 9px) center / 100% 3px
       no-repeat,
     #6c5846;
-}
-
-.sym-direction {
-  height: 24px;
-  color: var(--ink);
 }
 
 /* Terms in text: a dotted underline, with the definition in a tip below. */
@@ -840,17 +641,41 @@ body {
 @media (min-width: 761px) and (max-width: 1100px) {
   .lab-grid {
     grid-template-columns: minmax(0, 1fr) var(--panel-w);
-    grid-template-rows: auto auto minmax(180px, 1fr) auto auto;
+    grid-template-rows: auto auto minmax(180px, 1fr) auto;
     grid-template-areas:
       'title panel'
       'setup panel'
       'view panel'
-      'camera panel'
       'console panel';
   }
+}
 
-  .lab-camera {
-    justify-self: start;
+/* Wide and medium screens: a closed panel shrinks to its title, and the view takes the room. */
+@media (min-width: 1101px) and (min-height: 581px) {
+  .lab-grid[data-panel='closed'] {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) and (min-height: 581px) {
+  .lab-grid[data-panel='closed'] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+@media (min-width: 761px) and (min-height: 581px) {
+  .lab-panel[data-collapsed] {
+    align-self: start;
+    contain: none;
+  }
+
+  .lab-panel[data-collapsed] .panel-head {
+    gap: var(--space-3);
+    border-bottom: 0;
+  }
+
+  .lab-panel[data-collapsed] .panel-body {
+    display: none;
   }
 }
 
@@ -899,7 +724,7 @@ body {
     padding: 6px 4px;
   }
 
-  .lab-grid[data-sheet='open'] .lab-camera {
+  .panel-head {
     display: none;
   }
 
@@ -972,12 +797,11 @@ body {
 @media (max-width: 760px) {
   .lab-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(200px, 1fr) auto auto auto;
+    grid-template-rows: auto auto minmax(200px, 1fr) auto auto;
     grid-template-areas:
       'title'
       'setup'
       'view'
-      'camera'
       'panel'
       'console';
     gap: var(--space-2);
@@ -989,7 +813,7 @@ body {
 
   /* An open sheet takes the room the view and its controls had, and scrolls inside it. */
   .lab-grid[data-sheet='open'] {
-    grid-template-rows: auto auto 0 auto minmax(240px, 1fr) auto;
+    grid-template-rows: auto auto 0 minmax(240px, 1fr) auto;
   }
 }
 
@@ -1000,7 +824,7 @@ body {
   }
 
   .lab-grid {
-    grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto;
+    grid-template-rows: auto auto minmax(120px, 1fr) auto auto;
   }
 }
 
@@ -1031,21 +855,8 @@ body {
     grid-template-rows: auto auto auto 1fr auto;
   }
 
-  /* Upright along the view's right edge, so it never covers the hookup or the controls. */
-  .lab-camera {
-    grid-area: view;
-    flex-direction: column;
-    align-self: center;
-    justify-self: end;
-  }
-
   /* Open, the sheet covers the view, beside the controls. */
   .lab-grid[data-sheet='open'] .lab-panel {
     grid-area: view;
-  }
-
-  /* Centered, but narrower than the view, so it clears the toolbar on its right. */
-  .stage-message {
-    max-width: calc(100% - 2 * 56px);
   }
 }

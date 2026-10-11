@@ -20,18 +20,12 @@ import {
 } from '../../../kit3d/quality.ts';
 import { createDepthUniforms } from '../../../kit3d/signal-pass.ts';
 import { Stage } from '../../../kit3d/stage.ts';
-import { SETUPS, labState, transmitterReading, type SetupId } from '../../../signal/model.ts';
+import { labState, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, type LabelId } from './labels.ts';
 import { buildContactShadows } from './contact.ts';
 import { BLOCK, viewFor } from './layout.ts';
-import {
-  TransmitterScreen,
-  buildSetup,
-  buildShared,
-  setLineGlow,
-  type ScreenReading,
-} from './lines.ts';
+import { TransmitterScreen, buildSetup, buildShared, setLineGlow } from './lines.ts';
 import { SignalEffects } from './signal.ts';
 import { buildStreet } from './street.ts';
 
@@ -71,24 +65,13 @@ export interface LabScene {
   relayout(): void;
   /** Re-places labels without touching the camera, e.g. when a label gains focus or a sheet opens. */
   refreshLabels(): void;
-  resetView(): void;
-  rotate(direction: -1 | 1): void;
-  tilt(direction: -1 | 1): void;
-  zoom(direction: -1 | 1): void;
   dispose(): void;
 }
 
 const FACE_NORMAL = new Vector3(0, 0, 1);
 
-/** Every reading the transmitter's screen can show, one per setup and frequency. */
-const READINGS: ScreenReading[] = SETUPS.flatMap((s) =>
-  FREQUENCIES.map((f) => ({
-    frequency: frequencyLabel(f),
-    current: `${String(Math.round(transmitterReading(s, f).ma))} mA`,
-  })),
-);
-const readingIndex = (s: SetupId, f: Frequency) =>
-  SETUPS.indexOf(s) * FREQUENCIES.length + FREQUENCIES.indexOf(f);
+/** What the transmitter's screen can show: the frequency it's set to. */
+const READINGS = FREQUENCIES.map(frequencyLabel);
 
 function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[] {
   return LABEL_SPECS.flatMap((spec) => {
@@ -148,15 +131,12 @@ async function buildLabScene(
     {
       frame(dt) {
         if (!post) return false;
-        const moved = cam.update(dt);
         const animating = !reducedMotion && !o.capture;
         if (animating) {
           animTime += dt;
           fx.setTime(animTime);
         }
-        if (moved || labelsDirty) {
-          // camera-controls moves the camera; its matrices only refresh at render time.
-          camera.updateMatrixWorld();
+        if (labelsDirty) {
           labels.update(stage.width, stage.height, freeArea());
           labelsDirty = false;
         }
@@ -165,13 +145,12 @@ async function buildLabScene(
         hud?.frame(dt * 1000, now, stage.renderer, tier, stage.pixelRatio);
         const next = governor?.sample(dt * 1000, now);
         if (next) void changeTier(next);
-        return animating || moved;
+        return animating;
       },
       resize(width, height) {
         const area = o.visibleArea();
         cam.setLayout(width, height, area);
-        // A rotation or resize reframes, unless the learner has moved the camera.
-        cam.refit(viewFor(area));
+        cam.frame(viewFor(area));
         post?.setSize(width, height);
         labelsDirty = true;
       },
@@ -225,22 +204,7 @@ async function buildLabScene(
   fx.setTime(animTime);
   fxScene.add(fx.group);
 
-  const cam = new LabCamera(camera, o.canvas, {
-    minDistance: 10,
-    maxDistance: 170,
-    minPolarAngle: 0.3,
-    maxPolarAngle: 1.47,
-    minAzimuth: -1.5,
-    maxAzimuth: 1.2,
-    targetBounds: new Box3(new Vector3(-30, -9, -30), new Vector3(140, 4, 3)),
-  });
-  cam.reducedMotion = reducedMotion || o.capture;
-  // Dragging, pinching or scrolling wakes the loop; it sleeps when nothing animates.
-  for (const type of ['controlstart', 'control', 'wake'] as const) {
-    cam.controls.addEventListener(type, () => {
-      stage.requestFrame();
-    });
-  }
+  const cam = new LabCamera(camera);
   const labels = new LabelLayer(camera, o.noGo);
   /** The part of the view the panel or sheet leaves free, as the label layer wants it. */
   const freeArea = () => {
@@ -256,7 +220,7 @@ async function buildLabScene(
     setups.steel.visible = setup === 'steel';
     setups.plastic.visible = setup === 'plastic';
     fx.setState(labState(setup, frequency));
-    shared.screen.show(readingIndex(setup, frequency));
+    shared.screen.show(FREQUENCIES.indexOf(frequency));
     // Label text only changes with the setup, so a frequency change needn't re-measure them.
     if (labelsFor_ !== setup) {
       labelsFor_ = setup;
@@ -358,7 +322,7 @@ async function buildLabScene(
   stage.resize();
   const firstPost = await buildPost(tier);
   swapPost(firstPost);
-  await cam.goTo(viewFor(o.visibleArea()), false);
+  cam.frame(viewFor(o.visibleArea()));
   await precompile();
   // The screen draws with its own font from the first frame. If the font is slow, it shows a
   // fallback and redraws when the font arrives.
@@ -377,8 +341,6 @@ async function buildLabScene(
 
   if (o.capture) {
     // One settled frame, then hold still for the screenshot.
-    cam.update(1);
-    camera.updateMatrixWorld();
     labels.update(stage.width, stage.height, freeArea());
     firstPost.render(1 / 60);
     stage.stop();
@@ -391,7 +353,7 @@ async function buildLabScene(
       return tier;
     },
     setState(nextSetup, nextFrequency) {
-      // A setup switch swaps what's underground; the view stays where the learner left it.
+      // A setup switch swaps only what's underground; the view stays as it is.
       if (nextSetup !== setup) governor?.settle(performance.now());
       setup = nextSetup;
       frequency = nextFrequency;
@@ -405,7 +367,6 @@ async function buildLabScene(
     },
     setReducedMotion(reduced) {
       reducedMotion = reduced;
-      cam.reducedMotion = reduced || o.capture;
       stage.requestFrame();
     },
     async setTier(next) {
@@ -435,27 +396,14 @@ async function buildLabScene(
       labels.measure();
       const area = o.visibleArea();
       cam.setLayout(stage.width, stage.height, area);
-      cam.refit(viewFor(area));
+      cam.frame(viewFor(area));
+      if (o.capture) {
+        // The loop has stopped, so render the new framing once for the screenshot.
+        labels.update(stage.width, stage.height, freeArea());
+        post?.render(1 / 60);
+        return;
+      }
       labelsDirty = true;
-      stage.requestFrame();
-    },
-    resetView() {
-      const area = o.visibleArea();
-      cam.setLayout(stage.width, stage.height, area);
-      void cam.goTo(viewFor(area));
-      labelsDirty = true;
-      stage.requestFrame();
-    },
-    rotate(direction) {
-      cam.rotateBy(direction * 0.18, 0);
-      stage.requestFrame();
-    },
-    tilt(direction) {
-      cam.rotateBy(0, direction * 0.12);
-      stage.requestFrame();
-    },
-    zoom(direction) {
-      cam.dollyBy(direction * 10);
       stage.requestFrame();
     },
     dispose() {
@@ -463,7 +411,6 @@ async function buildLabScene(
       disposed = true;
       stage.dispose();
       post?.dispose();
-      cam.dispose();
       hud?.dispose();
       lighting.dispose();
       shared.screen.dispose();

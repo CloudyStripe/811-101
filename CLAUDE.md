@@ -72,6 +72,7 @@ In the field, the color is the code.
 - **Claims and review:** every factual sentence in `content/` has a claim ID. After editing content, run `npm run docs`; `docs/CONTENT_REVIEW.md` lists every claim and its sign-off status.
 - **Units:** US customary first, metric in parentheses.
 - **Voice:** plain words, no background assumed, never talking down.
+- **Depth:** keep it conceptual. One idea per sentence, qualitative words over numbers, and no data tables or readouts; leave out detail the lesson doesn't need.
 - **Terms:** mark them with `[[term]]` or `[[shown words|term key]]`. Every marked term needs a definition, and a test enforces it.
 
 ## Signal model
@@ -92,11 +93,11 @@ In the field, the color is the code.
 - **GPU resources:** disposed on exit. Quality tiers have a manual override.
 - **WCAG 2.2 AA:**
   - every control works by keyboard;
-  - drags have click or key alternatives;
-  - focus is never hidden under the panel or sheet;
+  - nothing needs dragging (the 3D view is fixed, framed to fit);
+  - focus is never hidden under the panel or sheet, and both can be closed;
   - popovers can be hovered;
   - nothing pulses faster than 3 Hz;
-  - the chart has a table equivalent.
+  - the 3D view has a live text summary of what it shows.
 
 ## Git
 

@@ -12,6 +12,7 @@ interface State {
   /** Anything to open before the screenshot. */
   prepare?: (page: Page, phone: boolean) => Promise<void>;
   phoneOnly?: boolean;
+  desktopOnly?: boolean;
 }
 
 async function openSheet(page: Page) {
@@ -30,6 +31,15 @@ const STATES: State[] = [
       if (phone) await openSheet(page);
       await page.getByRole('button', { name: 'About this model' }).click();
       await expect(page.getByRole('dialog', { name: 'About this model' })).toBeVisible();
+    },
+  },
+  {
+    name: 'guide-closed',
+    query: 'setup=steel&f=83000',
+    desktopOnly: true,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Close the lab guide' }).click();
+      await expect(page.getByRole('button', { name: 'Open the lab guide' })).toBeVisible();
     },
   },
   {
@@ -81,7 +91,7 @@ for (const theme of ['light', 'dark'] as const) {
         hasTouch: phone,
         isMobile: phone,
       });
-      for (const s of STATES.filter((st) => phone || !st.phoneOnly)) {
+      for (const s of STATES.filter((st) => (phone ? !st.desktopOnly : !st.phoneOnly))) {
         test(s.name, async ({ page }) => {
           await page.goto(`training/frequency-lab/?${s.query}&tier=${vp.tier}&capture`);
           await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {

@@ -1,18 +1,11 @@
-/** The key: what each line, color and symbol in the 3D view means. */
+/** The key: what each line, color and glow in the 3D view means. */
 import { KEY } from '../../../content/training/frequency-lab.ts';
 import { APWA } from '../../design/apwa.ts';
 import { Icon } from '../../design/icons.tsx';
-import { Rich } from '../../design/Term.tsx';
 import type { SetupId } from '../../signal/model.ts';
 import { LABEL_SPECS } from './scene/labels.ts';
 
-export function Legend({
-  setup,
-  define,
-}: {
-  setup: SetupId;
-  define: (key: string) => string | undefined;
-}) {
+export function Legend({ setup }: { setup: SetupId }) {
   // The lines are exactly the labels that carry an APWA color, named the same way.
   const lines = LABEL_SPECS.flatMap((spec) => {
     const name = spec.text[setup];
@@ -37,22 +30,11 @@ export function Legend({
           {KEY.signal}
         </li>
         <li>
-          <span class="sym sym-direction" aria-hidden="true">
-            <Icon name="direction" />
-          </span>
-          {KEY.arrows}
-        </li>
-        <li>
           <span class="sym sym-soil" aria-hidden="true" />
           {KEY.soil}
         </li>
       </ul>
-      <p>
-        <Rich text={KEY.colorCode.text} define={define} />
-      </p>
-      <p class="muted">
-        {KEY.tints.text} {KEY.scale}
-      </p>
+      <p class="muted">{KEY.colors.text}</p>
     </div>
   );
 }

@@ -1,11 +1,8 @@
-/**
- * The views and the direction arrows, checked with the real camera math: from each view, the
- * arrows near the hookup must be big enough to read, and the block must fit the free area.
- */
+/** The views, checked with the real camera math: the block must fit the free area. */
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import type { View } from '../../../kit3d/camera.ts';
-import { ARROWS, BLOCK, TALL_VIEW, WIDE_VIEW, arrowPlacement, viewFor } from './layout.ts';
+import { BLOCK, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
 
 /** The scene's camera, framed on a view for a free area of the given size in CSS pixels. */
 function cameraFor(view: View, width: number, height: number): PerspectiveCamera {
@@ -20,27 +17,6 @@ function cameraFor(view: View, width: number, height: number): PerspectiveCamera
 function toScreen(camera: PerspectiveCamera, p: Vector3, width: number, height: number) {
   const v = p.clone().project(camera);
   return { x: (v.x * 0.5 + 0.5) * width, y: (-v.y * 0.5 + 0.5) * height, z: v.z };
-}
-
-/**
- * On-screen size, in CSS pixels, of an arrow of `size` ft at `x` along a line: its span across
- * the line, and its length along it (tip to back), which the view foreshortens.
- */
-function arrowPixels(
-  camera: PerspectiveCamera,
-  view: { width: number; height: number },
-  size: number,
-  at: { x: number; y: number; z: number },
-) {
-  const p = (dx: number, dy: number) =>
-    toScreen(camera, new Vector3(at.x + dx, at.y + dy, at.z), view.width, view.height);
-  const len = size * ARROWS.stretch;
-  const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
-    Math.hypot(a.x - b.x, a.y - b.y);
-  return {
-    span: dist(p(-0.54 * len, size / 2), p(-0.54 * len, -size / 2)),
-    length: dist(p(0.23 * len, 0), p(-0.77 * len, 0)),
-  };
 }
 
 const VIEWS = [
@@ -69,30 +45,5 @@ describe('views', () => {
     const p = toScreen(camera, new Vector3(BLOCK.x1 - 6, -3.6, 0), 390, 520);
     expect(p.x).toBeGreaterThan(0);
     expect(p.x).toBeLessThan(390);
-  });
-});
-
-describe('direction arrows', () => {
-  const lines = [
-    { name: 'steel main', size: ARROWS.target.steel, at: arrowPlacement('steel') },
-    { name: 'tracer wire', size: ARROWS.target.plastic, at: arrowPlacement('plastic') },
-    { name: 'telecom cable', size: ARROWS.telecom, at: arrowPlacement('telecom') },
-  ];
-
-  // Near the hookup, where a learner looks first, every arrow must read as an arrow: long enough
-  // along the line, not just tall, since the view foreshortens it.
-  it.each(lines)('$name: arrows near the hookup are big enough to read', (line) => {
-    const x = ARROWS.fromFt + ARROWS.stepFt;
-    for (const v of VIEWS) {
-      const camera = cameraFor(v.view, v.width, v.height);
-      const px = arrowPixels(camera, v, line.size, { x, ...line.at });
-      const min = v.name === 'wide' ? 10 : 6;
-      expect(px.span, `${v.name} span`).toBeGreaterThanOrEqual(min);
-      expect(px.length, `${v.name} length`).toBeGreaterThanOrEqual(min);
-    }
-  });
-
-  it('stand in front of the line they mark, on the cut-face side', () => {
-    for (const line of lines) expect(line.at.z).toBeGreaterThan(0);
   });
 });

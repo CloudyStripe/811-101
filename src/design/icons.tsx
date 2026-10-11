@@ -9,18 +9,10 @@ export type IconName =
   | 'stake'
   | 'access'
   | 'wire'
-  | 'rotate-left'
-  | 'rotate-right'
-  | 'tilt-up'
-  | 'tilt-down'
-  | 'zoom-in'
-  | 'zoom-out'
-  | 'reset'
   | 'settings'
   | 'close'
   | 'chevron-up'
   | 'chevron-down'
-  | 'direction'
   | 'back';
 
 const PATHS: Record<IconName, JSX.Element> = {
@@ -35,8 +27,6 @@ const PATHS: Record<IconName, JSX.Element> = {
   'chevron-up': <path d="M3.4 10.2L8 5.6l4.6 4.6" />,
   'chevron-down': <path d="M3.4 5.8L8 10.4l4.6-4.6" />,
   back: <path d="M13 8H3.5M7.5 4L3.5 8l4 4" />,
-  // The same flat V the 3D view draws along each line.
-  direction: <path d="M5.4 3.6L10 8l-4.6 4.4" />,
   gas: (
     <path d="M8 1.8c.4 2.2 3.6 3.9 3.6 7.2A3.6 3.6 0 0 1 8 12.7 3.6 3.6 0 0 1 4.4 9c0-1.6.8-2.6 1.6-3.3.1 1.3.7 2.1 1.4 2.4C7 6.4 7.2 4 8 1.8z" />
   ),
@@ -62,25 +52,6 @@ const PATHS: Record<IconName, JSX.Element> = {
     </>
   ),
   wire: <path d="M1.6 9.6c2.1-3.6 4.3-3.6 6.4 0s4.3 3.6 6.4 0" />,
-  'rotate-left': <path d="M5.2 4.4H2.6V1.8M2.9 4.3a5.8 5.8 0 1 1-.6 4.6" />,
-  'rotate-right': <path d="M10.8 4.4h2.6V1.8M13.1 4.3a5.8 5.8 0 1 0 .6 4.6" />,
-  // An eye-level line with an arc over or under it: look from higher or lower.
-  'tilt-up': <path d="M2.4 12.6h11.2M4 9.6a4.4 4.4 0 0 1 8 0M10.6 6.4l1.4 3.2-3.4.2" />,
-  'tilt-down': <path d="M2.4 3.4h11.2M4 6.4a4.4 4.4 0 0 0 8 0M10.6 9.6l1.4-3.2-3.4-.2" />,
-  'zoom-in': (
-    <>
-      <circle cx="7" cy="7" r="4.4" />
-      <path d="M10.2 10.2l3.4 3.4M7 5v4M5 7h4" />
-    </>
-  ),
-  'zoom-out': (
-    <>
-      <circle cx="7" cy="7" r="4.4" />
-      <path d="M10.2 10.2l3.4 3.4M5 7h4" />
-    </>
-  ),
-  // A house: back to the home view. Distinct from the turn arrows.
-  reset: <path d="M2.6 7.6L8 3l5.4 4.6M4.2 6.3v6.5h7.6V6.3M6.8 12.8V9.8h2.4v3" />,
 };
 
 export function Icon({ name, class: className }: { name: IconName; class?: string }) {
