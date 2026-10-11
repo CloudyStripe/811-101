@@ -108,8 +108,16 @@ body {
 .lab-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
+}
+
+.lab-title-row h1 {
+  flex: 1;
+}
+
+/* Back to the site's home: sits in the card's padding, so the title keeps its place. */
+.lab-home {
+  margin-left: calc(-1 * var(--space-2));
 }
 
 .lab-title h1 {

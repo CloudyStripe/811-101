@@ -130,6 +130,12 @@ button { font: inherit; color: inherit; }
 .seg button[data-f="both"] .dot { background: linear-gradient(90deg, var(--gas-fill) 50%, var(--amber-fill) 50%); }
 .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .seg-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-right: 6px; align-self: center; padding-left: 6px; }
+/* the way into Locator Training */
+.lab-link { display: inline-flex; align-items: center; gap: 8px; width: max-content; max-width: 100%; padding: 7px 11px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--ink); font-size: 13px; font-weight: 700; text-decoration: none; }
+.lab-link:hover { background: var(--surface-2); }
+.lab-link .kicker { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.lab-link svg { width: 14px; height: 14px; flex: none; }
 
 .tools { position: absolute; right: var(--edge-r); top: 16px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
   max-width: calc(100% - 32px); }
@@ -313,6 +319,7 @@ button { font: inherit; color: inherit; }
   .brand h1 .fork { display: none; }
   .seg-label { display: none; }
   .seg button { padding: 6px 9px; font-size: 12.5px; }
+  .lab-link { padding: 6px 9px; font-size: 12.5px; }
   /* sits just above the bottom sheet; --sheet-h is set from script */
   .tools { top: auto; bottom: calc(var(--sheet-h, 0px) + 10px); right: max(12px, env(safe-area-inset-right, 0px)); left: max(12px, env(safe-area-inset-left, 0px));
     justify-content: center; flex-wrap: nowrap; z-index: 4; transition: bottom .35s cubic-bezier(.2,.8,.2,1); }
@@ -354,6 +361,7 @@ button { font: inherit; color: inherit; }
       <button type="button" data-f="gasoline" aria-pressed="false"><span class="dot"></span>Gasoline</button>
       <button type="button" data-f="both" aria-pressed="true"><span class="dot"></span>Both</button>
     </div>
+    <a class="lab-link" href="training/frequency-lab/"><span class="kicker">Locator training</span>Frequency Lab<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
   </div>
 
   <div class="tools">

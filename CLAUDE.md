@@ -101,4 +101,4 @@ In the field, the color is the code.
 ## Git
 
 - **Work:** one branch per phase and small commits. Commit messages end with the `Co-Authored-By` line.
-- **`index.html` at the root:** published byte-for-byte; never edit it.
+- **`index.html` at the root:** the original diorama, published byte-for-byte. Leave it as it is apart from its link into the Frequency Lab, until Phase 1 builds the portal home.

@@ -327,6 +327,14 @@ export function App() {
     <div class="lab-grid" data-sheet={sheetOpen ? 'open' : 'closed'}>
       <header class="lab-title" data-chrome>
         <div class="lab-title-row">
+          <a
+            class="icon-button lab-home"
+            href="../../"
+            aria-label="Back to From Rock to Flame"
+            title="Back to From Rock to Flame"
+          >
+            <Icon name="back" />
+          </a>
           <h1>Frequency Lab</h1>
           <SettingsMenu settings={settings} onChange={setSettings} />
         </div>
