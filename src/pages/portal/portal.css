@@ -85,9 +85,9 @@
   color: var(--ink-2);
 }
 
+/* Lesson cards fill their row, so neighboring cards end level. */
 .lessons {
   display: grid;
-  align-content: start;
   gap: var(--space-3);
   margin: 0;
   padding: 0;
@@ -113,15 +113,17 @@
   transform: translateY(-2px);
 }
 
-/* The whole card shows focus, not just its title. */
-.lesson:has(.lesson-link:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 3px;
-}
+/* The whole card shows focus, not just its title, where the browser can tell. */
+@supports selector(:has(*)) {
+  .lesson:has(.lesson-link:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
 
-.lesson-link:focus-visible {
-  outline: none;
-  box-shadow: none;
+  .lesson-link:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
 }
 
 .lesson-image {
@@ -133,8 +135,20 @@
   background: var(--surface-2);
 }
 
+/* The previews are daytime scenes; in the dark theme they're softened so they don't glare. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) img.lesson-image {
+    filter: brightness(0.82);
+  }
+}
+
+:root[data-theme='dark'] img.lesson-image {
+  filter: brightness(0.82);
+}
+
 .lesson-text {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
   padding: var(--space-3) var(--space-4) var(--space-4);
@@ -166,7 +180,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
   font-size: 0.9rem;
   font-weight: 700;
 }
@@ -203,6 +218,11 @@
   margin: 0;
   color: var(--ink-2);
   font-weight: 700;
+}
+
+/* Without JavaScript, a note in place of the sections. */
+.portal .noscript {
+  margin: 0;
 }
 
 @media (max-width: 900px) {

@@ -1,7 +1,8 @@
 /**
- * Screenshots for review: every listed state at desktop and phone sizes, in light and dark.
- * Captured in `?capture` mode (fixed time and tier, one settled frame) so they're deterministic.
- * Each also checks that labels are neither clipped nor overlapping each other or the chrome.
+ * Screenshots for review, at desktop and phone sizes, in light and dark: the portal, and every
+ * listed state of the lab. The lab is captured in `?capture` mode (fixed time and tier, one
+ * settled frame) so it's deterministic, and each lab capture also checks that labels are neither
+ * clipped nor overlapping each other or the chrome.
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
@@ -126,6 +127,32 @@ for (const theme of ['light', 'dark'] as const) {
           }
         });
       }
+    });
+  }
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const vp of VIEWPORTS) {
+    test.describe(`portal ${vp.name} ${theme}`, () => {
+      test.use({
+        viewport: { width: vp.width, height: vp.height },
+        deviceScaleFactor: vp.scale,
+        colorScheme: theme,
+        hasTouch: vp.name === 'phone',
+        isMobile: vp.name === 'phone',
+      });
+
+      test('the whole page', async ({ page }) => {
+        await page.goto('./');
+        await page.waitForLoadState('load');
+        // Every preview decoded, so none is captured blank.
+        await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
+        await page.screenshot({
+          path: `artifacts/screenshots/portal-${theme}-${vp.name}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        });
+      });
     });
   }
 }

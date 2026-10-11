@@ -16,7 +16,8 @@ export type IconName =
   | 'back'
   | 'forward'
   | 'ticket'
-  | 'layers';
+  | 'layers'
+  | 'locate';
 
 const PATHS: Record<IconName, JSX.Element> = {
   settings: (
@@ -36,6 +37,13 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <path d="M2.5 4h11v2.4a1.6 1.6 0 0 0 0 3.2V12h-11V9.6a1.6 1.6 0 0 0 0-3.2z" />
       <path d="M10 5.2v1M10 7.5v1M10 9.8v1" />
+    </>
+  ),
+  // A target: finding something's exact place.
+  locate: (
+    <>
+      <circle cx="8" cy="8" r="4.4" />
+      <path d="M8 1.6v3M8 11.4v3M1.6 8h3M11.4 8h3" />
     </>
   ),
   // Stacked layers, like soil and what runs through it.

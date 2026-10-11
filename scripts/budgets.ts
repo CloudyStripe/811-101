@@ -74,13 +74,15 @@ async function latinFonts(cssFiles: Iterable<string>): Promise<Set<string>> {
   const assets = new Set(await readdir(resolve(dist, 'assets')));
   for (const css of cssFiles) {
     const text = await readFile(resolve(dist, css), 'utf8');
-    // URLs carry the site's base path; the file name is what matters.
+    // URLs carry the site's base path and may be quoted; the file name is what matters.
     for (const [, name] of text.matchAll(
-      /url\((?:[^)]*\/)?([\w.-]+-latin-(?!ext)[\w-]*\.woff2)\)/g,
+      /url\(\s*["']?(?:[^)"']*\/)?([\w.-]+-latin-(?!ext)[\w-]*\.woff2)["']?\s*\)/g,
     )) {
       if (name && assets.has(name)) fonts.add(`assets/${name}`);
     }
   }
+  // Every page uses the site's fonts; finding none means this script has stopped reading them.
+  if (fonts.size === 0) throw new Error('Found no latin fonts in a page’s CSS');
   return fonts;
 }
 

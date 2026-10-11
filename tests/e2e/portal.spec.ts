@@ -1,19 +1,25 @@
 /**
  * The portal and the ways between pages: the home page shows all three sections, links to every
- * lesson and says what's coming; each lesson links back. Plus axe, and screenshots for review.
+ * lesson and says what's coming; each lesson links back. The built pages carry the brand and the
+ * settings script before any of their JavaScript runs. Plus axe in both themes.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { BRAND } from '../../config/brand.ts';
 import { SECTIONS } from '../../content/portal.ts';
+import { SETTINGS_KEY } from '../../src/site/settings.ts';
 import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
 
-/** Opens the portal and waits until everything on it, previews included, has arrived. */
+/** Opens the portal and waits until everything on it, previews included, is loaded and decoded. */
 async function openPortal(page: Page) {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: BRAND.name, level: 1 })).toBeVisible();
   await page.waitForLoadState('load');
+  await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
 }
+
+/** The portal's own address, with nothing after it. */
+const PORTAL_URL = /\/811-101\/$/;
 
 test('the portal shows every section, its lessons, and what’s coming', async ({ page }) => {
   await openPortal(page);
@@ -36,12 +42,24 @@ test('the portal shows every section, its lessons, and what’s coming', async (
   }
 });
 
-test('the static page shell shows the brand the app does', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const html = (await readFile('index.html', 'utf8')).replaceAll(/\s+/g, ' ');
-  expect(html).toContain(`<title>${BRAND.name}</title>`);
-  expect(html).toContain(`<h1>${BRAND.name}</h1>`);
-  expect(html).toContain(BRAND.tagline);
+test('the built pages carry the brand and the settings script before any JavaScript runs', async ({
+  page,
+}) => {
+  const portal = await (await page.request.get('./')).text();
+  expect(portal).toContain(`<title>${BRAND.name}</title>`);
+  expect(portal).toContain(`<h1>${BRAND.name}</h1>`);
+  expect(portal).not.toContain('%BRAND_');
+  const lab = await (await page.request.get('training/frequency-lab/')).text();
+  for (const html of [portal, lab]) expect(html).toContain(SETTINGS_KEY);
+  // The diorama is published as it is.
+  const diorama = await (await page.request.get('utilities/gas-petroleum/')).text();
+  expect(diorama).not.toContain(SETTINGS_KEY);
+});
+
+test('a page that isn’t there is a 404, as on the live site', async ({ page }) => {
+  for (const path of ['training/', 'utilities/', 'no-such-lesson/']) {
+    expect((await page.request.get(path)).status(), path).toBe(404);
+  }
 });
 
 test('the portal opens the Frequency Lab, and the lab comes back', async ({ page }) => {
@@ -54,6 +72,7 @@ test('the portal opens the Frequency Lab, and the lab comes back', async ({ page
     timeout: 90_000,
   });
   await page.getByRole('link', { name: 'All lessons' }).click();
+  await expect(page).toHaveURL(PORTAL_URL);
   await expect(page).toHaveTitle(BRAND.name);
 });
 
@@ -70,6 +89,7 @@ test.describe('the diorama', () => {
     await page.waitForLoadState('load');
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     await page.getByRole('link', { name: 'All lessons' }).click();
+    await expect(page).toHaveURL(PORTAL_URL);
     await expect(page).toHaveTitle(BRAND.name);
   });
 });
@@ -91,12 +111,8 @@ for (const theme of ['light', 'dark'] as const) {
         reducedMotion: 'reduce',
       });
 
-      test('passes axe, and is captured for review', async ({ page }) => {
+      test('passes axe, and nothing runs off the side', async ({ page }) => {
         await openPortal(page);
-        await page.screenshot({
-          path: `artifacts/screenshots/portal-${theme}-${vp.name}.png`,
-          fullPage: true,
-        });
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
           .analyze();
@@ -105,7 +121,6 @@ for (const theme of ['light', 'dark'] as const) {
             (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
           ),
         ).toEqual([]);
-        // Nothing runs off the side of a phone.
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         );

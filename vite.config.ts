@@ -2,13 +2,14 @@ import { copyFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vitest/config';
+import { fillBrand } from './config/brand.ts';
 import { tokensCss } from './src/design/tokens.ts';
 import { BOOT_SCRIPT } from './src/site/settings.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
 /** The original diorama, published as it is: copied byte-for-byte and never processed. */
-export const DIORAMA = 'utilities/gas-petroleum/index.html';
+const DIORAMA = 'utilities/gas-petroleum/index.html';
 
 /** Serves the design tokens as a CSS module, so CSS, the 3D scene and the tests share one source. */
 function tokens(): Plugin {
@@ -21,11 +22,25 @@ function tokens(): Plugin {
   };
 }
 
-/** Applies saved display settings in every page's <head>, before first paint. */
+/**
+ * Applies saved display settings in each built page's <head>, before first paint. Not the
+ * diorama: it's published as it is, and the dev server would otherwise add it there.
+ */
 function settingsBoot(): Plugin {
   return {
     name: 'settings-boot',
-    transformIndexHtml: () => [{ tag: 'script', children: BOOT_SCRIPT, injectTo: 'head-prepend' }],
+    transformIndexHtml: (_html, ctx) =>
+      ctx.path.endsWith(DIORAMA)
+        ? []
+        : [{ tag: 'script', children: BOOT_SCRIPT, injectTo: 'head-prepend' }],
+  };
+}
+
+/** Fills the brand into pages that ask for it (see config/brand.ts). */
+function brand(): Plugin {
+  return {
+    name: 'brand',
+    transformIndexHtml: { order: 'pre', handler: (html) => fillBrand(html) },
   };
 }
 
@@ -76,7 +91,9 @@ function preload3d(): Plugin {
 
 export default defineConfig({
   base: '/811-101/',
-  plugins: [tokens(), settingsBoot(), diorama(), preload3d()],
+  // Pages, not an app: an unknown path is a 404, as on GitHub Pages, rather than the portal.
+  appType: 'mpa',
+  plugins: [tokens(), brand(), settingsBoot(), diorama(), preload3d()],
   build: {
     target: 'es2022',
     manifest: true,
@@ -100,7 +117,12 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.ts', 'content/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: [
+      'src/**/*.test.ts',
+      'content/**/*.test.ts',
+      'config/**/*.test.ts',
+      'scripts/**/*.test.ts',
+    ],
     environment: 'node',
   },
 });

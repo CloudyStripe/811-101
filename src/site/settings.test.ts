@@ -1,5 +1,13 @@
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, applyToDocument, parseSettings, reducesMotion } from './settings.ts';
+import {
+  BOOT_SCRIPT,
+  DEFAULT_SETTINGS,
+  SETTINGS_KEY,
+  applyToDocument,
+  parseSettings,
+  reducesMotion,
+} from './settings.ts';
 
 describe('parseSettings', () => {
   it('keeps known values', () => {
@@ -36,5 +44,45 @@ describe('applyToDocument', () => {
     expect(root.dataset).toEqual({ theme: 'dark', motion: 'full' });
     applyToDocument(DEFAULT_SETTINGS, root);
     expect(root.dataset).toEqual({});
+  });
+});
+
+describe('BOOT_SCRIPT', () => {
+  /** Runs the page's boot script against a stored value and returns what it set on <html>. */
+  function boot(stored: string | null, storageThrows = false): DOMStringMap {
+    const root = { dataset: {} as DOMStringMap };
+    const localStorage = {
+      getItem(key: string) {
+        if (storageThrows) throw new Error('storage is off');
+        return key === SETTINGS_KEY ? stored : null;
+      },
+    };
+    runInNewContext(BOOT_SCRIPT, { localStorage, document: { documentElement: root } });
+    return root.dataset;
+  }
+
+  /** What the page's own code applies once it runs, for the same stored value. */
+  function applied(raw: unknown): DOMStringMap {
+    const root = { dataset: {} as DOMStringMap };
+    applyToDocument(parseSettings(raw), root);
+    return root.dataset;
+  }
+
+  it('applies the same theme and motion the page applies once its code runs', () => {
+    const cases = [
+      { theme: 'dark', motion: 'reduce' },
+      { theme: 'light', motion: 'full' },
+      { theme: 'system', motion: 'system', quality: 'high' },
+      { theme: 'sepia', motion: 'sideways' },
+      {},
+    ];
+    for (const saved of cases) expect(boot(JSON.stringify(saved))).toEqual(applied(saved));
+  });
+
+  it('leaves the page alone when nothing is saved, the saved value is broken, or storage is off', () => {
+    const none = applied(DEFAULT_SETTINGS);
+    expect(boot(null)).toEqual(none);
+    expect(boot('{not json')).toEqual(none);
+    expect(boot('{}', true)).toEqual(none);
   });
 });

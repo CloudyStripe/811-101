@@ -77,7 +77,7 @@ In the field, the color is the code.
 ## Content rules
 
 - **No invented facts:** never invent facts, rules or procedures. If unsure, ask the owner or flag it for review.
-- **Claims and review:** every factual sentence in `content/` has a claim ID. After editing content, run `npm run docs`; `docs/CONTENT_REVIEW.md` lists every claim and its sign-off status.
+- **Claims and review:** every factual sentence in `content/` has a claim ID. After editing content, run `npm run docs`; `docs/CONTENT_REVIEW.md` lists every claim and its sign-off status. The portal's section and lesson descriptions (`content/portal.ts`) describe the lessons, not the world, so they don't need claim IDs.
 - **Units:** US customary first, metric in parentheses.
 - **Voice:** plain words, no background assumed, never talking down.
 - **Depth:** keep it conceptual. One idea per sentence, qualitative words over numbers, and no data tables or readouts; leave out detail the lesson doesn't need.

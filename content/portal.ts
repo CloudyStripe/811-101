@@ -1,6 +1,6 @@
 /**
  * The portal's sections and lessons. Descriptions of what each lesson covers, not claims about
- * the world, so they aren't listed for locator review. Keep each to one short line.
+ * the world, so they don't carry claim IDs or go to locator review. Keep each to one short line.
  */
 import type { IconName } from '../src/design/icons.tsx';
 
@@ -34,7 +34,7 @@ export const SECTIONS: readonly Section[] = [
     id: 'training',
     title: 'Locator Training',
     summary: 'How locators find buried lines.',
-    icon: 'transmitter',
+    icon: 'locate',
     lessons: [
       {
         title: 'Frequency Lab',

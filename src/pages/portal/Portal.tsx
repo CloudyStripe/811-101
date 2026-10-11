@@ -46,14 +46,14 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
 
 function ComingSoon({ section }: { section: Section }) {
   return (
-    <li class="lesson lesson-soon">
+    <div class="lesson lesson-soon">
       <div class="lesson-image soon-art" aria-hidden="true">
         <Icon name={section.icon} />
       </div>
       <div class="lesson-text">
         <p class="soon-label">Coming soon</p>
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -74,13 +74,15 @@ export function Portal() {
               <h2 id={`${section.id}-title`}>{section.title}</h2>
             </div>
             <p class="section-summary">{section.summary}</p>
-            <ul class="lessons" aria-label={`${section.title} lessons`}>
-              {section.lessons.length > 0 ? (
-                section.lessons.map((lesson) => <LessonCard key={lesson.href} lesson={lesson} />)
-              ) : (
-                <ComingSoon section={section} />
-              )}
-            </ul>
+            {section.lessons.length > 0 ? (
+              <ul class="lessons" aria-label={`${section.title} lessons`}>
+                {section.lessons.map((lesson) => (
+                  <LessonCard key={lesson.href} lesson={lesson} />
+                ))}
+              </ul>
+            ) : (
+              <ComingSoon section={section} />
+            )}
           </section>
         ))}
       </main>

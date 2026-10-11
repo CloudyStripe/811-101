@@ -270,7 +270,7 @@ export function App() {
         <div class="lab-title-row">
           <a
             class="icon-button lab-home"
-            href="../../"
+            href={import.meta.env.BASE_URL}
             aria-label="All lessons"
             title="All lessons"
           >
