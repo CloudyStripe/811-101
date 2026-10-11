@@ -13,58 +13,40 @@ Every factual claim in the Frequency Lab, for locator sign-off.
 
 | ID | Claim | State-specific | Hash | Status |
 |---|---|---|---|---|
-| `fl.tagline` | Use the lowest frequency that works: it travels farther and bleeds less onto other lines. | No | `955193e230` | Not reviewed |
-| `fl.summary` | {setup} at {frequency}: {left} of the signal is left at the far end of the block{short}. The telecom cable carries {share} as much as the {target}, flowing back toward the stake. _(describes the state of the lab model)_ | No | `9b498aa871` | Not reviewed |
-| `fl.intro.transmitter` | A locator uses a transmitter to put a signal current on a buried metal line, then follows the line from above with a receiver. | No | `3730fe8bab` | Not reviewed |
-| `fl.intro.loop` | The current flows out along the line, leaks into the soil, and returns through the earth to the ground stake. Together they make one complete circuit. | No | `bc5d067aef` | Not reviewed |
-| `fl.intro.frequency` | The frequency you choose changes how the signal behaves. Lower frequencies stay on your line better and travel farther. Higher frequencies leak off sooner, don't travel as far, and bleed over onto nearby lines more. | No | `07527d1a3d` | Not reviewed |
-| `fl.setup.steel` | The transmitter is connected to the steel gas main at a test station. A long metal main has many paths to the earth, so it makes a good circuit and plenty of current flows. | No | `9d30256791` | Not reviewed |
-| `fl.setup.plastic` | Plastic can't carry the signal, so the transmitter is connected to the tracer wire at a tracer test box. The insulated wire connects to the earth directly only where it's grounded, so its circuit has more resistance and less current flows. | No | `550ec193a5` | Not reviewed |
-| `fl.freq.512` | At 512 Hz, the lowest frequency here, the signal leaks into the soil most slowly. It travels farthest along the line, and the least of it bleeds onto the telecom cable. | No | `634246a38b` | Not reviewed |
-| `fl.freq.8k` | At 8 kHz, noticeably more of the signal leaks off along the way, and more of it bleeds onto the telecom cable. | No | `87b11ee512` | Not reviewed |
-| `fl.freq.33k` | At 33 kHz, the signal leaks off much sooner and fades along the block, and still more of it bleeds onto the telecom cable. | No | `666dab8e65` | Not reviewed |
-| `fl.freq.83k` | At 83 kHz, the highest frequency here, the signal leaks off soonest. It doesn't travel far, and more of it bleeds onto the telecom cable than at any other frequency. | No | `4d343dfa34` | Not reviewed |
-| `fl.bleed.direction` | Bleed-over current usually flows back toward the stake, the opposite way to the current on your line. Receivers with a signal direction feature use that difference to help tell your line from others. | No | `4bd1a6088c` | Not reviewed |
-| `fl.try.steel.reach` | Step from 512 Hz up to 83 kHz and watch the glow along the main: it dims sooner at each step, and at 83 kHz it fades out before the far end. | No | `1d302b55a2` | Not reviewed |
-| `fl.try.steel.bleed` | Watch the orange telecom cable as you go higher: more and more of the signal bleeds onto it. | No | `3dd79318bd` | Not reviewed |
-| `fl.try.steel.chart` | In the chart, find where 33 kHz and 83 kHz become too weak to trace. The lower frequencies stay strong past the end of the chart. | No | `24e1cb8697` | Not reviewed |
-| `fl.try.plastic.wire` | Find the tracer wire, the thin line riding just above the plastic main. It carries the signal. | No | `ba0af5dda2` | Not reviewed |
-| `fl.try.plastic.current` | Compare the transmitter's current with the steel main's: the tracer wire's circuit carries much less. | No | `5cb60a95de` | Not reviewed |
-| `fl.try.plastic.reach` | Step up to 83 kHz: on the tracer wire, the signal gets too weak to trace before the far end of the block. | No | `da3630c00c` | Not reviewed |
+| `fl.tagline` | Use the lowest frequency that works: it travels farther and spreads less to other lines. | No | `f4e61d69cd` | Not reviewed |
+| `fl.intro.find` | To find a buried line, a locator puts a signal on it with a transmitter, then follows the signal from above with a receiver. | No | `9610d7c686` | Not reviewed |
+| `fl.intro.frequency` | The signal's frequency matters: it changes how far the signal travels and how much of it spreads to other lines. | No | `ef0f7e86d9` | Not reviewed |
+| `fl.setup.steel` | A steel gas main carries the signal itself, so the transmitter connects right to it. | No | `9cfc04587a` | Not reviewed |
+| `fl.setup.plastic` | Plastic can't carry a signal, so a tracer wire is buried along the pipe, and the transmitter connects to that. | No | `039c5c4d94` | Not reviewed |
+| `fl.freq.512` | The signal reaches the end of the block, and almost none of it bleeds onto the telecom cable. | No | `1266d7596f` | Not reviewed |
+| `fl.freq.8k` | The signal still reaches the end of the block, and a little of it bleeds onto the telecom cable. | No | `cafaf30a1a` | Not reviewed |
+| `fl.freq.33k` | The signal is weaker by the end of the block, and more of it bleeds onto the telecom cable. | No | `a592cc6ba7` | Not reviewed |
+| `fl.freq.83k` | The signal fades out before the end of the block, and even more of it bleeds onto the telecom cable. | No | `22766abcc9` | Not reviewed |
+| `fl.try.steel` | Step from 512 Hz up to 83 kHz. Watch the glow on the gas main end sooner, and more of the orange telecom cable light up. | No | `f7c256b1df` | Not reviewed |
+| `fl.try.plastic.wire` | Find the tracer wire on top of the plastic pipe: it carries the signal. | No | `a190e5a2ef` | Not reviewed |
+| `fl.try.plastic.reach` | Step up to 83 kHz and watch the signal fade out before the end of the block. | No | `2d53c7e75e` | Not reviewed |
 | `fl.rule.lowest` | Use the lowest frequency that works. | No | `350c026ea8` | Not reviewed |
-| `fl.rule.why` | It travels farthest along your line and bleeds least onto others, so more of the signal you follow is on your line. | No | `cd536ec935` | Not reviewed |
-| `fl.rule.step-up` | If a low frequency can't put enough signal on the line, check your connection and ground first, then step up one frequency at a time. | No | `e634061487` | Not reviewed |
-| `fl.rule.higher` | Higher frequencies get onto a poor circuit more easily, such as a poorly grounded tracer wire or a line with insulated joints. That's when stepping up helps. | No | `df1eac0a03` | Not reviewed |
-| `fl.key.color-code` | Locators mark buried lines with the APWA color code: yellow for gas, orange for communications, blue for drinking water. | No | `9004ac041b` | Not reviewed |
-| `fl.key.tints` | A buried line's own color isn't a reliable guide, so the colors on the lines here are a teaching aid. | No | `2a663d2538` | Not reviewed |
-| `fl.about.illustrative` | Readings are illustrative. The current, resistance and signal on every line come from a small teaching model, not measurements. | No | `31de61ea74` | Not reviewed |
-| `fl.about.compressed` | Distances are compressed. The signal fades within one block here so the frequencies are easy to compare. On a real, continuous line, signals usually travel much farther, in the same order, with lower frequencies farthest. | No | `232d6812c3` | Not reviewed |
-| `fl.about.slowed` | The signal is slowed way down. A real one cycles hundreds to tens of thousands of times a second; here, the spacing of the bands stands in for frequency. | No | `6ef75c9f0d` | Not reviewed |
-| `fl.about.brightness` | Brightness is scaled within each setup, since the tracer wire carries far less current than the steel main. On your line, the glow fades out where the signal gets too weak to trace. | No | `0f73154e3a` | Not reviewed |
-| `fl.about.water` | The water main gets no signal in this model. In the field, a line that crosses yours can pick up some, more so at higher frequencies, and a receiver can follow it by mistake. | No | `a2111fd937` | Not reviewed |
-| `fl.about.stake` | In the field, set the ground stake well away from the line, roughly at a right angle to it, and never over another buried line. Here it stands where the cutaway can show it. | No | `cb306dc937` | Not reviewed |
-| `fl.about.threshold` | "Enough to trace" is set at 20 mA for this lab. What a receiver needs in the field depends on depth, interference from other lines and noise, and the receiver itself. | No | `e1c02d6d48` | Not reviewed |
-| `fl.label.transmitter` | Puts the signal on the line at the frequency you pick. | No | `fb86e5ffea` | Not reviewed |
-| `fl.label.stake` | Metal rod in the soil. Current returns to it through the earth. | No | `c6deef5994` | Not reviewed |
-| `fl.label.test-station` | Post with a test wire attached to the steel main. The transmitter connects here. | No | `fb16fb4c99` | Not reviewed |
-| `fl.label.tracer-box` | Where the tracer wire comes up to ground level. The transmitter connects here. | No | `fba300369a` | Not reviewed |
-| `fl.label.steel-main` | Coated steel pipe carrying natural gas. The metal pipe carries the signal. | No | `1edebe85f2` | Not reviewed |
-| `fl.label.plastic-main` | Plastic pipe carrying natural gas. The plastic can't carry the signal; its tracer wire does. | No | `da9bce96b4` | Not reviewed |
-| `fl.label.tracer` | Insulated wire buried with the plastic main so the main can be found. | No | `c85f09253d` | Not reviewed |
-| `fl.label.telecom` | Phone or internet cable with a metal shield. Signal can bleed onto it. | No | `0f85f92b3d` | Not reviewed |
-| `fl.label.water` | Drinking water main crossing under the gas main. This lab gives it no signal, but in the field a crossing line can pick some up. | No | `d28874b5c9` | Not reviewed |
-| `fl.term.transmitter` | The unit that puts a signal current on a buried line, so a receiver can find the line from above. | No | `b59647c777` | Not reviewed |
-| `fl.term.receiver` | The handheld unit a locator carries. It senses the magnetic field around a line that carries the signal. | No | `dd3f9c4a1c` | Not reviewed |
-| `fl.term.frequency` | How many times a second the signal current cycles back and forth, measured in hertz (Hz). 8 kHz is 8,000 cycles a second. | No | `dab423fcf2` | Not reviewed |
-| `fl.term.current` | The flow of electricity along a line, shown here in milliamps (mA). More current makes a stronger signal. | No | `0387583de4` | Not reviewed |
-| `fl.term.resistance` | How much a circuit holds back current, in ohms (Ω). The higher it is, the less current flows. | No | `2fe4349878` | Not reviewed |
-| `fl.term.circuit` | The complete loop the signal travels: from the transmitter out along the line, through the soil, and back through the ground stake. | No | `bc7f3854f0` | Not reviewed |
-| `fl.term.ground-stake` | A metal rod pushed into the soil and wired to the transmitter. Current returns to it through the earth, completing the circuit. | No | `979f30d082` | Not reviewed |
-| `fl.term.test-station` | A post with test wires attached to a steel pipe, used to check its corrosion protection. Locators can connect a transmitter to it. | No | `66906f400e` | Not reviewed |
-| `fl.term.tracer-wire` | An insulated metal wire buried along a plastic pipe. Plastic can't carry a locate signal, so the wire carries it instead. | No | `2fb6e52b2c` | Not reviewed |
-| `fl.term.tracer-test-box` | A small box at ground level where the tracer wire comes up, so a locator can connect to it. | No | `134afc5cbf` | Not reviewed |
-| `fl.term.bleed-over` | Signal that spreads from the line you're tracing onto nearby metal lines. A receiver picks it up there too, so it can be mistaken for your line. | No | `75c8b283f7` | Not reviewed |
-| `fl.term.apwa` | The uniform colors used to mark buried lines, such as yellow for gas, orange for communications and blue for drinking water. | No | `4ac226164d` | Not reviewed |
+| `fl.rule.why` | Lower frequencies travel farther, and more of the signal stays on your line instead of spreading to others. | No | `87c560a153` | Not reviewed |
+| `fl.rule.higher` | Higher frequencies are for when a lower one can't get enough signal onto the line. | No | `d2919cbc8f` | Not reviewed |
+| `fl.key.colors` | Lines are colored like the paint marks locators use: yellow for gas, orange for communications, blue for drinking water. Real pipes aren't always those colors. | No | `1cee5ae665` | Not reviewed |
+| `fl.about.model` | What you see comes from a simplified teaching model, not from measurements. | No | `645d47e9cb` | Not reviewed |
+| `fl.about.distances` | Distances are shortened so the frequencies are easy to compare. Real signals travel much farther, in the same order: lower frequencies farthest. | No | `7232499340` | Not reviewed |
+| `fl.about.slowed` | The signal is slowed way down so you can see it. | No | `05dcc81536` | Not reviewed |
+| `fl.about.water` | Here the water main gets no signal. In the field, a line crossing yours can pick some up. | No | `2df4a033da` | Not reviewed |
+| `fl.label.transmitter` | Puts the signal on the line. | No | `505c0e6273` | Not reviewed |
+| `fl.label.stake` | A metal rod in the soil. The signal returns to it, completing the loop. | No | `1f563fb29e` | Not reviewed |
+| `fl.label.test-station` | Where the transmitter connects to the steel main. | No | `12e8a9d4ef` | Not reviewed |
+| `fl.label.tracer-box` | Where the transmitter connects to the tracer wire. | No | `c24fb29be3` | Not reviewed |
+| `fl.label.steel-main` | A steel pipe carrying natural gas. The metal carries the signal. | No | `3cf1dee527` | Not reviewed |
+| `fl.label.plastic-main` | A plastic pipe carrying natural gas. Plastic can't carry the signal. | No | `b41b6a67c1` | Not reviewed |
+| `fl.label.tracer` | A wire buried with the plastic pipe. It carries the signal so the pipe can be found. | No | `a75e379e27` | Not reviewed |
+| `fl.label.telecom` | A phone or internet cable. Signal can bleed onto it. | No | `a6adc4fee5` | Not reviewed |
+| `fl.label.water` | A drinking water main crossing under the street. | No | `4f738077e1` | Not reviewed |
+| `fl.term.transmitter` | A device that puts a signal on a buried line. | No | `f09e236b25` | Not reviewed |
+| `fl.term.receiver` | A handheld device that picks up the signal from above ground, so the locator can follow the line. | No | `8b525fd540` | Not reviewed |
+| `fl.term.frequency` | How many times a second the signal repeats, in hertz (Hz). 8 kHz is 8,000 times a second. | No | `d04b4bcc70` | Not reviewed |
+| `fl.term.tracer-wire` | A wire buried along a plastic pipe so the pipe can be found. | No | `1f3b55f5ad` | Not reviewed |
+| `fl.term.bleed-over` | Signal that spreads from your line onto other lines nearby. It can lead a locator to the wrong line. | No | `e533842e00` | Not reviewed |
 
 ## Signal model calibrations
 
@@ -73,7 +55,7 @@ Teaching values from `src/signal/constants.ts`. `docs/SIGNAL_MODEL.md` explains 
 | ID | Calibration | Hash | Status |
 |---|---|---|---|
 | `model.block-length` | Block length: 140 ft. Long enough to see the signal fade in the 3D view, short enough to show street detail. | `5d6de62c12` | Not reviewed |
-| `model.chart-length` | Chart length: 500 ft. Reach differences between frequencies show clearly over a few hundred feet. | `3d68075897` | Not reviewed |
+| `model.model-length` | Model length: 500 ft. Well past the block, so the signal that continues beyond it is part of the model, and its return through the earth with it. | `24fdcd43ad` | Not reviewed |
 | `model.water-main-crossing` | Water main crossing: 100 ft. Inside the block and well away from the hookup, so it reads as a separate feature. | `0939f470ae` | Not reviewed |
 | `model.fade-on-the-coated-steel-main` | Fade on the coated steel main: 512 Hz: 0.93, 8 kHz: 0.72, 33 kHz: 0.2, 83 kHz: 0.04 (share left per 100 ft). Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order. | `20f05c463a` | Not reviewed |
 | `model.fade-on-the-tracer-wire` | Fade on the tracer wire: 512 Hz: 0.95, 8 kHz: 0.8, 33 kHz: 0.5, 83 kHz: 0.19 (share left per 100 ft). The same trend as the steel main, compressed the same way. A thin insulated wire leaks less than the big coated main at every frequency. | `97e07655ea` | Not reviewed |

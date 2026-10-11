@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
 import { ABOUT, TAGLINE } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
-import { Icon, type IconName } from '../../design/icons.tsx';
+import { Icon } from '../../design/icons.tsx';
 import { Segmented } from '../../design/Segmented.tsx';
 import { Rich } from '../../design/Term.tsx';
 import type { ThemeName } from '../../design/tokens.ts';
@@ -68,55 +68,13 @@ function rectWithin(el: Element, container: DOMRect): Rect | null {
 
 const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 
-/** View controls shared by the keyboard and the toolbar. */
-const rotateLeft = (s: LabScene) => {
-  s.rotate(1);
-};
-const rotateRight = (s: LabScene) => {
-  s.rotate(-1);
-};
-const tiltUp = (s: LabScene) => {
-  s.tilt(-1);
-};
-const tiltDown = (s: LabScene) => {
-  s.tilt(1);
-};
-const zoomIn = (s: LabScene) => {
-  s.zoom(1);
-};
-const zoomOut = (s: LabScene) => {
-  s.zoom(-1);
-};
-const resetView = (s: LabScene) => {
-  s.resetView();
-};
-
-const CAMERA_BUTTONS: { icon: IconName; label: string; run: (s: LabScene) => void }[] = [
-  { icon: 'rotate-left', label: 'Turn left', run: rotateLeft },
-  { icon: 'rotate-right', label: 'Turn right', run: rotateRight },
-  { icon: 'tilt-up', label: 'Look from higher', run: tiltUp },
-  { icon: 'tilt-down', label: 'Look from lower', run: tiltDown },
-  { icon: 'zoom-in', label: 'Zoom in', run: zoomIn },
-  { icon: 'zoom-out', label: 'Zoom out', run: zoomOut },
-  { icon: 'reset', label: 'Reset view', run: resetView },
-];
-
-const CANVAS_KEYS: Record<string, (s: LabScene) => void> = {
-  ArrowLeft: rotateLeft,
-  ArrowRight: rotateRight,
-  ArrowUp: tiltUp,
-  ArrowDown: tiltDown,
-  '+': zoomIn,
-  '=': zoomIn,
-  '-': zoomOut,
-  _: zoomOut,
-};
-
 export function App() {
   const [setup, setSetup] = useState<SetupId>(INITIAL_SETUP);
   const [frequency, setFrequency] = useState<Frequency>(INITIAL_FREQUENCY);
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Wide screens: the guide panel starts open and can be closed down to its title.
+  const [panelOpen, setPanelOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const stageRef = useRef<HTMLElement>(null);
@@ -124,11 +82,9 @@ export function App() {
   const labelRefs = useRef(new Map<LabelId, HTMLElement>());
   const sceneRef = useRef<LabScene | null>(null);
   // The scene's callbacks outlive renders, so they read current state from here.
-  const live = useRef({ setup, frequency, settings, sheetOpen });
-  live.current = { setup, frequency, settings, sheetOpen };
+  const live = useRef({ setup, frequency, settings, sheetOpen, panelOpen });
+  live.current = { setup, frequency, settings, sheetOpen, panelOpen };
   const lastArea = useRef<{ area: VisibleArea; size: string } | null>(null);
-  // Whether the guide is a sheet over the view, which changes as the screen rotates or resizes.
-  const [sheetMode, setSheetMode] = useState(sheetLayout);
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -161,27 +117,25 @@ export function App() {
     const freeArea = (box: DOMRect): VisibleArea => {
       const top = (rectOf('.lab-setup')?.bottom ?? box.top) - box.top;
       if (shortQuery.matches) {
-        // Short screens: between the column of controls and the upright view toolbar.
+        // Short screens: right of the column of controls.
         const left = (rectOf('.lab-title')?.right ?? box.left) - box.left + 8;
-        const toolbar = rectOf('.lab-camera');
-        const right = toolbar && toolbar.width > 0 ? toolbar.left - box.left - 8 : box.width;
-        return { x: left, y: 0, width: Math.max(160, right - left), height: box.height };
+        return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
       }
       if (phoneQuery.matches) {
-        // Phones: between the setup switch and the controls below the view.
-        const bottom = (rectOf('.lab-camera')?.top ?? box.bottom) - box.top;
+        // Phones: between the setup switch and the sheet below the view.
+        const bottom = (rectOf('.lab-panel')?.top ?? box.bottom) - box.top;
         return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
       }
-      // Wider screens: left of the panel. When the band between the controls above and below
-      // is taller than wide, frame the portrait view inside it, clear of the controls; otherwise
-      // the wide view uses the full height, since the bottom controls only take the corners.
+      // Wider screens: left of the open panel, or the full width once it's closed to its title.
+      // When the band between the controls above and below is taller than wide, frame the
+      // portrait view inside it, clear of the controls; otherwise the wide view uses the full
+      // height, since the transmitter only takes a corner.
       const panel = rectOf('.lab-panel');
-      const right = Math.max(160, panel ? panel.left - box.left - 8 : box.width);
-      const bottom =
-        Math.min(
-          rectOf('.lab-camera')?.top ?? box.bottom,
-          rectOf('.lab-console')?.top ?? box.bottom,
-        ) - box.top;
+      const right = Math.max(
+        160,
+        panel && live.current.panelOpen ? panel.left - box.left - 8 : box.width,
+      );
+      const bottom = (rectOf('.lab-console')?.top ?? box.bottom) - box.top;
       const band = { x: 0, y: top, width: right, height: Math.max(120, bottom - top) };
       if (band.width < band.height) return { ...band, portrait: true };
       return { x: 0, y: 0, width: right, height: box.height, portrait: false };
@@ -290,7 +244,6 @@ export function App() {
     if (!TIER_PARAM) void sceneRef.current?.setTier(settings.quality);
   }, [settings.quality]);
 
-  // The sheet covers part of the view on phones, so labels move out from under it.
   // Opening the sheet covers part of the view, so labels move out from under it. Closing it
   // reframes the view, in case the screen rotated while it was open.
   useEffect(() => {
@@ -298,33 +251,21 @@ export function App() {
     else sceneRef.current?.relayout();
   }, [sheetOpen]);
 
+  // Closing or opening the panel changes how much of the screen the view has.
   useEffect(() => {
-    const onChange = () => {
-      setSheetMode(sheetLayout());
-    };
-    phoneQuery.addEventListener('change', onChange);
-    shortQuery.addEventListener('change', onChange);
-    return () => {
-      phoneQuery.removeEventListener('change', onChange);
-      shortQuery.removeEventListener('change', onChange);
-    };
-  }, []);
-
-  function onCanvasKey(event: KeyboardEvent) {
-    const scene = sceneRef.current;
-    if (!scene || event.altKey || event.ctrlKey || event.metaKey) return;
-    const action = CANVAS_KEYS[event.key];
-    if (!action) return;
-    event.preventDefault();
-    action(scene);
-  }
+    sceneRef.current?.relayout();
+  }, [panelOpen]);
 
   function refreshLabels() {
     sceneRef.current?.refreshLabels();
   }
 
   return (
-    <div class="lab-grid" data-sheet={sheetOpen ? 'open' : 'closed'}>
+    <div
+      class="lab-grid"
+      data-sheet={sheetOpen ? 'open' : 'closed'}
+      data-panel={panelOpen ? 'open' : 'closed'}
+    >
       <header class="lab-title" data-chrome>
         <div class="lab-title-row">
           <a
@@ -345,18 +286,15 @@ export function App() {
         <Segmented label="Setup" value={setup} options={SETUP_OPTIONS} onChange={setSetup} />
       </div>
 
-      <Console setup={setup} frequency={frequency} onFrequency={setFrequency} />
+      <Console frequency={frequency} onFrequency={setFrequency} />
 
       <main class="stage" ref={stageRef}>
         <canvas
           ref={canvasRef}
           class="lab-canvas"
-          // Under an open sheet the view can't be seen, so it leaves the tab order.
-          tabIndex={sheetOpen && sheetMode ? -1 : 0}
           role="img"
-          aria-label="3D cutaway of a street block showing buried lines and the locate signal. Use the arrow keys to turn the view, and plus or minus to zoom."
+          aria-label="3D cutaway of a street block showing buried lines and the locate signal."
           aria-describedby="lab-status"
-          onKeyDown={onCanvasKey}
         />
         {/* Labels start hidden; the scene places and shows them once it has a frame to match. */}
         <div
@@ -385,26 +323,13 @@ export function App() {
         </p>
       )}
 
-      <div class="lab-camera" role="toolbar" aria-label="View" data-chrome>
-        {CAMERA_BUTTONS.map((b) => (
-          <button
-            key={b.icon}
-            type="button"
-            class="icon-button"
-            aria-label={b.label}
-            title={b.label}
-            onClick={() => {
-              if (sceneRef.current) b.run(sceneRef.current);
-            }}
-          >
-            <Icon name={b.icon} />
-          </button>
-        ))}
-      </div>
-
       <Panel
         setup={setup}
         frequency={frequency}
+        panelOpen={panelOpen}
+        onPanelToggle={() => {
+          setPanelOpen(!panelOpen);
+        }}
         sheetOpen={sheetOpen}
         onSheetToggle={() => {
           setSheetOpen(!sheetOpen);

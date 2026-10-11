@@ -1,7 +1,7 @@
 /**
  * How brightly a line's signal glows: by how far its current is above "enough to trace", on a
- * log scale. The glow fades out exactly where the signal gets too weak to trace, which is where
- * the chart marks its reach, and peaks at the setup's strongest current. The line shader in
+ * log scale. The glow fades out exactly where the signal gets too weak to trace, and peaks at the
+ * setup's strongest current. The line shader in
  * signal.ts computes the same thing on the GPU.
  */
 

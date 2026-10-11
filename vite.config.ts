@@ -74,7 +74,7 @@ export default defineConfig({
           groups: [
             {
               name: 'vendor-3d',
-              test: /node_modules[\\/](three|postprocessing|camera-controls)[\\/]/,
+              test: /node_modules[\\/](three|postprocessing)[\\/]/,
             },
           ],
         },

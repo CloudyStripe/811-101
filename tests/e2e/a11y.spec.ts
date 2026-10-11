@@ -33,15 +33,17 @@ for (const theme of ['light', 'dark'] as const) {
   test.describe(theme, () => {
     test.use({ colorScheme: theme });
 
-    test('desktop: the lab, settings, table and About', async ({ page }) => {
+    test('desktop: the lab, settings, the guide closed, and About', async ({ page }) => {
       await open(page);
       await scan(page, `${theme} desktop`);
       await page.getByRole('button', { name: 'Settings' }).click();
       await scan(page, `${theme} settings`);
       await page.keyboard.press('Escape');
-      await page.getByRole('button', { name: 'Show as table' }).click();
       await page.getByRole('radio', { name: 'Plastic main' }).click();
-      await scan(page, `${theme} plastic with table`);
+      await scan(page, `${theme} plastic`);
+      await page.getByRole('button', { name: 'Close the lab guide' }).click();
+      await scan(page, `${theme} guide closed`);
+      await page.getByRole('button', { name: 'Open the lab guide' }).click();
       await page.getByRole('button', { name: 'About this model' }).click();
       await expect(page.getByRole('dialog', { name: 'About this model' })).toBeVisible();
       await scan(page, `${theme} About`);

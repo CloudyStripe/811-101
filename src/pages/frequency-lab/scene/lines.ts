@@ -80,11 +80,6 @@ const MATERIALS = {
   casing: () => surface(C.casing, { roughness: 0.5 }),
 };
 
-export interface ScreenReading {
-  frequency: string;
-  current: string;
-}
-
 const CELL_W = 256;
 const CELL_H = 128;
 const COLUMNS = 2;
@@ -98,24 +93,21 @@ export function screenCellOffset(index: number, rows: number): [number, number] 
 }
 
 /**
- * The transmitter's screen. Every reading it can show is drawn once into one texture, and a state
- * change only moves which part is shown: re-uploading a canvas texture on each change stalled
- * some GPUs for most of a second. Each cell keeps a plain margin, so mipmaps don't bleed text
- * from one cell into the next.
+ * The transmitter's screen, showing the frequency it's set to. Every frequency is drawn once into
+ * one texture, and a change only moves which part is shown: re-uploading a canvas texture on each
+ * change stalled some GPUs for most of a second. Each cell keeps a plain margin, so mipmaps don't
+ * bleed text from one cell into the next.
  */
 export class TransmitterScreen {
   /** Fonts the screen draws with, for loading before a redraw. */
-  static readonly FONTS = [
-    '600 46px "IBM Plex Mono", ui-monospace, monospace',
-    '400 30px "IBM Plex Mono", ui-monospace, monospace',
-  ] as const;
+  static readonly FONTS = ['600 54px "IBM Plex Mono", ui-monospace, monospace'] as const;
 
   readonly texture: CanvasTexture;
   private readonly canvas = document.createElement('canvas');
-  private readonly readings: readonly ScreenReading[];
+  private readonly readings: readonly string[];
   private readonly rows: number;
 
-  constructor(readings: readonly ScreenReading[]) {
+  constructor(readings: readonly string[]) {
     this.readings = readings;
     this.rows = Math.ceil(readings.length / COLUMNS);
     this.canvas.width = CELL_W * COLUMNS;
@@ -132,19 +124,16 @@ export class TransmitterScreen {
   draw(): void {
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return;
-    const [big, small] = TransmitterScreen.FONTS;
     ctx.fillStyle = '#10161a';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.font = TransmitterScreen.FONTS[0];
+    ctx.fillStyle = '#e8eef0';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    this.readings.forEach((r, i) => {
-      const x = (i % COLUMNS) * CELL_W + 18;
-      const y = Math.floor(i / COLUMNS) * CELL_H;
-      ctx.font = big;
-      ctx.fillStyle = '#e8eef0';
-      ctx.fillText(r.frequency, x, y + 46, CELL_W - 36);
-      ctx.font = small;
-      ctx.fillStyle = '#9fb0b6';
-      ctx.fillText(r.current, x, y + 98, CELL_W - 36);
+    this.readings.forEach((text, i) => {
+      const x = (i % COLUMNS) * CELL_W + CELL_W / 2;
+      const y = Math.floor(i / COLUMNS) * CELL_H + CELL_H / 2;
+      ctx.fillText(text, x, y, CELL_W - 36);
     });
     this.texture.needsUpdate = true;
   }
@@ -165,7 +154,7 @@ export interface SharedLines {
 }
 
 /** Lines and equipment present in both setups. */
-export function buildShared(readings: readonly ScreenReading[]): SharedLines {
+export function buildShared(readings: readonly string[]): SharedLines {
   const group = new Group();
   group.name = 'shared-lines';
   const t = LINES.telecom;

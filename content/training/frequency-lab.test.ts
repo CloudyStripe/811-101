@@ -2,8 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { collectClaims } from '../../src/content-kit/claims.ts';
 import { termKey, termKeysIn } from '../../src/content-kit/terms.ts';
 import { LABEL_SPECS } from '../../src/pages/frequency-lab/scene/labels.ts';
-import { SETUPS } from '../../src/signal/model.ts';
-import { FREQUENCY_LAB, TAGLINE, TERMS, labelDefinition } from './frequency-lab.ts';
+import { FREQUENCIES } from '../../config/equipment.ts';
+import { SETUPS, labState } from '../../src/signal/model.ts';
+import {
+  FREQUENCY_LAB,
+  FREQUENCY_NOTES,
+  TAGLINE,
+  TERMS,
+  labelDefinition,
+} from './frequency-lab.ts';
 
 /** Every string in the content, claims and instructions alike. */
 function stringsIn(value: unknown, into: string[] = []): string[] {
@@ -56,6 +63,15 @@ describe('Frequency Lab content', () => {
 
   it('flags no claim as state-specific, since the lab teaches no state rules', () => {
     expect(claims.filter((c) => c.stateSpecific)).toEqual([]);
+  });
+});
+
+describe('the frequency notes', () => {
+  it.each(SETUPS)('%s: say the signal falls short exactly when the model says it does', (setup) => {
+    for (const f of FREQUENCIES) {
+      const fallsShort = FREQUENCY_NOTES[f].text.includes('fades out before the end of the block');
+      expect(fallsShort, `${String(f)} Hz`).toBe(!labState(setup, f).works);
+    }
   });
 });
 

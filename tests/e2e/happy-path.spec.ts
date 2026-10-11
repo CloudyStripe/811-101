@@ -1,13 +1,13 @@
 /**
- * The lab's happy path, by pointer and by keyboard: setups and frequencies drive the readout,
- * the chart and its table, the explanation and the live summary; About, settings and the
- * definitions on labels and terms work and get out of the way; on phones the guide is a sheet.
- * Expected values come from the model, so a recalibration doesn't break the tests.
+ * The lab's happy path, by pointer and by keyboard: setups and frequencies drive the guide and
+ * the live summary; the guide closes and opens; About, settings and the definitions on labels
+ * and terms work and get out of the way; on phones the guide is a sheet. Expected text comes
+ * from the content and the model, so rewording or recalibrating doesn't break the tests.
  */
 import type { Page } from '@playwright/test';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../config/equipment.ts';
-import { reachSummary, stateSummary } from '../../src/pages/frequency-lab/summary.ts';
-import { transmitterReading, type SetupId } from '../../src/signal/model.ts';
+import { stateSummary } from '../../src/pages/frequency-lab/summary.ts';
+import type { SetupId } from '../../src/signal/model.ts';
 import { expect, test } from './fixtures.ts';
 
 async function open(page: Page) {
@@ -17,19 +17,16 @@ async function open(page: Page) {
   });
 }
 
+/** The live summary and the guide both say what the view shows. */
 async function expectState(page: Page, setup: SetupId, f: Frequency) {
-  const reading = transmitterReading(setup, f);
-  const readout = page.locator('.readout');
-  await expect(readout).toContainText(`${String(Math.round(reading.ma))} mA`);
-  await expect(readout).toContainText(`${String(reading.ohms)} Ω`);
-  await expect(page.locator('#lab-status')).toHaveText(stateSummary(setup, f));
-  await expect(page.locator('.chart-reach-text')).toHaveText(reachSummary(setup, f));
-  await expect(page.locator('.lab-panel')).toContainText(`At ${frequencyLabel(f)}`);
+  const summary = stateSummary(setup, f);
+  await expect(page.locator('#lab-status')).toHaveText(summary);
+  await expect(page.locator('.lab-panel')).toContainText(summary, { useInnerText: true });
 }
 
 test.use({ reducedMotion: 'reduce' });
 
-test('setups and frequencies drive the readout, chart, table and explanation', async ({ page }) => {
+test('setups and frequencies drive the guide and the live summary', async ({ page }) => {
   await open(page);
   await expectState(page, 'steel', 512);
 
@@ -42,25 +39,33 @@ test('setups and frequencies drive the readout, chart, table and explanation', a
     await expectState(page, 'steel', f);
   }
 
-  // Pointer: back to 512 Hz. The chart's line moves with it.
-  const line = page.locator('.chart-target');
-  const at83k = (await line.getAttribute('d')) ?? '';
+  // Pointer: back to 512 Hz, then the plastic main, where the tracer wire carries the signal.
   await dial.getByRole('radio', { name: '512 hertz' }).click();
   await expectState(page, 'steel', 512);
-  await expect(line).not.toHaveAttribute('d', at83k);
-
-  // The table says what the chart shows, starting from the transmitter's current.
-  await page.getByRole('button', { name: 'Show as table' }).click();
-  const table = page.getByRole('table');
-  await expect(table).toBeVisible();
-  const atHookup = String(Math.round(transmitterReading('steel', 512).ma));
-  await expect(table.getByRole('row').nth(1)).toContainText(atHookup);
-
-  // The plastic main: the tracer wire carries the signal.
   await page.getByRole('radio', { name: 'Plastic main' }).click();
   await expectState(page, 'plastic', 512);
-  await expect(table).toContainText('Tracer wire (mA)');
   await expect(page.locator('.lab-panel')).toContainText('Find the tracer wire');
+});
+
+test('the guide closes down to its title, and opens again', async ({ page }) => {
+  await open(page);
+  const panel = page.locator('.lab-panel');
+  const body = page.getByRole('heading', { name: 'How it works' });
+  const close = page.getByRole('button', { name: 'Close the lab guide' });
+  await expect(body).toBeVisible();
+  const openHeight = (await panel.boundingBox())?.height ?? 0;
+
+  await close.click();
+  const reopen = page.getByRole('button', { name: 'Open the lab guide' });
+  await expect(reopen).toBeFocused();
+  await expect(reopen).toHaveAttribute('aria-expanded', 'false');
+  await expect(body).toBeHidden();
+  // Closed, it's just its title: the view has the room.
+  expect((await panel.boundingBox())?.height ?? 0).toBeLessThan(openHeight / 4);
+
+  await reopen.click();
+  await expect(page.getByRole('button', { name: 'Close the lab guide' })).toBeFocused();
+  await expect(body).toBeVisible();
 });
 
 test('About, settings, and the definitions on labels and terms', async ({ page }) => {
@@ -71,7 +76,7 @@ test('About, settings, and the definitions on labels and terms', async ({ page }
   await about.click();
   const dialog = page.getByRole('dialog', { name: 'About this model' });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('Distances are compressed');
+  await expect(dialog).toContainText('Distances are shortened');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(about).toBeFocused();
@@ -99,7 +104,7 @@ test('About, settings, and the definitions on labels and terms', async ({ page }
   await label.getByRole('button').focus();
   const labelTip = label.getByRole('tooltip');
   await expect(labelTip).toBeVisible();
-  await expect(labelTip).toContainText('The metal pipe carries the signal');
+  await expect(labelTip).toContainText('The metal carries the signal');
   await page.keyboard.press('Escape');
   await expect(labelTip).toBeHidden();
   await expect(label.getByRole('button')).toBeFocused();
@@ -124,15 +129,14 @@ test.describe('on a phone', () => {
     await open(page);
     const toggle = page.getByRole('button', { name: 'Details' });
     const heading = page.getByRole('heading', { name: "What's happening" });
-    const view = page.getByRole('toolbar', { name: 'View' });
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(heading).toBeHidden();
+    await expect(page.locator('.sheet-summary')).toHaveText(stateSummary('steel', 512));
     await expect(page.getByRole('radiogroup', { name: 'Transmitter frequency' })).toBeVisible();
 
     await toggle.tap();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(heading).toBeVisible();
-    await expect(view).toBeHidden();
 
     // The dial stays usable with the sheet open.
     await page.getByRole('radio', { name: '83 kilohertz' }).tap();
@@ -140,7 +144,6 @@ test.describe('on a phone', () => {
 
     await toggle.tap();
     await expect(heading).toBeHidden();
-    await expect(view).toBeVisible();
   });
 });
 
@@ -153,18 +156,19 @@ test('only one definition shows at a time, and Escape closes it from anywhere', 
 
   // Tabbing through terms, pressing Enter on each, never leaves more than one tip open.
   await terms.first().focus();
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     await page.keyboard.press('Enter');
     await expect(visibleTips).toHaveCount(1);
     await page.keyboard.press('Tab');
   }
 
-  // With focus on one term, hovering another, a paragraph away, swaps which tip shows.
+  // With focus on one term, hovering another, a section away, swaps which tip shows.
   await terms.nth(0).focus();
   await expect(visibleTips).toHaveCount(1);
-  await terms.nth(5).hover();
+  const far = page.locator('.lab-panel .term-wrap').last();
+  await far.getByRole('button').hover();
   await expect(visibleTips).toHaveCount(1);
-  await expect(page.locator('.lab-panel .term-wrap').nth(5).getByRole('tooltip')).toBeVisible();
+  await expect(far.getByRole('tooltip')).toBeVisible();
 
   // Escape closes it, wherever focus is, and focus stays put.
   await page.keyboard.press('Escape');

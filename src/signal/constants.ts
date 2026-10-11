@@ -33,12 +33,12 @@ export const GEOMETRY = {
     value: 140,
     why: 'Long enough to see the signal fade in the 3D view, short enough to show street detail.',
   },
-  chartLengthFt: {
-    name: 'Chart length',
-    meaning: 'How far the inset chart follows each line past the hookup.',
+  modelLengthFt: {
+    name: 'Model length',
+    meaning: 'How far past the hookup the model follows each line.',
     unit: 'ft',
     value: 500,
-    why: 'Reach differences between frequencies show clearly over a few hundred feet.',
+    why: 'Well past the block, so the signal that continues beyond it is part of the model, and its return through the earth with it.',
   },
   waterCrossingAtFt: {
     name: 'Water main crossing',
