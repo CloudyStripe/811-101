@@ -25,8 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Root page is byte-identical to index.html
-        run: cmp index.html dist/index.html
+      - name: The diorama is published byte-for-byte
+        run: cmp utilities/gas-petroleum/index.html dist/utilities/gas-petroleum/index.html
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

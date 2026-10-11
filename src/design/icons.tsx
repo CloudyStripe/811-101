@@ -13,7 +13,10 @@ export type IconName =
   | 'close'
   | 'chevron-up'
   | 'chevron-down'
-  | 'back';
+  | 'back'
+  | 'forward'
+  | 'ticket'
+  | 'layers';
 
 const PATHS: Record<IconName, JSX.Element> = {
   settings: (
@@ -27,6 +30,16 @@ const PATHS: Record<IconName, JSX.Element> = {
   'chevron-up': <path d="M3.4 10.2L8 5.6l4.6 4.6" />,
   'chevron-down': <path d="M3.4 5.8L8 10.4l4.6-4.6" />,
   back: <path d="M13 8H3.5M7.5 4L3.5 8l4 4" />,
+  forward: <path d="M3 8h9.5M8.5 4l4 4-4 4" />,
+  // A ticket, notched at the sides, with a perforated stub.
+  ticket: (
+    <>
+      <path d="M2.5 4h11v2.4a1.6 1.6 0 0 0 0 3.2V12h-11V9.6a1.6 1.6 0 0 0 0-3.2z" />
+      <path d="M10 5.2v1M10 7.5v1M10 9.8v1" />
+    </>
+  ),
+  // Stacked layers, like soil and what runs through it.
+  layers: <path d="M8 2.6l5.6 3L8 8.6l-5.6-3zM2.4 8.2L8 11.2l5.6-3M2.4 10.8L8 13.8l5.6-3" />,
   gas: (
     <path d="M8 1.8c.4 2.2 3.6 3.9 3.6 7.2A3.6 3.6 0 0 1 8 12.7 3.6 3.6 0 0 1 4.4 9c0-1.6.8-2.6 1.6-3.3.1 1.3.7 2.1 1.4 2.4C7 6.4 7.2 4 8 1.8z" />
   ),

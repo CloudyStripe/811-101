@@ -29,6 +29,8 @@ h3 {
   font-family: var(--font-display);
   line-height: 1.1;
   letter-spacing: -0.01em;
+  /* Archivo's space is narrow at heavy weights; this keeps two-word headings from running together. */
+  word-spacing: 0.08em;
   text-wrap: balance;
 }
 

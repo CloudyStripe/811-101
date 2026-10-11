@@ -21,7 +21,7 @@ import {
   reducesMotion,
   saveSettings,
   type Settings,
-} from './settings.ts';
+} from '../../site/settings.ts';
 import { stateSummary } from './summary.ts';
 
 const params = new URLSearchParams(location.search);
@@ -271,8 +271,8 @@ export function App() {
           <a
             class="icon-button lab-home"
             href="../../"
-            aria-label="Back to From Rock to Flame"
-            title="Back to From Rock to Flame"
+            aria-label="All lessons"
+            title="All lessons"
           >
             <Icon name="back" />
           </a>

@@ -1,12 +1,19 @@
 # 811-101
 
-An interactive learning site about buried utilities and line locating. The site root
-(`index.html`) is the original "From Rock to Flame" diorama. The current work is the
-**Frequency Lab** at `/811-101/training/frequency-lab/`.
+An interactive learning site about buried utilities and line locating.
+
+| Page                                                    | Path                                | Source                                                 |
+| ------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| Portal (home)                                           | `/811-101/`                         | `index.html`, `src/pages/portal/`, `content/portal.ts` |
+| Frequency Lab (Locator Training)                        | `/811-101/training/frequency-lab/`  | `training/frequency-lab/`, `src/pages/frequency-lab/`  |
+| Gas & Petroleum: From Rock to Flame (Utility Education) | `/811-101/utilities/gas-petroleum/` | `utilities/gas-petroleum/index.html`                   |
+
+811 Basics shows on the portal as coming soon. The site's name and tagline live in
+`config/brand.ts`.
 
 ## Status and scope
 
-- Only Phase 0 (the Frequency Lab) is in scope. The owner has put the brief's Phases 1–6 on
+- Done: Phase 0 (the Frequency Lab) and the portal home. The rest of the brief's phases are on
   hold: don't plan or build them unless the owner asks.
 - Read `docs/BRIEF.md` and `docs/PLAN.md` before starting work. Both are **local-only**
   (gitignored) and so is `docs/private/`.
@@ -16,13 +23,14 @@ An interactive learning site about buried utilities and line locating. The site 
 
 ## Commands
 
-| Command           | What it does                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run dev`     | Dev server: http://localhost:5173/811-101/training/frequency-lab/                               |
-| `npm run check`   | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass. |
-| `npm run e2e`     | Build, then Playwright: console/cross-origin/axe gates and the happy path                       |
-| `npm run docs`    | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                  |
-| `npm run budgets` | Load budgets against the last build                                                             |
+| Command              | What it does                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `npm run dev`        | Dev server: http://localhost:5173/811-101/ (the portal)                                         |
+| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass. |
+| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                       |
+| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                  |
+| `npm run budgets`    | Load budgets for each page, against the last build                                              |
+| `npm run thumbnails` | Re-capture the portal's lesson images; run it when a lesson's look changes                      |
 
 Useful URL parameters on the lab page:
 
@@ -102,4 +110,4 @@ In the field, the color is the code.
 ## Git
 
 - **Work:** one branch per phase and small commits. Commit messages end with the `Co-Authored-By` line.
-- **`index.html` at the root:** the original diorama, published byte-for-byte. Leave it as it is apart from its link into the Frequency Lab, until Phase 1 builds the portal home.
+- **The diorama** (`utilities/gas-petroleum/index.html`) is published byte-for-byte, and the deploy checks it. Leave it as it is, apart from its link back to the portal, until it's rebuilt to the lab's standard.

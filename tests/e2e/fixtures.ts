@@ -1,11 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 
-/** Hosts the legacy root page still loads from. Only that page may use them, until it's ported. */
-export const LEGACY_ROOT_HOSTS = [
-  'cdnjs.cloudflare.com',
-  'fonts.googleapis.com',
-  'fonts.gstatic.com',
-];
+/** Hosts the original diorama still loads from. Only that page may use them, until it's ported. */
+export const DIORAMA_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 interface Problems {
   /** Hosts a page may contact besides its own origin. Empty for every new page. */

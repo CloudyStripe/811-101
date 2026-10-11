@@ -5,7 +5,7 @@
 import type { TargetedToggleEvent } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { Icon } from '../../design/icons.tsx';
-import type { Settings } from './settings.ts';
+import type { Settings } from '../../site/settings.ts';
 
 const POPOVER_ID = 'lab-settings';
 const WIDTH = 288;

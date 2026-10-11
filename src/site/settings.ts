@@ -1,8 +1,8 @@
 /**
- * Display settings: the only things the lab remembers between visits. They're kept in
- * localStorage when it's available, and the lab works the same without it.
+ * Display settings, shared by every page: the only things the site remembers between visits.
+ * They're kept in localStorage when it's available, and the site works the same without it.
  */
-import { parseTier, type Tier } from '../../kit3d/quality.ts';
+import { parseTier, type Tier } from '../kit3d/quality.ts';
 
 export type ThemeSetting = 'system' | 'light' | 'dark';
 export type MotionSetting = 'system' | 'reduce' | 'full';
@@ -16,8 +16,18 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = { theme: 'system', motion: 'system', quality: 'auto' };
 
-/** Also read by the inline script in the page, which applies theme and motion before first paint. */
 export const SETTINGS_KEY = '811-101.settings';
+
+/**
+ * A script for each page's <head> that applies saved theme and motion before first paint, so the
+ * page doesn't flash. The build adds it to every page (see vite.config.ts); the page's own code
+ * applies the settings again once it runs.
+ */
+export const BOOT_SCRIPT = `try {
+  var saved = JSON.parse(localStorage.getItem(${JSON.stringify(SETTINGS_KEY)}) || '{}');
+  if (saved.theme === 'light' || saved.theme === 'dark') document.documentElement.dataset.theme = saved.theme;
+  if (saved.motion === 'reduce' || saved.motion === 'full') document.documentElement.dataset.motion = saved.motion;
+} catch (e) {}`;
 
 function pick<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
   return options.find((o) => o === value) ?? fallback;
