@@ -34,6 +34,8 @@ for (const theme of ['light', 'dark'] as const) {
     test.use({ colorScheme: theme });
 
     test('desktop: the lab, settings, the guide closed, and About', async ({ page }) => {
+      // Five full scans of the 3D page: with every browser busy, it outruns the usual limit.
+      test.slow();
       await open(page);
       await scan(page, `${theme} desktop`);
       await page.getByRole('button', { name: 'Settings' }).click();
