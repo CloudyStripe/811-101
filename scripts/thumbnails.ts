@@ -59,7 +59,7 @@ const SHOTS: Shot[] = [
       await page.getByRole('button', { name: 'Close the lab guide' }).click();
     },
     hide: '.lab-title, .lab-setup, .lab-console, .lab-panel, .labels',
-    crop: { x: 0, y: 159, width: 996 },
+    crop: { x: 0, y: 90, width: 1060 },
   },
   {
     name: 'gas-petroleum',

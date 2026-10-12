@@ -55,9 +55,16 @@ test.describe('with motion', () => {
       const check = () => {
         for (const el of document.querySelectorAll<HTMLElement>('.lbl')) {
           const id = el.dataset.label ?? '?';
+          const style = getComputedStyle(el);
+          // A label over the cap is in the layout, but transparent until it's focused.
           const shown =
-            el.getClientRects().length > 0 && getComputedStyle(el).visibility === 'visible';
-          const off = el.classList.contains('off');
+            el.getClientRects().length > 0 &&
+            style.visibility === 'visible' &&
+            Number(style.opacity) > 0;
+          // Out of sight: hidden, or over the cap and not focused.
+          const off =
+            el.classList.contains('off') ||
+            (el.classList.contains('capped') && !el.matches(':focus-within'));
           const was = last.get(id);
           if (shown && el.style.transform === '') problems.push(`${id} shown before placed`);
           if (shown && off && was?.off && !was.shown) problems.push(`${id} flashed while hidden`);
@@ -115,6 +122,67 @@ test.describe('with reduced motion', () => {
     await exercise(page, async (step) => {
       expect(await canvasSpread(page), `${step} draws`).toBeGreaterThan(8);
     });
+  });
+});
+
+test.describe('on a phone', () => {
+  test.use({ reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
+
+  test('every label is reachable by keyboard, and shows with its definition, clear of the controls', async ({
+    page,
+  }) => {
+    await open(page);
+    for (const setup of ['Plastic main', 'Steel main']) {
+      await page
+        .getByRole('radiogroup', { name: 'Setup' })
+        .getByRole('radio', { name: setup })
+        .click();
+      const ids = await page
+        .locator('.lbl:not([hidden])')
+        .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.label ?? ''));
+      // A phone shows only a few labels at once; the rest wait, out of sight, for focus.
+      await page.locator('.lbl:not([hidden]) .lbl-btn').first().focus();
+      const reached: string[] = [];
+      for (let i = 0; i < ids.length; i++) {
+        if (i > 0) await page.keyboard.press('Tab');
+        const id = await page.evaluate(
+          () => document.activeElement?.closest<HTMLElement>('.lbl')?.dataset.label ?? '',
+        );
+        expect(id, `${setup}: tab ${String(i)} lands on a label`).not.toBe('');
+        reached.push(id);
+        const label = page.locator(`[data-label="${id}"]`);
+        await expect(label, `${setup}: ${id} shows`).not.toHaveClass(/\b(off|capped)\b/);
+        await expect(label).toHaveCSS('opacity', '1');
+        // The label and its definition both show in full, clear of every control.
+        const chrome = await page.$$eval('[data-chrome]', (els) =>
+          els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0),
+        );
+        const tip = label.getByRole('tooltip');
+        await expect(tip, `${setup}: ${id} definition`).toBeVisible();
+        for (const [part, locator] of [
+          ['label', label.locator('.lbl-btn')],
+          ['definition', tip],
+        ] as const) {
+          const box = await locator.boundingBox();
+          expect(box, `${setup}: ${id} ${part} has a box`).not.toBeNull();
+          if (!box) continue;
+          const at = `${setup}: ${id} ${part}`;
+          expect(box.x, at).toBeGreaterThanOrEqual(0);
+          expect(box.y, at).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width, at).toBeLessThanOrEqual(390);
+          expect(box.y + box.height, at).toBeLessThanOrEqual(844);
+          for (const c of chrome) {
+            const under =
+              box.x < c.right &&
+              box.x + box.width > c.left &&
+              box.y < c.bottom &&
+              box.y + box.height > c.top;
+            expect(under, `${at} under a control`).toBe(false);
+          }
+        }
+      }
+      expect([...reached].sort()).toEqual([...ids].sort());
+    }
   });
 });
 

@@ -1,6 +1,6 @@
 /**
  * A label on something in the 3D view. The scene's label layer positions it and owns its classes
- * (`off`, `compact`), so this component keeps its own state in data attributes. Hovering,
+ * (`off`, `compact`, `capped`), so this component keeps its own state in data attributes. Hovering,
  * focusing or tapping it shows a one-line definition, kept inside the view.
  */
 import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
@@ -9,7 +9,7 @@ import { APWA } from '../../design/apwa.ts';
 import { Icon } from '../../design/icons.tsx';
 import { useTip } from '../../design/useTip.ts';
 import type { SetupId } from '../../signal/model.ts';
-import type { LabelSpec } from './scene/labels.ts';
+import { CARRIER, type LabelSpec } from './scene/labels.ts';
 
 const GAP = 6;
 const EDGE = 8;
@@ -29,6 +29,8 @@ export function SceneLabel({
   const [place, setPlace] = useState({ shift: 0, above: false });
   const text = spec.text[setup];
 
+  // The tip goes below its label, or above it, wherever it stays inside the view and clear of the
+  // page's controls; it slides sideways to fit.
   useLayoutEffect(() => {
     const label = tip.ref.current;
     const box = label?.parentElement?.getBoundingClientRect();
@@ -36,16 +38,39 @@ export function SceneLabel({
     if (!tip.open || !label || !box || !t) return;
     const l = label.getBoundingClientRect();
     const width = t.offsetWidth;
+    const height = t.offsetHeight;
     const center = l.left + l.width / 2;
-    const left = Math.max(box.left + EDGE, Math.min(center - width / 2, box.right - EDGE - width));
-    const fitsBelow = l.bottom + GAP + t.offsetHeight <= box.bottom - EDGE;
-    setPlace({ shift: Math.round(left - (center - width / 2)), above: !fitsBelow });
+    const chrome = [...document.querySelectorAll('[data-chrome]')]
+      .map((e) => e.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0);
+    /** Where the tip's left edge goes with its top here, or null if it can't fit there. */
+    const fit = (top: number): number | null => {
+      if (top < box.top + EDGE || top + height > box.bottom - EDGE) return null;
+      let lo = box.left + EDGE;
+      let hi = box.right - EDGE;
+      for (const c of chrome) {
+        if (c.bottom <= top || c.top >= top + height) continue;
+        if (c.right <= center) lo = Math.max(lo, c.right + EDGE);
+        else if (c.left >= center) hi = Math.min(hi, c.left - EDGE);
+        else return null;
+      }
+      return hi - lo < width ? null : Math.max(lo, Math.min(center - width / 2, hi - width));
+    };
+    const below = fit(l.bottom + GAP);
+    const above = below === null ? fit(l.top - GAP - height) : null;
+    const left =
+      below ??
+      above ??
+      Math.max(box.left + EDGE, Math.min(center - width / 2, box.right - EDGE - width));
+    setPlace({ shift: Math.round(left - (center - width / 2)), above: above !== null });
   }, [tip.open, tip.ref]);
 
   return (
     <div
       class="lbl off"
       data-label={spec.id}
+      // What carries the signal is the label to read first.
+      data-tier={CARRIER[setup] === spec.id ? 'current' : 'context'}
       data-tip={tip.open ? 'open' : undefined}
       hidden={text === null}
       ref={(element) => {

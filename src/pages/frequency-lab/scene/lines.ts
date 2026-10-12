@@ -28,7 +28,7 @@ import {
 } from '../../../kit3d/geometry.ts';
 import { surface, tint, type SurfaceOptions } from '../../../kit3d/materials.ts';
 import type { SetupId } from '../../../signal/model.ts';
-import { HOOKUP, LEADS, LINES, PIPE_END, RISERS } from './layout.ts';
+import { DETAIL_END, HOOKUP, LEADS, LINES, PIPE_END, RISERS } from './layout.ts';
 
 function mesh(geometry: BufferGeometry, material: Material, cast = true): Mesh {
   const m = new Mesh(geometry, material);
@@ -245,9 +245,9 @@ export function buildSetup(setup: SetupId): Group {
           new SphereGeometry(m.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2)
             .rotateZ(Math.PI / 2)
             .translate(m.x0, m.y, 0),
-          // Couplings every 40 ft, on past the block.
+          // Couplings every 40 ft, on past the block until the fog closes in.
           ...Array.from(
-            { length: Math.floor((PIPE_END - 20) / 40) + 1 },
+            { length: Math.floor((DETAIL_END - 20) / 40) + 1 },
             (_, i) => 20 + i * 40,
           ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02, 0.05)),
         ]),

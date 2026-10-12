@@ -26,7 +26,7 @@ import {
 } from 'three';
 import type { SceneTokens } from '../design/tokens.ts';
 import { disposeObject } from './dispose.ts';
-import { Sky, directionFrom } from './sky.ts';
+import { Sky, directionFrom, screenColor } from './sky.ts';
 
 const ENV_VERTEX = /* glsl */ `
 varying vec3 vDir;
@@ -83,8 +83,17 @@ export interface Lighting {
   /** After a lost graphics context comes back: renders the environment again from scratch. */
   restore(tokens: SceneTokens): void;
   setShadowQuality(mapSize: number, radius: number): void;
+  /**
+   * After the camera is framed: centers the sky on it, and sets the fog so the farthest point the
+   * lesson needs, `farDistance` away, has the theme's share of fog over it, and the edge of the
+   * world, `edgeDistance` away, is all but hidden.
+   */
+  setViewpoint(camera: Vector3, farDistance: number, edgeDistance?: number): void;
   dispose(): void;
 }
+
+/** How much fog lies over the edge of the world, at the least. */
+const EDGE_FOG = 0.98;
 
 export interface LightingOptions {
   shadow: { mapSize: number; radius: number };
@@ -106,8 +115,22 @@ export function createLighting(
   const size = bounds.getSize(new Vector3());
 
   const sky = new Sky(skyRadius);
-  sky.mesh.position.copy(center);
+  sky.follow(center);
   scene.add(sky.mesh);
+  const fog = new FogExp2(0xffffff, 0.003);
+  let fogAtFar = tokens.fogAtFar;
+  let farDistance = Math.max(size.x, size.z);
+  let edgeDistance = Infinity;
+  /** FogExp2 hides a share f at distance d when density = sqrt(-ln(1 - f)) / d. */
+  const densityFor = (share: number, distance: number) =>
+    Math.sqrt(-Math.log(1 - share)) / Math.max(1, distance);
+  const applyFog = () => {
+    fog.density = Math.max(
+      densityFor(Math.min(0.95, fogAtFar), farDistance),
+      // Wherever the camera sits, the world's edge stays out of sight.
+      densityFor(EDGE_FOG, edgeDistance),
+    );
+  };
 
   const key = new DirectionalLight();
   key.castShadow = true;
@@ -149,7 +172,11 @@ export function createLighting(
     // The sky dome is the backdrop; the environment only lights.
     scene.background = null;
     scene.environmentIntensity = t.envIntensity * t.exposure;
-    scene.fog = new FogExp2(new Color(t.skyHorizon), t.fogDensity);
+    // Fully fogged distance shows exactly the sky's horizon, so the two meet without a seam.
+    screenColor(t.skyHorizon, fog.color);
+    fogAtFar = t.fogAtFar;
+    applyFog();
+    scene.fog = fog;
     sky.setTheme(t);
 
     directionFrom(t.key.azimuth, t.key.elevation, direction);
@@ -181,6 +208,12 @@ export function createLighting(
       setTheme(t);
     },
     setShadowQuality,
+    setViewpoint(camera: Vector3, far: number, edge = Infinity) {
+      sky.follow(camera);
+      farDistance = far;
+      edgeDistance = edge;
+      applyFog();
+    },
     dispose() {
       envTarget?.dispose();
       pmrem.dispose();

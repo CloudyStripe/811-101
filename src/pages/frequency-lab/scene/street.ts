@@ -18,13 +18,18 @@ import {
   type BufferGeometry,
   type Material,
 } from 'three';
-import { MATERIAL_COLORS as C } from '../../../design/tokens.ts';
+import { MATERIAL_COLORS as C, THEMES } from '../../../design/tokens.ts';
 import { merge, roundedBox } from '../../../kit3d/geometry.ts';
 import { surface, type NoiseOptions } from '../../../kit3d/materials.ts';
 import { mulberry32 } from '../../../kit3d/rng.ts';
 import {
   BLOCK,
+  CROSS_ROADWAYS,
+  CROSS_SECTION,
+  CROSS_STREETS,
+  DETAIL_END,
   DRIVEWAY,
+  GROUND,
   HOOKUP,
   HYDRANT,
   PATCH,
@@ -32,10 +37,16 @@ import {
   SURFACE,
   TRENCH,
   WORLD,
+  inCrossStreet,
+  roadwayOf,
+  spansBetween,
   type StratumName,
 } from './layout.ts';
 
-/** An axis-aligned slab between two corners, with softly rounded edges. */
+/**
+ * An axis-aligned slab between two corners, with softly rounded edges. Small, many parts (panels,
+ * seals, ink) need only one segment per edge: their rounding is a pixel or two on screen.
+ */
 function slab(
   x0: number,
   x1: number,
@@ -44,12 +55,62 @@ function slab(
   z0: number,
   z1: number,
   radius = 0.12,
+  segments = 3,
 ): BufferGeometry {
-  return roundedBox(x1 - x0, y1 - y0, z1 - z0, radius, [
-    (x0 + x1) / 2,
-    (y0 + y1) / 2,
-    (z0 + z1) / 2,
-  ]);
+  return roundedBox(
+    x1 - x0,
+    y1 - y0,
+    z1 - z0,
+    radius,
+    [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2],
+    segments,
+  );
+}
+
+/** A sidewalk panel's slab, its corners in any order. */
+function panel(x0: number, x1: number, z0: number, z1: number): BufferGeometry {
+  return slab(
+    Math.min(x0, x1),
+    Math.max(x0, x1),
+    0,
+    0.3,
+    Math.min(z0, z1),
+    Math.max(z0, z1),
+    0.06,
+    1,
+  );
+}
+
+/** Sidewalk along x in 5 ft panels with tooled joints, then one long run past DETAIL_END. */
+function panelsAlongX(x0: number, x1: number, z0: number, z1: number): BufferGeometry[] {
+  const parts: BufferGeometry[] = [];
+  let x = x0;
+  for (; x < Math.min(x1, DETAIL_END) - 0.1; x += 5) {
+    parts.push(panel(x + 0.03, Math.min(x + 5, x1) - 0.03, z0, z1));
+  }
+  if (x < x1 - 0.1) parts.push(panel(x + 0.03, x1, z0, z1));
+  return parts;
+}
+
+/**
+ * Sidewalk along z, from the main street back toward `to`: `count` jointed panels near the
+ * corner, where they're seen, then one long run into the fog.
+ */
+function panelsAlongZ(
+  x0: number,
+  x1: number,
+  from: number,
+  to: number,
+  count: number,
+): BufferGeometry[] {
+  const dir = Math.sign(to - from);
+  const parts: BufferGeometry[] = [];
+  let z = from;
+  for (let i = 0; i < count && Math.abs(to - z) > 5; i++, z += dir * 5) {
+    parts.push(panel(x0, x1, z + dir * 0.03, z + dir * 4.97));
+  }
+  parts.push(panel(x0, x1, z + dir * 0.03, to));
+  return parts;
 }
 
 function mesh(geometry: BufferGeometry, material: Material, cast = false): Mesh {
@@ -68,12 +129,25 @@ const STRATUM_LOOK: Record<StratumName, NoiseOptions> = {
   rock: { scale: 3.6, amount: 0.12, pebbles: { scale: 1.8, amount: 0.16 } },
 };
 
+/** A low-poly blob with smooth normals, so it shades soft rather than faceted. */
+function tuft(radius: number): BufferGeometry {
+  const geometry = new IcosahedronGeometry(radius, 0);
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const v = new Vector3();
+  for (let i = 0; i < position.count; i++) {
+    v.fromBufferAttribute(position, i).normalize();
+    normal.setXYZ(i, v.x, v.y, v.z);
+  }
+  return geometry;
+}
+
 /** Ink lines on the cut face, just in front of it: thin bars along x, or along y. */
 function inkAlongX(x0: number, x1: number, y: number, width = 0.09): BufferGeometry {
-  return slab(x0, x1, y - width / 2, y + width / 2, 0.0, 0.03, 0.01);
+  return slab(x0, x1, y - width / 2, y + width / 2, 0.0, 0.03, 0.01, 1);
 }
 function inkAlongY(x: number, y0: number, y1: number, width = 0.09): BufferGeometry {
-  return slab(x - width / 2, x + width / 2, y0, y1, 0.0, 0.03, 0.01);
+  return slab(x - width / 2, x + width / 2, y0, y1, 0.0, 0.03, 0.01, 1);
 }
 
 export interface Street {
@@ -121,7 +195,7 @@ export function buildStreet(): Street {
   );
 
   // Ink lines along every boundary on the face, the trench's edge, and the section's top and bottom.
-  const ink = new MeshBasicMaterial({ color: new Color('#2a2621') });
+  const ink = new MeshBasicMaterial({ color: new Color(THEMES.light.scene.edge) });
   const inkParts = [
     inkAlongX(X0, X1, -0.02),
     inkAlongX(X0, X1, BLOCK.bottom + 0.05, 0.12),
@@ -144,10 +218,17 @@ export function buildStreet(): Street {
   const asphalt = surface(C.asphalt, { roughness: 0.95, noise: { scale: 0.7, amount: 0.12 } });
   const seal = surface(C.asphaltSeal, { roughness: 0.6 });
 
+  // Where each strip runs: the main street's lawns, curbs and sidewalk stop at the cross streets,
+  // and its gutters stop at their roadways, so the corners' sidewalks meet the gutter flush.
+  const along = (cuts: readonly { x0: number; x1: number }[]) => spansBetween(X0, X1, cuts);
+  const verge = along([DRIVEWAY, ...CROSS_STREETS]);
+  const nearGutter = along([DRIVEWAY, ...CROSS_ROADWAYS]);
+  const farSide = along(CROSS_STREETS);
+  const farGutter = along(CROSS_ROADWAYS);
+
   const grassParts = [
-    slab(X0, DRIVEWAY.x0, 0, 0.12, SURFACE.vergeBack, 0),
-    slab(DRIVEWAY.x1, X1, 0, 0.12, SURFACE.vergeBack, 0),
-    slab(X0, X1, 0, 0.12, BLOCK.z0, SURFACE.sidewalkBack),
+    ...verge.map((s) => slab(s.x0, s.x1, 0, 0.12, SURFACE.vergeBack, 0)),
+    ...farSide.map((s) => slab(s.x0, s.x1, 0, 0.12, BLOCK.z0, SURFACE.sidewalkBack)),
   ];
   const concreteParts = [
     // Driveway apron with a curb cut; the patch fills its middle.
@@ -155,34 +236,55 @@ export function buildStreet(): Street {
     slab(PATCH.x1 + 0.03, DRIVEWAY.x1, 0, 0.3, SURFACE.vergeBack, 0),
     slab(DRIVEWAY.x0, DRIVEWAY.x1, -0.02, 0.24, SURFACE.gutterBack, SURFACE.vergeBack - 0.03),
     // Gutter pans.
-    slab(X0, DRIVEWAY.x0, -0.06, 0.06, SURFACE.gutterBack, SURFACE.curbBack),
-    slab(DRIVEWAY.x1, X1, -0.06, 0.06, SURFACE.gutterBack, SURFACE.curbBack),
-    slab(X0, X1, -0.06, 0.06, SURFACE.farGutterBack, SURFACE.streetBack),
+    ...nearGutter.map((s) =>
+      slab(s.x0, s.x1, -0.06, 0.06, SURFACE.gutterBack, SURFACE.curbBack, 0.12, 1),
+    ),
+    ...farGutter.map((s) =>
+      slab(s.x0, s.x1, -0.06, 0.06, SURFACE.farGutterBack, SURFACE.streetBack, 0.12, 1),
+    ),
+    // The far sidewalk.
+    ...farSide.flatMap((s) => panelsAlongX(s.x0, s.x1, SURFACE.sidewalkBack, SURFACE.farCurbBack)),
   ];
-  // Far sidewalk in 5 ft panels with tooled joints.
-  for (let x: number = X0; x < X1; x += 5) {
-    concreteParts.push(
-      slab(
-        x + 0.03,
-        Math.min(x + 5, X1) - 0.03,
-        0,
-        0.3,
-        SURFACE.sidewalkBack,
-        SURFACE.farCurbBack,
-        0.06,
-      ),
-    );
-  }
   const curbParts = [
-    slab(X0, DRIVEWAY.x0, 0, 0.5, SURFACE.curbBack, SURFACE.curbFront, 0.16),
-    slab(DRIVEWAY.x1, X1, 0, 0.5, SURFACE.curbBack, SURFACE.curbFront, 0.16),
-    slab(X0, X1, 0, 0.5, SURFACE.farCurbBack, SURFACE.farGutterBack, 0.16),
+    ...verge.map((s) => slab(s.x0, s.x1, 0, 0.5, SURFACE.curbBack, SURFACE.curbFront, 0.16)),
+    ...farSide.map((s) =>
+      slab(s.x0, s.x1, 0, 0.5, SURFACE.farCurbBack, SURFACE.farGutterBack, 0.16),
+    ),
   ];
   const asphaltParts = [
     slab(X0, X1, -0.12, 0.02, SURFACE.streetBack, SURFACE.gutterBack, 0.06),
     // An old trench patch in the street.
     slab(30, 38.5, -0.1, 0.035, -21, -13, 0.04),
   ];
+
+  // The cross streets: a sidewalk and curb down each side, from the cut face back to the main
+  // street's curb, and from its far curb back through the neighborhood into the fog.
+  const { sidewalk: walk, curb: curbWidth } = CROSS_SECTION;
+  for (const c of CROSS_STREETS) {
+    const road = roadwayOf(c);
+    asphaltParts.push(
+      slab(road.x0, road.x1, -0.12, 0.02, SURFACE.gutterBack, 0, 0.06),
+      slab(road.x0, road.x1, -0.12, 0.02, GROUND.z0, SURFACE.streetBack, 0.06),
+    );
+    for (const [x0, x1] of [
+      [c.x0, c.x0 + walk],
+      [c.x1 - walk, c.x1],
+    ] as const) {
+      concreteParts.push(
+        ...panelsAlongZ(x0, x1, 0, SURFACE.curbBack, 2),
+        ...panelsAlongZ(x0, x1, SURFACE.farGutterBack, GROUND.z0, 14),
+      );
+    }
+    for (const [x0, x1] of [
+      [road.x0 - curbWidth, road.x0],
+      [road.x1, road.x1 + curbWidth],
+    ] as const) {
+      curbParts.push(
+        slab(x0, x1, 0, 0.5, SURFACE.curbBack, 0, 0.16),
+        slab(x0, x1, 0, 0.5, GROUND.z0, SURFACE.farGutterBack, 0.16),
+      );
+    }
+  }
   // Crack-seal lines: thin, slightly raised, irregular.
   const rand = mulberry32(811);
   const sealParts: BufferGeometry[] = [];
@@ -246,11 +348,12 @@ export function buildStreet(): Street {
     ),
   );
 
-  // Grass: soft, low clumps rather than blades, seeded and instanced, thinned on lower tiers.
+  // Grass: soft, low tufts rather than blades, seeded and instanced, thinned on lower tiers. Smooth
+  // shading and the verge's own greens keep them a texture on the lawn, not spots on it.
   const clump = merge([
-    new IcosahedronGeometry(0.2, 0).scale(1, 0.55, 1).translate(0, 0.06, 0),
-    new IcosahedronGeometry(0.15, 0).scale(1, 0.6, 1).translate(0.17, 0.04, 0.05),
-    new IcosahedronGeometry(0.14, 0).scale(1, 0.6, 1).translate(-0.12, 0.04, -0.1),
+    tuft(0.2).scale(1, 0.42, 1).translate(0, 0.05, 0),
+    tuft(0.15).scale(1, 0.48, 1).translate(0.17, 0.03, 0.05),
+    tuft(0.14).scale(1, 0.48, 1).translate(-0.12, 0.03, -0.1),
   ]);
   const clumpMaterial = surface('#ffffff', { roughness: 1 });
   const positions: Vector3[] = [];
@@ -260,6 +363,7 @@ export function buildStreet(): Street {
       const x = x0 + rand() * (x1 - x0);
       const z = z0 + rand() * (z1 - z0);
       if (x > DRIVEWAY.x0 - 0.3 && x < DRIVEWAY.x1 + 0.3 && z > SURFACE.vergeBack) continue;
+      if (inCrossStreet(x, 0.3)) continue;
       if (CLUMP_AVOID.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
       positions.push(new Vector3(x, 0.1, z));
       placed++;
@@ -282,15 +386,15 @@ export function buildStreet(): Street {
   const q = new Quaternion();
   const s = new Vector3();
   const up = new Vector3(0, 1, 0);
-  const light = new Color(C.grass);
-  const dark = new Color(C.grassDark);
+  const light = new Color(C.grassLight);
+  const base = new Color(C.grass);
   const c = new Color();
   positions.forEach((p, i) => {
     q.setFromAxisAngle(up, rand() * Math.PI * 2);
     const k = 0.8 + rand() * 0.7;
     s.set(k, k * (0.8 + rand() * 0.4), k);
     clumps.setMatrixAt(i, m.compose(p, q, s));
-    clumps.setColorAt(i, c.copy(dark).lerp(light, 0.5 + rand() * 0.5));
+    clumps.setColorAt(i, c.copy(base).lerp(light, rand()));
   });
   clumps.receiveShadow = true;
   group.add(clumps);

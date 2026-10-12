@@ -197,7 +197,7 @@ for (const size of SIZES) {
       if (size.framed) {
         for (const id of ['transmitter', 'stake']) {
           await expect(page.locator(`[data-label="${id}"]`), `${id} label`).not.toHaveClass(
-            /\boff\b/,
+            /\b(off|capped)\b/,
           );
         }
       }
@@ -258,7 +258,7 @@ test.describe('rotating a phone', () => {
         await expect(
           page.locator(`[data-label="${id}"]`),
           `${id} label at ${String(width)}×${String(height)}`,
-        ).not.toHaveClass(/\boff\b/);
+        ).not.toHaveClass(/\b(off|capped)\b/);
       }
     }
   });

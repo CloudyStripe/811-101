@@ -2,7 +2,15 @@
  * The Frequency Lab's 3D scene: the street block, both setups, the signal effects and the
  * labels, behind a small API the UI drives.
  */
-import { Box3, HalfFloatType, PerspectiveCamera, Scene, Vector3, WebGLRenderTarget } from 'three';
+import {
+  Box3,
+  FogExp2,
+  HalfFloatType,
+  PerspectiveCamera,
+  Scene,
+  Vector3,
+  WebGLRenderTarget,
+} from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
 import { THEMES, type ThemeName } from '../../../design/tokens.ts';
 import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
@@ -24,7 +32,7 @@ import { labState, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, type LabelId } from './labels.ts';
 import { buildContactShadows } from './contact.ts';
-import { BLOCK, viewFor } from './layout.ts';
+import { BLOCK, MUST_SEE, WORLD_EDGE, viewFor } from './layout.ts';
 import { TransmitterScreen, buildSetup, buildShared, setLineGlow } from './lines.ts';
 import { SignalEffects } from './signal.ts';
 import { buildStreet } from './street.ts';
@@ -64,7 +72,7 @@ export interface LabScene {
   readonly tier: Tier;
   /** Re-measures labels and layout, e.g. after fonts load or the panel changes. */
   relayout(): void;
-  /** Re-places labels without touching the camera, e.g. when a label gains focus or a sheet opens. */
+  /** Places labels again, now, without touching the camera: when a label gains focus or a sheet opens. */
   refreshLabels(): void;
   dispose(): void;
 }
@@ -74,22 +82,19 @@ const FACE_NORMAL = new Vector3(0, 0, 1);
 /** What the transmitter's screen can show: the frequency it's set to. */
 const READINGS = FREQUENCIES.map(frequencyLabel);
 
-/** The label of what carries the signal: the steel main itself, or the plastic main's tracer wire. */
-const CARRIER: Record<SetupId, LabelId> = { steel: 'target', plastic: 'tracer' };
-
-/** How many labels may show at once: fewer on a phone, so the scene stays the hero. */
+/** How many labels may show at once in a free area this wide: fewer on a phone, so the scene leads. */
 const maxLabels = (width: number) => (width < 600 ? 4 : 7);
 
 function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[] {
   return LABEL_SPECS.flatMap((spec) => {
     const element = elements.get(spec.id);
     if (!element) return [];
-    element.dataset.tier = spec.id === CARRIER[setup] ? 'current' : 'context';
     return [
       {
         id: spec.id,
         element,
         anchor: new Vector3(...spec.anchor[setup]),
+        ...(spec.point ? { point: new Vector3(...spec.point[setup]) } : {}),
         priority: spec.priority,
         hidden: spec.text[setup] === null,
         ...(spec.onFace ? { facing: FACE_NORMAL } : {}),
@@ -117,7 +122,8 @@ async function buildLabScene(
 ): Promise<LabScene> {
   const scene = new Scene();
   const fxScene = new Scene();
-  const camera = new PerspectiveCamera(34, 1, 0.5, 900);
+  // Far enough that the fog, not the far plane, is what hides the distance.
+  const camera = new PerspectiveCamera(34, 1, 0.5, 2400);
   const depthUniforms = createDepthUniforms();
 
   let tier: Tier = o.tier === 'auto' ? 'medium' : o.tier;
@@ -145,7 +151,7 @@ async function buildLabScene(
           fx.setTime(animTime);
         }
         if (labelsDirty) {
-          labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
+          labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
           labelsDirty = false;
         }
         post.render(dt);
@@ -159,6 +165,7 @@ async function buildLabScene(
         const area = o.visibleArea();
         cam.setLayout(width, height, area);
         cam.frame(viewFor(area));
+        framed();
         post?.setSize(width, height);
         labelsDirty = true;
       },
@@ -224,6 +231,17 @@ async function buildLabScene(
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
   const hud = o.perf ? new PerfHud(document.body) : null;
+  const mustSee = MUST_SEE.map((p) => new Vector3(...p));
+  const worldEdge = new Vector3(...WORLD_EDGE);
+  /**
+   * After the camera moves: the sky follows it, and the fog is set by how far the lesson reaches,
+   * and so the world's far edge stays hidden.
+   */
+  function framed() {
+    const far = Math.max(...mustSee.map((p) => p.distanceTo(camera.position)));
+    lighting.setViewpoint(camera.position, far, worldEdge.distanceTo(camera.position));
+    if (scene.fog instanceof FogExp2) fx.setFogDensity(scene.fog.density);
+  }
 
   let shadowsFor: SetupId | null = null;
   let labelsFor_: SetupId | null = null;
@@ -335,6 +353,7 @@ async function buildLabScene(
   const firstPost = await buildPost(tier);
   swapPost(firstPost);
   cam.frame(viewFor(o.visibleArea()));
+  framed();
   await precompile();
   // The screen draws with its own font from the first frame. If the font is slow, it shows a
   // fallback and redraws when the font arrives.
@@ -353,7 +372,7 @@ async function buildLabScene(
 
   if (o.capture) {
     // One settled frame, then hold still for the screenshot.
-    labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
+    labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
     firstPost.render(1 / 60);
     stage.stop();
   }
@@ -375,6 +394,8 @@ async function buildLabScene(
       theme = next;
       const tokens = THEMES[theme].scene;
       lighting.setTheme(tokens);
+      // Each theme has its own share of fog; the signal fades with it.
+      framed();
       setLineGlow(scene, tokens.lineGlow);
       street.setEdge(tokens.edge);
       neighborhood.setTheme(tokens);
@@ -399,22 +420,19 @@ async function buildLabScene(
       }
     },
     refreshLabels() {
-      if (o.capture) {
-        // The loop has stopped; labels are HTML, so they can be placed without a new frame.
-        labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
-        return;
-      }
-      labelsDirty = true;
-      stage.requestFrame();
+      // Labels are HTML and the camera hasn't moved, so they're placed now, without waiting for a
+      // frame: a label just focused is where it belongs before anything measures it.
+      labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
     },
     relayout() {
       labels.measure();
       const area = o.visibleArea();
       cam.setLayout(stage.width, stage.height, area);
       cam.frame(viewFor(area));
+      framed();
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
-        labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
+        labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
         post?.render(1 / 60);
         return;
       }

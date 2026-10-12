@@ -48,12 +48,18 @@ export interface SceneTokens {
   skyZenith: string;
   /** Sky at the horizon; the fog fades into this. */
   skyHorizon: string;
-  /** Below the horizon, in front of the section: the paper it's drawn on. */
+  /**
+   * Below the horizon, in front of the section: the paper it's drawn on. The page's own color,
+   * so the scene sits on the page with no seam.
+   */
   paper: string;
-  /** A soft glow in the sky around the key light: the sun by day, the moon by night. */
+  /** A soft glow in the sky behind the scene, where the rim light comes from. */
   glow: string;
-  /** Exponential fog density, per scene unit (feet in the lab). */
-  fogDensity: number;
+  /**
+   * How much fog lies over the farthest point the lesson needs, from 0 to 1. The density follows
+   * from the camera's distance, so the far end reads the same at every size.
+   */
+  fogAtFar: number;
   /** The key light (sun or moon), the only one that casts shadows. */
   key: DirectionalTokens;
   /** Sky and ground fill. */
@@ -76,10 +82,13 @@ export interface Theme {
   scene: SceneTokens;
 }
 
+/** The page in each theme: the chrome's background, and the paper the 3D section stands on. */
+const PAGE = { light: '#f2efe9', dark: '#111315' } as const;
+
 export const THEMES: Record<ThemeName, Theme> = {
   light: {
     chrome: {
-      bg: '#f2efe9',
+      bg: PAGE.light,
       surface: '#fbfaf7',
       surface2: '#ece8e0',
       ink: '#1b1a17',
@@ -93,9 +102,9 @@ export const THEMES: Record<ThemeName, Theme> = {
     scene: {
       skyZenith: '#c4d4de',
       skyHorizon: '#ece8df',
-      paper: '#f2efe9',
+      paper: PAGE.light,
       glow: '#fff3da',
-      fogDensity: 0.0032,
+      fogAtFar: 0.14,
       key: { color: '#fff0d8', intensity: 3.0, azimuth: -40, elevation: 40 },
       hemisphere: { sky: '#dfe8ee', ground: '#b9a88e', intensity: 0.45 },
       rim: { color: '#fff8ec', intensity: 0.7, azimuth: 150, elevation: 24 },
@@ -108,7 +117,7 @@ export const THEMES: Record<ThemeName, Theme> = {
   },
   dark: {
     chrome: {
-      bg: '#111315',
+      bg: PAGE.dark,
       surface: '#181b1e',
       surface2: '#20242a',
       ink: '#ece9e2',
@@ -122,14 +131,14 @@ export const THEMES: Record<ThemeName, Theme> = {
     scene: {
       skyZenith: '#0a0f14',
       skyHorizon: '#1c2630',
-      paper: '#111315',
+      paper: PAGE.dark,
       glow: '#8fa8c8',
-      fogDensity: 0.0036,
+      fogAtFar: 0.18,
       key: { color: '#b9cbe8', intensity: 1.7, azimuth: 30, elevation: 52 },
-      hemisphere: { sky: '#3a4d63', ground: '#2b2622', intensity: 0.85 },
+      hemisphere: { sky: '#3a4d63', ground: '#3a332c', intensity: 0.85 },
       rim: { color: '#8db0dc', intensity: 1.1, azimuth: 160, elevation: 22 },
       envIntensity: 0.5,
-      exposure: 1.3,
+      exposure: 1.4,
       lineGlow: 0.22,
       lamps: 1,
       edge: '#9c968b',
@@ -144,12 +153,14 @@ export const THEMES: Record<ThemeName, Theme> = {
 export const MATERIAL_COLORS = {
   topsoil: '#5f4532',
   subsoil: '#86684b',
-  clay: '#a27a5b',
+  // A cool, dusty clay: well clear of the telecom cable's orange, one layer up.
+  clay: '#9a8069',
   gravel: '#8f897e',
   rock: '#686460',
   backfill: '#ab9677',
-  grass: '#8a9a66',
-  grassDark: '#66764c',
+  grass: '#8c9870',
+  // Tufts on the verge: a little lighter than it, so they read as texture, not as spots.
+  grassLight: '#99a47c',
   concrete: '#cdc8be',
   concreteNew: '#e2ddd3',
   curb: '#c2bcb1',
@@ -163,8 +174,8 @@ export const MATERIAL_COLORS = {
 
 /** The world around the block: homes, trees and street lights, all as muted as the block. */
 export const WORLD_COLORS = {
-  lawn: '#87966a',
-  foliage: '#6f7f57',
+  lawn: '#88946f',
+  foliage: '#717e5c',
   foliageDark: '#58664a',
   trunk: '#6e5a48',
   walls: ['#cfc8bb', '#c3bbad', '#d4cdc1', '#bdb5a8'],
@@ -174,7 +185,11 @@ export const WORLD_COLORS = {
   windowLit: '#ffd9a0',
   pole: '#7b7f84',
   lamp: '#fff1d6',
+  lampHousing: '#3f4246',
 } as const;
+
+/** Icon ink on APWA color chips: dark on every chip, in both themes. */
+export const CHIP_INK = '#1b1a17';
 
 /**
  * The locate signal's own color: a luminous cyan, chosen to sit well away from every APWA hue
@@ -213,7 +228,7 @@ export function tokensCss(): string {
   const dark = chromeVars(THEMES.dark.chrome, 'dark');
   const shared = [
     `--font-display: ${TYPE.display}; --font-body: ${TYPE.body}; --font-mono: ${TYPE.mono};`,
-    `--signal: ${SIGNAL_COLOR};`,
+    `--signal: ${SIGNAL_COLOR}; --chip-ink: ${CHIP_INK}; --soil: ${MATERIAL_COLORS.subsoil};`,
     `--space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;`,
     `--radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-pill: 999px;`,
     `--dur-fast: 120ms; --dur: 220ms; --dur-slow: 360ms; --ease: cubic-bezier(0.2, 0.8, 0.2, 1);`,

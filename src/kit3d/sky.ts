@@ -5,6 +5,17 @@
  */
 import { BackSide, Color, Mesh, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
 import type { SceneTokens } from '../design/tokens.ts';
+import { inversePbrNeutral } from './tonemap.ts';
+
+/**
+ * The color to draw so the screen shows `hex` after tone mapping. Backdrops that must match the
+ * page (sky, fog, paper) are drawn through this; lit surfaces aren't.
+ */
+export function screenColor(hex: string, out = new Color()): Color {
+  const c = out.set(hex);
+  const [r, g, b] = inversePbrNeutral([c.r, c.g, c.b]);
+  return out.setRGB(r, g, b);
+}
 
 /** A unit vector from a light's azimuth (degrees from the scene's front, toward +x) and elevation. */
 export function directionFrom(azimuth: number, elevation: number, out = new Vector3()): Vector3 {
@@ -63,11 +74,18 @@ export class Sky {
     this.mesh.frustumCulled = false;
   }
 
+  /** Centers the dome on the camera, so it's always inside the far plane, however far back the camera sits. */
+  follow(position: Vector3): void {
+    this.mesh.position.copy(position);
+    this.mesh.updateMatrixWorld();
+  }
+
   setTheme(t: SceneTokens): void {
     const u = this.material.uniforms as Record<string, { value: Color | Vector3 }>;
-    (u.zenith?.value as Color).set(t.skyZenith);
-    (u.horizon?.value as Color).set(t.skyHorizon);
-    (u.paper?.value as Color).set(t.paper);
+    screenColor(t.skyZenith, u.zenith?.value as Color);
+    screenColor(t.skyHorizon, u.horizon?.value as Color);
+    screenColor(t.paper, u.paper?.value as Color);
+    // The glow adds to the sky, so it's a light, not a color to match.
     (u.glow?.value as Color).set(t.glow);
     directionFrom(t.rim.azimuth, t.rim.elevation, u.glowDir?.value as Vector3);
   }
