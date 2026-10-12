@@ -1,6 +1,6 @@
 /**
- * Load budgets for the Frequency Lab page, measured from the production build (gzip level 9,
- * fonts as shipped). Fails when anything is over budget.
+ * Load budgets for each page, measured from the production build (gzip level 9; fonts and
+ * images as shipped). Fails when anything is over budget.
  */
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -15,21 +15,11 @@ interface ManifestChunk {
   imports?: string[];
   dynamicImports?: string[];
   css?: string[];
+  assets?: string[];
 }
 type Manifest = Record<string, ManifestChunk>;
 
 const KB = 1024;
-const BUDGETS = {
-  'Initial JS': 50 * KB,
-  CSS: 30 * KB,
-  'Fonts (latin)': 200 * KB,
-  '3D vendor': 240 * KB,
-  n8ao: 85 * KB,
-  'Scene code': 70 * KB,
-  'First visit total': 750 * KB,
-} as const;
-type Item = keyof typeof BUDGETS;
-
 const dist = resolve('dist');
 const manifest = JSON.parse(
   await readFile(resolve(dist, '.vite/manifest.json'), 'utf8'),
@@ -37,11 +27,19 @@ const manifest = JSON.parse(
 
 const gzip = async (file: string) =>
   gzipSync(await readFile(resolve(dist, file)), { level: 9 }).length;
+const size = async (file: string) => (await stat(resolve(dist, file))).size;
 const chunk = (key: string): ManifestChunk => {
   const c = manifest[key];
   if (!c) throw new Error(`Missing manifest entry ${key}`);
   return c;
 };
+
+/** Adds up a measure (gzip or size) over files. */
+async function total(files: Iterable<string>, measure: (file: string) => Promise<number>) {
+  let sum = 0;
+  for (const f of files) sum += await measure(f);
+  return sum;
+}
 
 /** A chunk plus everything it imports statically. */
 function staticClosure(key: string, into = new Set<string>()): Set<string> {
@@ -51,70 +49,126 @@ function staticClosure(key: string, into = new Set<string>()): Set<string> {
   return into;
 }
 
-const entryKey = Object.keys(manifest).find(
-  (k) => chunk(k).isEntry && k.endsWith('training/frequency-lab/index.html'),
-);
-if (!entryKey) throw new Error('No Frequency Lab entry in the build manifest');
-
-const initial = staticClosure(entryKey);
-const lazy = new Set<string>();
-const queue = [...initial].flatMap((k) => chunk(k).dynamicImports ?? []);
-while (queue.length) {
-  const key = queue.pop();
-  if (key === undefined || initial.has(key) || lazy.has(key)) continue;
-  for (const k of staticClosure(key)) {
-    if (!initial.has(k) && !lazy.has(k)) {
-      lazy.add(k);
-      queue.push(...(chunk(k).dynamicImports ?? []));
+/** Chunks a page loads later, on demand: everything its dynamic imports pull in. */
+function lazyClosure(initial: Set<string>): Set<string> {
+  const lazy = new Set<string>();
+  const queue = [...initial].flatMap((k) => chunk(k).dynamicImports ?? []);
+  while (queue.length) {
+    const key = queue.pop();
+    if (key === undefined || initial.has(key) || lazy.has(key)) continue;
+    for (const k of staticClosure(key)) {
+      if (!initial.has(k) && !lazy.has(k)) {
+        lazy.add(k);
+        queue.push(...(chunk(k).dynamicImports ?? []));
+      }
     }
   }
+  return lazy;
 }
 
-const sizes: Record<Item, number> = {
-  'Initial JS': 0,
-  CSS: 0,
-  'Fonts (latin)': 0,
-  '3D vendor': 0,
-  n8ao: 0,
-  'Scene code': 0,
-  'First visit total': 0,
-};
-
-for (const k of initial) sizes['Initial JS'] += await gzip(chunk(k).file);
-for (const k of lazy) {
-  const c = chunk(k);
-  const size = await gzip(c.file);
-  if (c.src?.includes('node_modules/n8ao/')) sizes.n8ao += size;
-  else if (c.name === 'vendor-3d') sizes['3D vendor'] += size;
-  else sizes['Scene code'] += size;
-}
-const cssFiles = new Set([...initial, ...lazy].flatMap((k) => chunk(k).css ?? []));
-for (const f of cssFiles) sizes.CSS += await gzip(f);
-
-// Browsers fetch only the subsets a page's text needs: count the latin files, not latin-ext.
-const assets = await readdir(resolve(dist, 'assets'));
-for (const f of assets.filter((a) => /-latin-(?!ext)[\w-]*\.woff2$/.test(a))) {
-  sizes['Fonts (latin)'] += (await stat(resolve(dist, 'assets', f))).size;
+/**
+ * Latin font files a page's CSS points to. Browsers fetch only the subsets a page's text needs,
+ * so latin-ext and other subsets aren't counted.
+ */
+async function latinFonts(cssFiles: Iterable<string>): Promise<Set<string>> {
+  const fonts = new Set<string>();
+  const assets = new Set(await readdir(resolve(dist, 'assets')));
+  for (const css of cssFiles) {
+    const text = await readFile(resolve(dist, css), 'utf8');
+    // URLs carry the site's base path and may be quoted; the file name is what matters.
+    for (const [, name] of text.matchAll(
+      /url\(\s*["']?(?:[^)"']*\/)?([\w.-]+-latin-(?!ext)[\w-]*\.woff2)["']?\s*\)/g,
+    )) {
+      if (name && assets.has(name)) fonts.add(`assets/${name}`);
+    }
+  }
+  // Every page uses the site's fonts; finding none means this script has stopped reading them.
+  if (fonts.size === 0) throw new Error('Found no latin fonts in a page’s CSS');
+  return fonts;
 }
 
-const html = await gzip('training/frequency-lab/index.html');
-sizes['First visit total'] =
-  html +
-  sizes['Initial JS'] +
-  sizes.CSS +
-  sizes['Fonts (latin)'] +
-  sizes['3D vendor'] +
-  sizes.n8ao +
-  sizes['Scene code'];
+/** What every page loads: its HTML, the JS it starts with, and its CSS and fonts. */
+async function measure(html: string) {
+  if (!manifest[html]?.isEntry) throw new Error(`No entry for ${html} in the build manifest`);
+  const initial = staticClosure(html);
+  const lazy = lazyClosure(initial);
+  const jsFiles = [...initial].map((k) => chunk(k).file);
+  const cssFiles = new Set([...initial, ...lazy].flatMap((k) => chunk(k).css ?? []));
+  return {
+    initial,
+    lazy,
+    html: await gzip(html),
+    js: await total(jsFiles, gzip),
+    css: await total(cssFiles, gzip),
+    fonts: await total(await latinFonts(cssFiles), size),
+  };
+}
 
-const items = Object.keys(BUDGETS) as Item[];
+interface Row {
+  item: string;
+  bytes: number;
+  budget: number;
+}
+
+async function portalRows(): Promise<Row[]> {
+  const page = await measure('index.html');
+  const imageFiles = new Set(
+    [...page.initial]
+      .flatMap((k) => chunk(k).assets ?? [])
+      .filter((f) => /\.(jpe?g|png|webp|avif)$/.test(f)),
+  );
+  const images = await total(imageFiles, size);
+  return [
+    { item: 'Portal: JS', bytes: page.js, budget: 30 * KB },
+    { item: 'Portal: CSS', bytes: page.css, budget: 15 * KB },
+    { item: 'Portal: fonts', bytes: page.fonts, budget: 150 * KB },
+    { item: 'Portal: images', bytes: images, budget: 150 * KB },
+    {
+      item: 'Portal: first visit',
+      bytes: page.html + page.js + page.css + page.fonts + images,
+      budget: 350 * KB,
+    },
+  ];
+}
+
+async function labRows(): Promise<Row[]> {
+  const page = await measure('training/frequency-lab/index.html');
+  let vendor = 0;
+  let ao = 0;
+  let scene = 0;
+  for (const k of page.lazy) {
+    const c = chunk(k);
+    const bytes = await gzip(c.file);
+    if (c.src?.includes('node_modules/n8ao/')) ao += bytes;
+    else if (c.name === 'vendor-3d') vendor += bytes;
+    else scene += bytes;
+  }
+  return [
+    { item: 'Lab: initial JS', bytes: page.js, budget: 50 * KB },
+    { item: 'Lab: CSS', bytes: page.css, budget: 30 * KB },
+    { item: 'Lab: fonts', bytes: page.fonts, budget: 200 * KB },
+    { item: 'Lab: 3D vendor', bytes: vendor, budget: 240 * KB },
+    { item: 'Lab: n8ao', bytes: ao, budget: 85 * KB },
+    { item: 'Lab: scene code', bytes: scene, budget: 70 * KB },
+    {
+      item: 'Lab: first visit',
+      bytes: page.html + page.js + page.css + page.fonts + vendor + ao + scene,
+      budget: 750 * KB,
+    },
+  ];
+}
+
+const rows = [...(await portalRows()), ...(await labRows())];
 const kb = (n: number) => `${(n / KB).toFixed(1)} KB`;
-const rows = items.map((item) => {
-  const flag = sizes[item] > BUDGETS[item] ? 'OVER' : ' ok ';
-  return `${flag}  ${item.padEnd(18)} ${kb(sizes[item]).padStart(10)}  / ${kb(BUDGETS[item])}`;
-});
-console.log(rows.join('\n'));
-if (items.some((item) => sizes[item] > BUDGETS[item])) {
+console.log(
+  rows
+    .map((r) => {
+      const flag = r.bytes > r.budget ? 'OVER' : ' ok ';
+      return `${flag}  ${r.item.padEnd(20)} ${kb(r.bytes).padStart(10)}  / ${kb(r.budget)}`;
+    })
+    .join('\n'),
+);
+if (rows.some((r) => r.bytes > r.budget)) {
   console.error('\nOver budget.');
   process.exit(1);
 }

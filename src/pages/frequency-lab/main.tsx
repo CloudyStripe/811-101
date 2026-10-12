@@ -8,7 +8,7 @@ import '../../design/base.css';
 import './lab.css';
 import { render } from 'preact';
 import { App } from './App.tsx';
-import { applyToDocument, loadSettings } from './settings.ts';
+import { applyToDocument, loadSettings } from '../../site/settings.ts';
 
 applyToDocument(loadSettings());
 

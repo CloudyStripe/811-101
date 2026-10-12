@@ -1,11 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 
-/** Hosts the legacy root page still loads from. Only that page may use them, until it's ported. */
-export const LEGACY_ROOT_HOSTS = [
-  'cdnjs.cloudflare.com',
-  'fonts.googleapis.com',
-  'fonts.gstatic.com',
-];
+/** Hosts the original diorama still loads from. Only that page may use them, until it's ported. */
+export const DIORAMA_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 interface Problems {
   /** Hosts a page may contact besides its own origin. Empty for every new page. */
@@ -13,8 +9,8 @@ interface Problems {
 }
 
 /**
- * Every test fails on any console error or warning, uncaught page error, failed request, or
- * request to another origin (no CDNs).
+ * Every test fails on any console error or warning, uncaught page error, failed request, request
+ * to another origin (no CDNs), or page that loads as an error.
  */
 export const test = base.extend<Problems>({
   allowHosts: [[], { option: true }],
@@ -35,6 +31,12 @@ export const test = base.extend<Problems>({
       if (url.protocol === 'data:' || url.protocol === 'blob:') return;
       if (url.origin !== origin && !allowHosts.includes(url.hostname)) {
         problems.push(`cross-origin request: ${req.url()}`);
+      }
+    });
+    // A link to a page that isn't there loads an error page, not a failed request.
+    page.on('response', (res) => {
+      if (res.request().isNavigationRequest() && res.status() >= 400) {
+        problems.push(`page not found: ${res.url()} (${String(res.status())})`);
       }
     });
     await use(page);
