@@ -110,4 +110,4 @@ In the field, the color is the code.
 ## Git
 
 - **Work:** one branch per phase and small commits. Commit messages end with the `Co-Authored-By` line.
-- **The diorama** (`utilities/gas-petroleum/index.html`) is published byte-for-byte, and the deploy checks it. Leave it as it is, apart from its link back to the portal, until it's rebuilt to the lab's standard.
+- **The diorama** (`utilities/gas-petroleum/index.html`) is published byte-for-byte, and the deploy checks it. Its text follows the content rules: a few plain sentences per stop, no figures (the time-lapse's clock aside) and no side trips; `tests/e2e/diorama.spec.ts` checks it. Beyond its link back to the portal and content edits the owner asks for, leave it alone until it's rebuilt to the lab's standard.

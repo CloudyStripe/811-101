@@ -1,7 +1,35 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
 /** Hosts the original diorama still loads from. Only that page may use them, until it's ported. */
 export const DIORAMA_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+
+/** The parts of the diorama's test hook (`window.__app`, with #debug in the URL) that tests read. */
+export interface DioramaApp {
+  camera: { position: { x: number; y: number; z: number } };
+  STAGES: {
+    id: string;
+    label: string;
+    title: string;
+    text: string;
+    note?: string;
+    safety?: string;
+    terms?: Record<string, string>;
+  }[];
+  OVERVIEW: { title: string; text: string };
+  GLOSSARY: Record<string, string>;
+  /** For each tour: [question, options, index of the right option, explanation]. */
+  QUIZZES: Record<string, [string, string[], number, string][]>;
+  /** [millions of years ago, caption]. */
+  TIMELAPSE: [number, string][];
+}
+export type DioramaWindow = Window & { __app?: DioramaApp };
+
+/** Opens the diorama and waits for its scripts and fonts, so leaving never cuts them short. */
+export async function openDiorama(page: Page, hash = ''): Promise<void> {
+  await page.goto(`utilities/gas-petroleum/${hash}`);
+  await expect(page.getByRole('heading', { name: 'Two fuels, one beginning' })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+}
 
 interface Problems {
   /** Hosts a page may contact besides its own origin. Empty for every new page. */

@@ -78,7 +78,7 @@ test('the portal opens the Frequency Lab, and the lab comes back', async ({ page
 test.describe('the diorama', () => {
   test.use({ allowHosts: DIORAMA_HOSTS });
 
-  test('is the original, now under Utility Education, and comes back', async ({ page }) => {
+  test('opens from Utility Education, and comes back', async ({ page }) => {
     await openPortal(page);
     await page.getByRole('link', { name: 'Gas & Petroleum', exact: true }).click();
     await expect(page).toHaveURL(/\/utilities\/gas-petroleum\/$/);
