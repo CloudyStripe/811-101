@@ -10,6 +10,8 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 
 /** The original diorama, published as it is: copied byte-for-byte and never processed. */
 const DIORAMA = 'utilities/gas-petroleum/index.html';
+/** The Frequency Lab's page, the only built page that loads the 3D code. */
+const LAB = 'training/frequency-lab/index.html';
 
 /** Serves the design tokens as a CSS module, so CSS, the 3D scene and the tests share one source. */
 function tokens(): Plugin {
@@ -76,7 +78,7 @@ function preload3d(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(_html, ctx) {
-        if (!ctx.path.endsWith('training/frequency-lab/index.html')) return [];
+        if (!ctx.path.endsWith(LAB)) return [];
         return Object.values(ctx.bundle ?? {})
           .filter((c) => c.type === 'chunk' && (c.name === 'vendor-3d' || c.name === 'scene'))
           .map((c) => ({
@@ -102,7 +104,7 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         portal: resolve(root, 'index.html'),
-        'frequency-lab': resolve(root, 'training/frequency-lab/index.html'),
+        'frequency-lab': resolve(root, LAB),
       },
       output: {
         codeSplitting: {

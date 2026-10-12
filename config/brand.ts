@@ -14,7 +14,10 @@ const escapeHtml = (text: string) =>
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
 
-/** Fills %BRAND_NAME% and %BRAND_TAGLINE% in a page's HTML; the build runs it on every page. */
+/**
+ * Fills %BRAND_NAME% and %BRAND_TAGLINE% in a page's HTML. vite.config.ts runs it on every page
+ * Vite serves or builds.
+ */
 export function fillBrand(html: string): string {
   return html
     .replaceAll('%BRAND_NAME%', escapeHtml(BRAND.name))

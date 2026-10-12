@@ -8,6 +8,7 @@
 import { writeFile } from 'node:fs/promises';
 import { chromium, type Page } from '@playwright/test';
 import { createServer } from 'vite';
+import type { Lesson } from '../content/portal.ts';
 
 const PORT = 5199;
 const BASE = `http://localhost:${String(PORT)}/811-101/`;
@@ -17,7 +18,8 @@ const VIEWPORT = { width: 1280, height: 720 };
 const WIDTH = 960;
 
 interface Shot {
-  name: string;
+  /** The lesson image it makes, saved as <name>.jpg. */
+  name: Lesson['image'];
   path: string;
   /** Gets the view ready: waits for it to load and puts away anything open over it. */
   ready: (page: Page) => Promise<void>;

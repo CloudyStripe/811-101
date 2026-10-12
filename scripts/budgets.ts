@@ -34,6 +34,13 @@ const chunk = (key: string): ManifestChunk => {
   return c;
 };
 
+/** Adds up a measure (gzip or size) over files. */
+async function total(files: Iterable<string>, measure: (file: string) => Promise<number>) {
+  let sum = 0;
+  for (const f of files) sum += await measure(f);
+  return sum;
+}
+
 /** A chunk plus everything it imports statically. */
 function staticClosure(key: string, into = new Set<string>()): Set<string> {
   if (into.has(key)) return into;
@@ -59,12 +66,6 @@ function lazyClosure(initial: Set<string>): Set<string> {
   return lazy;
 }
 
-function entryFor(html: string): string {
-  const key = Object.keys(manifest).find((k) => chunk(k).isEntry && k === html);
-  if (!key) throw new Error(`No entry for ${html} in the build manifest`);
-  return key;
-}
-
 /**
  * Latin font files a page's CSS points to. Browsers fetch only the subsets a page's text needs,
  * so latin-ext and other subsets aren't counted.
@@ -86,68 +87,74 @@ async function latinFonts(cssFiles: Iterable<string>): Promise<Set<string>> {
   return fonts;
 }
 
+/** What every page loads: its HTML, the JS it starts with, and its CSS and fonts. */
+async function measure(html: string) {
+  if (!manifest[html]?.isEntry) throw new Error(`No entry for ${html} in the build manifest`);
+  const initial = staticClosure(html);
+  const lazy = lazyClosure(initial);
+  const jsFiles = [...initial].map((k) => chunk(k).file);
+  const cssFiles = new Set([...initial, ...lazy].flatMap((k) => chunk(k).css ?? []));
+  return {
+    initial,
+    lazy,
+    html: await gzip(html),
+    js: await total(jsFiles, gzip),
+    css: await total(cssFiles, gzip),
+    fonts: await total(await latinFonts(cssFiles), size),
+  };
+}
+
 interface Row {
   item: string;
   bytes: number;
   budget: number;
 }
 
+async function portalRows(): Promise<Row[]> {
+  const page = await measure('index.html');
+  const imageFiles = new Set(
+    [...page.initial]
+      .flatMap((k) => chunk(k).assets ?? [])
+      .filter((f) => /\.(jpe?g|png|webp|avif)$/.test(f)),
+  );
+  const images = await total(imageFiles, size);
+  return [
+    { item: 'Portal: JS', bytes: page.js, budget: 30 * KB },
+    { item: 'Portal: CSS', bytes: page.css, budget: 15 * KB },
+    { item: 'Portal: fonts', bytes: page.fonts, budget: 150 * KB },
+    { item: 'Portal: images', bytes: images, budget: 150 * KB },
+    {
+      item: 'Portal: first visit',
+      bytes: page.html + page.js + page.css + page.fonts + images,
+      budget: 350 * KB,
+    },
+  ];
+}
+
 async function labRows(): Promise<Row[]> {
-  const initial = staticClosure(entryFor('training/frequency-lab/index.html'));
-  const lazy = lazyClosure(initial);
-  let js = 0;
+  const page = await measure('training/frequency-lab/index.html');
   let vendor = 0;
   let ao = 0;
   let scene = 0;
-  for (const k of initial) js += await gzip(chunk(k).file);
-  for (const k of lazy) {
+  for (const k of page.lazy) {
     const c = chunk(k);
     const bytes = await gzip(c.file);
     if (c.src?.includes('node_modules/n8ao/')) ao += bytes;
     else if (c.name === 'vendor-3d') vendor += bytes;
     else scene += bytes;
   }
-  const cssFiles = new Set([...initial, ...lazy].flatMap((k) => chunk(k).css ?? []));
-  let css = 0;
-  for (const f of cssFiles) css += await gzip(f);
-  let fonts = 0;
-  for (const f of await latinFonts(cssFiles)) fonts += await size(f);
-  const html = await gzip('training/frequency-lab/index.html');
   return [
-    { item: 'Lab: initial JS', bytes: js, budget: 50 * KB },
-    { item: 'Lab: CSS', bytes: css, budget: 30 * KB },
-    { item: 'Lab: fonts', bytes: fonts, budget: 200 * KB },
+    { item: 'Lab: initial JS', bytes: page.js, budget: 50 * KB },
+    { item: 'Lab: CSS', bytes: page.css, budget: 30 * KB },
+    { item: 'Lab: fonts', bytes: page.fonts, budget: 200 * KB },
     { item: 'Lab: 3D vendor', bytes: vendor, budget: 240 * KB },
     { item: 'Lab: n8ao', bytes: ao, budget: 85 * KB },
     { item: 'Lab: scene code', bytes: scene, budget: 70 * KB },
     {
       item: 'Lab: first visit',
-      bytes: html + js + css + fonts + vendor + ao + scene,
+      bytes: page.html + page.js + page.css + page.fonts + vendor + ao + scene,
       budget: 750 * KB,
     },
-  ];
-}
-
-async function portalRows(): Promise<Row[]> {
-  const initial = staticClosure(entryFor('index.html'));
-  let js = 0;
-  for (const k of initial) js += await gzip(chunk(k).file);
-  const cssFiles = new Set([...initial].flatMap((k) => chunk(k).css ?? []));
-  let css = 0;
-  for (const f of cssFiles) css += await gzip(f);
-  let fonts = 0;
-  for (const f of await latinFonts(cssFiles)) fonts += await size(f);
-  let images = 0;
-  for (const f of new Set([...initial].flatMap((k) => chunk(k).assets ?? []))) {
-    if (/\.(jpe?g|png|webp|avif)$/.test(f)) images += await size(f);
-  }
-  const html = await gzip('index.html');
-  return [
-    { item: 'Portal: JS', bytes: js, budget: 30 * KB },
-    { item: 'Portal: CSS', bytes: css, budget: 15 * KB },
-    { item: 'Portal: fonts', bytes: fonts, budget: 150 * KB },
-    { item: 'Portal: images', bytes: images, budget: 150 * KB },
-    { item: 'Portal: first visit', bytes: html + js + css + fonts + images, budget: 350 * KB },
   ];
 }
 

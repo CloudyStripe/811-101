@@ -14,7 +14,6 @@ import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
 async function openPortal(page: Page) {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: BRAND.name, level: 1 })).toBeVisible();
-  await page.waitForLoadState('load');
   await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
 }
 
@@ -69,7 +68,7 @@ test('the portal opens the Frequency Lab, and the lab comes back', async ({ page
   await expect(page).toHaveURL(/\/training\/frequency-lab\/(\?|$)/);
   // Leaving before the lab's 3D code arrives would cut those requests short.
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
-    timeout: 90_000,
+    timeout: 60_000,
   });
   await page.getByRole('link', { name: 'All lessons' }).click();
   await expect(page).toHaveURL(PORTAL_URL);

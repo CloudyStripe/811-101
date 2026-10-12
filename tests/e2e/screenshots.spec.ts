@@ -144,7 +144,6 @@ for (const theme of ['light', 'dark'] as const) {
 
       test('the whole page', async ({ page }) => {
         await page.goto('./');
-        await page.waitForLoadState('load');
         // Every preview decoded, so none is captured blank.
         await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
         await page.screenshot({
