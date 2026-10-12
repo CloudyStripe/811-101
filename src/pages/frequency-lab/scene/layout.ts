@@ -9,7 +9,16 @@ import type { View, VisibleArea } from '../../../kit3d/camera.ts';
 
 const BLOCK_END = GEOMETRY.blockLengthFt.value + 6;
 
-export const BLOCK = { x0: -34, x1: BLOCK_END, z0: -40, z1: 0, bottom: -9 } as const;
+export const BLOCK = { x0: -34, x1: BLOCK_END, z0: -40, z1: 0, bottom: -10 } as const;
+
+/**
+ * The section doesn't stop at the block: the street, its layers and its lines run on into the fog
+ * both ways, so the block reads as part of a town, not a slab floating in space.
+ */
+export const WORLD = { x0: -170, x1: 760 } as const;
+
+/** Pipes and cables are drawn on past the block, into the fog; the signal is modeled only on the block. */
+export const PIPE_END = WORLD.x1;
 
 /** Front to back: grass verge over the lines, curb and gutter, street, far curb, sidewalk, lawn. */
 export const SURFACE = {
@@ -31,8 +40,11 @@ export const STRATA = [
   { name: 'topsoil', top: 0, bottom: -1.2 },
   { name: 'subsoil', top: -1.2, bottom: -4.6 },
   { name: 'clay', top: -4.6, bottom: -7.4 },
-  { name: 'deep', top: -7.4, bottom: BLOCK.bottom },
+  { name: 'gravel', top: -7.4, bottom: -8.6 },
+  { name: 'rock', top: -8.6, bottom: BLOCK.bottom },
 ] as const;
+
+export type StratumName = (typeof STRATA)[number]['name'];
 
 /** The backfilled trench the gas main and telecom cable share, seen in section. */
 export const TRENCH = { x0: -1.6, x1: BLOCK_END, zBack: -2.4, bottom: -4.6 } as const;
@@ -107,16 +119,43 @@ export const STAKE_TIP: readonly [number, number, number] = [
 ];
 
 /**
+ * What every view must show: the hookup, with room above for its labels, the cut down to its
+ * foot, and the far end of the line, where reach is judged. The camera is fitted to these.
+ */
+export const MUST_SEE: readonly Point[] = [
+  [HOOKUP.stake.x - 2, HOOKUP.stake.top + 3, HOOKUP.stake.z],
+  [HOOKUP.transmitter.x, 4, HOOKUP.transmitter.z],
+  [HOOKUP.access.x, 6, HOOKUP.access.z],
+  // The stake's tip, where the earth return comes home.
+  [HOOKUP.stake.x, -4, 0],
+  [BLOCK.x1 - 6, LINES.steel.y, 0],
+  // The earth return's deepest paths run far along the block.
+  [BLOCK.x1 - 16, -8.6, 0],
+];
+
+/**
  * Looking down the street from the hookup end, so the near field is large and reach recedes. Both
  * setups share each view, so switching swaps only what is underground and the two compare directly.
  */
-export const WIDE_VIEW: View = { position: [-49, 12.5, 29], target: [19, -3, -4], aspect: 1.6 };
+export const WIDE_VIEW: View = {
+  position: [-49, 12.5, 29],
+  target: [19, -3, -4],
+  aspect: 1.6,
+  mustSee: MUST_SEE,
+  // Wide screens have room to spare: keep some street and town around the lesson.
+  margin: 0.2,
+};
 
 /**
- * For portrait screens: higher and further back, so the whole block runs diagonally up the screen
- * and the cut face still reads. (A phone held upright sees only about 16° across.)
+ * For portrait screens: lower and further along the street, so the block runs diagonally up the
+ * screen and the cut face reads tall. (A phone held upright sees only about 16° across.)
  */
-export const TALL_VIEW: View = { position: [-72, 40, 24], target: [36, -4, -8], aspect: 0.8 };
+export const TALL_VIEW: View = {
+  position: [-64, 26, 30],
+  target: [40, -5, -4],
+  aspect: 0.8,
+  mustSee: MUST_SEE,
+};
 
 /** The view that suits the free part of the canvas. */
 export function viewFor(area: VisibleArea): View {

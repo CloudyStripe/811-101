@@ -4,12 +4,21 @@
  * the pointer; it's framed so the lesson needs no turning or zooming.
  */
 import { MathUtils, type PerspectiveCamera } from 'three';
+import { fitShot, type Point3 } from './fit.ts';
 
 export interface View {
-  position: readonly [number, number, number];
-  target: readonly [number, number, number];
+  /** Where the camera looks from and at. With `mustSee`, only the direction between them counts. */
+  position: Point3;
+  target: Point3;
   /** Width over height of the free area the view is framed for. Narrower areas back off. */
   aspect: number;
+  /**
+   * Points that must be in view. When given, the camera is fitted so they all sit inside the free
+   * area, centered, at any size (see fit.ts), instead of backing off by a rule of thumb.
+   */
+  mustSee?: readonly Point3[];
+  /** Room left around the must-see points, as a share of the free area (default 0.08). */
+  margin?: number;
 }
 
 /** The part of the canvas left free by the panel or sheet, in CSS pixels. */
@@ -33,6 +42,19 @@ export class LabCamera {
 
   /** Places the camera for a view, backing off when less of the canvas is free (phones, panel). */
   frame(view: View): void {
+    const v = this.visible;
+    if (view.mustSee && v) {
+      const pose = fitShot(
+        { from: view.position, to: view.target, mustSee: view.mustSee },
+        this.camera.fov,
+        { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },
+        view.margin,
+      );
+      this.camera.position.copy(pose.position);
+      this.camera.lookAt(pose.target);
+      this.camera.updateMatrixWorld();
+      return;
+    }
     const [px, py, pz] = view.position;
     const [tx, ty, tz] = view.target;
     const k = this.backOff(view);

@@ -335,7 +335,7 @@ body {
   height: 24px;
   border-radius: 50%;
   background: var(--chip);
-  color: #1c1a17;
+  color: #1b1a17;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
 }
 
@@ -362,7 +362,7 @@ body {
   background:
     repeating-linear-gradient(90deg, var(--signal) 0 5px, transparent 5px 9px) center / 100% 3px
       no-repeat,
-    #6c5846;
+    #86684b;
 }
 
 /* Terms in text: a dotted underline, with the definition in a tip below. */
@@ -444,17 +444,55 @@ body {
   align-items: center;
   gap: 6px;
   min-height: 28px;
-  padding: 2px 10px 2px 3px;
+  padding: 2px 11px 2px 3px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.08),
+    0 4px 14px rgb(0 0 0 / 0.08);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.lbl-btn:hover {
+  border-color: var(--ink-3);
+}
+
+/* The line carrying the signal is the label to read first: filled in ink. */
+.lbl[data-tier='current'] .lbl-btn {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+}
+
+/* Leader lines from each label to the point it names, under the labels. */
+.lbl-leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lbl-leaders line {
+  stroke: var(--ink);
+  stroke-width: 1.25;
+  opacity: 0.7;
+}
+
+.lbl-leaders circle {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 1.5;
 }
 
 .lbl-icon {
@@ -475,7 +513,7 @@ body {
 /* Facility chips carry their APWA color, with a dark ring so the edge holds on any background. */
 .lbl-icon-facility {
   background: var(--chip);
-  color: #1c1a17;
+  color: #1b1a17;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
 }
 

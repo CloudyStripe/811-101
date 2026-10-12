@@ -1,27 +1,33 @@
-/** The views, checked with the real camera math: the block must fit the free area. */
-import { PerspectiveCamera, Vector3 } from 'three';
+/** The views, checked with the real camera math: what the lesson needs must fit the free area. */
+import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { areaCamera, fitShot } from '../../../kit3d/fit.ts';
 import type { View } from '../../../kit3d/camera.ts';
-import { BLOCK, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
+import { MUST_SEE, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
 
-/** The scene's camera, framed on a view for a free area of the given size in CSS pixels. */
-function cameraFor(view: View, width: number, height: number): PerspectiveCamera {
-  const camera = new PerspectiveCamera(34, width / height, 0.5, 900);
-  camera.position.set(...view.position);
-  camera.lookAt(new Vector3(...view.target));
+const FOV = 34;
+
+/** The camera, fitted to a view, covering a free area of the given size inside a canvas. */
+function fitted(view: View, width: number, height: number, canvasHeight: number) {
+  const area = { width, height, canvasHeight };
+  const pose = fitShot(
+    { from: view.position, to: view.target, mustSee: view.mustSee ?? [] },
+    FOV,
+    area,
+    view.margin,
+  );
+  const camera = areaCamera(FOV, area);
+  camera.position.copy(pose.position);
+  camera.lookAt(pose.target);
   camera.updateMatrixWorld();
-  camera.updateProjectionMatrix();
   return camera;
 }
 
-function toScreen(camera: PerspectiveCamera, p: Vector3, width: number, height: number) {
-  const v = p.clone().project(camera);
-  return { x: (v.x * 0.5 + 0.5) * width, y: (-v.y * 0.5 + 0.5) * height, z: v.z };
-}
-
-const VIEWS = [
-  { name: 'wide', view: WIDE_VIEW, width: 1000, height: 900 },
-  { name: 'tall', view: TALL_VIEW, width: 390, height: 520 },
+const CASES = [
+  // Desktop with the guide open beside the view, and a phone between its header and sheet.
+  { name: 'wide', view: WIDE_VIEW, width: 1000, height: 900, canvasHeight: 900 },
+  { name: 'tall', view: TALL_VIEW, width: 390, height: 520, canvasHeight: 844 },
+  { name: 'short', view: WIDE_VIEW, width: 540, height: 390, canvasHeight: 390 },
 ] as const;
 
 describe('views', () => {
@@ -30,20 +36,23 @@ describe('views', () => {
     expect(viewFor({ x: 0, y: 0, width: 1000, height: 900 })).toBe(WIDE_VIEW);
   });
 
-  it.each(VIEWS)('$name: the hookup end of the block is in front of the camera', (v) => {
-    const camera = cameraFor(v.view, v.width, v.height);
-    const p = toScreen(camera, new Vector3(0, 0, 0), v.width, v.height);
-    expect(p.z).toBeLessThan(1);
-    expect(p.x).toBeGreaterThan(0);
-    expect(p.x).toBeLessThan(v.width);
-    expect(p.y).toBeGreaterThan(0);
-    expect(p.y).toBeLessThan(v.height);
+  it.each(CASES)('$name: everything the lesson needs fits the free area', (c) => {
+    const camera = fitted(c.view, c.width, c.height, c.canvasHeight);
+    for (const p of MUST_SEE) {
+      const v = new Vector3(...p).project(camera);
+      expect(v.z, `${p.join(',')} in front`).toBeLessThan(1);
+      expect(Math.abs(v.x), `${p.join(',')} across`).toBeLessThanOrEqual(1);
+      expect(Math.abs(v.y), `${p.join(',')} up and down`).toBeLessThanOrEqual(1);
+    }
   });
 
-  it('keeps the far end of the block in the tall view', () => {
-    const camera = cameraFor(TALL_VIEW, 390, 520);
-    const p = toScreen(camera, new Vector3(BLOCK.x1 - 6, -3.6, 0), 390, 520);
-    expect(p.x).toBeGreaterThan(0);
-    expect(p.x).toBeLessThan(390);
+  it.each(CASES)('$name: the view fills the free area, not just fits in it', (c) => {
+    const camera = fitted(c.view, c.width, c.height, c.canvasHeight);
+    const xs = MUST_SEE.map((p) => new Vector3(...p).project(camera).x);
+    const ys = MUST_SEE.map((p) => new Vector3(...p).project(camera).y);
+    const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    // The must-see points reach the margin one way or the other: the view is as close as it fits.
+    const margin = c.view.margin ?? 0.08;
+    expect(span).toBeGreaterThan(2 * (1 - margin) - 0.02);
   });
 });

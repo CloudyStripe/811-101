@@ -9,6 +9,11 @@ export interface NoiseOptions {
   scale: number;
   /** How far albedo varies, as a share (0.1 = ±10%). */
   amount: number;
+  /**
+   * Scattered pebbles: small blobs darker than the surface (or lighter, with a negative amount),
+   * so a cut face reads as soil or gravel rather than paint.
+   */
+  pebbles?: { scale: number; amount: number };
 }
 
 const NOISE_GLSL = /* glsl */ `
@@ -28,10 +33,12 @@ float lab_noise(vec3 x) {
 }
 `;
 
-function withNoise(material: MeshStandardMaterial, { scale, amount }: NoiseOptions): void {
+function withNoise(material: MeshStandardMaterial, { scale, amount, pebbles }: NoiseOptions): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.labNoiseScale = { value: 1 / scale };
     shader.uniforms.labNoiseAmount = { value: amount };
+    shader.uniforms.labPebbleScale = { value: pebbles ? 1 / pebbles.scale : 0 };
+    shader.uniforms.labPebbleAmount = { value: pebbles?.amount ?? 0 };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 labWorldPos;')
       .replace(
@@ -46,16 +53,21 @@ labWorldPos = (modelMatrix * labWorld).xyz;`,
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        `#include <common>\nvarying vec3 labWorldPos;\nuniform float labNoiseScale;\nuniform float labNoiseAmount;\n${NOISE_GLSL}`,
+        `#include <common>\nvarying vec3 labWorldPos;\nuniform float labNoiseScale;\nuniform float labNoiseAmount;\nuniform float labPebbleScale;\nuniform float labPebbleAmount;\n${NOISE_GLSL}`,
       )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
 float labN = lab_noise(labWorldPos * labNoiseScale) * 0.65 + lab_noise(labWorldPos * labNoiseScale * 3.7) * 0.35;
-diffuseColor.rgb *= 1.0 + labNoiseAmount * (labN - 0.5) * 2.0;`,
+diffuseColor.rgb *= 1.0 + labNoiseAmount * (labN - 0.5) * 2.0;
+if (labPebbleScale > 0.0) {
+  float labP = smoothstep(0.74, 0.8, lab_noise(labWorldPos * labPebbleScale + 17.0));
+  diffuseColor.rgb *= 1.0 - labPebbleAmount * labP;
+}`,
       );
   };
-  material.customProgramCacheKey = () => `lab-noise-${scale}-${amount}`;
+  // The settings are uniforms, so every noisy material can share one compiled program.
+  material.customProgramCacheKey = () => 'lab-noise';
 }
 
 export interface SurfaceOptions extends MeshStandardMaterialParameters {

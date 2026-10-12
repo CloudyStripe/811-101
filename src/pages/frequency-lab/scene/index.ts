@@ -28,6 +28,7 @@ import { BLOCK, viewFor } from './layout.ts';
 import { TransmitterScreen, buildSetup, buildShared, setLineGlow } from './lines.ts';
 import { SignalEffects } from './signal.ts';
 import { buildStreet } from './street.ts';
+import { buildNeighborhood } from './world.ts';
 
 export interface Rect {
   x: number;
@@ -73,10 +74,17 @@ const FACE_NORMAL = new Vector3(0, 0, 1);
 /** What the transmitter's screen can show: the frequency it's set to. */
 const READINGS = FREQUENCIES.map(frequencyLabel);
 
+/** The label of what carries the signal: the steel main itself, or the plastic main's tracer wire. */
+const CARRIER: Record<SetupId, LabelId> = { steel: 'target', plastic: 'tracer' };
+
+/** How many labels may show at once: fewer on a phone, so the scene stays the hero. */
+const maxLabels = (width: number) => (width < 600 ? 4 : 7);
+
 function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[] {
   return LABEL_SPECS.flatMap((spec) => {
     const element = elements.get(spec.id);
     if (!element) return [];
+    element.dataset.tier = spec.id === CARRIER[setup] ? 'current' : 'context';
     return [
       {
         id: spec.id,
@@ -137,7 +145,7 @@ async function buildLabScene(
           fx.setTime(animTime);
         }
         if (labelsDirty) {
-          labels.update(stage.width, stage.height, freeArea());
+          labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
           labelsDirty = false;
         }
         post.render(dt);
@@ -184,11 +192,15 @@ async function buildLabScene(
   // The ambient-occlusion chunk downloads while the scene is built and compiled.
   preloadPost(settings());
   const lighting = createLighting(renderer, scene, bounds, THEMES[o.theme].scene, {
-    mapSize: settings().shadowMapSize,
-    radius: settings().shadowRadius,
+    shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius },
+    // Well inside the camera's far plane from anywhere the camera goes.
+    skyRadius: 700,
   });
   const street = buildStreet();
   street.setDetail(settings().detail);
+  street.setEdge(THEMES[o.theme].scene.edge);
+  const neighborhood = buildNeighborhood();
+  neighborhood.setTheme(THEMES[o.theme].scene);
   const shared = buildShared(READINGS);
   const screenFonts = Promise.all(TransmitterScreen.FONTS.map((f) => document.fonts.load(f))).then(
     () => true,
@@ -198,7 +210,7 @@ async function buildLabScene(
   // Baked contact shadows stand in for ambient occlusion on the tier without it.
   const contact = buildContactShadows();
   contact.visible = !settings().ao;
-  scene.add(street.group, shared.group, setups.steel, setups.plastic, contact);
+  scene.add(street.group, neighborhood.group, shared.group, setups.steel, setups.plastic, contact);
   setLineGlow(scene, THEMES[o.theme].scene.lineGlow);
   const fx = new SignalEffects(depthUniforms);
   fx.setTime(animTime);
@@ -341,7 +353,7 @@ async function buildLabScene(
 
   if (o.capture) {
     // One settled frame, then hold still for the screenshot.
-    labels.update(stage.width, stage.height, freeArea());
+    labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
     firstPost.render(1 / 60);
     stage.stop();
   }
@@ -361,8 +373,11 @@ async function buildLabScene(
     },
     setTheme(next) {
       theme = next;
-      lighting.setTheme(THEMES[theme].scene);
-      setLineGlow(scene, THEMES[theme].scene.lineGlow);
+      const tokens = THEMES[theme].scene;
+      lighting.setTheme(tokens);
+      setLineGlow(scene, tokens.lineGlow);
+      street.setEdge(tokens.edge);
+      neighborhood.setTheme(tokens);
       stage.requestFrame();
     },
     setReducedMotion(reduced) {
@@ -386,7 +401,7 @@ async function buildLabScene(
     refreshLabels() {
       if (o.capture) {
         // The loop has stopped; labels are HTML, so they can be placed without a new frame.
-        labels.update(stage.width, stage.height, freeArea());
+        labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
         return;
       }
       labelsDirty = true;
@@ -399,7 +414,7 @@ async function buildLabScene(
       cam.frame(viewFor(area));
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
-        labels.update(stage.width, stage.height, freeArea());
+        labels.update(stage.width, stage.height, freeArea(), maxLabels(stage.width));
         post?.render(1 / 60);
         return;
       }

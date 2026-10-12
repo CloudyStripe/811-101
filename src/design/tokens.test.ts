@@ -9,7 +9,7 @@ import {
   linearRgbToOklch,
   srgbToLinear,
 } from './color.ts';
-import { SIGNAL_COLOR, THEMES, type ThemeName } from './tokens.ts';
+import { MATERIAL_COLORS, SIGNAL_COLOR, THEMES, WORLD_COLORS, type ThemeName } from './tokens.ts';
 
 const themes: ThemeName[] = ['light', 'dark'];
 const chromatic = (Object.keys(APWA) as ApwaCode[]).filter((c) => c !== 'white');
@@ -20,6 +20,7 @@ describe('chrome contrast (WCAG 2.2 AA)', () => {
     for (const bg of [t.bg, t.surface, t.surface2]) {
       expect(contrast(t.ink, bg)).toBeGreaterThanOrEqual(7);
       expect(contrast(t.ink2, bg)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t.ink3, bg), `muted text on ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t.accentInk, t.accent)).toBeGreaterThanOrEqual(4.5);
   });
@@ -45,6 +46,23 @@ describe('chrome contrast (WCAG 2.2 AA)', () => {
 describe('color means utility', () => {
   it('keeps the default UI accent neutral (no hue to confuse with a mark color)', () => {
     for (const name of themes) expect(hexToOklch(THEMES[name].chrome.accent).c).toBeLessThan(0.02);
+  });
+
+  it('keeps the world muted, so the line tints and the signal are the strongest colors', () => {
+    const world: [string, string][] = Object.entries(MATERIAL_COLORS);
+    for (const [name, value] of Object.entries(WORLD_COLORS)) {
+      // Lamps and lit windows are lights, not surfaces.
+      if (name === 'windowLit' || name === 'lamp') continue;
+      if (typeof value === 'string') world.push([name, value]);
+      else value.forEach((hex, i) => world.push([`${name}[${String(i)}]`, hex]));
+    }
+    const weakestMeaning = Math.min(
+      hexToOklch(SIGNAL_COLOR).c,
+      ...chromatic.map((code) => hexToOklch(APWA[code].fill).c),
+    );
+    for (const [name, hex] of world) {
+      expect(hexToOklch(hex).c, name).toBeLessThan(Math.min(0.09, weakestMeaning * 0.6));
+    }
   });
 
   it('gives the signal its own hue, well away from every APWA color', () => {
