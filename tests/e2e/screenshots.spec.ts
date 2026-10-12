@@ -1,11 +1,11 @@
 /**
- * Screenshots for review, at desktop and phone sizes, in light and dark: the portal, and every
- * listed state of the lab. The lab is captured in `?capture` mode (fixed time and tier, one
- * settled frame) so it's deterministic, and each lab capture also checks that labels are neither
- * clipped nor overlapping each other or the chrome.
+ * Screenshots for review, at desktop and phone sizes, in light and dark: the portal, every
+ * listed state of the lab, and the diorama. The lab is captured in `?capture` mode (fixed time
+ * and tier, one settled frame) so it's deterministic, and each lab capture also checks that
+ * labels are neither clipped nor overlapping each other or the chrome.
  */
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
 
 interface State {
   name: string;
@@ -149,6 +149,70 @@ for (const theme of ['light', 'dark'] as const) {
         await page.screenshot({
           path: `artifacts/screenshots/portal-${theme}-${vp.name}.png`,
           fullPage: true,
+          animations: 'disabled',
+        });
+      });
+    });
+  }
+}
+
+type DebuggableDiorama = Window & {
+  __app?: { camera: { position: { x: number; y: number; z: number } } };
+  __lastPos?: string;
+  __stillFor?: number;
+};
+
+/** Waits until the diorama's camera has stopped moving; the page must be opened with #debug. */
+async function dioramaCameraAtRest(page: Page) {
+  // Start counting afresh, so a camera that was still before a click isn't taken as settled.
+  await page.evaluate(() => {
+    const w = window as DebuggableDiorama;
+    w.__lastPos = undefined;
+    w.__stillFor = 0;
+  });
+  await page.waitForFunction(
+    () => {
+      const w = window as DebuggableDiorama;
+      const p = w.__app?.camera.position;
+      if (!p) return false;
+      const now = [p.x, p.y, p.z].map((v) => v.toFixed(3)).join(',');
+      w.__stillFor = now === w.__lastPos ? (w.__stillFor ?? 0) + 1 : 0;
+      w.__lastPos = now;
+      return w.__stillFor >= 3;
+    },
+    null,
+    { polling: 200, timeout: 20_000 },
+  );
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const vp of VIEWPORTS) {
+    test.describe(`diorama ${vp.name} ${theme}`, () => {
+      test.use({
+        viewport: { width: vp.width, height: vp.height },
+        deviceScaleFactor: vp.scale,
+        colorScheme: theme,
+        hasTouch: vp.name === 'phone',
+        isMobile: vp.name === 'phone',
+        reducedMotion: 'reduce',
+        allowHosts: DIORAMA_HOSTS,
+      });
+
+      test('the overview and the city gate', async ({ page }) => {
+        await page.goto('utilities/gas-petroleum/#debug');
+        await expect(page.getByRole('heading', { name: 'Two fuels, one beginning' })).toBeVisible();
+        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        await dioramaCameraAtRest(page);
+        await page.screenshot({
+          path: `artifacts/screenshots/diorama-${theme}-${vp.name}-overview.png`,
+          animations: 'disabled',
+        });
+        // The route map's dot; the 3D view's label for the stop has the same name.
+        await page.locator('.rmap .st[data-id="city-gate"]').click();
+        await expect(page.locator('#p-title')).toHaveText('Into town: lower pressure, added smell');
+        await dioramaCameraAtRest(page);
+        await page.screenshot({
+          path: `artifacts/screenshots/diorama-${theme}-${vp.name}-city-gate.png`,
           animations: 'disabled',
         });
       });
