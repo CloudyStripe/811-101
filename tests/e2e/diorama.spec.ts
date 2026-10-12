@@ -3,17 +3,9 @@
  * to their quiz, every stop says what it needs in a few plain sentences, no text carries figures,
  * and the side trips (molecules, the fuel comparison, the engine) stay gone.
  */
-import type { Page } from '@playwright/test';
-import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
+import { DIORAMA_HOSTS, type DioramaWindow, expect, openDiorama, test } from './fixtures.ts';
 
 test.use({ allowHosts: DIORAMA_HOSTS });
-
-/** Opens the diorama and waits for its scripts and fonts, so leaving never cuts them short. */
-async function openDiorama(page: Page, hash = '') {
-  await page.goto(`utilities/gas-petroleum/${hash}`);
-  await expect(page.getByRole('heading', { name: 'Two fuels, one beginning' })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-}
 
 const TOURS = [
   {
@@ -60,44 +52,18 @@ for (const tour of TOURS) {
   });
 }
 
-interface Stop {
-  id: string;
-  label: string;
-  title: string;
-  text: string;
-  note?: string;
-  safety?: string;
-  terms?: Record<string, string>;
-}
-type Quiz = [string, string[], number, string];
-type DebuggableDiorama = Window & {
-  __app?: {
-    STAGES: Stop[];
-    OVERVIEW: { title: string; text: string };
-    GLOSSARY: Record<string, string>;
-    QUIZZES: Record<string, Quiz[]>;
-    TIMELAPSE: [number, string][];
-  };
-};
-
-test('every stop is a few plain sentences, no text has figures, and the side trips are gone', async ({
-  page,
-}) => {
+test('the text stays short and plain, and the side trips stay gone', async ({ page }) => {
   await openDiorama(page, '#debug');
   await expect(page.getByRole('button', { name: 'Molecules' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Compare fuels' })).toHaveCount(0);
-  const content = await page.evaluate(() => {
-    const app = (window as DebuggableDiorama).__app;
+  // Only the text: the hook's camera isn't something a test can copy out of the page.
+  const { STAGES, OVERVIEW, GLOSSARY, QUIZZES, TIMELAPSE } = await page.evaluate(() => {
+    const app = (window as DioramaWindow).__app;
     if (!app) throw new Error('No #debug hook');
-    return {
-      stops: app.STAGES,
-      overview: app.OVERVIEW,
-      glossary: app.GLOSSARY,
-      quizzes: app.QUIZZES,
-      timelapse: app.TIMELAPSE,
-    };
+    const { STAGES, OVERVIEW, GLOSSARY, QUIZZES, TIMELAPSE } = app;
+    return { STAGES, OVERVIEW, GLOSSARY, QUIZZES, TIMELAPSE };
   });
-  expect(content.stops.map((s) => s.id)).toEqual([
+  expect(STAGES.map((s) => s.id)).toEqual([
     'formation',
     'reservoir',
     'drilling',
@@ -112,24 +78,24 @@ test('every stop is a few plain sentences, no text has figures, and the side tri
     'delivery',
     'pump',
   ]);
-  for (const stop of content.stops) {
+  for (const stop of STAGES) {
     const sentences = stop.text.split(/[.!?](?:\s|$)/).filter((s) => s.trim() !== '');
     expect(sentences.length, `${stop.id}: sentences`).toBeLessThanOrEqual(3);
   }
   // Every string a learner reads, except the time-lapse's clock of millions of years.
-  const texts: [string, string][] = [];
-  for (const s of content.stops) {
+  const texts: [where: string, text: string][] = [
+    ['overview', `${OVERVIEW.title} ${OVERVIEW.text}`],
+    ...Object.entries(GLOSSARY),
+    ...TIMELAPSE.map(([, caption]): [string, string] => ['time-lapse caption', caption]),
+  ];
+  for (const s of STAGES) {
     texts.push([`${s.id} label`, s.label], [`${s.id} title`, s.title], [`${s.id} text`, s.text]);
     if (s.note) texts.push([`${s.id} note`, s.note]);
     if (s.safety) texts.push([`${s.id} safety tip`, s.safety]);
-    for (const [term, def] of Object.entries(s.terms ?? {})) texts.push([`${s.id}: ${term}`, def]);
+    texts.push(...Object.entries(s.terms ?? {}));
   }
-  texts.push(['overview', `${content.overview.title} ${content.overview.text}`]);
-  for (const [term, def] of Object.entries(content.glossary))
-    texts.push([`glossary: ${term}`, def]);
-  for (const [question, options, , why] of Object.values(content.quizzes).flat()) {
+  for (const [question, options, , why] of Object.values(QUIZZES).flat()) {
     texts.push([`quiz: ${question}`, [question, ...options, why].join(' ')]);
   }
-  for (const [, caption] of content.timelapse) texts.push(['time-lapse caption', caption]);
   for (const [where, text] of texts) expect(text, `${where}: no figures`).not.toMatch(/\d/);
 });

@@ -5,7 +5,7 @@
  * labels are neither clipped nor overlapping each other or the chrome.
  */
 import type { Page } from '@playwright/test';
-import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
+import { DIORAMA_HOSTS, type DioramaWindow, expect, openDiorama, test } from './fixtures.ts';
 
 interface State {
   name: string;
@@ -156,33 +156,24 @@ for (const theme of ['light', 'dark'] as const) {
   }
 }
 
-type DebuggableDiorama = Window & {
-  __app?: { camera: { position: { x: number; y: number; z: number } } };
-  __lastPos?: string;
-  __stillFor?: number;
-};
-
 /** Waits until the diorama's camera has stopped moving; the page must be opened with #debug. */
 async function dioramaCameraAtRest(page: Page) {
-  // Start counting afresh, so a camera that was still before a click isn't taken as settled.
-  await page.evaluate(() => {
-    const w = window as DebuggableDiorama;
-    w.__lastPos = undefined;
-    w.__stillFor = 0;
-  });
-  await page.waitForFunction(
-    () => {
-      const w = window as DebuggableDiorama;
-      const p = w.__app?.camera.position;
-      if (!p) return false;
-      const now = [p.x, p.y, p.z].map((v) => v.toFixed(3)).join(',');
-      w.__stillFor = now === w.__lastPos ? (w.__stillFor ?? 0) + 1 : 0;
-      w.__lastPos = now;
-      return w.__stillFor >= 3;
-    },
-    null,
-    { polling: 200, timeout: 20_000 },
-  );
+  let last = '';
+  let still = 0;
+  await expect
+    .poll(
+      async () => {
+        const now = await page.evaluate(() => {
+          const p = (window as DioramaWindow).__app?.camera.position;
+          return p ? [p.x, p.y, p.z].map((v) => v.toFixed(3)).join(',') : '';
+        });
+        still = now !== '' && now === last ? still + 1 : 0;
+        last = now;
+        return still;
+      },
+      { message: 'the camera comes to rest', intervals: [200], timeout: 20_000 },
+    )
+    .toBeGreaterThanOrEqual(3);
 }
 
 for (const theme of ['light', 'dark'] as const) {
@@ -199,9 +190,7 @@ for (const theme of ['light', 'dark'] as const) {
       });
 
       test('the overview and the city gate', async ({ page }) => {
-        await page.goto('utilities/gas-petroleum/#debug');
-        await expect(page.getByRole('heading', { name: 'Two fuels, one beginning' })).toBeVisible();
-        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        await openDiorama(page, '#debug');
         await dioramaCameraAtRest(page);
         await page.screenshot({
           path: `artifacts/screenshots/diorama-${theme}-${vp.name}-overview.png`,
