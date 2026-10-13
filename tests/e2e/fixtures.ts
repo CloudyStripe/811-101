@@ -34,6 +34,11 @@ export async function openDiorama(page: Page, hash = ''): Promise<void> {
 interface Problems {
   /** Hosts a page may contact besides its own origin. Empty for every new page. */
   allowHosts: string[];
+  /**
+   * Pages this test means to open at a missing address: the site's 404 page answers there, with a
+   * 404 status that's expected, not a broken link.
+   */
+  expectNotFound: boolean;
 }
 
 /**
@@ -42,11 +47,15 @@ interface Problems {
  */
 export const test = base.extend<Problems>({
   allowHosts: [[], { option: true }],
-  page: async ({ page, allowHosts, baseURL }, use) => {
+  expectNotFound: [false, { option: true }],
+  page: async ({ page, allowHosts, expectNotFound, baseURL }, use) => {
     const problems: string[] = [];
     const origin = new URL(baseURL ?? 'http://localhost').origin;
     page.on('console', (msg) => {
-      if (msg.type() === 'error' || msg.type() === 'warning') {
+      // The browser notes a 404 page's status in the console; that's the page meant here.
+      const notFoundNote =
+        expectNotFound && msg.text().includes('the server responded with a status of 404');
+      if ((msg.type() === 'error' || msg.type() === 'warning') && !notFoundNote) {
         problems.push(`console.${msg.type()}: ${msg.text()}`);
       }
     });
@@ -63,9 +72,14 @@ export const test = base.extend<Problems>({
     });
     // A link to a page that isn't there loads an error page, not a failed request.
     page.on('response', (res) => {
-      if (res.request().isNavigationRequest() && res.status() >= 400) {
-        problems.push(`page not found: ${res.url()} (${String(res.status())})`);
+      if (res.status() < 400) return;
+      if (!res.request().isNavigationRequest()) {
+        // A missing file, even on a 404 page, is a real problem.
+        problems.push(`missing file: ${res.url()} (${String(res.status())})`);
+        return;
       }
+      if (expectNotFound && res.status() === 404) return;
+      problems.push(`page not found: ${res.url()} (${String(res.status())})`);
     });
     await use(page);
     expect(problems, 'console, page errors and requests').toEqual([]);

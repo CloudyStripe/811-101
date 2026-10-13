@@ -1,10 +1,19 @@
 /**
  * Load budgets for each page, measured from the production build (gzip level 9; fonts and
- * images as shipped). Fails when anything is over budget.
+ * images as shipped). The pages and their budgets come from src/site/pages.ts. Fails when
+ * anything is over budget.
  */
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { BASE_PATH } from '../config/brand.ts';
+import {
+  PAGES,
+  posterPath,
+  type PageBudgets,
+  type PageId,
+  type PageInfo,
+} from '../src/site/pages.ts';
 
 interface ManifestChunk {
   file: string;
@@ -87,13 +96,36 @@ async function latinFonts(cssFiles: Iterable<string>): Promise<Set<string>> {
   return fonts;
 }
 
+/**
+ * Files a built page points to with a given tag and attribute, as paths in dist: the built HTML
+ * is the truth about what a page starts loading.
+ */
+function referenced(text: string, pattern: RegExp): string[] {
+  return [...text.matchAll(pattern)].flatMap(([, url]) =>
+    url ? [url.replace(BASE_PATH, '').replace(/^\//, '')] : [],
+  );
+}
+
+/** The manifest's key for a built file. */
+function keyOf(file: string): string {
+  const key = Object.keys(manifest).find((k) => manifest[k]?.file === file);
+  if (!key) throw new Error(`No manifest entry for ${file}`);
+  return key;
+}
+
 /** What every page loads: its HTML, the JS it starts with, and its CSS and fonts. */
 async function measure(html: string) {
-  if (!manifest[html]?.isEntry) throw new Error(`No entry for ${html} in the build manifest`);
-  const initial = staticClosure(html);
+  const text = await readFile(resolve(dist, html), 'utf8');
+  const scripts = referenced(text, /<script[^>]*\ssrc="([^"]+)"/g);
+  if (scripts.length === 0) throw new Error(`${html} loads no script`);
+  const initial = new Set<string>();
+  for (const file of scripts) staticClosure(keyOf(file), initial);
   const lazy = lazyClosure(initial);
   const jsFiles = [...initial].map((k) => chunk(k).file);
-  const cssFiles = new Set([...initial, ...lazy].flatMap((k) => chunk(k).css ?? []));
+  const cssFiles = new Set([
+    ...referenced(text, /<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g),
+    ...[...initial, ...lazy].flatMap((k) => chunk(k).css ?? []),
+  ]);
   return {
     initial,
     lazy,
@@ -110,61 +142,80 @@ interface Row {
   budget: number;
 }
 
-async function portalRows(): Promise<Row[]> {
-  const page = await measure('index.html');
+/** Short names for the report. */
+const NAMES: Record<PageId, string> = {
+  portal: 'Portal',
+  'frequency-lab': 'Lab',
+  'gas-petroleum': 'Diorama',
+  'not-found': '404',
+};
+
+/** One page's rows: what it loads up front, its 3D code and poster if it has a view, in total. */
+async function pageRows(page: PageInfo, budgets: PageBudgets): Promise<Row[]> {
+  const name = NAMES[page.id];
+  const m = await measure(page.html);
   const imageFiles = new Set(
-    [...page.initial]
+    [...m.initial]
       .flatMap((k) => chunk(k).assets ?? [])
       .filter((f) => /\.(jpe?g|png|webp|avif)$/.test(f)),
   );
   const images = await total(imageFiles, size);
-  return [
-    { item: 'Portal: JS', bytes: page.js, budget: 30 * KB },
-    { item: 'Portal: CSS', bytes: page.css, budget: 15 * KB },
-    { item: 'Portal: fonts', bytes: page.fonts, budget: 150 * KB },
-    { item: 'Portal: images', bytes: images, budget: 150 * KB },
-    {
-      item: 'Portal: first visit',
-      bytes: page.html + page.js + page.css + page.fonts + images,
-      budget: 350 * KB,
-    },
-  ];
-}
-
-async function labRows(): Promise<Row[]> {
-  const page = await measure('training/frequency-lab/index.html');
   let vendor = 0;
   let ao = 0;
   let scene = 0;
-  for (const k of page.lazy) {
+  for (const k of m.lazy) {
     const c = chunk(k);
     const bytes = await gzip(c.file);
     if (c.src?.includes('node_modules/n8ao/')) ao += bytes;
     else if (c.name === 'vendor-3d') vendor += bytes;
     else scene += bytes;
   }
-  return [
-    { item: 'Lab: initial JS', bytes: page.js, budget: 50 * KB },
-    { item: 'Lab: CSS', bytes: page.css, budget: 30 * KB },
-    { item: 'Lab: fonts', bytes: page.fonts, budget: 200 * KB },
-    { item: 'Lab: 3D vendor', bytes: vendor, budget: 240 * KB },
-    { item: 'Lab: n8ao', bytes: ao, budget: 85 * KB },
-    { item: 'Lab: scene code', bytes: scene, budget: 70 * KB },
-    {
-      item: 'Lab: first visit',
-      bytes: page.html + page.js + page.css + page.fonts + vendor + ao + scene,
-      budget: 750 * KB,
-    },
+  // The loader shows one poster, the reader's theme's; count the larger.
+  const poster = page.scene
+    ? Math.max(
+        ...(await Promise.all(
+          (['light', 'dark'] as const).map(
+            async (theme) => (await stat(resolve(dist, posterPath(page, theme)))).size,
+          ),
+        )),
+      )
+    : 0;
+  const rows: Row[] = [
+    { item: `${name}: JS`, bytes: m.js, budget: budgets.js * KB },
+    { item: `${name}: CSS`, bytes: m.css, budget: budgets.css * KB },
+    { item: `${name}: fonts`, bytes: m.fonts, budget: budgets.fonts * KB },
   ];
+  if (budgets.images !== undefined) {
+    rows.push({ item: `${name}: images`, bytes: images, budget: budgets.images * KB });
+  }
+  if (page.scene) {
+    rows.push(
+      { item: `${name}: 3D vendor`, bytes: vendor, budget: (budgets.vendor3d ?? 0) * KB },
+      { item: `${name}: n8ao`, bytes: ao, budget: (budgets.ao ?? 0) * KB },
+      { item: `${name}: scene code`, bytes: scene, budget: (budgets.scene ?? 0) * KB },
+      { item: `${name}: poster`, bytes: poster, budget: (budgets.poster ?? 0) * KB },
+    );
+  }
+  rows.push({
+    item: `${name}: first visit`,
+    bytes: m.html + m.js + m.css + m.fonts + images + vendor + ao + scene + poster,
+    budget: budgets.firstVisit * KB,
+  });
+  return rows;
 }
 
-const rows = [...(await portalRows()), ...(await labRows())];
+const rows: Row[] = [];
+for (const page of PAGES.filter((p) => p.built)) {
+  if (!page.budgets) throw new Error(`${page.id} has no budgets`);
+  rows.push(...(await pageRows(page, page.budgets)));
+}
+
 const kb = (n: number) => `${(n / KB).toFixed(1)} KB`;
 console.log(
   rows
     .map((r) => {
       const flag = r.bytes > r.budget ? 'OVER' : ' ok ';
-      return `${flag}  ${r.item.padEnd(20)} ${kb(r.bytes).padStart(10)}  / ${kb(r.budget)}`;
+      return `${flag}  ${r.item.padEnd(22)} ${kb(r.bytes).padStart(10)}  / ${kb(r.budget)}`;
     })
     .join('\n'),
 );

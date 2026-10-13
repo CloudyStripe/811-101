@@ -12,7 +12,7 @@ import {
   WebGLRenderTarget,
 } from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
-import { THEMES, type ThemeName } from '../../../design/tokens.ts';
+import { LABEL_LIMITS, THEMES, type ThemeName } from '../../../design/tokens.ts';
 import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
 import { LabelLayer } from '../../../kit3d/labels.ts';
@@ -83,7 +83,8 @@ const FACE_NORMAL = new Vector3(0, 0, 1);
 const READINGS = FREQUENCIES.map(frequencyLabel);
 
 /** How many labels may show at once in a free area this wide: fewer on a phone, so the scene leads. */
-const maxLabels = (width: number) => (width < 600 ? 4 : 7);
+const maxLabels = (width: number) =>
+  width < LABEL_LIMITS.narrowBelow ? LABEL_LIMITS.narrow : LABEL_LIMITS.wide;
 
 function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[] {
   return LABEL_SPECS.flatMap((spec) => {
@@ -354,6 +355,7 @@ async function buildLabScene(
   swapPost(firstPost);
   cam.frame(viewFor(o.visibleArea()));
   framed();
+  document.documentElement.dataset.sceneStage = 'compile';
   await precompile();
   // The screen draws with its own font from the first frame. If the font is slow, it shows a
   // fallback and redraws when the font arrives.

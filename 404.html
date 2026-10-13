@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script type="module" src="/src/pages/not-found/main.ts"></script>
+  </head>
+  <body>
+    <div id="app" class="not-found">
+      <main class="not-found-main">
+        <svg class="not-found-art" viewBox="0 0 240 132" aria-hidden="true" focusable="false">
+          <!-- A cut through the ground: a probe above, the layers below, and nothing where a line should be. -->
+          <rect class="nf-soil-1" x="8" y="52" width="224" height="22" rx="4" />
+          <rect class="nf-soil-2" x="8" y="74" width="224" height="26" rx="4" />
+          <rect class="nf-soil-3" x="8" y="100" width="224" height="24" rx="4" />
+          <path class="nf-ink" d="M8 52h224M8 74h224M8 100h224" />
+          <circle class="nf-missing" cx="120" cy="87" r="10" />
+          <path class="nf-ink nf-probe" d="M120 8v32" />
+          <path class="nf-ink nf-probe" d="M108 8h24" />
+        </svg>
+        <p class="eyebrow">Error 404</p>
+        <h1>This page isn’t here</h1>
+        <p class="not-found-text">
+          This address doesn’t lead to a page. It may have moved, or there may be a typo in it.
+          Every lesson is on the home page.
+        </p>
+        <a class="button button-primary" href="%BASE%">Go to all lessons</a>
+      </main>
+    </div>
+  </body>
+</html>

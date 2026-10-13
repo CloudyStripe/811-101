@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
 import { ABOUT, TAGLINE } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
-import { Icon } from '../../design/icons.tsx';
 import { Segmented } from '../../design/Segmented.tsx';
 import { Rich } from '../../design/Term.tsx';
 import type { ThemeName } from '../../design/tokens.ts';
@@ -14,15 +13,13 @@ import { Panel, define } from './Panel.tsx';
 import { SceneLabel } from './SceneLabel.tsx';
 import type { LabScene, Rect } from './scene/index.ts';
 import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
-import { SettingsMenu } from './SettingsMenu.tsx';
-import {
-  applyToDocument,
-  loadSettings,
-  reducesMotion,
-  saveSettings,
-  type Settings,
-} from '../../site/settings.ts';
+import { pageById } from '../../site/pages.ts';
+import { SceneLoader } from '../../site/SceneLoader.tsx';
+import { reducesMotion } from '../../site/settings.ts';
+import { useSettings } from '../../site/useSettings.ts';
 import { stateSummary } from './summary.ts';
+
+const PAGE = pageById('frequency-lab');
 
 const params = new URLSearchParams(location.search);
 const INITIAL_SETUP: SetupId = params.get('setup') === 'plastic' ? 'plastic' : 'steel';
@@ -71,7 +68,8 @@ const rectOf = (selector: string) => document.querySelector(selector)?.getBoundi
 export function App() {
   const [setup, setSetup] = useState<SetupId>(INITIAL_SETUP);
   const [frequency, setFrequency] = useState<Frequency>(INITIAL_FREQUENCY);
-  const [settings, setSettings] = useState<Settings>(loadSettings);
+  // Changed in the header's settings menu; the scene follows.
+  const [settings] = useSettings();
   const [sheetOpen, setSheetOpen] = useState(false);
   // Wide screens: the guide panel starts open and can be closed down to its title.
   const [panelOpen, setPanelOpen] = useState(true);
@@ -118,7 +116,7 @@ export function App() {
       const top = (rectOf('.lab-setup')?.bottom ?? box.top) - box.top;
       if (shortQuery.matches) {
         // Short screens: right of the column of controls.
-        const left = (rectOf('.lab-title')?.right ?? box.left) - box.left + 8;
+        const left = (rectOf('.lab-setup')?.right ?? box.left) - box.left + 8;
         return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
       }
       if (phoneQuery.matches) {
@@ -148,7 +146,10 @@ export function App() {
         return;
       }
       try {
+        // The loader's hairline steps on as the view's code arrives and the view is built.
+        document.documentElement.dataset.sceneStage = 'code';
         const { createLabScene } = await import('./scene/index.ts');
+        document.documentElement.dataset.sceneStage = 'build';
         // Capture renders one frame and stops, so labels must be measured with final fonts.
         if (CAPTURE) await document.fonts.ready;
         if (cancelled()) return;
@@ -218,27 +219,27 @@ export function App() {
     };
   }, []);
 
+  // The address follows the reader's choices, so a link shares what they see. Not on arrival:
+  // the address already says it, and rewriting it then would cut short the page's fade in.
+  const firstState = useRef(true);
   useEffect(() => {
     sceneRef.current?.setState(setup, frequency);
+    if (firstState.current) {
+      firstState.current = false;
+      return;
+    }
     const url = new URL(location.href);
     url.searchParams.set('setup', setup);
     url.searchParams.set('f', String(frequency));
     history.replaceState(null, '', url);
   }, [setup, frequency]);
 
-  // Settings apply at once and are remembered; the page applied the saved ones before first paint.
-  const firstSettings = useRef(true);
+  // Settings apply at once (the store applies and saves them); the scene follows them here.
   useEffect(() => {
-    applyToDocument(settings);
-    if (firstSettings.current) {
-      firstSettings.current = false;
-      return;
-    }
-    saveSettings(settings);
     const scene = sceneRef.current;
     scene?.setTheme(resolvedTheme());
     scene?.setReducedMotion(reducesMotion(settings.motion, reducedMotionQuery.matches));
-  }, [settings]);
+  }, [settings.theme, settings.motion]);
 
   useEffect(() => {
     if (!TIER_PARAM) void sceneRef.current?.setTier(settings.quality);
@@ -266,21 +267,10 @@ export function App() {
       data-sheet={sheetOpen ? 'open' : 'closed'}
       data-panel={panelOpen ? 'open' : 'closed'}
     >
-      <header class="lab-title" data-chrome>
-        <div class="lab-title-row">
-          <a
-            class="icon-button lab-home"
-            href={import.meta.env.BASE_URL}
-            aria-label="All lessons"
-            title="All lessons"
-          >
-            <Icon name="back" />
-          </a>
-          <h1>Frequency Lab</h1>
-          <SettingsMenu settings={settings} onChange={setSettings} />
-        </div>
-        <p>{TAGLINE.text}</p>
-      </header>
+      {/* The lab's one-line lesson, under the site header that names it. */}
+      <p class="lab-lede" data-chrome>
+        {TAGLINE.text}
+      </p>
 
       <div class="lab-setup" data-chrome>
         <Segmented label="Setup" value={setup} options={SETUP_OPTIONS} onChange={setSetup} />
@@ -296,6 +286,7 @@ export function App() {
           aria-label="3D cutaway of a street block showing buried lines and the locate signal."
           aria-describedby="lab-status"
         />
+        <SceneLoader page={PAGE} done={failed !== null} />
         {/*
           Labels start hidden; the scene places and shows them once it has a frame to match. A
           label gaining focus is placed first (capture), before its own tip measures where it sits.

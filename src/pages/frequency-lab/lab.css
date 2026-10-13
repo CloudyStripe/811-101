@@ -1,25 +1,30 @@
 /*
- * Frequency Lab layout: a full-bleed 3D stage, with the chrome laid out on a grid over it.
- * Wide screens: title, setup and transmitter on the left, the guide in a side panel on the right.
- * Phones (760px and under): one column, with the guide as a bottom sheet above the transmitter.
+ * Frequency Lab layout: a full-bleed 3D stage, with the chrome laid out on a grid over it, under
+ * the site header. Wide screens: the lesson's lede, setup and transmitter on the left, the guide in
+ * a side panel on the right. Phones (760px and under): one column, with the guide as a bottom
+ * sheet above the transmitter.
  */
 
 body {
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
-/* The page scrolls only when the screen is too short for the lab, e.g. when zoomed in. */
+/*
+ * The lab fills the screen. The page scrolls only when the screen is too short for it, e.g. when
+ * zoomed in, and then the site header scrolls away with it, as on every page.
+ */
 .lab {
-  position: fixed;
-  inset: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .lab-grid {
+  /* Room for the site header, which floats over the top of the page. */
+  --lab-top: calc(var(--header-h) + max(0px, env(safe-area-inset-top) - var(--space-3)));
   position: relative;
   display: grid;
-  min-height: 100%;
+  flex: 1;
   grid-template-columns: auto minmax(0, 1fr) var(--panel-w);
   grid-template-rows: auto auto minmax(180px, 1fr) auto;
   grid-template-areas:
@@ -28,9 +33,8 @@ body {
     'view view panel'
     'console . panel';
   gap: var(--space-3) var(--space-4);
-  padding: max(var(--space-4), env(safe-area-inset-top))
-    max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom))
-    max(var(--space-4), env(safe-area-inset-left));
+  padding: var(--lab-top) max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
   /* Empty grid space passes the pointer through to the 3D view. */
   pointer-events: none;
 }
@@ -45,7 +49,7 @@ body {
   z-index: 0;
 }
 
-.lab-title,
+.lab-lede,
 .lab-setup,
 .lab-console,
 .lab-panel {
@@ -76,49 +80,22 @@ body {
 }
 
 /* Chrome surfaces are opaque, so text contrast holds over any part of the 3D view. */
-.lab-title,
+.lab-lede,
 .lab-console,
-.lab-panel,
-.segmented {
+.lab-panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.06),
-    0 8px 24px rgb(0 0 0 / 0.08);
+  box-shadow: var(--shadow-1);
 }
 
-.lab-title {
+/* The lesson in one line, under the header that names the lab. */
+.lab-lede {
   grid-area: title;
   justify-self: start;
-  max-width: 26rem;
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-}
-
-.lab-title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.lab-title-row h1 {
-  flex: 1;
-}
-
-/* Back to the site's home: sits in the card's padding, so the title keeps its place. */
-.lab-home {
-  margin-left: calc(-1 * var(--space-2));
-}
-
-.lab-title h1 {
+  max-width: 25rem;
   margin: 0;
-  font-size: 1.55rem;
-  font-weight: 800;
-  font-stretch: 112%;
-}
-
-.lab-title p {
-  margin: 4px var(--space-1) 0 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
   color: var(--ink-2);
   font-size: 0.92rem;
   line-height: 1.4;
@@ -127,39 +104,6 @@ body {
 .lab-setup {
   grid-area: setup;
   justify-self: start;
-}
-
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 12px;
-}
-
-.segmented-option {
-  min-height: 34px;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--ink-2);
-  font-weight: 700;
-  font-size: 0.9rem;
-  line-height: 1.15;
-  cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
-}
-
-.segmented-option:hover {
-  color: var(--ink);
-  background: var(--surface-2);
-}
-
-.segmented-option[aria-checked='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 
 /* The transmitter: its frequency dial. */
@@ -189,45 +133,6 @@ body {
   font-family: var(--font-mono);
   font-weight: 600;
   min-width: 4.6rem;
-}
-
-.icon-button {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.icon-button:hover {
-  background: var(--surface-2);
-}
-
-.icon {
-  width: 18px;
-  height: 18px;
-}
-
-.text-button {
-  min-height: 24px;
-  padding: 4px 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font-weight: 700;
-  text-decoration: underline;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.muted {
-  color: var(--ink-2);
 }
 
 /* The guide: side panel on wide screens, bottom sheet on phones. */
@@ -282,7 +187,7 @@ body {
 
 .panel-section h3 {
   margin: 0 0 var(--space-2);
-  font-size: 1.05rem;
+  font-size: var(--text-h3);
   font-weight: 800;
 }
 
@@ -327,23 +232,6 @@ body {
   gap: 10px;
 }
 
-.chip {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--chip);
-  color: var(--chip-ink);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
-}
-
-.chip .icon {
-  width: 14px;
-  height: 14px;
-}
-
 .sym {
   display: grid;
   flex: none;
@@ -365,257 +253,7 @@ body {
     var(--soil);
 }
 
-/* Terms in text: a dotted underline, with the definition in a tip below. */
-/* A term and any punctuation after it stay on one line. */
-.term-wrap {
-  position: relative;
-  white-space: nowrap;
-}
-
-.term {
-  padding: 0;
-  border: 0;
-  border-radius: 3px;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-decoration: underline dotted;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
-  cursor: help;
-}
-
-.term:hover,
-.term-wrap:focus-within .term {
-  background: var(--surface-2);
-}
-
-.term-tip,
-.lbl-tip {
-  position: absolute;
-  z-index: 10;
-  width: max-content;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
-  font-size: 0.85rem;
-  font-weight: 400;
-  line-height: 1.4;
-  text-align: left;
-  white-space: normal;
-}
-
-.term-tip {
-  top: calc(100% + 6px);
-  max-width: min(17rem, calc(100vw - 32px));
-}
-
-.term-tip.above {
-  top: auto;
-  bottom: calc(100% + 6px);
-}
-
-/* 3D labels. The label layer positions `.lbl` and toggles `off`, `capped` and `compact` on it. */
-.labels {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.lbl {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: auto;
-  transition: opacity var(--dur) var(--ease);
-  will-change: transform;
-}
-
-.lbl[data-tip='open'] {
-  z-index: 2;
-}
-
-.lbl-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 2px 11px 2px 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-  cursor: pointer;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.08),
-    0 4px 14px rgb(0 0 0 / 0.08);
-  transition:
-    background var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease);
-}
-
-.lbl-btn:hover {
-  border-color: var(--ink-3);
-}
-
-/* The line carrying the signal is the label to read first: filled in ink. */
-.lbl[data-tier='current'] .lbl-btn {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--surface);
-}
-
-/* Leader lines from each label to the point it names, under the labels. */
-.lbl-leaders {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.lbl-leaders line {
-  stroke: var(--ink);
-  stroke-width: 1.25;
-  opacity: 0.7;
-}
-
-.lbl-leaders circle {
-  fill: var(--ink);
-  stroke: var(--surface);
-  stroke-width: 1.5;
-}
-
-.lbl-leaders g {
-  transition: opacity var(--dur) var(--ease);
-}
-
-.lbl-leaders g.off {
-  opacity: 0;
-}
-
-.lbl-icon {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
-.lbl-icon .icon {
-  width: 14px;
-  height: 14px;
-}
-
-/* Facility chips carry their APWA color, with a dark ring so the edge holds on any background. */
-.lbl-icon-facility {
-  background: var(--chip);
-  color: var(--chip-ink);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
-}
-
-.lbl.compact .lbl-btn {
-  padding: 2px;
-  gap: 0;
-}
-
-/* A crowded label shrinks to its icon but keeps its name for screen readers. */
-.lbl.compact .lbl-text {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
-.lbl.off {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition:
-    opacity var(--dur) var(--ease),
-    visibility 0s var(--dur);
-}
-
-/*
- * Over the label cap: out of sight and out of the pointer's way, but still in the tab order and
- * the accessibility tree. Focusing it shows it (the label layer always places a focused label).
- */
-.lbl.capped:not(:focus-within) {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.lbl-tip {
-  top: calc(100% + 6px);
-  left: 50%;
-  max-width: 15rem;
-  transform: translateX(calc(-50% + var(--shift, 0px)));
-}
-
-.lbl-tip.above {
-  top: auto;
-  bottom: calc(100% + 6px);
-}
-
-/* About this model */
-.dialog {
-  width: min(34rem, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.3);
-}
-
-.dialog::backdrop {
-  background: rgb(20 18 15 / 0.5);
-}
-
-/* The dialog itself never scrolls; its body does, under a header that stays put. */
-.dialog[open] {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.dialog-body {
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 var(--space-5) var(--space-5) var(--space-6);
-}
-
-.dialog-head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin: 0 calc(-1 * var(--space-5)) var(--space-2) 0;
-  padding: var(--space-4) var(--space-5) var(--space-2) 0;
-  background: var(--surface);
-}
-
-.dialog-head h2 {
-  margin: 0;
-  font-size: 1.3rem;
-}
-
+/* About this model: its list of simplifications. */
 .about-list {
   display: grid;
   gap: var(--space-2);
@@ -623,75 +261,6 @@ body {
   padding-left: 1.15em;
 }
 
-/* Settings */
-.settings[popover] {
-  position: fixed;
-  inset: auto;
-  width: 18rem;
-  max-height: calc(100dvh - 24px);
-  margin: 0;
-  overflow: auto;
-  padding: var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 16px 48px rgb(0 0 0 / 0.22);
-}
-
-.settings h2 {
-  margin: 0 0 var(--space-3);
-  font-size: 1.05rem;
-}
-
-.settings-group {
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  border: 0;
-}
-
-.settings-group legend {
-  margin-bottom: var(--space-1);
-  padding: 0;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.radio {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 28px;
-  cursor: pointer;
-}
-
-.radio input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent);
-}
-
-.settings-note {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 0.8rem;
-}
-
-.perf-hud {
-  position: fixed;
-  top: 8px;
-  right: 8px;
-  z-index: 50;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: rgb(0 0 0 / 0.72);
-  color: #fff;
-  font: 600 11px/1.4 var(--font-mono);
-  pointer-events: none;
-}
-
-/* Medium widths: too narrow for the transmitter and view toolbar side by side. */
 /* Medium widths: too narrow for the transmitter and view toolbar side by side. */
 @media (min-width: 761px) and (max-width: 1100px) {
   .lab-grid {
@@ -739,17 +308,10 @@ body {
  * the 3D view. Collapsed, it's a bar that sums up what the view shows.
  */
 @media (max-width: 760px), (max-height: 580px) and (min-width: 561px) {
-  .lab-title {
+  .lab-lede {
     justify-self: stretch;
     max-width: none;
-    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
-  }
-
-  .lab-title h1 {
-    font-size: 1.2rem;
-  }
-
-  .lab-title p {
+    padding: var(--space-2) var(--space-3);
     font-size: 0.82rem;
   }
 
@@ -860,8 +422,7 @@ body {
       'panel'
       'console';
     gap: var(--space-2);
-    padding: max(var(--space-3), env(safe-area-inset-top))
-      max(var(--space-3), env(safe-area-inset-right))
+    padding: var(--lab-top) max(var(--space-3), env(safe-area-inset-right))
       max(var(--space-3), env(safe-area-inset-bottom))
       max(var(--space-3), env(safe-area-inset-left));
   }
@@ -872,9 +433,9 @@ body {
   }
 }
 
-/* Short phones: the tagline gives way, and the view can be shorter, so the dial stays on screen. */
+/* Short phones: the lede gives way, and the view can be shorter, so the dial stays on screen. */
 @media (max-width: 760px) and (max-height: 680px) {
-  .lab-title p {
+  .lab-lede {
     display: none;
   }
 
@@ -895,14 +456,14 @@ body {
       '. view'
       'console view';
     gap: var(--space-2);
-    padding: max(var(--space-2), env(safe-area-inset-top))
-      max(var(--space-3), env(safe-area-inset-right))
+    padding: var(--lab-top) max(var(--space-3), env(safe-area-inset-right))
       max(var(--space-2), env(safe-area-inset-bottom))
       max(var(--space-3), env(safe-area-inset-left));
   }
 
-  .lab-title p {
-    font-size: 0.78rem;
+  /* No room for the lede beside a view this short; the guide's rule says it. */
+  .lab-lede {
+    display: none;
   }
 
   /* Overrides the phone layout's rows when the sheet is open, at the sizes both match. */
