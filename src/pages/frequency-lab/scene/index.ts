@@ -12,8 +12,8 @@ import {
   WebGLRenderTarget,
 } from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
-import { LABEL_LIMITS, THEMES, type ThemeName } from '../../../design/tokens.ts';
-import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
+import { LABEL_LIMITS, MOTION, THEMES, easeInOut, type ThemeName } from '../../../design/tokens.ts';
+import { LabCamera, lerpPose, type CameraPose, type VisibleArea } from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
 import { LabelLayer } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
@@ -68,16 +68,36 @@ export interface LabScene {
   setState(setup: SetupId, frequency: Frequency): void;
   setTheme(theme: ThemeName): void;
   setReducedMotion(reduced: boolean): void;
+  /** Stops the signal's motion while the reader has paused it, whatever the motion setting. */
+  setPaused(paused: boolean): void;
   setTier(tier: Tier | 'auto'): Promise<void>;
   readonly tier: Tier;
-  /** Re-measures labels and layout, e.g. after fonts load or the panel changes. */
-  relayout(): void;
+  /**
+   * Re-measures labels and frames the view for the room it has, e.g. after fonts load or the panel
+   * changes. With `ease`, the view glides to its new framing (at once when motion is reduced).
+   */
+  relayout(ease?: boolean): void;
+  /** Shows one label however crowded the view, while the key points at its line; null for none. */
+  highlight(id: LabelId | null): void;
   /** Places labels again, now, without touching the camera: when a label gains focus or a sheet opens. */
   refreshLabels(): void;
   dispose(): void;
 }
 
 const FACE_NORMAL = new Vector3(0, 0, 1);
+
+/** A free area part way from one to another, for a glide between framings. */
+function between(a: VisibleArea, b: VisibleArea, t: number): VisibleArea {
+  const mix = (x: number, y: number) => x + (y - x) * t;
+  return {
+    x: mix(a.x, b.x),
+    y: mix(a.y, b.y),
+    width: mix(a.width, b.width),
+    height: mix(a.height, b.height),
+    ...(b.portrait === undefined ? {} : { portrait: b.portrait }),
+    ...(b.keepOut === undefined ? {} : { keepOut: b.keepOut }),
+  };
+}
 
 /** What the transmitter's screen can show: the frequency it's set to. */
 const READINGS = FREQUENCIES.map(frequencyLabel);
@@ -133,6 +153,20 @@ async function buildLabScene(
   let labelsDirty = true;
   let animTime = 1.25;
   let reducedMotion = o.reducedMotion;
+  let paused = false;
+  /**
+   * The free area the view is framed for, and a glide under way to a new framing: the area and the
+   * camera's pose both ease from where they were, so a change of view (and lens) eases too.
+   */
+  let shownArea: VisibleArea | null = null;
+  let glide: {
+    from: VisibleArea;
+    to: VisibleArea;
+    fromPose: CameraPose;
+    toPose: CameraPose;
+    start: number;
+  } | null = null;
+  let current: Label[] = [];
   let setup = o.setup;
   let frequency = o.frequency;
   let rebuilding = false;
@@ -146,10 +180,20 @@ async function buildLabScene(
     {
       frame(dt) {
         if (!post) return false;
-        const animating = !reducedMotion && !o.capture;
+        const animating = !reducedMotion && !paused && !o.capture;
         if (animating) {
           animTime += dt;
           fx.setTime(animTime);
+        }
+        if (glide) {
+          const t = Math.min(1, (performance.now() - glide.start) / MOTION.panel);
+          if (t < 1) showGlide(easeInOut(t));
+          else {
+            // Landed: frame the new area exactly.
+            const to = glide.to;
+            glide = null;
+            frameArea(to);
+          }
         }
         if (labelsDirty) {
           labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
@@ -160,15 +204,12 @@ async function buildLabScene(
         hud?.frame(dt * 1000, now, stage.renderer, tier, stage.pixelRatio);
         const next = governor?.sample(dt * 1000, now);
         if (next) void changeTier(next);
-        return animating;
+        return animating || glide !== null;
       },
       resize(width, height) {
-        const area = o.visibleArea();
-        cam.setLayout(width, height, area);
-        cam.frame(viewFor(area));
-        framed();
+        glide = null;
         post?.setSize(width, height);
-        labelsDirty = true;
+        frameArea(o.visibleArea());
       },
       contextLost() {
         o.onContextLost?.();
@@ -234,6 +275,26 @@ async function buildLabScene(
   const hud = o.perf ? new PerfHud(document.body) : null;
   const mustSee = MUST_SEE.map((p) => new Vector3(...p));
   const worldEdge = new Vector3(...WORLD_EDGE);
+  /** Frames the view for a free area of the canvas, with the view that suits it unless given. */
+  function frameArea(area: VisibleArea, view = viewFor(area, stage)) {
+    cam.setLayout(stage.width, stage.height, area);
+    cam.frame(view);
+    framed();
+    shownArea = area;
+    labelsDirty = true;
+  }
+
+  /** A glide part way, at `e` along its eased course. */
+  function showGlide(e: number) {
+    if (!glide) return;
+    const area = between(glide.from, glide.to, e);
+    cam.setLayout(stage.width, stage.height, area);
+    cam.setPose(lerpPose(glide.fromPose, glide.toPose, e));
+    framed();
+    shownArea = area;
+    labelsDirty = true;
+  }
+
   /**
    * After the camera moves: the sky follows it, and the fog is set by how far the lesson reaches,
    * and so the world's far edge stays hidden.
@@ -255,7 +316,8 @@ async function buildLabScene(
     // Label text only changes with the setup, so a frequency change needn't re-measure them.
     if (labelsFor_ !== setup) {
       labelsFor_ = setup;
-      labels.setLabels(labelsFor(o.labelElements, setup));
+      current = labelsFor(o.labelElements, setup);
+      labels.setLabels(current);
     }
     // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
     if (shadowsFor !== setup) {
@@ -353,8 +415,7 @@ async function buildLabScene(
   stage.resize();
   const firstPost = await buildPost(tier);
   swapPost(firstPost);
-  cam.frame(viewFor(o.visibleArea()));
-  framed();
+  frameArea(o.visibleArea());
   document.documentElement.dataset.sceneStage = 'compile';
   await precompile();
   // The screen draws with its own font from the first frame. If the font is slow, it shows a
@@ -407,6 +468,14 @@ async function buildLabScene(
       reducedMotion = reduced;
       stage.requestFrame();
     },
+    setPaused(next) {
+      paused = next;
+      stage.requestFrame();
+    },
+    highlight(id) {
+      for (const label of current) label.highlight = label.id === id;
+      labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+    },
     async setTier(next) {
       if (next === 'auto') {
         const gl = renderer.getContext();
@@ -426,12 +495,27 @@ async function buildLabScene(
       // frame: a label just focused is where it belongs before anything measures it.
       labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
     },
-    relayout() {
+    relayout(ease = false) {
       labels.measure();
       const area = o.visibleArea();
-      cam.setLayout(stage.width, stage.height, area);
-      cam.frame(viewFor(area));
-      framed();
+      // A glide from the framing shown now, unless motion is reduced or there's nothing to glide from.
+      if (ease && !reducedMotion && !o.capture && shownArea) {
+        // Where it lands: the pose that frames the new area, fitted without moving the camera.
+        cam.setLayout(stage.width, stage.height, area);
+        const toPose = cam.poseFor(viewFor(area, stage));
+        cam.setLayout(stage.width, stage.height, shownArea);
+        glide = {
+          from: shownArea,
+          to: area,
+          fromPose: cam.pose(),
+          toPose,
+          start: performance.now(),
+        };
+        stage.requestFrame();
+        return;
+      }
+      glide = null;
+      frameArea(area);
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
         labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));

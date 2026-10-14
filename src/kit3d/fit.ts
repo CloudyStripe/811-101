@@ -1,12 +1,21 @@
 /**
  * Fitting a shot to the free part of the view. A shot gives a direction to look along and the
  * points that must be in view; the fit finds where to put the camera so they all sit inside the
- * area the panel or sheet leaves free, centered, with a margin. It's a pure function of the field
- * of view and the area, so it's tested without a renderer.
+ * area the panel or sheet leaves free, centered, with a margin, and out from under any controls
+ * over the area. It's a pure function of the field of view and the area, so it's tested without a
+ * renderer.
  */
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 
 export type Point3 = readonly [number, number, number];
+
+/** A rectangle in the free area's own -1 to 1 units, y up. */
+export interface FitRect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
 
 export interface Shot {
   /** A camera position and target that set the direction to look along; the distance is fitted. */
@@ -25,6 +34,11 @@ export interface Shot {
    * either side still fits beside it. Counts only where it's more than the margin.
    */
   labelRoom?: number;
+  /**
+   * Controls over the free area, such as a card in a corner: no must-see point may sit under one.
+   * Ignored where the camera can't get every point out from under them.
+   */
+  keepOut?: readonly FitRect[];
 }
 
 /** How far out the must-see points may reach, each way, in the free area's -1 to 1 units. */
@@ -98,22 +112,32 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
     }
     return { x0, x1, y0, y1, depth, behind };
   };
-  const fits = (distance: number) => {
+  const keepOut = shot.keepOut ?? [];
+  /** Whether every point is out from under the controls over the area. */
+  const clear = () =>
+    points.every((p) => {
+      v.copy(p).project(cam);
+      return keepOut.every((r) => v.x <= r.x0 || v.x >= r.x1 || v.y <= r.y0 || v.y >= r.y1);
+    });
+  const inArea = (distance: number) => {
     place(distance);
     const e = extent();
     return !e.behind && e.x0 >= -limit.x && e.x1 <= limit.x && e.y0 >= -limit.y && e.y1 <= limit.y;
   };
-  /** The nearest distance at which everything fits (to a few hundredths of a unit). */
-  const nearest = () => {
+  const fits = (distance: number) => inArea(distance) && clear();
+  /** The nearest distance that passes the test (to a few hundredths of a unit), if any does. */
+  const nearestFor = (test: (distance: number) => boolean) => {
     let lo = 0.5;
     let hi = 5000;
+    if (!test(hi)) return null;
     for (let i = 0; i < 24; i++) {
       const mid = Math.sqrt(lo * hi);
-      if (fits(mid)) hi = mid;
+      if (test(mid)) hi = mid;
       else lo = mid;
     }
     return hi;
   };
+  const nearest = () => nearestFor(fits) ?? nearestFor(inArea) ?? 5000;
 
   // Center the points, then fit the distance again, until they sit centered: centering changes
   // what fits. Sliding the camera sideways moves near points more than far ones, so each step is

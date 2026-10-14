@@ -1,7 +1,8 @@
 /**
- * The lab guide: how locating works, what the signal is doing now, what to try, the rule, and
- * the key. A side panel on wide screens that can be closed to a small card; a bottom sheet on
- * phones and short screens.
+ * The lab guide: what the signal is doing now, first, then how locating works, what to try and
+ * the rule, each of which folds away. A side panel on wide screens that can be closed to its
+ * title; a bottom sheet on phones and short screens, which also holds the lesson's one line and
+ * the key (wider screens show those beside the view).
  */
 import { useId } from 'preact/hooks';
 import type { Frequency } from '../../../config/equipment.ts';
@@ -9,9 +10,11 @@ import {
   INTRO,
   RULE,
   SETUP_TEXT,
+  TAGLINE,
   TERMS,
   TRY_THIS,
 } from '../../../content/training/frequency-lab.ts';
+import { Disclosure } from '../../design/Disclosure.tsx';
 import { Icon } from '../../design/icons.tsx';
 import { Rich } from '../../design/Term.tsx';
 import type { SetupId } from '../../signal/model.ts';
@@ -37,11 +40,7 @@ export function Panel(props: PanelProps) {
   const ids = {
     title: useId(),
     body: useId(),
-    intro: useId(),
     happening: useId(),
-    tryThis: useId(),
-    rule: useId(),
-    key: useId(),
   };
   const [lowest, why, higher] = RULE.claims;
 
@@ -90,15 +89,8 @@ export function Panel(props: PanelProps) {
       </div>
 
       <div class="panel-body" id={ids.body}>
-        <section class="panel-section" aria-labelledby={ids.intro}>
-          <h3 id={ids.intro}>{INTRO.heading}</h3>
-          {INTRO.claims.map((c) => (
-            <p key={c.id}>
-              <Rich text={c.text} define={define} />
-            </p>
-          ))}
-          <p class="muted">{INTRO.howTo}</p>
-        </section>
+        {/* Phones and short screens: the lesson's one line, which wider screens show by the view. */}
+        <p class="panel-lede">{TAGLINE.text}</p>
 
         <section class="panel-section" aria-labelledby={ids.happening}>
           <h3 id={ids.happening}>What's happening</h3>
@@ -111,8 +103,16 @@ export function Panel(props: PanelProps) {
           </p>
         </section>
 
-        <section class="panel-section" aria-labelledby={ids.tryThis}>
-          <h3 id={ids.tryThis}>Try this</h3>
+        <Disclosure icon="info" title={INTRO.heading}>
+          {INTRO.claims.map((c) => (
+            <p key={c.id}>
+              <Rich text={c.text} define={define} />
+            </p>
+          ))}
+          <p class="muted">{INTRO.howTo}</p>
+        </Disclosure>
+
+        <Disclosure icon="idea" title="Try this">
           <ul class="try-list">
             {TRY_THIS[setup].map((c) => (
               <li key={c.id}>
@@ -120,21 +120,22 @@ export function Panel(props: PanelProps) {
               </li>
             ))}
           </ul>
-        </section>
+        </Disclosure>
 
-        <section class="panel-section" aria-labelledby={ids.rule}>
-          <h3 id={ids.rule}>{RULE.heading}</h3>
+        <Disclosure icon="rule" title={RULE.heading}>
           <p class="rule">
             <strong>{lowest.text}</strong> {why.text}
           </p>
           <p>{higher.text}</p>
           <p class="muted">{ruleSummary(setup)}</p>
-        </section>
+        </Disclosure>
 
-        <section class="panel-section" aria-labelledby={ids.key}>
-          <h3 id={ids.key}>Key</h3>
-          <Legend setup={setup} />
-        </section>
+        {/* Phones and short screens: the key, which wider screens show by the view. */}
+        <div class="panel-key">
+          <Disclosure icon="list" title="Key" open={false}>
+            <Legend setup={setup} />
+          </Disclosure>
+        </div>
 
         <div class="panel-footer">
           <button type="button" class="text-button" onClick={props.onAbout}>

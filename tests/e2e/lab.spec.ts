@@ -1,11 +1,13 @@
 /**
  * The lab in use: labels never flash, whether before the scene places them or while they're
- * hidden, and the 3D view keeps drawing through setup and frequency changes.
+ * hidden; the 3D view keeps drawing through setup and frequency changes; the signal pauses and
+ * plays; the knob steps on a click; and the key finds each line in the view.
  */
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 
 type Watched = Window & { labelProblems?: string[] };
+type Counted = Window & { draws?: number };
 
 /** Switches to the plastic main, steps the dial through every frequency, and switches back. */
 async function exercise(page: Page, afterEach: (step: string) => Promise<void>) {
@@ -39,6 +41,41 @@ async function open(page: Page) {
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
     timeout: 60_000,
   });
+}
+
+/**
+ * Counts what the 3D view draws. Its loop sleeps whenever nothing moves, so the count holds still
+ * exactly when the view does. (Screenshots of a moving canvas are too slow under software WebGL
+ * to compare instead.)
+ */
+async function countDraws(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as Counted;
+    w.draws = 0;
+    const gl = WebGL2RenderingContext.prototype;
+    for (const name of [
+      'drawArrays',
+      'drawElements',
+      'drawArraysInstanced',
+      'drawElementsInstanced',
+    ]) {
+      const draw: unknown = Reflect.get(gl, name);
+      if (typeof draw !== 'function') continue;
+      Reflect.set(gl, name, function (this: unknown, ...args: unknown[]) {
+        w.draws = (w.draws ?? 0) + 1;
+        Reflect.apply(draw, this, args);
+      });
+    }
+  });
+}
+
+const drawn = (page: Page) => page.evaluate(() => (window as Counted).draws ?? 0);
+
+/** Whether the view draws anything over the given time. */
+async function moving(page: Page, ms = 500) {
+  const before = await drawn(page);
+  await page.waitForTimeout(ms);
+  return (await drawn(page)) > before;
 }
 
 test.describe('with motion', () => {
@@ -82,6 +119,39 @@ test.describe('with motion', () => {
     const problems = await page.evaluate(() => (window as Watched).labelProblems ?? []);
     expect([...new Set(problems)]).toEqual([]);
   });
+
+  test('pausing holds the signal still, and playing starts it again', async ({ page }) => {
+    await countDraws(page);
+    await open(page);
+    await expect.poll(() => moving(page), { message: 'the signal moves' }).toBe(true);
+
+    // Named for what it does next.
+    await page.getByRole('button', { name: 'Pause the signal' }).click();
+    const play = page.getByRole('button', { name: 'Play the signal' });
+    await expect(play).toBeVisible();
+    // The frame already asked for still lands, late when software WebGL is busy, so the view is
+    // still once two whole seconds pass without a frame. Then it stays still.
+    let last = -1;
+    let quiet = 0;
+    await expect
+      .poll(
+        async () => {
+          const now = await drawn(page);
+          quiet = now === last ? quiet + 1 : 0;
+          last = now;
+          return quiet;
+        },
+        { message: 'paused, the view holds still', intervals: [1000] },
+      )
+      .toBeGreaterThanOrEqual(2);
+    expect(await moving(page, 1500), 'and stays still').toBe(false);
+
+    await play.click();
+    await expect(page.getByRole('button', { name: 'Pause the signal' })).toBeVisible();
+    await expect
+      .poll(() => moving(page), { message: 'playing, the signal moves again' })
+      .toBe(true);
+  });
 });
 
 test.describe('with reduced motion', () => {
@@ -122,6 +192,89 @@ test.describe('with reduced motion', () => {
     await exercise(page, async (step) => {
       expect(await canvasSpread(page), `${step} draws`).toBeGreaterThan(8);
     });
+  });
+
+  test('a click on the knob steps it to the next frequency, round to the first', async ({
+    page,
+  }) => {
+    await open(page);
+    const dial = page.getByRole('radiogroup', { name: 'Transmitter frequency' });
+    const knob = page.locator('.dial-knob');
+    for (const [name, f] of [
+      ['8 kilohertz', 8000],
+      ['33 kilohertz', 33000],
+      ['83 kilohertz', 83000],
+      ['512 hertz', 512],
+    ] as const) {
+      await knob.click();
+      await expect(dial.getByRole('radio', { checked: true })).toHaveAccessibleName(name);
+      await expect(page).toHaveURL(new RegExp(`f=${String(f)}(&|$)`));
+    }
+    // The detents are a radio group: End and Home jump to the ends.
+    await dial.getByRole('radio', { checked: true }).focus();
+    await page.keyboard.press('End');
+    await expect(dial.getByRole('radio', { name: '83 kilohertz' })).toBeFocused();
+    await expect(dial.getByRole('radio', { checked: true })).toHaveAccessibleName('83 kilohertz');
+    await page.keyboard.press('Home');
+    await expect(dial.getByRole('radio', { name: '512 hertz' })).toBeFocused();
+    await expect(dial.getByRole('radio', { checked: true })).toHaveAccessibleName('512 hertz');
+  });
+});
+
+test.describe('the key beside the view', () => {
+  test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
+
+  /** Whether the label is what's on top at its middle: in view, and under nothing. */
+  function onTop(label: Locator) {
+    return label.locator('.lbl-btn').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return hit !== null && el.contains(hit);
+    });
+  }
+
+  test("pointing at a line's row lights its label in view, and pressing it moves focus there", async ({
+    page,
+  }) => {
+    await open(page);
+    const key = page.getByRole('region', { name: 'Key' });
+    for (const setup of ['Steel main', 'Plastic main']) {
+      await page
+        .getByRole('radiogroup', { name: 'Setup' })
+        .getByRole('radio', { name: setup })
+        .click();
+      const rows = key.getByRole('button');
+      const count = await rows.count();
+      expect(count, `${setup}: a row for each line`).toBeGreaterThanOrEqual(3);
+      for (let i = 0; i < count; i++) {
+        const row = rows.nth(i);
+        const name = (await row.textContent()) ?? '';
+        const label = page.locator('.lbl').filter({ has: page.getByText(name, { exact: true }) });
+        await row.hover();
+        await expect(label, `${setup}: ${name} lit`).toHaveClass(/\blit\b/);
+        await expect(label).not.toHaveClass(/\b(off|capped|compact)\b/);
+        expect(await onTop(label), `${setup}: ${name} lit, in view`).toBe(true);
+        // The pointer leaving the row lets the label go.
+        await page.mouse.move(700, 300);
+        await expect(label).not.toHaveClass(/\blit\b/);
+        await row.click();
+        await expect(label.locator('.lbl-btn'), `${setup}: ${name} focused`).toBeFocused();
+        expect(await onTop(label), `${setup}: ${name} focused, in view`).toBe(true);
+      }
+    }
+  });
+
+  test('with the guide open and less room, the key moves into the guide', async ({ page }) => {
+    await page.setViewportSize({ width: 1300, height: 900 });
+    await open(page);
+    const key = page.getByRole('region', { name: 'Key' });
+    await expect(key).toBeHidden();
+    const inGuide = page.locator('.lab-panel').getByRole('button', { name: 'Key' });
+    await expect(inGuide).toBeVisible();
+    await expect(inGuide).toHaveAttribute('aria-expanded', 'false');
+    // Closed down to its title, the guide leaves room for the key beside the view again.
+    await page.getByRole('button', { name: 'Close the lab guide' }).click();
+    await expect(key).toBeVisible();
   });
 });
 

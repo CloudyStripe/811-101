@@ -20,7 +20,13 @@ export type IconName =
   | 'forward'
   | 'ticket'
   | 'layers'
-  | 'locate';
+  | 'locate'
+  | 'pause'
+  | 'play'
+  | 'info'
+  | 'idea'
+  | 'rule'
+  | 'list';
 
 const PATHS: Record<IconName, JSX.Element> = {
   settings: (
@@ -80,6 +86,32 @@ const PATHS: Record<IconName, JSX.Element> = {
     </>
   ),
   wire: <path d="M2 12c2.63-4.5 5.38-4.5 8 0s5.38 4.5 8 0" />,
+  pause: <path d="M7.25 5v10M12.75 5v10" />,
+  play: <path d="M7 4.75v10.5l8.5-5.25z" />,
+  // A circled "i": how something works.
+  info: (
+    <>
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M10 9.25v4.75M10 6.4v.1" />
+    </>
+  ),
+  // A bulb: something to try.
+  idea: (
+    <>
+      <path d="M7.25 13.25c-1.4-1-2.25-2.6-2.25-4.25a5 5 0 0 1 10 0c0 1.65-.85 3.25-2.25 4.25V15h-5.5z" />
+      <path d="M8 17.5h4" />
+    </>
+  ),
+  // A ruled check: the rule that holds.
+  rule: (
+    <>
+      <path d="M3.5 5.5h13M3.5 14.5h4.5" />
+      <path d="M10.5 13.75l2.25 2.25 4-4.5" />
+      <path d="M3.5 10h13" />
+    </>
+  ),
+  // Swatches and names: a key.
+  list: <path d="M4 6h2M4 10h2M4 14h2M9 6h7M9 10h7M9 14h7" />,
 };
 
 export function Icon({ name, class: className }: { name: IconName; class?: string }) {

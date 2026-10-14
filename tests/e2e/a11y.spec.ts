@@ -1,7 +1,8 @@
 /**
  * Accessibility: axe with the WCAG 2.2 AA rules, in both themes, at desktop and phone sizes, with
- * the settings, the About dialog and the phone sheet open. Violations fail the run; items axe
- * can't decide on its own (such as text over the 3D view) are listed for a person to check.
+ * the settings, the About dialog and the phone sheet open, and the key beside the view in use.
+ * Violations fail the run; items axe can't decide on its own (such as text over the 3D view) are
+ * listed for a person to check.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -49,6 +50,20 @@ for (const theme of ['light', 'dark'] as const) {
       await page.getByRole('button', { name: 'About this model' }).click();
       await expect(page.getByRole('dialog', { name: 'About this model' })).toBeVisible();
       await scan(page, `${theme} About`);
+    });
+
+    test.describe('wide', () => {
+      test.use({ viewport: { width: 1440, height: 900 } });
+
+      test('the key beside the view, finding a line, and the signal paused', async ({ page }) => {
+        await open(page);
+        const key = page.getByRole('region', { name: 'Key' });
+        await key.getByRole('button', { name: 'Water main' }).hover();
+        await expect(page.locator('[data-label="water"]')).toHaveClass(/\blit\b/);
+        await scan(page, `${theme} wide, key`);
+        await page.getByRole('button', { name: 'Pause the signal' }).click();
+        await scan(page, `${theme} wide, paused`);
+      });
     });
 
     test.describe('phone', () => {
