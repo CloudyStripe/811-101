@@ -7,6 +7,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { BASE_PATH } from '../config/brand.ts';
+import { SECTIONS } from '../content/portal.ts';
 import {
   PAGES,
   posterPath,
@@ -14,6 +15,7 @@ import {
   type PageId,
   type PageInfo,
 } from '../src/site/pages.ts';
+import { HERO_SHAPES, THEME_NAMES, heroPath, previewPath } from '../src/site/stills.ts';
 
 interface ManifestChunk {
   file: string;
@@ -150,6 +152,24 @@ const NAMES: Record<PageId, string> = {
   'not-found': '404',
 };
 
+/**
+ * The portal's stills (dist/stills/), as one visit loads them: the hero in the reader's theme and
+ * the screen's shape, and each lesson's preview in the reader's theme. Each set counts its largest.
+ */
+async function stillsBytes(): Promise<number> {
+  const largest = async (paths: string[]) =>
+    Math.max(
+      ...(await Promise.all(paths.map(async (path) => (await stat(resolve(dist, path))).size))),
+    );
+  let bytes = await largest(
+    THEME_NAMES.flatMap((theme) => HERO_SHAPES.map((shape) => heroPath(theme, shape))),
+  );
+  for (const lesson of SECTIONS.flatMap((section) => section.lessons)) {
+    bytes += await largest(THEME_NAMES.map((theme) => previewPath(lesson.image, theme)));
+  }
+  return bytes;
+}
+
 /** One page's rows: what it loads up front, its 3D code and poster if it has a view, in total. */
 async function pageRows(page: PageInfo, budgets: PageBudgets): Promise<Row[]> {
   const name = NAMES[page.id];
@@ -159,7 +179,8 @@ async function pageRows(page: PageInfo, budgets: PageBudgets): Promise<Row[]> {
       .flatMap((k) => chunk(k).assets ?? [])
       .filter((f) => /\.(jpe?g|png|webp|avif)$/.test(f)),
   );
-  const images = await total(imageFiles, size);
+  // Bundled images, and on the portal, the stills its hero and previews show.
+  const images = (await total(imageFiles, size)) + (page.id === 'portal' ? await stillsBytes() : 0);
   let vendor = 0;
   let ao = 0;
   let scene = 0;

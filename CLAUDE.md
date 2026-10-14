@@ -18,8 +18,11 @@ An interactive learning site about buried utilities and line locating.
   whether it has a 3D view, and its load budgets. The head tags, header, budgets and tests read it.
   Add a page there first.
 - **Static shell:** `src/site/shell.ts` writes each built page's head (title, description, share
-  preview, favicons, theme color, the settings script), the header, the footer and the 3D loader
-  into its HTML at build time. Pages' own HTML keeps only what's theirs; links in it use `%BASE%`.
+  preview, favicons, theme color, the settings script), the header, the footer, the 3D loader and
+  the portal's hero into its HTML at build time. Pages' own HTML keeps only what's theirs; links in
+  it use `%BASE%`.
+- **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme
+  (and for the hero, per screen shape), named in `src/site/stills.ts`; only the reader's loads.
 - **Every page starts with** `src/site/boot.ts`: tokens, fonts, `base.css`, `components.css`,
   `site.css`, and the header's settings menu. Settings live in one store (`src/site/settings.ts`,
   `useSettings`), shared by the menu and the page.
@@ -45,15 +48,15 @@ An interactive learning site about buried utilities and line locating.
 
 ## Commands
 
-| Command              | What it does                                                                                     |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
-| `npm run dev`        | Dev server: http://localhost:5173/811-101/ (the portal)                                          |
-| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass.  |
-| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                        |
-| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                   |
-| `npm run budgets`    | Load budgets for each page, against the last build                                               |
-| `npm run thumbnails` | Re-capture lesson images, loader posters and share previews; run it when a lesson's look changes |
-| `npm run icons`      | Re-render the favicons from the mark                                                             |
+| Command              | What it does                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `npm run dev`        | Dev server: http://localhost:5173/811-101/ (the portal)                                                |
+| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass.        |
+| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                              |
+| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                         |
+| `npm run budgets`    | Load budgets for each page, against the last build                                                     |
+| `npm run thumbnails` | Re-capture the portal's stills, loader posters and share previews; run it when a lesson's look changes |
+| `npm run icons`      | Re-render the favicons from the mark                                                                   |
 
 Useful URL parameters on the 3D pages:
 

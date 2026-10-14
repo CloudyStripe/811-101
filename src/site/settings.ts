@@ -28,7 +28,8 @@ export const SETTINGS_KEY = '811-101.settings';
  * Chromium sometimes does when a link is followed the moment a page loads. The transition's
  * promises then reject, harmlessly, and would otherwise be reported as uncaught errors. And the
  * header, which holds still between pages, takes part only when it's on screen: on a scrolled page
- * it has gone, and would otherwise slide back in.
+ * it has gone, and would otherwise slide back in. The change revealing this page is kept, so the
+ * page's code can wait for it (src/site/arrival.ts).
  */
 export function bootScript(): string {
   return `try {
@@ -42,6 +43,7 @@ if (typeof addEventListener === 'function') {
       var t = event.viewTransition;
       if (!t) return;
       [t.ready, t.finished, t.updateCallbackDone].forEach(function (p) { p.catch(function () {}); });
+      if (type === 'pagereveal') window.__arrival = t;
       var header = document.querySelector('.site-header');
       if (header && scrollY > 0) header.style.viewTransitionName = 'none';
     });

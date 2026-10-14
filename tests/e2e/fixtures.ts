@@ -7,6 +7,73 @@ export async function waitReady(page: Page): Promise<void> {
   });
 }
 
+type Counted = Window & { drawnFrames?: number };
+
+/**
+ * Counts the frames a 3D view draws, from before the page loads, and returns a reader of the count.
+ * The view's loop sleeps whenever nothing moves, so the count holds still exactly when the view
+ * does. (Screenshots of a moving canvas are too slow under software WebGL to compare instead.)
+ */
+export async function countFrames(page: Page): Promise<() => Promise<number>> {
+  await page.addInitScript(() => {
+    const w = window as Counted;
+    w.drawnFrames = 0;
+    let inFrame = false;
+    const gl = WebGL2RenderingContext.prototype;
+    for (const name of [
+      'drawArrays',
+      'drawElements',
+      'drawArraysInstanced',
+      'drawElementsInstanced',
+    ]) {
+      const draw: unknown = Reflect.get(gl, name);
+      if (typeof draw !== 'function') continue;
+      Reflect.set(gl, name, function (this: unknown, ...args: unknown[]) {
+        // A frame's draws all come in one task: its first draw starts the frame, its task ends it.
+        if (!inFrame) {
+          inFrame = true;
+          w.drawnFrames = (w.drawnFrames ?? 0) + 1;
+          setTimeout(() => {
+            inFrame = false;
+          }, 0);
+        }
+        Reflect.apply(draw, this, args);
+      });
+    }
+  });
+  return () => page.evaluate(() => (window as Counted).drawnFrames ?? 0);
+}
+
+/**
+ * Whether a view is moving: drawing frame after frame over the given time. A single frame isn't
+ * motion: one asked for before a pause can land late when software WebGL is busy.
+ */
+export async function isMoving(
+  page: Page,
+  frames: () => Promise<number>,
+  ms = 1500,
+): Promise<boolean> {
+  const before = await frames();
+  await page.waitForTimeout(ms);
+  return (await frames()) - before >= 2;
+}
+
+/**
+ * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
+ * previews, below the fold, and its hero's still, a CSS background.
+ */
+export async function loadImages(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    for (const img of document.images) img.loading = 'eager';
+    const hero = document.querySelector('.hero-image');
+    const url = hero
+      ? /url\("?([^")]+)"?\)/.exec(getComputedStyle(hero).backgroundImage)?.[1]
+      : null;
+    const still = url ? Object.assign(new Image(), { src: url }) : null;
+    await Promise.all([...document.images, ...(still ? [still] : [])].map((img) => img.decode()));
+  });
+}
+
 interface Problems {
   /**
    * Pages this test means to open at a missing address: the site's 404 page answers there, with a

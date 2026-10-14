@@ -5,7 +5,7 @@
  * labels are neither clipped nor overlapping each other or the chrome.
  */
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { expect, loadImages, test } from './fixtures.ts';
 
 interface State {
   name: string;
@@ -176,8 +176,8 @@ for (const theme of ['light', 'dark'] as const) {
 
       test('the whole page', async ({ page }) => {
         await page.goto('./');
-        // Every preview decoded, so none is captured blank.
-        await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
+        // Every preview and the hero's still loaded, so none is captured blank.
+        await loadImages(page);
         await page.screenshot({
           path: `artifacts/screenshots/portal-${theme}-${vp.name}.png`,
           fullPage: true,

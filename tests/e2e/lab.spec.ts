@@ -4,10 +4,9 @@
  * plays; the knob steps on a click; and the key finds each line in the view.
  */
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { countFrames, expect, isMoving, test } from './fixtures.ts';
 
 type Watched = Window & { labelProblems?: string[] };
-type Counted = Window & { draws?: number };
 
 /** Switches to the plastic main, steps the dial through every frequency, and switches back. */
 async function exercise(page: Page, afterEach: (step: string) => Promise<void>) {
@@ -41,41 +40,6 @@ async function open(page: Page) {
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
     timeout: 60_000,
   });
-}
-
-/**
- * Counts what the 3D view draws. Its loop sleeps whenever nothing moves, so the count holds still
- * exactly when the view does. (Screenshots of a moving canvas are too slow under software WebGL
- * to compare instead.)
- */
-async function countDraws(page: Page) {
-  await page.addInitScript(() => {
-    const w = window as Counted;
-    w.draws = 0;
-    const gl = WebGL2RenderingContext.prototype;
-    for (const name of [
-      'drawArrays',
-      'drawElements',
-      'drawArraysInstanced',
-      'drawElementsInstanced',
-    ]) {
-      const draw: unknown = Reflect.get(gl, name);
-      if (typeof draw !== 'function') continue;
-      Reflect.set(gl, name, function (this: unknown, ...args: unknown[]) {
-        w.draws = (w.draws ?? 0) + 1;
-        Reflect.apply(draw, this, args);
-      });
-    }
-  });
-}
-
-const drawn = (page: Page) => page.evaluate(() => (window as Counted).draws ?? 0);
-
-/** Whether the view draws anything over the given time. */
-async function moving(page: Page, ms = 500) {
-  const before = await drawn(page);
-  await page.waitForTimeout(ms);
-  return (await drawn(page)) > before;
 }
 
 test.describe('with motion', () => {
@@ -121,9 +85,9 @@ test.describe('with motion', () => {
   });
 
   test('pausing holds the signal still, and playing starts it again', async ({ page }) => {
-    await countDraws(page);
+    const frames = await countFrames(page);
     await open(page);
-    await expect.poll(() => moving(page), { message: 'the signal moves' }).toBe(true);
+    await expect.poll(() => isMoving(page, frames), { message: 'the signal moves' }).toBe(true);
 
     // Named for what it does next.
     await page.getByRole('button', { name: 'Pause the signal' }).click();
@@ -136,7 +100,7 @@ test.describe('with motion', () => {
     await expect
       .poll(
         async () => {
-          const now = await drawn(page);
+          const now = await frames();
           quiet = now === last ? quiet + 1 : 0;
           last = now;
           return quiet;
@@ -144,12 +108,12 @@ test.describe('with motion', () => {
         { message: 'paused, the view holds still', intervals: [1000] },
       )
       .toBeGreaterThanOrEqual(2);
-    expect(await moving(page, 1500), 'and stays still').toBe(false);
+    expect(await isMoving(page, frames), 'and stays still').toBe(false);
 
     await play.click();
     await expect(page.getByRole('button', { name: 'Pause the signal' })).toBeVisible();
     await expect
-      .poll(() => moving(page), { message: 'playing, the signal moves again' })
+      .poll(() => isMoving(page, frames), { message: 'playing, the signal moves again' })
       .toBe(true);
   });
 });

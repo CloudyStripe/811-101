@@ -4,7 +4,7 @@
  * end-to-end tests loop over it too. Plain data, safe to import from the build config.
  */
 import { BRAND } from '../../config/brand.ts';
-import { SECTIONS } from '../../content/portal.ts';
+import { SECTIONS, type Lesson } from '../../content/portal.ts';
 
 export type PageId = 'portal' | 'frequency-lab' | 'gas-petroleum' | 'not-found';
 
@@ -48,6 +48,12 @@ export interface PageInfo {
 /** Each 3D page's poster, in public/, shown blurred while its view loads; one per theme. */
 export const posterPath = (page: PageInfo, theme: 'light' | 'dark'): string =>
   `posters/${page.id}-${theme}.webp`;
+
+/**
+ * The name a lesson's preview on the portal and its loader's poster share, so one carries on into
+ * the other as the page changes.
+ */
+export const lessonTransition = (id: PageId): string => `lesson-${id}`;
 
 /** The portal section a lesson sits in, for the header's breadcrumb. */
 export function sectionOf(path: string): { id: string; title: string } | null {
@@ -154,4 +160,11 @@ export function pageById(id: PageId): PageInfo {
 export function pageForHtml(file: string): PageInfo | undefined {
   const normalized = file.replaceAll('\\', '/').replace(/^\.?\/+/, '');
   return PAGES.find((p) => p.html === normalized);
+}
+
+/** The page a lesson on the portal leads to. */
+export function lessonPage(lesson: Lesson): PageInfo {
+  const page = PAGES.find((p) => p.path === lesson.href);
+  if (!page) throw new Error(`No page at ${lesson.href}`);
+  return page;
 }
