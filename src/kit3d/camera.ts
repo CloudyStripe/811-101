@@ -1,15 +1,24 @@
 /**
  * Camera framing: a fixed view of the scene, fitted to the part of the canvas the panel or sheet
- * leaves free (ported from the diorama's visibleArea/fitted logic). The view doesn't move with
- * the pointer; it's framed so the lesson needs no turning or zooming.
+ * leaves free. The view doesn't move with the pointer; it's framed so the lesson needs no turning
+ * or zooming. Each view names the points that must be in it, and the fit (fit.ts) places the
+ * camera so they all sit inside the free area, centered, at any size.
  */
-import { MathUtils, type PerspectiveCamera } from 'three';
+import type { PerspectiveCamera } from 'three';
+import { fitShot, type Point3 } from './fit.ts';
 
 export interface View {
-  position: readonly [number, number, number];
-  target: readonly [number, number, number];
-  /** Width over height of the free area the view is framed for. Narrower areas back off. */
-  aspect: number;
+  /** Where the camera looks from and at; only the direction between them counts. */
+  position: Point3;
+  target: Point3;
+  /** Points that must be in view, labels' room included. */
+  mustSee: readonly Point3[];
+  /** Room left around them, as a share of the free area (default 0.08). */
+  margin?: number;
+  /** How close the camera may come to its target, however much room the free area has. */
+  minDistance?: number;
+  /** CSS pixels kept clear at the free area's sides for labels on points near them. */
+  labelRoom?: number;
 }
 
 /** The part of the canvas left free by the panel or sheet, in CSS pixels. */
@@ -31,13 +40,28 @@ export class LabCamera {
     this.camera = camera;
   }
 
-  /** Places the camera for a view, backing off when less of the canvas is free (phones, panel). */
+  /** Places the camera so the view's must-see points fit the free area. */
   frame(view: View): void {
-    const [px, py, pz] = view.position;
-    const [tx, ty, tz] = view.target;
-    const k = this.backOff(view);
-    this.camera.position.set(tx + (px - tx) * k, ty + (py - ty) * k, tz + (pz - tz) * k);
-    this.camera.lookAt(tx, ty, tz);
+    const v = this.visible ?? {
+      x: 0,
+      y: 0,
+      width: this.canvasSize.width,
+      height: this.canvasSize.height,
+    };
+    const pose = fitShot(
+      {
+        from: view.position,
+        to: view.target,
+        mustSee: view.mustSee,
+        minDistance: view.minDistance,
+        labelRoom: view.labelRoom,
+      },
+      this.camera.fov,
+      { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },
+      view.margin,
+    );
+    this.camera.position.copy(pose.position);
+    this.camera.lookAt(pose.target);
     this.camera.updateMatrixWorld();
   }
 
@@ -59,17 +83,5 @@ export class LabCamera {
       );
     this.camera.aspect = canvasWidth / canvasHeight;
     this.camera.updateProjectionMatrix();
-  }
-
-  /**
-   * Each view is framed for a free area of its own aspect; a narrower or shorter free area pulls
-   * the camera back, gently.
-   */
-  private backOff(view: View): number {
-    const v = this.visible;
-    if (!v) return 1;
-    const h = this.canvasSize.height;
-    const f = Math.max((view.aspect * h) / Math.max(1, v.width), h / Math.max(1, v.height), 1);
-    return MathUtils.clamp(f ** 0.55, 1, 2);
   }
 }

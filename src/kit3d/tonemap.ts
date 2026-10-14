@@ -24,3 +24,22 @@ export function pbrNeutral([r0, g0, b0]: Linear): Linear {
   const mix = 1 - 1 / (desaturation * (peak - newPeak) + 1);
   return [r + (newPeak - r) * mix, g + (newPeak - g) * mix, b + (newPeak - b) * mix];
 }
+
+/**
+ * The color to render so that, after tone mapping, the screen shows `target` (both linear).
+ * Backdrops that must match the page, such as the sky, fog and paper, are authored as what the
+ * eye should see; this finds what to draw. The curve crushes dark colors toward their darkest
+ * channel, so a dark graphite needs a lighter source, or it comes out navy.
+ */
+export function inversePbrNeutral(target: Linear): Linear {
+  let input: [number, number, number] = [target[0], target[1], target[2]];
+  for (let i = 0; i < 40; i++) {
+    const out = pbrNeutral(input);
+    input = [
+      Math.max(0, input[0] + target[0] - out[0]),
+      Math.max(0, input[1] + target[1] - out[1]),
+      Math.max(0, input[2] + target[2] - out[2]),
+    ];
+  }
+  return input;
+}

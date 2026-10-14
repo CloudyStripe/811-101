@@ -296,11 +296,14 @@ export function App() {
           aria-label="3D cutaway of a street block showing buried lines and the locate signal."
           aria-describedby="lab-status"
         />
-        {/* Labels start hidden; the scene places and shows them once it has a frame to match. */}
+        {/*
+          Labels start hidden; the scene places and shows them once it has a frame to match. A
+          label gaining focus is placed first (capture), before its own tip measures where it sits.
+        */}
         <div
           class="labels"
           hidden={failed !== null}
-          onFocusIn={refreshLabels}
+          onFocusInCapture={refreshLabels}
           onFocusOut={refreshLabels}
         >
           {LABEL_SPECS.map((spec) => (

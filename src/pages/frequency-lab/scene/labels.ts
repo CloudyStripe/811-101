@@ -18,6 +18,8 @@ export interface LabelSpec {
   /** APWA color code for line labels; equipment labels stay neutral. */
   color?: 'yellow' | 'orange' | 'blue';
   anchor: Record<SetupId, Point3>;
+  /** Where the leader line points, on the thing itself, when the label sits above it. */
+  point?: Record<SetupId, Point3>;
   priority: number;
   /** Labels on the cut face only show from in front of it. */
   onFace: boolean;
@@ -25,12 +27,16 @@ export interface LabelSpec {
 
 const same = (p: Point3): Record<SetupId, Point3> => ({ steel: p, plastic: p });
 
+/** The label to read first: what carries the signal, the steel main or the plastic main's tracer wire. */
+export const CARRIER: Record<SetupId, LabelId> = { steel: 'target', plastic: 'tracer' };
+
 export const LABEL_SPECS: readonly LabelSpec[] = [
   {
     id: 'transmitter',
     text: { steel: 'Transmitter', plastic: 'Transmitter' },
     icon: 'transmitter',
     anchor: same([HOOKUP.transmitter.x, 1.5, HOOKUP.transmitter.z]),
+    point: same([HOOKUP.transmitter.x, 1.05, HOOKUP.transmitter.z]),
     priority: 5,
     onFace: false,
   },
@@ -39,6 +45,7 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     text: { steel: 'Ground stake', plastic: 'Ground stake' },
     icon: 'stake',
     anchor: same([HOOKUP.stake.x, HOOKUP.stake.top + 0.4, HOOKUP.stake.z]),
+    point: same([HOOKUP.stake.x, HOOKUP.stake.top, HOOKUP.stake.z]),
     priority: 5,
     onFace: false,
   },
@@ -49,6 +56,10 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     anchor: {
       steel: [HOOKUP.access.x, 3.5, HOOKUP.access.z],
       plastic: [HOOKUP.access.x, 0.6, HOOKUP.access.z],
+    },
+    point: {
+      steel: [HOOKUP.access.x, 3.0, HOOKUP.access.z],
+      plastic: [HOOKUP.access.x, 0.22, HOOKUP.access.z],
     },
     priority: 4,
     onFace: false,

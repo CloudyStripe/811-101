@@ -105,8 +105,8 @@ for (const theme of ['light', 'dark'] as const) {
             animations: 'disabled',
           });
 
-          // No clipped or overlapping labels.
-          const labels = await boxesOf(page, '.lbl:not(.off):not([hidden])');
+          // No clipped or overlapping labels among those showing (not out of sight or capped).
+          const labels = await boxesOf(page, '.lbl:not(.off):not(.capped):not([hidden])');
           for (const b of labels) {
             expect(b.x, `${b.id} clipped left`).toBeGreaterThanOrEqual(0);
             expect(b.y, `${b.id} clipped top`).toBeGreaterThanOrEqual(0);

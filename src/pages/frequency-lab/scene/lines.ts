@@ -28,7 +28,7 @@ import {
 } from '../../../kit3d/geometry.ts';
 import { surface, tint, type SurfaceOptions } from '../../../kit3d/materials.ts';
 import type { SetupId } from '../../../signal/model.ts';
-import { HOOKUP, LEADS, LINES, RISERS } from './layout.ts';
+import { DETAIL_END, HOOKUP, LEADS, LINES, PIPE_END, RISERS } from './layout.ts';
 
 function mesh(geometry: BufferGeometry, material: Material, cast = true): Mesh {
   const m = new Mesh(geometry, material);
@@ -162,7 +162,7 @@ export function buildShared(readings: readonly string[]): SharedLines {
   group.add(
     mesh(
       merge([
-        pipeAlongX(t.x0, t.x1, t.y, 0, t.radius, 24),
+        pipeAlongX(t.x0, PIPE_END, t.y, 0, t.radius, 24),
         new SphereGeometry(t.radius, 24, 12).translate(t.x0, t.y, 0),
       ]),
       MATERIALS.telecom(),
@@ -241,11 +241,15 @@ export function buildSetup(setup: SetupId): Group {
     group.add(
       mesh(
         merge([
-          pipeAlongX(m.x0, m.x1, m.y, 0, m.radius, 40),
+          pipeAlongX(m.x0, PIPE_END, m.y, 0, m.radius, 40),
           new SphereGeometry(m.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2)
             .rotateZ(Math.PI / 2)
             .translate(m.x0, m.y, 0),
-          ...[20, 60, 100, 140].map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02, 0.05)),
+          // Couplings every 40 ft, on past the block until the fog closes in.
+          ...Array.from(
+            { length: Math.floor((DETAIL_END - 20) / 40) + 1 },
+            (_, i) => 20 + i * 40,
+          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02, 0.05)),
         ]),
         coating,
       ),
@@ -268,7 +272,7 @@ export function buildSetup(setup: SetupId): Group {
   group.add(
     mesh(
       merge([
-        pipeAlongX(p.x0, p.x1, p.y, 0, p.radius, 40),
+        pipeAlongX(p.x0, PIPE_END, p.y, 0, p.radius, 40),
         new SphereGeometry(p.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2)
           .rotateZ(Math.PI / 2)
           .translate(p.x0, p.y, 0),
@@ -276,7 +280,7 @@ export function buildSetup(setup: SetupId): Group {
       MATERIALS.plasticMain(),
     ),
   );
-  group.add(mesh(pipeAlongX(tr.x0, tr.x1, tr.y, 0, tr.radius, 12), MATERIALS.tracer()));
+  group.add(mesh(pipeAlongX(tr.x0, PIPE_END, tr.y, 0, tr.radius, 12), MATERIALS.tracer()));
   // Tracer-wire test box, flush with the grass; the wire comes up the cut face to it.
   group.add(
     mesh(

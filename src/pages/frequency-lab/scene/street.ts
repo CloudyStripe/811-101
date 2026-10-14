@@ -1,25 +1,52 @@
-/** The street block: soil strata and trench on the cut face, and the street surface on top. */
+/**
+ * The street block: soil strata and trench in section, and the street surface on top. Both run on
+ * past the block into the fog, so the block reads as part of a street. The section is drawn like a
+ * cutaway: each layer has its own grain, and an ink line marks every boundary on the cut face.
+ */
 import {
   Color,
-  ConeGeometry,
   CylinderGeometry,
   Group,
+  IcosahedronGeometry,
   InstancedMesh,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   Quaternion,
   SphereGeometry,
   Vector3,
   type BufferGeometry,
   type Material,
 } from 'three';
-import { MATERIAL_COLORS as C } from '../../../design/tokens.ts';
+import { MATERIAL_COLORS as C, THEMES } from '../../../design/tokens.ts';
 import { merge, roundedBox } from '../../../kit3d/geometry.ts';
-import { surface } from '../../../kit3d/materials.ts';
+import { surface, type NoiseOptions } from '../../../kit3d/materials.ts';
 import { mulberry32 } from '../../../kit3d/rng.ts';
-import { BLOCK, DRIVEWAY, HOOKUP, HYDRANT, PATCH, STRATA, SURFACE, TRENCH } from './layout.ts';
+import {
+  BLOCK,
+  CROSS_ROADWAYS,
+  CROSS_SECTION,
+  CROSS_STREETS,
+  DETAIL_END,
+  DRIVEWAY,
+  GROUND,
+  HOOKUP,
+  HYDRANT,
+  PATCH,
+  STRATA,
+  SURFACE,
+  TRENCH,
+  WORLD,
+  inCrossStreet,
+  roadwayOf,
+  spansBetween,
+  type StratumName,
+} from './layout.ts';
 
-/** An axis-aligned slab between two corners, with softly rounded edges. */
+/**
+ * An axis-aligned slab between two corners, with softly rounded edges. Small, many parts (panels,
+ * seals, ink) need only one segment per edge: their rounding is a pixel or two on screen.
+ */
 function slab(
   x0: number,
   x1: number,
@@ -28,12 +55,62 @@ function slab(
   z0: number,
   z1: number,
   radius = 0.12,
+  segments = 3,
 ): BufferGeometry {
-  return roundedBox(x1 - x0, y1 - y0, z1 - z0, radius, [
-    (x0 + x1) / 2,
-    (y0 + y1) / 2,
-    (z0 + z1) / 2,
-  ]);
+  return roundedBox(
+    x1 - x0,
+    y1 - y0,
+    z1 - z0,
+    radius,
+    [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2],
+    segments,
+  );
+}
+
+/** A sidewalk panel's slab, its corners in any order. */
+function panel(x0: number, x1: number, z0: number, z1: number): BufferGeometry {
+  return slab(
+    Math.min(x0, x1),
+    Math.max(x0, x1),
+    0,
+    0.3,
+    Math.min(z0, z1),
+    Math.max(z0, z1),
+    0.06,
+    1,
+  );
+}
+
+/** Sidewalk along x in 5 ft panels with tooled joints, then one long run past DETAIL_END. */
+function panelsAlongX(x0: number, x1: number, z0: number, z1: number): BufferGeometry[] {
+  const parts: BufferGeometry[] = [];
+  let x = x0;
+  for (; x < Math.min(x1, DETAIL_END) - 0.1; x += 5) {
+    parts.push(panel(x + 0.03, Math.min(x + 5, x1) - 0.03, z0, z1));
+  }
+  if (x < x1 - 0.1) parts.push(panel(x + 0.03, x1, z0, z1));
+  return parts;
+}
+
+/**
+ * Sidewalk along z, from the main street back toward `to`: `count` jointed panels near the
+ * corner, where they're seen, then one long run into the fog.
+ */
+function panelsAlongZ(
+  x0: number,
+  x1: number,
+  from: number,
+  to: number,
+  count: number,
+): BufferGeometry[] {
+  const dir = Math.sign(to - from);
+  const parts: BufferGeometry[] = [];
+  let z = from;
+  for (let i = 0; i < count && Math.abs(to - z) > 5; i++, z += dir * 5) {
+    parts.push(panel(x0, x1, z + dir * 0.03, z + dir * 4.97));
+  }
+  parts.push(panel(x0, x1, z + dir * 0.03, to));
+  return parts;
 }
 
 function mesh(geometry: BufferGeometry, material: Material, cast = false): Mesh {
@@ -43,13 +120,45 @@ function mesh(geometry: BufferGeometry, material: Material, cast = false): Mesh 
   return m;
 }
 
-export interface Street {
-  readonly group: Group;
-  /** Shows a share of the grass tufts, per quality tier. */
-  setDetail(share: number): void;
+/** How each layer looks in section: its grain, and the stones in it. */
+const STRATUM_LOOK: Record<StratumName, NoiseOptions> = {
+  topsoil: { scale: 0.9, amount: 0.16, pebbles: { scale: 0.55, amount: 0.2 } },
+  subsoil: { scale: 1.4, amount: 0.13, pebbles: { scale: 0.75, amount: 0.14 } },
+  clay: { scale: 2.8, amount: 0.08 },
+  gravel: { scale: 0.45, amount: 0.2, pebbles: { scale: 0.34, amount: -0.3 } },
+  rock: { scale: 3.6, amount: 0.12, pebbles: { scale: 1.8, amount: 0.16 } },
+};
+
+/** A low-poly blob with smooth normals, so it shades soft rather than faceted. */
+function tuft(radius: number): BufferGeometry {
+  const geometry = new IcosahedronGeometry(radius, 0);
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const v = new Vector3();
+  for (let i = 0; i < position.count; i++) {
+    v.fromBufferAttribute(position, i).normalize();
+    normal.setXYZ(i, v.x, v.y, v.z);
+  }
+  return geometry;
 }
 
-const TUFT_AVOID: readonly { x: number; z: number; r: number }[] = [
+/** Ink lines on the cut face, just in front of it: thin bars along x, or along y. */
+function inkAlongX(x0: number, x1: number, y: number, width = 0.09): BufferGeometry {
+  return slab(x0, x1, y - width / 2, y + width / 2, 0.0, 0.03, 0.01, 1);
+}
+function inkAlongY(x: number, y0: number, y1: number, width = 0.09): BufferGeometry {
+  return slab(x - width / 2, x + width / 2, y0, y1, 0.0, 0.03, 0.01, 1);
+}
+
+export interface Street {
+  readonly group: Group;
+  /** Shows a share of the grass clumps, per quality tier. */
+  setDetail(share: number): void;
+  /** The ink color of the section's lines, per theme. */
+  setEdge(hex: string): void;
+}
+
+const CLUMP_AVOID: readonly { x: number; z: number; r: number }[] = [
   { ...HOOKUP.transmitter, r: 1.5 },
   { ...HOOKUP.access, r: 0.9 },
   { x: HOOKUP.stake.x, z: HOOKUP.stake.z, r: 0.7 },
@@ -60,40 +169,66 @@ const TUFT_AVOID: readonly { x: number; z: number; r: number }[] = [
 export function buildStreet(): Street {
   const group = new Group();
   group.name = 'street';
-  const soil = (hex: string, amount = 0.18) =>
-    surface(hex, { roughness: 1, noise: { scale: 1.3, amount } });
+  const { x0: X0, x1: X1 } = WORLD;
 
-  // Soil strata. Above the trench bottom they stop at the trench; below, they reach the face.
+  // Soil strata, the full run of the section. Above the trench bottom they stop at the trench,
+  // which starts at the hookup and runs on under the street; below it they reach the face.
   const strata = STRATA.map((s) => {
     const parts: BufferGeometry[] = [];
     if (s.bottom >= TRENCH.bottom) {
-      parts.push(slab(BLOCK.x0, BLOCK.x1, s.bottom, s.top, BLOCK.z0, TRENCH.zBack));
-      parts.push(slab(BLOCK.x0, TRENCH.x0, s.bottom, s.top, TRENCH.zBack, BLOCK.z1));
+      parts.push(slab(X0, TRENCH.x0, s.bottom, s.top, BLOCK.z0, BLOCK.z1));
+      parts.push(slab(TRENCH.x0, X1, s.bottom, s.top, BLOCK.z0, TRENCH.zBack));
     } else {
-      parts.push(slab(BLOCK.x0, BLOCK.x1, s.bottom, s.top, BLOCK.z0, BLOCK.z1));
+      parts.push(slab(X0, X1, s.bottom, s.top, BLOCK.z0, BLOCK.z1));
     }
-    return mesh(merge(parts), soil(C[s.name]));
+    return mesh(merge(parts), surface(C[s.name], { roughness: 1, noise: STRATUM_LOOK[s.name] }));
   });
   group.add(...strata);
   group.add(
     mesh(
-      slab(TRENCH.x0, TRENCH.x1, TRENCH.bottom, 0, TRENCH.zBack, BLOCK.z1),
-      soil(C.backfill, 0.24),
+      slab(TRENCH.x0, X1, TRENCH.bottom, 0, TRENCH.zBack, BLOCK.z1),
+      surface(C.backfill, {
+        roughness: 1,
+        noise: { scale: 0.8, amount: 0.2, pebbles: { scale: 0.5, amount: 0.16 } },
+      }),
     ),
   );
 
+  // Ink lines along every boundary on the face, the trench's edge, and the section's top and bottom.
+  const ink = new MeshBasicMaterial({ color: new Color(THEMES.light.scene.edge) });
+  const inkParts = [
+    inkAlongX(X0, X1, -0.02),
+    inkAlongX(X0, X1, BLOCK.bottom + 0.05, 0.12),
+    inkAlongY(TRENCH.x0, TRENCH.bottom, -0.02),
+  ];
+  STRATA.forEach((s, i) => {
+    if (i === 0) return;
+    // Inside the trench the backfill hides the old layers, so their boundary stops at its edge.
+    inkParts.push(inkAlongX(X0, s.top > TRENCH.bottom ? TRENCH.x0 : X1, s.top));
+  });
+  const inkLines = new Mesh(merge(inkParts), ink);
+  inkLines.name = 'section-ink';
+  group.add(inkLines);
+
   // Surface, front to back.
-  const grass = surface(C.grass, { roughness: 1, noise: { scale: 2.2, amount: 0.2 } });
-  const concrete = surface(C.concrete, { noise: { scale: 3, amount: 0.07 } });
+  const grass = surface(C.grass, { roughness: 1, noise: { scale: 2.6, amount: 0.16 } });
+  const concrete = surface(C.concrete, { noise: { scale: 3, amount: 0.06 } });
   const concreteNew = surface(C.concreteNew, { noise: { scale: 3, amount: 0.05 } });
-  const curb = surface(C.curb, { noise: { scale: 2.5, amount: 0.06 } });
-  const asphalt = surface(C.asphalt, { roughness: 0.95, noise: { scale: 0.7, amount: 0.14 } });
+  const curb = surface(C.curb, { noise: { scale: 2.5, amount: 0.05 } });
+  const asphalt = surface(C.asphalt, { roughness: 0.95, noise: { scale: 0.7, amount: 0.12 } });
   const seal = surface(C.asphaltSeal, { roughness: 0.6 });
 
+  // Where each strip runs: the main street's lawns, curbs and sidewalk stop at the cross streets,
+  // and its gutters stop at their roadways, so the corners' sidewalks meet the gutter flush.
+  const along = (cuts: readonly { x0: number; x1: number }[]) => spansBetween(X0, X1, cuts);
+  const verge = along([DRIVEWAY, ...CROSS_STREETS]);
+  const nearGutter = along([DRIVEWAY, ...CROSS_ROADWAYS]);
+  const farSide = along(CROSS_STREETS);
+  const farGutter = along(CROSS_ROADWAYS);
+
   const grassParts = [
-    slab(BLOCK.x0, DRIVEWAY.x0, 0, 0.12, SURFACE.vergeBack, 0),
-    slab(DRIVEWAY.x1, BLOCK.x1, 0, 0.12, SURFACE.vergeBack, 0),
-    slab(BLOCK.x0, BLOCK.x1, 0, 0.12, BLOCK.z0, SURFACE.sidewalkBack),
+    ...verge.map((s) => slab(s.x0, s.x1, 0, 0.12, SURFACE.vergeBack, 0)),
+    ...farSide.map((s) => slab(s.x0, s.x1, 0, 0.12, BLOCK.z0, SURFACE.sidewalkBack)),
   ];
   const concreteParts = [
     // Driveway apron with a curb cut; the patch fills its middle.
@@ -101,34 +236,55 @@ export function buildStreet(): Street {
     slab(PATCH.x1 + 0.03, DRIVEWAY.x1, 0, 0.3, SURFACE.vergeBack, 0),
     slab(DRIVEWAY.x0, DRIVEWAY.x1, -0.02, 0.24, SURFACE.gutterBack, SURFACE.vergeBack - 0.03),
     // Gutter pans.
-    slab(BLOCK.x0, DRIVEWAY.x0, -0.06, 0.06, SURFACE.gutterBack, SURFACE.curbBack),
-    slab(DRIVEWAY.x1, BLOCK.x1, -0.06, 0.06, SURFACE.gutterBack, SURFACE.curbBack),
-    slab(BLOCK.x0, BLOCK.x1, -0.06, 0.06, SURFACE.farGutterBack, SURFACE.streetBack),
+    ...nearGutter.map((s) =>
+      slab(s.x0, s.x1, -0.06, 0.06, SURFACE.gutterBack, SURFACE.curbBack, 0.12, 1),
+    ),
+    ...farGutter.map((s) =>
+      slab(s.x0, s.x1, -0.06, 0.06, SURFACE.farGutterBack, SURFACE.streetBack, 0.12, 1),
+    ),
+    // The far sidewalk.
+    ...farSide.flatMap((s) => panelsAlongX(s.x0, s.x1, SURFACE.sidewalkBack, SURFACE.farCurbBack)),
   ];
-  // Far sidewalk in 5 ft panels with tooled joints.
-  for (let x = BLOCK.x0; x < BLOCK.x1; x += 5) {
-    concreteParts.push(
-      slab(
-        x + 0.03,
-        Math.min(x + 5, BLOCK.x1) - 0.03,
-        0,
-        0.3,
-        SURFACE.sidewalkBack,
-        SURFACE.farCurbBack,
-        0.06,
-      ),
-    );
-  }
   const curbParts = [
-    slab(BLOCK.x0, DRIVEWAY.x0, 0, 0.5, SURFACE.curbBack, SURFACE.curbFront, 0.16),
-    slab(DRIVEWAY.x1, BLOCK.x1, 0, 0.5, SURFACE.curbBack, SURFACE.curbFront, 0.16),
-    slab(BLOCK.x0, BLOCK.x1, 0, 0.5, SURFACE.farCurbBack, SURFACE.farGutterBack, 0.16),
+    ...verge.map((s) => slab(s.x0, s.x1, 0, 0.5, SURFACE.curbBack, SURFACE.curbFront, 0.16)),
+    ...farSide.map((s) =>
+      slab(s.x0, s.x1, 0, 0.5, SURFACE.farCurbBack, SURFACE.farGutterBack, 0.16),
+    ),
   ];
   const asphaltParts = [
-    slab(BLOCK.x0, BLOCK.x1, -0.12, 0.02, SURFACE.streetBack, SURFACE.gutterBack, 0.06),
+    slab(X0, X1, -0.12, 0.02, SURFACE.streetBack, SURFACE.gutterBack, 0.06),
     // An old trench patch in the street.
     slab(30, 38.5, -0.1, 0.035, -21, -13, 0.04),
   ];
+
+  // The cross streets: a sidewalk and curb down each side, from the cut face back to the main
+  // street's curb, and from its far curb back through the neighborhood into the fog.
+  const { sidewalk: walk, curb: curbWidth } = CROSS_SECTION;
+  for (const c of CROSS_STREETS) {
+    const road = roadwayOf(c);
+    asphaltParts.push(
+      slab(road.x0, road.x1, -0.12, 0.02, SURFACE.gutterBack, 0, 0.06),
+      slab(road.x0, road.x1, -0.12, 0.02, GROUND.z0, SURFACE.streetBack, 0.06),
+    );
+    for (const [x0, x1] of [
+      [c.x0, c.x0 + walk],
+      [c.x1 - walk, c.x1],
+    ] as const) {
+      concreteParts.push(
+        ...panelsAlongZ(x0, x1, 0, SURFACE.curbBack, 2),
+        ...panelsAlongZ(x0, x1, SURFACE.farGutterBack, GROUND.z0, 14),
+      );
+    }
+    for (const [x0, x1] of [
+      [road.x0 - curbWidth, road.x0],
+      [road.x1, road.x1 + curbWidth],
+    ] as const) {
+      curbParts.push(
+        slab(x0, x1, 0, 0.5, SURFACE.curbBack, 0, 0.16),
+        slab(x0, x1, 0, 0.5, GROUND.z0, SURFACE.farGutterBack, 0.16),
+      );
+    }
+  }
   // Crack-seal lines: thin, slightly raised, irregular.
   const rand = mulberry32(811);
   const sealParts: BufferGeometry[] = [];
@@ -192,13 +348,14 @@ export function buildStreet(): Street {
     ),
   );
 
-  // Grass tufts: seeded, instanced, thinned on lower tiers.
-  const tuft = merge([
-    new ConeGeometry(0.03, 0.55, 4, 1).translate(0, 0.275, 0),
-    new ConeGeometry(0.028, 0.42, 4, 1).rotateZ(0.32).translate(0.07, 0.2, 0.02),
-    new ConeGeometry(0.028, 0.46, 4, 1).rotateX(-0.3).translate(-0.04, 0.22, -0.06),
+  // Grass: soft, low tufts rather than blades, seeded and instanced, thinned on lower tiers. Smooth
+  // shading and the verge's own greens keep them a texture on the lawn, not spots on it.
+  const clump = merge([
+    tuft(0.2).scale(1, 0.42, 1).translate(0, 0.05, 0),
+    tuft(0.15).scale(1, 0.48, 1).translate(0.17, 0.03, 0.05),
+    tuft(0.14).scale(1, 0.48, 1).translate(-0.12, 0.03, -0.1),
   ]);
-  const tuftMaterial = surface('#ffffff', { roughness: 0.95 });
+  const clumpMaterial = surface('#ffffff', { roughness: 1 });
   const positions: Vector3[] = [];
   const area = (x0: number, x1: number, z0: number, z1: number, count: number) => {
     let placed = 0;
@@ -206,14 +363,15 @@ export function buildStreet(): Street {
       const x = x0 + rand() * (x1 - x0);
       const z = z0 + rand() * (z1 - z0);
       if (x > DRIVEWAY.x0 - 0.3 && x < DRIVEWAY.x1 + 0.3 && z > SURFACE.vergeBack) continue;
-      if (TUFT_AVOID.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
+      if (inCrossStreet(x, 0.3)) continue;
+      if (CLUMP_AVOID.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
       positions.push(new Vector3(x, 0.1, z));
       placed++;
     }
   };
-  area(BLOCK.x0 + 0.3, BLOCK.x1 - 0.3, SURFACE.vergeBack + 0.25, -0.25, 2600);
-  area(BLOCK.x0 + 0.3, BLOCK.x1 - 0.3, BLOCK.z0 + 0.3, SURFACE.sidewalkBack - 0.25, 1700);
-  // Seeded shuffle, so thinning for lower tiers removes tufts evenly everywhere.
+  area(BLOCK.x0 - 20, BLOCK.x1 + 60, SURFACE.vergeBack + 0.3, -0.3, 1000);
+  area(BLOCK.x0 - 20, BLOCK.x1 + 60, BLOCK.z0 + 0.3, SURFACE.sidewalkBack - 0.3, 450);
+  // Seeded shuffle, so thinning for lower tiers removes clumps evenly everywhere.
   for (let i = positions.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     const a = positions[i];
@@ -223,29 +381,31 @@ export function buildStreet(): Street {
       positions[j] = a;
     }
   }
-  const tufts = new InstancedMesh(tuft, tuftMaterial, positions.length);
+  const clumps = new InstancedMesh(clump, clumpMaterial, positions.length);
   const m = new Matrix4();
   const q = new Quaternion();
   const s = new Vector3();
   const up = new Vector3(0, 1, 0);
-  const light = new Color(C.grass);
-  const dark = new Color(C.grassDark);
+  const light = new Color(C.grassLight);
+  const base = new Color(C.grass);
   const c = new Color();
   positions.forEach((p, i) => {
     q.setFromAxisAngle(up, rand() * Math.PI * 2);
-    const k = 0.75 + rand() * 0.6;
-    s.set(k, k * (0.8 + rand() * 0.5), k);
-    tufts.setMatrixAt(i, m.compose(p, q, s));
-    tufts.setColorAt(i, c.copy(dark).lerp(light, rand()));
+    const k = 0.8 + rand() * 0.7;
+    s.set(k, k * (0.8 + rand() * 0.4), k);
+    clumps.setMatrixAt(i, m.compose(p, q, s));
+    clumps.setColorAt(i, c.copy(base).lerp(light, rand()));
   });
-  tufts.castShadow = true;
-  tufts.receiveShadow = true;
-  group.add(tufts);
+  clumps.receiveShadow = true;
+  group.add(clumps);
 
   return {
     group,
     setDetail(share: number) {
-      tufts.count = Math.round(positions.length * Math.min(1, Math.max(0, share)));
+      clumps.count = Math.round(positions.length * Math.min(1, Math.max(0, share)));
+    },
+    setEdge(hex: string) {
+      ink.color.set(hex);
     },
   };
 }

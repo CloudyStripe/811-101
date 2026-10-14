@@ -1,49 +1,114 @@
-/** The views, checked with the real camera math: the block must fit the free area. */
+/**
+ * The views, checked through the page's own camera: framed by LabCamera into a canvas whose free
+ * area the chrome leaves, then projected to CSS pixels. What the lesson needs must land in it.
+ */
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import type { View } from '../../../kit3d/camera.ts';
-import { BLOCK, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
+import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
+import { MUST_SEE, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
 
-/** The scene's camera, framed on a view for a free area of the given size in CSS pixels. */
-function cameraFor(view: View, width: number, height: number): PerspectiveCamera {
-  const camera = new PerspectiveCamera(34, width / height, 0.5, 900);
-  camera.position.set(...view.position);
-  camera.lookAt(new Vector3(...view.target));
-  camera.updateMatrixWorld();
-  camera.updateProjectionMatrix();
-  return camera;
+/** The view's must-see points in canvas pixels, with the camera framed for this free area. */
+function onCanvas(canvas: { width: number; height: number }, area: VisibleArea) {
+  const camera = new PerspectiveCamera(34, canvas.width / canvas.height, 0.5, 900);
+  const lab = new LabCamera(camera);
+  lab.setLayout(canvas.width, canvas.height, area);
+  const view = viewFor(area);
+  lab.frame(view);
+  return view.mustSee.map((p) => {
+    const v = new Vector3(...p).project(camera);
+    return {
+      p,
+      x: ((v.x + 1) / 2) * canvas.width,
+      y: ((1 - v.y) / 2) * canvas.height,
+      inFront: v.z > -1 && v.z < 1,
+    };
+  });
 }
 
-function toScreen(camera: PerspectiveCamera, p: Vector3, width: number, height: number) {
-  const v = p.clone().project(camera);
-  return { x: (v.x * 0.5 + 0.5) * width, y: (-v.y * 0.5 + 0.5) * height, z: v.z };
-}
-
-const VIEWS = [
-  { name: 'wide', view: WIDE_VIEW, width: 1000, height: 900 },
-  { name: 'tall', view: TALL_VIEW, width: 390, height: 520 },
+const CASES = [
+  {
+    name: 'desktop, guide open',
+    canvas: { width: 1440, height: 900 },
+    area: { x: 0, y: 0, width: 1000, height: 900, portrait: false },
+    heldBack: false,
+  },
+  {
+    // So wide that the camera would come in close: it holds back and shows more town instead.
+    name: 'desktop, guide closed',
+    canvas: { width: 1440, height: 900 },
+    area: { x: 0, y: 0, width: 1440, height: 900, portrait: false },
+    heldBack: true,
+  },
+  {
+    name: 'tablet, portrait',
+    canvas: { width: 820, height: 1180 },
+    area: { x: 0, y: 110, width: 820, height: 900, portrait: true },
+    heldBack: false,
+  },
+  {
+    name: 'phone, between header and sheet',
+    canvas: { width: 390, height: 844 },
+    area: { x: 0, y: 150, width: 390, height: 520 },
+    heldBack: false,
+  },
+  {
+    name: 'phone, landscape',
+    canvas: { width: 844, height: 390 },
+    area: { x: 300, y: 0, width: 544, height: 390 },
+    heldBack: true,
+  },
 ] as const;
 
 describe('views', () => {
   it('picks the tall view for portrait free areas and the wide one otherwise', () => {
     expect(viewFor({ x: 0, y: 0, width: 390, height: 520 })).toBe(TALL_VIEW);
     expect(viewFor({ x: 0, y: 0, width: 1000, height: 900 })).toBe(WIDE_VIEW);
+    expect(viewFor({ x: 0, y: 0, width: 1000, height: 900, portrait: true })).toBe(TALL_VIEW);
   });
 
-  it.each(VIEWS)('$name: the hookup end of the block is in front of the camera', (v) => {
-    const camera = cameraFor(v.view, v.width, v.height);
-    const p = toScreen(camera, new Vector3(0, 0, 0), v.width, v.height);
-    expect(p.z).toBeLessThan(1);
-    expect(p.x).toBeGreaterThan(0);
-    expect(p.x).toBeLessThan(v.width);
-    expect(p.y).toBeGreaterThan(0);
-    expect(p.y).toBeLessThan(v.height);
+  it('every view shows the hookup and the far end of the line', () => {
+    for (const view of [WIDE_VIEW, TALL_VIEW]) {
+      for (const p of MUST_SEE) expect(view.mustSee).toContainEqual(p);
+    }
   });
 
-  it('keeps the far end of the block in the tall view', () => {
-    const camera = cameraFor(TALL_VIEW, 390, 520);
-    const p = toScreen(camera, new Vector3(BLOCK.x1 - 6, -3.6, 0), 390, 520);
-    expect(p.x).toBeGreaterThan(0);
-    expect(p.x).toBeLessThan(390);
+  it.each(CASES)('$name: everything the lesson needs lands in the free area', (c) => {
+    for (const q of onCanvas(c.canvas, c.area)) {
+      const at = `${q.p.join(',')} at ${q.x.toFixed(0)},${q.y.toFixed(0)}`;
+      expect(q.inFront, `${at} in front`).toBe(true);
+      expect(q.x, at).toBeGreaterThanOrEqual(c.area.x - 0.5);
+      expect(q.x, at).toBeLessThanOrEqual(c.area.x + c.area.width + 0.5);
+      expect(q.y, at).toBeGreaterThanOrEqual(c.area.y - 0.5);
+      expect(q.y, at).toBeLessThanOrEqual(c.area.y + c.area.height + 0.5);
+    }
+  });
+
+  it.each(CASES)('$name: the view is centered, and as close as it may come', (c) => {
+    const points = onCanvas(c.canvas, c.area);
+    const xs = points.map((q) => q.x);
+    const ys = points.map((q) => q.y);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    expect(Math.abs((x0 + x1) / 2 - (c.area.x + c.area.width / 2))).toBeLessThan(4);
+    expect(Math.abs((y0 + y1) / 2 - (c.area.y + c.area.height / 2))).toBeLessThan(4);
+    // Room at the sides: the view's margin, and at least half a label's width (48 px), so a label
+    // on a point near either side still fits beside it.
+    const margin = viewFor(c.area).margin ?? 0.08;
+    const roomX = Math.max((margin * c.area.width) / 2, 48);
+    const roomY = (margin * c.area.height) / 2;
+    expect(x0 - c.area.x, 'room on the left').toBeGreaterThanOrEqual(roomX - 1);
+    expect(c.area.x + c.area.width - x1, 'room on the right').toBeGreaterThanOrEqual(roomX - 1);
+    expect(y0 - c.area.y, 'room above').toBeGreaterThanOrEqual(roomY - 1);
+    expect(c.area.y + c.area.height - y1, 'room below').toBeGreaterThanOrEqual(roomY - 1);
+    // As close as that room allows, across or up and down, unless the view holds back.
+    const reach = Math.max(
+      (x1 - x0) / (c.area.width - 2 * roomX),
+      (y1 - y0) / (c.area.height - 2 * roomY),
+    );
+    if (c.heldBack) {
+      expect(reach).toBeLessThan(0.98);
+      expect(reach).toBeGreaterThan(0.6);
+    } else {
+      expect(reach).toBeGreaterThan(0.99);
+    }
   });
 });

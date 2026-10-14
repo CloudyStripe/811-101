@@ -1,15 +1,22 @@
 /**
  * HTML labels that follow points in the 3D scene. Ported from the diorama's layout: the focused
  * and highest-priority labels go first, nearer labels before farther ones; a crowded label shrinks
- * to its icon, then hides. The panel, sheet and toolbars are no-go zones, and a focused label is
- * always placed so it's never hidden (WCAG 2.4.11).
+ * to its icon, then steps out of sight. The panel, sheet and toolbars are no-go zones. A label out
+ * of sight for want of room stays in the tab order, and a focused label is always placed so it's
+ * never hidden (WCAG 2.4.11). A thin leader line ties each shown label to the point it names, and
+ * only so many show at once, so the scene stays the hero.
  */
 import { Vector3, type PerspectiveCamera } from 'three';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export interface Label {
   readonly id: string;
   readonly element: HTMLElement;
+  /** Where the label sits: just above this point. */
   anchor: Vector3;
+  /** Where its leader line points, on the thing it names. Left out, it's the anchor. */
+  point?: Vector3;
   /** Higher goes first. */
   priority: number;
   /** When set, the label shows only while the camera is on this side of the anchor. */
@@ -36,6 +43,12 @@ export class LabelLayer {
   private readonly camera: PerspectiveCamera;
   /** No-go rectangles in the label container's coordinates. */
   private readonly noGo: () => readonly Rect[];
+  /** One leader line and anchor dot per label, drawn in an SVG under the labels. */
+  private svg: SVGSVGElement | null = null;
+  private readonly leaders = new Map<
+    string,
+    { group: SVGGElement; line: SVGLineElement; dot: SVGCircleElement }
+  >();
 
   constructor(camera: PerspectiveCamera, noGo: () => readonly Rect[]) {
     this.camera = camera;
@@ -44,7 +57,34 @@ export class LabelLayer {
 
   setLabels(labels: Label[]): void {
     this.labels = labels;
+    this.buildLeaders();
     this.measure();
+  }
+
+  /** Leaders live in an SVG layer in the labels' own container, beneath the labels. */
+  private buildLeaders(): void {
+    const container = this.labels[0]?.element.parentElement;
+    if (!container) return;
+    if (this.svg?.parentElement !== container) {
+      this.svg?.remove();
+      this.svg = document.createElementNS(SVG_NS, 'svg');
+      this.svg.classList.add('lbl-leaders');
+      this.svg.setAttribute('aria-hidden', 'true');
+      container.prepend(this.svg);
+      this.leaders.clear();
+    }
+    for (const label of this.labels) {
+      if (this.leaders.has(label.id)) continue;
+      // Each leader fades with its label (the CSS transitions the group's opacity).
+      const group = document.createElementNS(SVG_NS, 'g');
+      const line = document.createElementNS(SVG_NS, 'line');
+      const dot = document.createElementNS(SVG_NS, 'circle');
+      dot.setAttribute('r', '2.5');
+      group.classList.add('off');
+      group.append(line, dot);
+      this.svg.append(group);
+      this.leaders.set(label.id, { group, line, dot });
+    }
   }
 
   /**
@@ -69,9 +109,15 @@ export class LabelLayer {
 
   /**
    * Places every label for the current camera. `bounds` is the part of the view a focused label
-   * is pulled into, so the panel or sheet never covers it; it defaults to the whole view.
+   * is pulled into, so the panel or sheet never covers it; it defaults to the whole view. At most
+   * `maxVisible` labels show at once (a focused one always does), highest priority first.
    */
-  update(width: number, height: number, bounds: Rect = { x: 0, y: 0, w: width, h: height }): void {
+  update(
+    width: number,
+    height: number,
+    bounds: Rect = { x: 0, y: 0, w: width, h: height },
+    maxVisible = Infinity,
+  ): void {
     const placed: Rect[] = [...this.noGo()];
     const focused = document.activeElement;
     const items = this.labels
@@ -81,12 +127,18 @@ export class LabelLayer {
         const facingOk =
           !label.facing ||
           this.toCamera.copy(this.camera.position).sub(label.anchor).dot(label.facing) > 0;
+        const x = (p.x * 0.5 + 0.5) * width;
+        const y = (-p.y * 0.5 + 0.5) * height;
+        const depth = p.z;
+        // The leader's end, on the thing itself, when it differs from where the label sits.
+        const q = label.point ? this.projected.copy(label.point).project(this.camera) : null;
         return {
           label,
-          x: (p.x * 0.5 + 0.5) * width,
-          y: (-p.y * 0.5 + 0.5) * height,
-          depth: p.z,
-          visible: !label.hidden && facingOk && p.z > -1 && p.z < 1,
+          x,
+          y,
+          point: q ? { x: (q.x * 0.5 + 0.5) * width, y: (-q.y * 0.5 + 0.5) * height } : { x, y },
+          depth,
+          visible: !label.hidden && facingOk && depth > -1 && depth < 1,
           focused: !label.hidden && label.element.contains(focused),
         };
       })
@@ -113,42 +165,88 @@ export class LabelLayer {
       return Math.abs(x - r.x) <= r.w * 0.6 ? { ...r, x } : null;
     };
 
+    let shown = 0;
     for (const it of items) {
       const size = this.sizes.get(it.label.id) ?? { w: 120, h: 28 };
-      const full = { x: it.x - size.w / 2, y: it.y - size.h - 6, w: size.w, h: size.h };
+      // Labels sit a little above their point, with room for the leader line between.
+      const full = { x: it.x - size.w / 2, y: it.y - size.h - 14, w: size.w, h: size.h };
       const slid = slide(full);
-      const compact = { x: it.x - 15, y: it.y - 36, w: 30, h: 30 };
+      const compact = { x: it.x - 15, y: it.y - 42, w: 30, h: 30 };
+      // A leader only when its point is in view: a label pulled in from off screen has none.
+      const point = it.visible ? it.point : null;
       if (it.focused) {
         // A focused label is always shown, pulled into the free part of the view (WCAG 2.4.11).
         const r = clamp(full);
         placed.push(r);
-        this.place(it.label, r, '');
+        shown++;
+        this.place(it.label, r, '', point);
       } else if (!it.visible) {
-        this.place(it.label, full, 'off');
+        this.place(it.label, full, 'off', null);
+      } else if (shown >= maxVisible) {
+        // Over the cap: out of sight, but still in the tab order, so focusing it shows it.
+        this.place(it.label, full, 'capped', null);
       } else if (slid && inside(slid) && !overlaps(slid, placed)) {
         placed.push(slid);
-        this.place(it.label, slid, '');
+        shown++;
+        this.place(it.label, slid, '', point);
       } else if (inside(compact) && !overlaps(compact, placed)) {
         placed.push(compact);
-        this.place(it.label, compact, 'compact');
+        shown++;
+        this.place(it.label, compact, 'compact', point);
       } else {
-        this.place(it.label, compact, 'off');
+        // No room beside the others: out of sight like a label over the cap, and like it, still
+        // reachable by keyboard.
+        this.place(it.label, full, 'capped', null);
       }
     }
   }
 
-  private place(label: Label, r: Rect, state: '' | 'compact' | 'off'): void {
+  private place(
+    label: Label,
+    r: Rect,
+    state: '' | 'compact' | 'off' | 'capped',
+    point: { x: number; y: number } | null,
+  ): void {
     const { classList, style } = label.element;
     // A label being hidden fades out where it is, at its current size, rather than jumping first.
-    const key = state === 'off' ? 'off' : `${Math.round(r.x)},${Math.round(r.y)},${state}`;
+    const key =
+      state === 'off' || state === 'capped'
+        ? state
+        : `${Math.round(r.x)},${Math.round(r.y)},${state},${point ? `${Math.round(point.x)},${Math.round(point.y)}` : '-'}`;
     if (this.lastKey.get(label.id) === key) return;
     this.lastKey.set(label.id, key);
-    if (state === 'off') {
-      classList.add('off');
-      return;
-    }
+    const showing = state === '' || state === 'compact';
+    this.drawLeader(label.id, showing ? r : null, point);
+    classList.toggle('off', state === 'off');
+    classList.toggle('capped', state === 'capped');
+    if (!showing) return;
     style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
     classList.toggle('compact', state === 'compact');
-    classList.remove('off');
+  }
+
+  /**
+   * A line from the label's nearest edge to its point, and a dot on the point. Hidden, it fades out
+   * where it was, as its label does.
+   */
+  private drawLeader(id: string, r: Rect | null, point: { x: number; y: number } | null): void {
+    const leader = this.leaders.get(id);
+    if (!leader) return;
+    const { group, line, dot } = leader;
+    const covered =
+      r && point && point.x > r.x && point.x < r.x + r.w && point.y > r.y && point.y < r.y + r.h;
+    if (!r || !point || covered) {
+      group.classList.add('off');
+      return;
+    }
+    const pad = Math.min(12, r.w / 2);
+    const fromX = Math.min(Math.max(point.x, r.x + pad), r.x + r.w - pad);
+    const fromY = Math.min(Math.max(point.y, r.y), r.y + r.h);
+    line.setAttribute('x1', fromX.toFixed(1));
+    line.setAttribute('y1', fromY.toFixed(1));
+    line.setAttribute('x2', point.x.toFixed(1));
+    line.setAttribute('y2', point.y.toFixed(1));
+    dot.setAttribute('cx', point.x.toFixed(1));
+    dot.setAttribute('cy', point.y.toFixed(1));
+    group.classList.remove('off');
   }
 }
