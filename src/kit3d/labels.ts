@@ -24,6 +24,8 @@ export interface Label {
   hidden?: boolean;
   /** Shown however crowded the view, like a focused label: pointed at from elsewhere, e.g. a key. */
   highlight?: boolean;
+  /** Shown only while focused: out of sight otherwise, however much room, but in the tab order. */
+  quiet?: boolean;
 }
 
 interface Rect {
@@ -229,8 +231,8 @@ export class LabelLayer {
         if (tip) placed.push(tip);
       } else if (!it.visible) {
         this.place(it.label, full, 'off', null);
-      } else if (shown >= maxVisible) {
-        // Over the cap: out of sight, but still in the tab order, so focusing it shows it.
+      } else if (it.label.quiet === true || shown >= maxVisible) {
+        // Quiet, or over the cap: out of sight, but still in the tab order, so focusing it shows it.
         this.place(it.label, full, 'capped', null);
       } else if (slid && inside(slid) && !overlaps(slid, placed)) {
         placed.push(slid);

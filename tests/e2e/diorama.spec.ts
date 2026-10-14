@@ -1,9 +1,11 @@
 /**
- * The Gas & Petroleum diorama in use: both tours run from the seafloor to their quiz, which reads
- * out each answer, and the end offers the other tour; every stop opens from the map, focus moving
+ * The Gas & Petroleum diorama in use: Start walks the shared start to the fork, which waits for the
+ * reader to choose a path; both tours run from the seafloor to their quiz, which reads out each
+ * answer, and the end offers the other path from the fork; every stop opens from the map, focus moving
  * to its heading, and a stop's label and the keys open its neighbors, with the live status and the
  * address following; the path switch, the fork, the overview's turn within its bounds, and the
- * motion pause; the formation time-lapse, which plays when asked even with the rest paused;
+ * motion pause; the formation time-lapse, stepped through or played, even with the rest paused;
+ * the labels the view names: where it is and where it goes next;
  * definitions; and a lost graphics context, after which the view draws again.
  */
 import type { Page } from '@playwright/test';
@@ -12,6 +14,7 @@ import {
   QUIZZES,
   STOPS,
   TERMS,
+  TIMELAPSE,
   TOURS,
   stopById,
 } from '../../content/utilities/gas-petroleum.ts';
@@ -90,17 +93,81 @@ for (const key of ['gas', 'gasoline'] as const) {
     }
     await expect(guide(page)).toContainText('You got 3 of 3.');
     await expect(said).toContainText('You got 3 of 3.');
+    // The end leads on: to the next lesson, to all of them, or the other path.
+    await expect(
+      guide(page).getByRole('link', { name: 'On to the Frequency Lab' }),
+    ).toHaveAttribute('href', '/811-101/training/frequency-lab/');
+    await expect(guide(page).getByRole('link', { name: 'All lessons' })).toHaveAttribute(
+      'href',
+      '/811-101/',
+    );
+    // The other path starts from the fork, so the shared start isn't walked again.
     const other = key === 'gas' ? 'gasoline' : 'gas';
     await guide(page)
-      .getByRole('button', { name: `Take the ${TOURS[other].name.toLowerCase()} tour` })
+      .getByRole('button', {
+        name: `Take the ${TOURS[other].name.toLowerCase()} path, from the fork`,
+      })
       .click();
-    await expect(guide(page)).toContainText(`Step 1 of ${String(TOURS[other].stops.length)}`);
+    await expect(guide(page)).toContainText(`Step 4 of ${String(TOURS[other].stops.length)}`);
+    await expect(guide(page).getByRole('heading', { level: 2 })).toHaveText(
+      stopById('lifting').title.text,
+    );
+    await expect(guide(page).getByRole('link', { name: 'On to the Frequency Lab' })).toHaveCount(0);
   });
 }
+
+test('Start walks the shared start to the fork, which waits for a path to be chosen', async ({
+  page,
+}) => {
+  await open(page);
+  await guide(page).getByRole('button', { name: 'Start at the beginning' }).click();
+  for (const step of [1, 2, 3]) {
+    await expect(guide(page)).toContainText(`Step ${String(step)} of 4`);
+    await guide(page).getByRole('button', { name: 'Next step' }).click();
+  }
+  // The fork: the way on is a choice of path.
+  await expect(guide(page)).toContainText('Step 4 of 4');
+  await expect(status(page)).toHaveText(stopSummary('lifting'));
+  await expect(guide(page).getByRole('button', { name: 'Next step' })).toBeDisabled();
+  await expect(filterChecked(page)).toHaveText('Both');
+  await guide(page)
+    .getByRole('group', { name: 'Choose a path' })
+    .getByRole('button', { name: /Gasoline path/ })
+    .click();
+  // On down the path chosen, which the view shows.
+  await expect(guide(page)).toContainText(`Step 5 of ${String(TOURS.gasoline.stops.length)}`);
+  await expect(status(page)).toHaveText(stopSummary('crude-transport'));
+  await expect(filterChecked(page)).toHaveText('Gasoline');
+  await expect(guide(page).getByRole('heading', { level: 2 })).toBeFocused();
+  // Back at the fork, the path chosen is marked, and Next goes on along it.
+  await guide(page).getByRole('button', { name: 'Back' }).click();
+  await expect(guide(page).getByRole('button', { name: /Gasoline path.*your path/ })).toBeVisible();
+  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await expect(status(page)).toHaveText(stopSummary('crude-transport'));
+});
+
+test('at the fork, the dock leads to the choice, and going down a path chooses it', async ({
+  page,
+}) => {
+  await open(page);
+  await guide(page).getByRole('button', { name: 'Start at the beginning' }).click();
+  // Stepping with the dock, as on a phone with the sheet closed.
+  for (let i = 0; i < 3; i++) await dock(page).getByRole('button', { name: 'Next step' }).click();
+  await expect(status(page)).toHaveText(stopSummary('lifting'));
+  await dock(page).getByRole('button', { name: 'Choose a path' }).click();
+  await expect(guide(page).getByRole('button', { name: /Natural gas path/ })).toBeFocused();
+  // Opening the gas plant from its label goes down the natural gas path, which the view shows.
+  await page.locator('[data-label="gas-plant"] .lbl-btn').focus();
+  await page.keyboard.press('Enter');
+  await expect(guide(page)).toContainText(`Step 5 of ${String(TOURS.gas.stops.length)}`);
+  await expect(filterChecked(page)).toHaveText('Natural gas');
+});
 
 test('every stop opens from the map, and the status, address and focus follow', async ({
   page,
 }) => {
+  // All thirteen stops, each from the overview's map: long under software rendering.
+  test.slow();
   await open(page);
   for (const stop of STOPS) {
     if (await dock(page).getByRole('button', { name: 'Overview' }).isVisible()) {
@@ -126,6 +193,11 @@ test("a stop's label opens it, and a link to a stop opens there", async ({ page 
     stopById('city-gate').title.text,
   );
   await expect(guide(page)).toContainText('Safety tip:');
+  // The view names where it is and where it goes next (where there's room); the other stops'
+  // labels wait for focus.
+  await expect(page.locator('[data-label="city-gate"]')).not.toHaveClass(/\b(off|capped)\b/);
+  await expect(page.locator('[data-label="formation"]')).toHaveClass(/\b(off|capped)\b/);
+  expect(await page.locator('.lbl:not(.off):not(.capped)').count()).toBeLessThanOrEqual(2);
   // A label out of sight for want of room still takes focus, and shows when it has it.
   const label = page.locator('[data-label="pump"] .lbl-btn');
   await label.focus();
@@ -204,12 +276,26 @@ test('a definition shows on hover, and the time-lapse plays on request', async (
   await term.getByRole('button').hover();
   await expect(term.getByRole('tooltip')).toHaveText(TERMS.refinery?.text ?? '');
 
-  // Paused, the time-lapse still plays when asked, and the rest stays paused.
+  // The time-lapse steps back through how the layers formed, held still at each step.
   await open(page, '&stop=formation');
+  const clock = guide(page).locator('.tl-clock');
+  const earlier = guide(page).getByRole('button', { name: 'Earlier in the time-lapse' });
+  const later = guide(page).getByRole('button', { name: 'Later in the time-lapse' });
+  await expect(clock).toHaveText('Today');
+  await expect(later).toBeDisabled();
+  await earlier.click();
+  await expect(clock).toHaveText(/million years ago/);
+  // Later again is today, all the way back.
+  await later.click();
+  await expect(clock).toHaveText('Today');
+  await expect(later).toBeDisabled();
+  for (let i = 1; i < TIMELAPSE.length; i++) await earlier.click();
+  await expect(clock).toHaveText(`≈ ${String(TIMELAPSE[0]?.ma)} million years ago`);
+  await expect(earlier).toBeDisabled();
+  // Paused, the time-lapse still plays when asked, and the rest stays paused.
   await dock(page).getByRole('button', { name: 'Pause the motion' }).click();
   await guide(page).getByRole('button', { name: 'Play the formation time-lapse' }).click();
   await expect(guide(page).getByRole('button', { name: 'Playing…' })).toBeVisible();
-  const clock = guide(page).locator('.tl-clock');
   await expect(clock).toHaveText(/million years ago/);
   const first = (await clock.textContent()) ?? '';
   await expect(clock, 'the replay moves on').not.toHaveText(first);

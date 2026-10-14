@@ -38,6 +38,16 @@ const CLOCK: readonly (readonly [number, number])[] = [
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** Where along the replay (0 to 1) the clock reads `ma` million years ago. */
+function timeAt(ma: number): number {
+  for (let i = 0; i < CLOCK.length - 1; i++) {
+    const [t0, m0] = CLOCK[i] ?? [0, 0];
+    const [t1, m1] = CLOCK[i + 1] ?? [1, 0];
+    if (ma <= m0 && ma >= m1) return lerp(t0, t1, (m0 - ma) / (m0 - m1));
+  }
+  return ma > 0 ? 0 : 1;
+}
 /** How far through the span a to b the replay is, 0 to 1. */
 const seg = (t: number, a: number, b: number) => clamp((t - a) / (b - a), 0, 1);
 
@@ -200,6 +210,23 @@ export class TimeLapse {
     this.playingNow = true;
     this.place(0);
     this.notify();
+  }
+
+  /**
+   * Holds the column still at a step of the story (one per caption): where the clock reads that
+   * step's own time, so the last step is today. A step through it, not motion.
+   */
+  seekStep(step: number) {
+    const entry = TIMELAPSE[clamp(Math.round(step), 0, TIMELAPSE.length - 1)];
+    if (!entry) return;
+    this.playingNow = false;
+    this.place(timeAt(entry.ma));
+    this.notify();
+  }
+
+  /** Back to today, held still. */
+  reset() {
+    this.seekStep(TIMELAPSE.length - 1);
   }
 
   get playing() {

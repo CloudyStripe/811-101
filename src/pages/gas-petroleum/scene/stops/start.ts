@@ -457,7 +457,12 @@ export function lifting(): StopModel {
       hit(wt.x, 1, wt.z, 2.4, 2.2, 2.4),
     ],
     view: { from: [-22, 13, 44], to: [-31, -0.5, 17] },
-    focus: [],
+    // The fork: pulled back over the split, so both ways on are in view, the gas plant up the hill
+    // and the crude oil train toward the refinery, with room for their labels.
+    focus: [
+      [-15, 8.6, -11],
+      [-15, 5, 15.5],
+    ],
     label: { at: [-28, 3.2, 13.5] },
     details: [
       { key: 'pumpJack', at: [px - 0.4, 5.1, wz] },

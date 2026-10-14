@@ -79,7 +79,18 @@ export interface DioramaScene {
   readonly turned: number;
   /** The stop under a point of the canvas, in CSS pixels, or null. */
   pick(x: number, y: number): StopId | null;
+  /** The stops whose labels show, besides the open one's; the rest show while focused. */
+  nameLabels(stops: readonly StopId[]): void;
+  /**
+   * On arrival, the establishing move: in from farther out to the overview, unless motion is
+   * reduced. Any input lands it (see `land`).
+   */
+  establish(): void;
+  /** Lands a camera move under way at once. */
+  land(): void;
   playTimeLapse(): void;
+  /** Holds the time-lapse still at a step of its story, one per caption; the last is today. */
+  stepTimeLapse(step: number): void;
   /** Frames the view again for the room it has; with `ease`, it glides there. */
   relayout(ease?: boolean): void;
   /** Places labels again, now: when a label gains focus. */
@@ -120,6 +131,8 @@ async function buildDiorama(
   /** Seconds of motion so far: the clock every machine and bead runs on. */
   let time = 3;
   let shown: StopId | null = null;
+  /** The stops whose labels the story names, besides the open one's. */
+  let named: ReadonlySet<string> = new Set();
   let filter: Filter = 'both';
   /** How far the overview is turned about its middle, in radians. */
   let yaw = 0;
@@ -203,7 +216,8 @@ async function buildDiorama(
   for (const m of models) for (const pop of m.pops) pop.visible = false;
   applyHaze();
   timeLapse.current?.onChange((state) => {
-    details.setClock(state.playing ? clockText(state.ma) : null);
+    details.setClock(clockShown() ? clockText(state.ma) : null);
+    labelsDirty = true;
     o.onTimeLapse?.(state);
   });
 
@@ -411,25 +425,32 @@ async function buildDiorama(
     lighting.setViewpoint(camera.position, far * 1.05, Infinity);
   }
 
+  /** The time-lapse's clock shows while it plays, and while it's held at a step before today. */
+  function clockShown(): boolean {
+    const state = timeLapse.current?.state;
+    return state !== undefined && (state.playing || state.progress < 1);
+  }
+
   function placeLabels() {
     const area = shownArea ?? o.visibleArea();
     const free = { x: area.x, y: area.y, w: area.width, h: area.height };
+    // The open stop's label, then those the story names (where it goes next, or in the overview,
+    // its landmarks), but not on a path faded back; the rest are quiet, shown only while focused.
     for (const label of labelList) {
       const stop = stops.find((s) => s.id === label.id);
-      // The open stop's label first, then its path's, then the rest; faded paths last.
-      label.priority =
-        label.id === shown ? 10 : stop && dimmed(stop.path) ? 0 : stop?.path === 'shared' ? 2 : 1;
+      const faded = stop !== undefined && dimmed(stop.path) && label.id !== shown;
+      label.priority = label.id === shown ? 10 : 5;
       label.highlight = label.id === shown;
+      label.quiet = label.id !== shown && (faded || !named.has(label.id));
     }
     labels.update(runtime.stage.width, runtime.stage.height, free, maxLabels(area.width));
-    const lapse = timeLapse.current;
     details.update(
       camera,
       runtime.stage.width,
       runtime.stage.height,
       shown,
       o.noGo(),
-      lapse?.playing === true,
+      clockShown(),
     );
   }
 
@@ -455,6 +476,11 @@ async function buildDiorama(
       return yaw / TURN_LIMIT;
     },
     show(stop, options = {}) {
+      // Leaving the formation, a time-lapse held at a step goes back to today.
+      const lapse = timeLapse.current;
+      if (stop !== 'formation' && lapse && !lapse.playing && lapse.state.progress < 1) {
+        lapse.reset();
+      }
       shown = stop;
       if (stop !== null) yaw = 0;
       labelsDirty = true;
@@ -524,9 +550,49 @@ async function buildDiorama(
       }
       return best;
     },
+    nameLabels(next) {
+      named = new Set(next);
+      labelsDirty = true;
+      redraw();
+    },
+    establish() {
+      if (instantMoves() || shown !== null || !shownArea) return;
+      // From farther out and higher, looking the same way: the whole site comes into view.
+      const to = cam.pose();
+      const out = to.position.clone().sub(to.target).multiplyScalar(1.8);
+      const from = {
+        position: to.target
+          .clone()
+          .add(out)
+          .add(new Vector3(0, 30, 0)),
+        target: to.target.clone(),
+        fov: to.fov,
+      };
+      cam.setPose(from);
+      framed();
+      flight = {
+        from,
+        to,
+        fromArea: shownArea,
+        toArea: shownArea,
+        start: performance.now(),
+        duration: MOTION.establish,
+        lift: 0,
+      };
+      runtime.requestFrame();
+    },
+    land() {
+      if (!flight) return;
+      flight.start = performance.now() - flight.duration;
+      runtime.requestFrame();
+    },
     playTimeLapse() {
       lapseThroughPause = paused;
       timeLapse.current?.play();
+      redraw();
+    },
+    stepTimeLapse(step) {
+      timeLapse.current?.seekStep(step);
       redraw();
     },
     relayout(ease = false) {

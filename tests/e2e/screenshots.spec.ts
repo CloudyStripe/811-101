@@ -188,7 +188,10 @@ for (const theme of ['light', 'dark'] as const) {
   }
 }
 
-/** The diorama's states: the overview, a stop of each kind, the fork, the back view, the quiz. */
+/**
+ * The diorama's states: the overview, a stop of each kind, the fork, the back view, a path's end,
+ * and on phones, a journey at a peek and a stop's sheet.
+ */
 const DIORAMA: State[] = [
   { name: 'overview', query: '' },
   { name: 'formation', query: 'stop=formation' },
@@ -197,7 +200,8 @@ const DIORAMA: State[] = [
   { name: 'storage', query: 'stop=storage-lng' },
   { name: 'distillation', query: 'stop=distillation' },
   {
-    name: 'quiz',
+    // A path's end: its quiz answered, and where to go next.
+    name: 'end',
     query: '',
     desktopOnly: true,
     slow: true,
@@ -207,7 +211,21 @@ const DIORAMA: State[] = [
         await page.locator('.gp-panel').getByRole('button', { name: 'Next step' }).click();
       }
       await page.locator('.gp-panel').getByRole('button', { name: 'Take the quiz' }).click();
-      await page.locator('.q').first().getByRole('button').first().click();
+      for (const q of await page.locator('.q').all()) {
+        await q.getByRole('button').first().click();
+      }
+      await page.locator('.q-end').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // A journey on a phone: the view first, and where it is at a peek.
+    name: 'peek',
+    query: '',
+    phoneOnly: true,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Details' }).click();
+      await page.getByRole('button', { name: 'Start at the beginning' }).click();
+      await page.getByRole('button', { name: 'Details' }).click();
     },
   },
   {
