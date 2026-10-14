@@ -7,12 +7,12 @@ import {
   type StopId,
 } from '../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../design/icons.tsx';
-import type { ThemeName } from '../../design/tokens.ts';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
+import { darkQuery, resolvedTheme } from '../../site/theme.ts';
 import { useSettings } from '../../site/useSettings.ts';
 import type { DioramaScene, Filter, Rect } from './scene/index.ts';
 import {
@@ -64,7 +64,6 @@ const NO_WEBGL =
   'This model draws a 3D view with WebGL, which this browser or device has turned off. The guide still works.';
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
-const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 /** Match the layouts in diorama.css: phones, and short screens such as phones held sideways. */
 const phoneQuery = matchMedia('(max-width: 760px)');
 const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
@@ -79,12 +78,6 @@ const roomyQuery = matchMedia('(min-width: 1280px)');
 const TURN_STEP = (12 * Math.PI) / 180;
 /** Which end of its bounds the overview is turned to, if either: -1 left, 1 right, else 0. */
 const edgeOf = (turned: number): -1 | 0 | 1 => (turned <= -0.999 ? -1 : turned >= 0.999 ? 1 : 0);
-
-function resolvedTheme(): ThemeName {
-  const forced = document.documentElement.dataset.theme;
-  if (forced === 'light' || forced === 'dark') return forced;
-  return darkQuery.matches ? 'dark' : 'light';
-}
 
 const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 

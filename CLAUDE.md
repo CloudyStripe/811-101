@@ -2,12 +2,12 @@
 
 An interactive learning site about buried utilities and line locating.
 
-| Page                                                    | Path                                | Source                                                 |
-| ------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------ |
-| Portal (home)                                           | `/811-101/`                         | `index.html`, `src/pages/portal/`, `content/portal.ts` |
-| Frequency Lab (Locator Training)                        | `/811-101/training/frequency-lab/`  | `training/frequency-lab/`, `src/pages/frequency-lab/`  |
-| Gas & Petroleum: From Rock to Flame (Utility Education) | `/811-101/utilities/gas-petroleum/` | `utilities/gas-petroleum/`, `src/pages/gas-petroleum/` |
-| Page not found                                          | any missing address                 | `404.html`, `src/pages/not-found/`                     |
+| Page                                                    | Path                                | Source                                                                      |
+| ------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| Portal (home)                                           | `/811-101/`                         | `index.html`, `src/site/shell.ts`, `src/pages/portal/`, `content/portal.ts` |
+| Frequency Lab (Locator Training)                        | `/811-101/training/frequency-lab/`  | `training/frequency-lab/`, `src/pages/frequency-lab/`                       |
+| Gas & Petroleum: From Rock to Flame (Utility Education) | `/811-101/utilities/gas-petroleum/` | `utilities/gas-petroleum/`, `src/pages/gas-petroleum/`                      |
+| Page not found                                          | any missing address                 | `404.html`, `src/pages/not-found/`                                          |
 
 811 Basics shows on the portal as coming soon. The site's name, tagline and address live in
 `config/brand.ts`.
@@ -18,11 +18,15 @@ An interactive learning site about buried utilities and line locating.
   whether it has a 3D view, and its load budgets. The head tags, header, budgets and tests read it.
   Add a page there first.
 - **Static shell:** `src/site/shell.ts` writes each built page's head (title, description, share
-  preview, favicons, theme color, the settings script), the header, the footer, the 3D loader and
-  the portal's hero into its HTML at build time. Pages' own HTML keeps only what's theirs; links in
-  it use `%BASE%`.
+  preview, favicons, theme color, the settings script), the header, the footer, the 3D loader, and
+  the portal's hero and sections into its HTML at build time. The portal is all static: its script
+  only draws icons and, as a lesson opens, names that lesson's preview for the page change. Pages'
+  own HTML keeps only what's theirs; links in it use `%BASE%`.
 - **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme
   (and for the hero, per screen shape), named in `src/site/stills.ts`; only the reader's loads.
+- **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion. A
+  lesson's preview carries on into its loader; a lesson page waits for the change to finish before
+  replacing its static shell (`src/site/arrival.ts`), or the animation is cut short.
 - **Every page starts with** `src/site/boot.ts`: tokens, fonts, `base.css`, `components.css`,
   `site.css`, and the header's settings menu. Settings live in one store (`src/site/settings.ts`,
   `useSettings`), shared by the menu and the page.
@@ -125,11 +129,17 @@ In the field, the color is the code.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
 - **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
 - **Bloom only for emitters,** and no NaN: a shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame. The diorama's builders run `fixNormals`.
-- **Shadows hold still:** the shadow map renders once (and on theme or tier changes), so moving parts don't cast into it.
+- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
+
+## The diorama's story
+
+- **The journey** (`src/pages/gas-petroleum/journey.ts`) is a pure state machine with its own tests: Start walks the shared stops to the fork, where the reader chooses a path; that path's stops follow, then its quiz; the end offers the other path from the fork.
+- **Labels the story names:** the open stop and where it goes next, or in the overview its landmarks; the others are quiet (`quiet` in `src/kit3d/labels.ts`), shown only while focused.
+- **Motion in tests:** e2e tests count frames (`countFrames`, `isMoving` in `tests/e2e/fixtures.ts`), never screenshots of a moving canvas; one late frame after a pause isn't motion.
 
 ## Performance and accessibility
 
-- **Budgets** live in `scripts/budgets.ts` and run in `npm run check`.
+- **Budgets** are set per page in `src/site/pages.ts`; `scripts/budgets.ts` checks the build against them in `npm run check`.
 - **GPU resources:** disposed on exit. Quality tiers have a manual override.
 - **WCAG 2.2 AA:**
   - every control works by keyboard;
