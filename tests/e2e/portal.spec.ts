@@ -11,7 +11,7 @@ import { BRAND, SITE_URL } from '../../config/brand.ts';
 import { SECTIONS } from '../../content/portal.ts';
 import { PAGES, pageById } from '../../src/site/pages.ts';
 import { SETTINGS_KEY } from '../../src/site/settings.ts';
-import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
+import { expect, test, waitReady } from './fixtures.ts';
 
 /** Opens the portal and waits until everything on it, previews included, is loaded and decoded. */
 async function openPortal(page: Page) {
@@ -54,7 +54,7 @@ test('the portal shows every section, its lessons, and what’s coming', async (
 });
 
 test('every built page carries its head and shell before any JavaScript runs', async ({ page }) => {
-  for (const info of PAGES.filter((p) => p.built)) {
+  for (const info of PAGES) {
     const res = await page.request.get(info.path);
     const html = await res.text();
     expect(html, info.id).toContain(SETTINGS_KEY);
@@ -71,9 +71,6 @@ test('every built page carries its head and shell before any JavaScript runs', a
       expect((await page.request.get(icon)).status(), icon).toBe(200);
     }
   }
-  // The diorama is still published as it is.
-  const diorama = await (await page.request.get(pageById('gas-petroleum').path)).text();
-  expect(diorama).not.toContain(SETTINGS_KEY);
 });
 
 test('a page that isn’t there is a 404, as on the live site, with the site’s own page', async ({
@@ -154,7 +151,7 @@ test('settings chosen on one page hold on the next', async ({ page }) => {
 });
 
 test.describe('the diorama', () => {
-  test.use({ allowHosts: DIORAMA_HOSTS });
+  test.use({ reducedMotion: 'reduce' });
 
   test('opens from Utility Education, and comes back', async ({ page }) => {
     await openPortal(page);
@@ -164,12 +161,9 @@ test.describe('the diorama', () => {
       .getByRole('link', { name: 'Gas & Petroleum', exact: true })
       .click();
     await expect(page).toHaveURL(/\/utilities\/gas-petroleum\/$/);
-    await expect(page).toHaveTitle('From Rock to Flame');
-    await expect(page.locator('#scene')).toBeVisible();
-    // Leaving before its scripts and fonts arrive would cut those requests short.
-    await page.waitForLoadState('load');
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    await page.getByRole('link', { name: 'All lessons' }).click();
+    await expect(page).toHaveTitle(pageById('gas-petroleum').title);
+    await waitReady(page);
+    await page.getByRole('link', { name: BRAND.name }).click();
     await expect(page).toHaveURL(PORTAL_URL);
     await expect(page).toHaveTitle(BRAND.name);
   });

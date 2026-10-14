@@ -207,6 +207,70 @@ export const WORLD_COLORS = {
   lampHousing: '#3f4246',
 } as const;
 
+/**
+ * The Gas & Petroleum diorama's albedos (sRGB): the layers its block cuts through, what flows in
+ * them and in its routes, and its machines. As muted as the lab's, so the APWA yellow of the two
+ * fuel paths stays the most saturated color in the model. Water is never APWA blue, which means
+ * drinking water, and produced water is a murky brown-gray, never APWA green, which means sewer.
+ */
+export const DIORAMA_COLORS = {
+  // The layers, top to bottom.
+  soil: '#5f4532',
+  /** Sand holding fresh groundwater: a cool, pale sand. */
+  aquifer: '#a8a395',
+  overburden: '#9a8069',
+  /** The tight cap rock that seals oil and gas in: a dark slate. */
+  capRock: '#5c5a5f',
+  shale: '#837d73',
+  /** Dark, rich source rock, where oil and gas form. */
+  sourceRock: '#3e3a37',
+  basement: '#6c645b',
+  // What fills the reservoir rock, by weight: gas on top, then oil, then salty water.
+  gasZone: '#d8d1c2',
+  oilZone: '#3b2c22',
+  waterZone: '#786f60',
+  // What flows along the routes.
+  oil: '#2e231b',
+  /** Natural gas: a pale, warm neutral. */
+  gas: '#e8e2d4',
+  /** Salty water from the well: murky brown-gray. */
+  producedWater: '#857b69',
+  /** Finished fuel: a muted tan-gold, well apart from the paths' APWA yellow, even in shade. */
+  fuel: '#a69174',
+  // The harbor.
+  sea: '#5b6a70',
+  seabed: '#a39577',
+  // The refinery tower's fuels, heavy to light: a ramp of values. Gasoline's band is its path's.
+  asphalt: '#2f2a26',
+  heavyOil: '#544a41',
+  diesel: '#7b7064',
+  jetFuel: '#a2988b',
+  lightGases: '#d8d3ca',
+  // Machines and buildings: neutral, told apart by value, not hue.
+  machine: '#c9c5bd',
+  machineDark: '#5d6064',
+  tank: '#e4e0d8',
+  shell: '#d6d7d3',
+  steel: '#8a8d90',
+  graphite: '#2b2d30',
+  concrete: '#cdc8be',
+  pad: '#bdb7ab',
+  brick: '#7a6a60',
+  roof: '#64605b',
+  wall: '#d4cdc1',
+  truck: '#a9aaa6',
+  // Small things: fossils in the source rock, sand grains, sea life, glass.
+  fossil: '#e3d9c4',
+  sand: '#c9b795',
+  sandDark: '#a99572',
+  plankton: '#c7cfb1',
+  glass: '#d3dad8',
+  // Fire, and the glow of what burns: emitters, the only things bright enough to bloom.
+  flame: '#ffb35c',
+  flameCore: '#ffe3a6',
+  furnaceGlow: '#ff9a4d',
+} as const;
+
 /** Icon ink on APWA color chips: dark on every chip, in both themes. */
 export const CHIP_INK = '#1b1a17';
 

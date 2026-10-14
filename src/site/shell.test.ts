@@ -1,20 +1,15 @@
-/** The site shell, as each built page gets it: its head, header, footer and loader. */
+/** The site shell, as each page gets it: its head, header, footer and loader. */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BASE_PATH, SITE_URL } from '../../config/brand.ts';
 import { PAGES, posterPath } from './pages.ts';
 import { BOOT, LOADER_SLOT, renderPage } from './shell.ts';
 
-const built = PAGES.filter((p) => p.built);
 const render = (page: (typeof PAGES)[number]) => renderPage(readFileSync(page.html, 'utf8'), page);
 const count = (html: string, pattern: RegExp) => [...html.matchAll(pattern)].length;
 
 describe('renderPage', () => {
-  it('skips page fades into pages outside the shell', () => {
-    expect(BOOT).toContain(JSON.stringify([`${BASE_PATH}utilities/gas-petroleum/`]));
-  });
-
-  it.each(built)('$id: charset in the first 1024 bytes, then the settings script', (page) => {
+  it.each(PAGES)('$id: charset in the first 1024 bytes, then the settings script', (page) => {
     const html = render(page);
     const charset = html.indexOf('<meta charset="utf-8" />');
     expect(charset).toBeGreaterThan(0);
@@ -25,7 +20,7 @@ describe('renderPage', () => {
     );
   });
 
-  it.each(built)('$id: one title, a description, and a share preview by whole address', (page) => {
+  it.each(PAGES)('$id: one title, a description, and a share preview by whole address', (page) => {
     const html = render(page);
     expect(count(html, /<title>/g)).toBe(1);
     expect(html).toContain(`<title>${page.title.replaceAll('&', '&amp;')}</title>`);
@@ -42,14 +37,14 @@ describe('renderPage', () => {
     }
   });
 
-  it.each(built)('$id: favicons and theme colors for both themes', (page) => {
+  it.each(PAGES)('$id: favicons and theme colors for both themes', (page) => {
     const html = render(page);
     expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml" />');
     expect(html).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
     expect(count(html, /<meta name="theme-color"/g)).toBe(2);
   });
 
-  it.each(built)('$id: the header, with one h1 on the page', (page) => {
+  it.each(PAGES)('$id: the header, with one h1 on the page', (page) => {
     const html = render(page);
     expect(count(html, /<header class="site-header"/g)).toBe(1);
     expect(html).toContain(`<a class="site-home" href="${BASE_PATH}"`);
@@ -59,7 +54,7 @@ describe('renderPage', () => {
     if (page.heading) expect(html).toContain(`<h1 class="site-title">`);
   });
 
-  it.each(built)('$id: the footer and loader where they belong, and no placeholders', (page) => {
+  it.each(PAGES)('$id: the footer and loader where they belong, and no placeholders', (page) => {
     const html = render(page);
     expect(html.includes('<footer class="site-footer">')).toBe(page.footer);
     expect(html.includes('class="scene-loader"')).toBe(page.scene);
@@ -77,7 +72,7 @@ describe('renderPage', () => {
   });
 
   it('leaves no $ pattern behind from what it puts in', () => {
-    const page = built[0];
+    const page = PAGES[0];
     if (!page) throw new Error('no pages');
     expect(renderPage('<head></head><body>$&$1</body>', page)).toContain('$&$1');
   });

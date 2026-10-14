@@ -59,6 +59,22 @@ export function lerpPose(a: CameraPose, b: CameraPose, t: number): CameraPose {
   };
 }
 
+/**
+ * A free area part way from one to another. Eased along with the pose, it glides the view to new
+ * room instead of jumping there.
+ */
+export function areaBetween(a: VisibleArea, b: VisibleArea, t: number): VisibleArea {
+  const mix = (x: number, y: number) => x + (y - x) * t;
+  return {
+    x: mix(a.x, b.x),
+    y: mix(a.y, b.y),
+    width: mix(a.width, b.width),
+    height: mix(a.height, b.height),
+    ...(b.portrait === undefined ? {} : { portrait: b.portrait }),
+    ...(b.keepOut === undefined ? {} : { keepOut: b.keepOut }),
+  };
+}
+
 export class LabCamera {
   private readonly camera: PerspectiveCamera;
   private readonly baseFov: number;

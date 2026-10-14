@@ -78,3 +78,45 @@ for (const theme of ['light', 'dark'] as const) {
     });
   });
 }
+
+/** The diorama, open at a stop or at its overview. */
+async function openDiorama(page: Page, stop = '') {
+  await page.goto(`utilities/gas-petroleum/?tier=low${stop ? `&stop=${stop}` : ''}`);
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`diorama ${theme}`, () => {
+    test.use({ colorScheme: theme });
+
+    test('desktop: the overview, a stop with its safety tip, and a quiz answered', async ({
+      page,
+    }) => {
+      test.slow();
+      await openDiorama(page);
+      await scan(page, `${theme} diorama overview`);
+      await openDiorama(page, 'city-gate');
+      await scan(page, `${theme} diorama city gate`);
+      await openDiorama(page);
+      await page.getByRole('button', { name: 'Natural gas tour' }).click();
+      const guide = page.locator('.gp-panel');
+      for (let i = 0; i < 8; i++) await guide.getByRole('button', { name: 'Next step' }).click();
+      await guide.getByRole('button', { name: 'Take the quiz' }).click();
+      await page.locator('.q').first().getByRole('button').first().click();
+      await scan(page, `${theme} diorama quiz`);
+    });
+
+    test.describe('phone', () => {
+      test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+      test('the diorama with the sheet closed and open', async ({ page }) => {
+        await openDiorama(page, 'formation');
+        await scan(page, `${theme} diorama phone`);
+        await page.getByRole('button', { name: 'Details' }).tap();
+        await scan(page, `${theme} diorama phone sheet`);
+      });
+    });
+  });
+}

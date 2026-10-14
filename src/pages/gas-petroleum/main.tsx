@@ -1,0 +1,12 @@
+import '../../site/boot.ts';
+import '@fontsource/ibm-plex-mono/latin-400.css';
+import './diorama.css';
+import { render } from 'preact';
+import { App } from './App.tsx';
+
+const root = document.getElementById('app');
+if (root) {
+  // The static shell is for first paint and no-JS visitors; the app replaces it.
+  root.textContent = '';
+  render(<App />, root);
+}

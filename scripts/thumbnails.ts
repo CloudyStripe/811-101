@@ -42,31 +42,19 @@ interface Shot {
   crop: { x: number; y: number; width: number };
 }
 
-type Debuggable = Window & {
-  __app?: { camera: { position: { x: number; y: number; z: number } } };
-};
-
-/** Waits until the diorama's camera has stopped moving. */
-async function cameraAtRest(page: Page): Promise<void> {
-  let last = '';
-  let still = 0;
-  const deadline = Date.now() + 20_000;
-  while (still < 3) {
-    if (Date.now() > deadline) throw new Error('The camera never came to rest');
-    const now = await page.evaluate(() => {
-      const p = (window as Debuggable).__app?.camera.position;
-      return p ? [p.x, p.y, p.z].map((v) => v.toFixed(3)).join(',') : '';
-    });
-    still = now !== '' && now === last ? still + 1 : 0;
-    last = now;
-    await page.waitForTimeout(200);
-  }
-}
-
 /** Opens the lab in capture mode and closes its guide, so the 3D view has the whole width. */
 async function labReady(page: Page): Promise<void> {
   await page.waitForFunction(() => document.documentElement.dataset.sceneReady === 'true');
-  await page.getByRole('button', { name: 'Close the lab guide' }).click();
+  // Narrower than 1280 px, the guide starts closed already.
+  const close = page.getByRole('button', { name: 'Close the lab guide' });
+  if (await close.isVisible()) await close.click();
+}
+
+/** The diorama in capture mode, its guide closed, so the overview has the whole width. */
+async function dioramaReady(page: Page): Promise<void> {
+  await page.waitForFunction(() => document.documentElement.dataset.sceneReady === 'true');
+  const close = page.getByRole('button', { name: 'Close the guide' });
+  if (await close.isVisible()) await close.click();
 }
 
 const SHOTS: Shot[] = [
@@ -79,17 +67,10 @@ const SHOTS: Shot[] = [
   },
   {
     name: 'gas-petroleum',
-    // The #debug hook exposes its camera, so the script can tell when it has settled.
-    path: 'utilities/gas-petroleum/#debug',
-    ready: async (page) => {
-      await page.waitForFunction(() => (window as Debuggable).__app !== undefined, null, {
-        timeout: 60_000,
-      });
-      await page.locator('#p-close').click();
-      await cameraAtRest(page);
-    },
-    hide: '.brand, .tools, .hint, #panel, #labels',
-    crop: { x: 230, y: 152, width: 800 },
+    path: 'utilities/gas-petroleum/?tier=high&capture',
+    ready: dioramaReady,
+    hide: LAB_CHROME,
+    crop: { x: 120, y: 120, width: 1040 },
   },
 ];
 
@@ -100,6 +81,11 @@ const STILLS: Partial<
   'frequency-lab': {
     path: 'training/frequency-lab/?setup=steel&f=512&tier=high&capture',
     ready: labReady,
+    hide: LAB_CHROME,
+  },
+  'gas-petroleum': {
+    path: 'utilities/gas-petroleum/?tier=high&capture',
+    ready: dioramaReady,
     hide: LAB_CHROME,
   },
 };
@@ -303,7 +289,7 @@ try {
   }
 
   // Posters and share previews, for every 3D page built on the site's shell.
-  for (const page of PAGES.filter((p) => p.built && p.scene)) {
+  for (const page of PAGES.filter((p) => p.scene)) {
     const view = STILLS[page.id];
     if (!view) throw new Error(`No still for ${page.id}`);
     for (const scheme of ['light', 'dark'] as const) {
@@ -317,17 +303,25 @@ try {
     }
   }
 
-  // Share previews: each page with one of its own, and the home page with the lab's view.
-  const labView = STILLS['frequency-lab'];
-  if (!labView) throw new Error('No still for the lab');
-  const labStill = await still(browser, labView, SHARE_SIZE, 'light');
+  // Share previews: each 3D page with its own view, and the home page with the lab's.
+  const shareStill = async (id: PageInfo['id']) => {
+    const view = STILLS[id];
+    if (!view) throw new Error(`No still for ${id}`);
+    return still(browser, view, SHARE_SIZE, 'light');
+  };
+  const labStill = await shareStill('frequency-lab');
+  const cards: [PageInfo, Buffer][] = [
+    [pageById('portal'), labStill],
+    [pageById('frequency-lab'), labStill],
+    [pageById('gas-petroleum'), await shareStill('gas-petroleum')],
+  ];
   const fonts = await fontFaces();
-  for (const page of [pageById('portal'), pageById('frequency-lab')]) {
+  for (const [page, image] of cards) {
     const jpeg = await withPage(
       browser,
       { ...SHARE_SIZE, scale: 1, scheme: 'light' },
       async (tab) => {
-        await tab.setContent(shareCard(page, labStill, fonts));
+        await tab.setContent(shareCard(page, image, fonts));
         await tab.evaluate(() => document.fonts.ready.then(() => undefined));
         return tab.screenshot({ type: 'jpeg', quality: 82 });
       },
@@ -337,7 +331,7 @@ try {
     console.log(`Wrote ${path} (${(jpeg.length / 1024).toFixed(1)} KB).`);
   }
   // Each card came out as a real image, not an empty page.
-  for (const page of [pageById('portal'), pageById('frequency-lab')]) {
+  for (const [page] of cards) {
     const bytes = await readFile(`public/share/${page.share.image}`);
     if (bytes.length < 10_000) throw new Error(`${page.share.image} looks empty`);
   }

@@ -24,22 +24,19 @@ export const SETTINGS_KEY = '811-101.settings';
  * page doesn't flash. The site shell adds it to every page (src/site/shell.ts); the page's own
  * code applies the settings again once it runs.
  *
- * It also listens for page changes: one that can't animate just happens. That's a change to a page
- * that doesn't take part in view transitions (`apart`: paths such as the original diorama's,
- * where the leaving page skips its fade), or one the browser gives up on, as Chromium sometimes
- * does when a link is followed the moment a page loads. Either way the transition's promises
- * reject, harmlessly, and would otherwise be reported as uncaught errors. And the header, which
- * holds still between pages, takes part only when it's on screen: on a scrolled page it has gone,
- * and would otherwise slide back in.
+ * It also listens for page changes: one the browser gives up on animating just happens, as
+ * Chromium sometimes does when a link is followed the moment a page loads. The transition's
+ * promises then reject, harmlessly, and would otherwise be reported as uncaught errors. And the
+ * header, which holds still between pages, takes part only when it's on screen: on a scrolled page
+ * it has gone, and would otherwise slide back in.
  */
-export function bootScript(apart: readonly string[] = []): string {
+export function bootScript(): string {
   return `try {
   var saved = JSON.parse(localStorage.getItem(${JSON.stringify(SETTINGS_KEY)}) || '{}');
   if (saved.theme === 'light' || saved.theme === 'dark') document.documentElement.dataset.theme = saved.theme;
   if (saved.motion === 'reduce' || saved.motion === 'full') document.documentElement.dataset.motion = saved.motion;
 } catch (e) {}
 if (typeof addEventListener === 'function') {
-  var apart = ${JSON.stringify(apart)};
   ['pageswap', 'pagereveal'].forEach(function (type) {
     addEventListener(type, function (event) {
       var t = event.viewTransition;
@@ -47,8 +44,6 @@ if (typeof addEventListener === 'function') {
       [t.ready, t.finished, t.updateCallbackDone].forEach(function (p) { p.catch(function () {}); });
       var header = document.querySelector('.site-header');
       if (header && scrollY > 0) header.style.viewTransitionName = 'none';
-      var to = event.activation && event.activation.entry && new URL(event.activation.entry.url).pathname;
-      if (to && apart.indexOf(to) >= 0) t.skipTransition();
     });
   });
   addEventListener('unhandledrejection', function (event) {
@@ -58,7 +53,6 @@ if (typeof addEventListener === 'function') {
 }`;
 }
 
-/** The boot script for pages that link to no page outside the site's shell. */
 export const BOOT_SCRIPT = bootScript();
 
 function pick<T extends string>(value: unknown, options: readonly T[], fallback: T): T {

@@ -26,7 +26,12 @@ export type IconName =
   | 'info'
   | 'idea'
   | 'rule'
-  | 'list';
+  | 'list'
+  | 'fuel'
+  | 'map'
+  | 'check'
+  | 'turn-left'
+  | 'turn-right';
 
 const PATHS: Record<IconName, JSX.Element> = {
   settings: (
@@ -112,6 +117,17 @@ const PATHS: Record<IconName, JSX.Element> = {
   ),
   // Swatches and names: a key.
   list: <path d="M4 6h2M4 10h2M4 14h2M9 6h7M9 10h7M9 14h7" />,
+  /** A fuel can: gasoline, as against natural gas's flame. */
+  fuel: (
+    <path d="M5 7.25h7.25l2.75 2.75v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1zM7.5 7.25V4.5h3.25v2.75M12.5 7.25l1.5-2.5 1.5 1M7.75 11l4.5 3.5M12.25 11l-4.5 3.5" />
+  ),
+  /** A folded map: the overview of every stop. */
+  map: (
+    <path d="M3.25 5.5L7.5 4l4.75 1.5 4.5-1.5v10.5l-4.5 1.5-4.75-1.5-4.25 1.5zM7.5 4v10.5M12.25 5.5V16" />
+  ),
+  check: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
+  'turn-left': <path d="M4.25 10a5.75 5.75 0 1 0 1.68-4.07M5.75 2.75V6H9" />,
+  'turn-right': <path d="M15.75 10a5.75 5.75 0 1 1-1.68-4.07M14.25 2.75V6H11" />,
 };
 
 export function Icon({ name, class: className }: { name: IconName; class?: string }) {

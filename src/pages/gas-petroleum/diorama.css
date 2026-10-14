@@ -1,0 +1,748 @@
+/*
+ * The Gas & Petroleum diorama: a full-bleed 3D view under the site header, with the guide in a
+ * side panel on wide screens and a sheet on phones, and the controls in a dock in thumb reach.
+ * The layout follows the Frequency Lab's, so the two lessons feel like one product.
+ */
+
+body {
+  overflow-x: hidden;
+}
+
+.gp {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.gp-grid {
+  --gp-top: calc(var(--header-h) + max(0px, env(safe-area-inset-top) - var(--space-3)));
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: minmax(120px, 1fr) auto;
+  grid-template-areas:
+    'view view panel'
+    'dock . panel';
+  gap: var(--space-3) var(--space-4);
+  padding: var(--gp-top) max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  pointer-events: none;
+}
+
+.gp-grid > * {
+  pointer-events: auto;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.gp-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.gp-canvas:active {
+  cursor: grabbing;
+}
+
+/* The view fills the screen, so its focus ring goes inside its edge, where it can be seen. */
+.gp-canvas:focus-visible {
+  outline-width: 3px;
+  outline-offset: -6px;
+  box-shadow: none;
+}
+
+.gp-dock,
+.gp-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+
+.stage-message {
+  position: relative;
+  z-index: 1;
+  grid-area: view;
+  align-self: center;
+  justify-self: center;
+  max-width: min(34rem, 100%);
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+/* The dock: the path switch and the pause, then the ways to move around. */
+.gp-dock {
+  grid-area: dock;
+  align-self: end;
+  justify-self: start;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+}
+
+.gp-dock .dock-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gp-dock .dock-filter {
+  box-shadow: none;
+  background: var(--surface-2);
+}
+
+.gp-dock .dock-filter .icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  vertical-align: -3px;
+}
+
+.gp-dock .dock-pause {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.gp-dock .dock-pause[data-paused] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.dock-moves .icon-button {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.dock-moves .icon-button[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dock-where {
+  margin-left: var(--space-1);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+/* The guide: a side panel on wide screens, a sheet on phones. */
+.gp-panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  contain: size;
+}
+
+.gp-panel .sheet-bar {
+  display: none;
+}
+
+.gp-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.gp-panel .panel-title {
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: 800;
+}
+
+.gp-panel .panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.gp-panel .lead {
+  margin: 0 0 var(--space-4);
+}
+
+.stop-path {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.stop-path .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.stop-step {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+
+.gp-panel .note,
+.gp-panel .callout {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.gp-panel .note .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.gp-panel .callout {
+  display: block;
+  border-left: 3px solid var(--ink);
+}
+
+/* The time-lapse: its clock, how far along it is, its caption and its button. */
+.tl {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.tl-clock {
+  margin: 0 0 var(--space-2);
+  font: 600 1.05rem/1.2 var(--font-mono);
+}
+
+.tl-bar {
+  height: 4px;
+  margin: 0 0 var(--space-2);
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+.tl-bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+.tl-caption {
+  min-height: 3em;
+  margin: 0 0 var(--space-3);
+}
+
+.tl-note {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-small);
+}
+
+.tl .button[aria-disabled='true'] {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.stop-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.stop-nav-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The overview: the two tours, and how to use the model. */
+.tour-pick {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+
+.tour-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tour-button span {
+  display: grid;
+}
+
+.tour-button small {
+  color: var(--ink-3);
+}
+
+@media (hover: hover) {
+  .tour-button:hover {
+    border-color: var(--ink-3);
+    background: var(--surface-2);
+  }
+}
+
+.howto {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 1.15em;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+
+/* The route map: lines drawn as in the view, stops as numbered buttons over them. */
+.rmap {
+  position: relative;
+  aspect-ratio: 344 / 152;
+  margin: 0 0 var(--space-2);
+}
+
+.rmap-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.rmap-line {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.rmap-bands {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 5;
+}
+
+/* On the panel's own color, so the map's lines never run behind the words. */
+.rmap-name {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rmap-name .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.rmap-name-gas {
+  top: -2px;
+  left: 43.6%;
+}
+
+.rmap-name-gasoline {
+  bottom: -4px;
+  left: 43.6%;
+}
+
+.rmap-name-shared {
+  top: 30%;
+  left: 0;
+}
+
+.rmap-stops {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rmap-stops li {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.rmap-stop {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  font: 700 0.75rem/1 var(--font-mono);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .rmap-stop:hover {
+    background: var(--surface-2);
+  }
+}
+
+/* The quiz: each question, its choices, and what was right, marked in words and icons. */
+.q {
+  margin: 0 0 var(--space-5);
+}
+
+.q h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-h3);
+}
+
+.q-options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.q-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.q-option[aria-disabled='true'] {
+  cursor: default;
+}
+
+.q-option[aria-disabled='true']:not([data-mark]) {
+  color: var(--ink-3);
+}
+
+.q-option[data-mark='right'] {
+  border: 2px solid var(--ink);
+  font-weight: 700;
+}
+
+.q-option[data-mark='wrong'] {
+  border-style: dashed;
+  border-color: var(--ink-2);
+}
+
+.q-mark {
+  margin-left: auto;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.q-why {
+  margin: var(--space-2) 0 0;
+}
+
+.q-end {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.q-score {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-h3);
+  font-weight: 800;
+}
+
+/* A tour's bar: back, how far along, and on. */
+.tourbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.tourbar-progress {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+.tourbar-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.tourbar-dots i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--ink-3);
+  border-radius: 50%;
+}
+
+.tourbar-dots i[data-state='done'] {
+  background: var(--ink-3);
+}
+
+.tourbar-dots i[data-state='current'] {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+/* A stop's label: its path's icon on the path's own color. */
+.lbl-icon-path {
+  background: var(--chip);
+  color: var(--chip-ink, #1b1a17);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
+}
+
+.lbl[data-path='shared'] .lbl-icon-path {
+  color: #fff;
+}
+
+/* The small labels on an open stop's parts, and the time-lapse's clock. */
+.details {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dlbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  /* Opaque, so the words' contrast never depends on the scene behind them. */
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.dlbl.off {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.dlbl-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+.dlbl-clock {
+  padding: 4px 10px;
+  font: 600 0.85rem/1.2 var(--font-mono);
+}
+
+/* Medium widths: the panel beside the view, the dock under it. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .gp-grid {
+    grid-template-columns: minmax(0, 1fr) var(--panel-w);
+    grid-template-areas:
+      'view panel'
+      'dock panel';
+  }
+}
+
+/* A closed panel shrinks to its title, and the view takes the room. */
+@media (min-width: 761px) and (min-height: 581px) {
+  .gp-grid[data-panel='closed'] {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .gp-panel[data-collapsed] {
+    align-self: start;
+    contain: none;
+  }
+
+  .gp-panel[data-collapsed] .panel-head {
+    gap: var(--space-3);
+    border-bottom: 0;
+  }
+
+  .gp-panel[data-collapsed] .panel-body,
+  .gp-panel[data-collapsed] .tourbar {
+    display: none;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) and (min-height: 581px) {
+  .gp-grid[data-panel='closed'] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* Phones, and short screens such as phones held sideways: the guide is a sheet. */
+@media (max-width: 760px), (max-height: 580px) and (min-width: 561px) {
+  .gp-dock {
+    justify-self: stretch;
+  }
+
+  .gp-dock .dock-filter {
+    flex: 1;
+  }
+
+  /* Sized by their words, so the longest name keeps to one line while there's room. */
+  .gp-dock .dock-filter .segmented-option {
+    flex: auto;
+    padding: 6px 6px;
+    font-size: 0.8rem;
+  }
+
+  .gp-panel .panel-head {
+    display: none;
+  }
+
+  .gp-panel {
+    min-height: auto;
+    contain: none;
+  }
+
+  .gp-grid[data-sheet='open'] .gp-panel {
+    min-height: 0;
+    contain: size;
+  }
+
+  .gp-panel .sheet-bar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  }
+
+  .gp-panel .sheet-summary {
+    flex: 1;
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .gp-panel .sheet-toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    margin-left: auto;
+    padding: 0 8px 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .gp-panel:not([data-open]) .panel-body,
+  .gp-panel:not([data-open]) .tourbar {
+    display: none;
+  }
+
+  .gp-panel .panel-body {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 760px) {
+  .gp-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(200px, 1fr) auto auto;
+    grid-template-areas:
+      'view'
+      'panel'
+      'dock';
+    gap: var(--space-2);
+    padding: var(--gp-top) max(var(--space-3), env(safe-area-inset-right))
+      max(var(--space-3), env(safe-area-inset-bottom))
+      max(var(--space-3), env(safe-area-inset-left));
+  }
+
+  .gp-grid[data-sheet='open'] {
+    grid-template-rows: minmax(180px, 2fr) minmax(240px, 3fr) auto;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 680px) {
+  .gp-grid {
+    grid-template-rows: minmax(120px, 1fr) auto auto;
+  }
+
+  .gp-grid[data-sheet='open'] {
+    grid-template-rows: 0 minmax(240px, 1fr) auto;
+  }
+}
+
+/* Short screens: the sheet and the dock in a column on the left, the view on the right. */
+@media (max-height: 580px) and (min-width: 561px) {
+  .gp-grid {
+    grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      'panel view'
+      '. view'
+      'dock view';
+    gap: var(--space-2);
+    padding: var(--gp-top) max(var(--space-3), env(safe-area-inset-right))
+      max(var(--space-2), env(safe-area-inset-bottom))
+      max(var(--space-3), env(safe-area-inset-left));
+  }
+
+  .gp-grid[data-sheet='open'] {
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .gp-grid[data-sheet='open'] .gp-panel {
+    grid-area: view;
+  }
+}
