@@ -6,9 +6,14 @@
 .portal {
   max-width: 76rem;
   margin: 0 auto;
-  padding: max(var(--space-8), env(safe-area-inset-top))
-    max(var(--space-5), env(safe-area-inset-right)) max(var(--space-8), env(safe-area-inset-bottom))
-    max(var(--space-5), env(safe-area-inset-left));
+  /* Below the site header, which floats over the top of the page. */
+  padding: calc(var(--header-h) + var(--space-8)) max(var(--space-5), env(safe-area-inset-right))
+    var(--space-8) max(var(--space-5), env(safe-area-inset-left));
+}
+
+/* The header's breadcrumb jumps to a section; leave the header's room above it. */
+.portal-section {
+  scroll-margin-top: calc(var(--header-h) + var(--space-4));
 }
 
 .portal-head {
@@ -47,9 +52,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 8px 24px rgb(0 0 0 / 0.06);
+  box-shadow: var(--shadow-1);
 }
 
 .section-head {
@@ -76,7 +79,7 @@
 
 .portal-section h2 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: var(--text-h2);
   font-weight: 800;
 }
 
@@ -108,9 +111,15 @@
     transform var(--dur) var(--ease);
 }
 
-.lesson:has(.lesson-link:hover) {
-  box-shadow: 0 10px 28px rgb(0 0 0 / 0.14);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .lesson:has(.lesson-link:hover) {
+    box-shadow: var(--shadow-2);
+    transform: translateY(-2px);
+  }
+
+  .lesson:has(.lesson-link:hover) .lesson-go .icon {
+    transform: translateX(3px);
+  }
 }
 
 /* The whole card shows focus, not just its title, where the browser can tell. */
@@ -156,7 +165,7 @@
 
 .lesson h3 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: var(--text-h3);
   font-weight: 800;
 }
 
@@ -192,10 +201,6 @@
   transition: transform var(--dur) var(--ease);
 }
 
-.lesson:has(.lesson-link:hover) .lesson-go .icon {
-  transform: translateX(3px);
-}
-
 /* A section still being built. */
 .lesson-soon {
   border-style: dashed;
@@ -228,7 +233,7 @@
 @media (max-width: 900px) {
   .portal {
     max-width: 38rem;
-    padding-top: max(var(--space-6), env(safe-area-inset-top));
+    padding-top: calc(var(--header-h) + var(--space-5));
   }
 
   .portal-head {

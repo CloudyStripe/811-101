@@ -1,0 +1,459 @@
+/*
+ * Shared components: buttons, the segmented control, chips, terms and their tips, dialogs, 3D
+ * labels and the perf HUD. Every page imports this after base.css; pages add only their layout.
+ *
+ * States: hover only where a pointer can hover, a pressed state, the double focus ring from
+ * base.css, and a disabled look. Accent is ink; APWA colors appear only where they mean a utility.
+ */
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.button-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.button-secondary {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (hover: hover) {
+  .button-primary:hover {
+    background: color-mix(in srgb, var(--accent) 86%, var(--bg));
+  }
+
+  .button-secondary:hover {
+    border-color: var(--ink-3);
+    background: var(--surface-2);
+  }
+}
+
+.icon-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.icon-button:active {
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--ink) 12%);
+}
+
+@media (hover: hover) {
+  .icon-button:hover {
+    background: var(--surface-2);
+  }
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+}
+
+.text-button {
+  min-height: 24px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .text-button:hover {
+    text-decoration-thickness: 2.5px;
+  }
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+/* Mono eyebrows over headings and readouts. */
+.eyebrow {
+  margin: 0;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The segmented control: a radio group in one rounded track. */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.segmented-option {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.15;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.segmented-option:active {
+  background: var(--surface-2);
+}
+
+.segmented-option[aria-checked='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+@media (hover: hover) {
+  .segmented-option:hover {
+    color: var(--ink);
+    background: var(--surface-2);
+  }
+
+  .segmented-option[aria-checked='true']:hover {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+
+/* A facility chip: its APWA color, an icon, and a dark ring so the edge holds on any background. */
+.chip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--chip);
+  color: var(--chip-ink);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+.chip .icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Terms in text: a dotted underline, with the definition in a tip below. */
+/* A term and any punctuation after it stay on one line. */
+.term-wrap {
+  position: relative;
+  white-space: nowrap;
+}
+
+.term {
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.term-wrap:focus-within .term {
+  background: var(--surface-2);
+}
+
+@media (hover: hover) {
+  .term:hover {
+    background: var(--surface-2);
+  }
+}
+
+.term-tip,
+.lbl-tip {
+  position: absolute;
+  z-index: 10;
+  width: max-content;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+
+.term-tip {
+  top: calc(100% + 6px);
+  max-width: min(17rem, calc(100vw - 32px));
+}
+
+.term-tip.above {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* 3D labels. The label layer positions `.lbl` and toggles `off`, `capped` and `compact` on it. */
+.labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  transition: opacity var(--dur) var(--ease);
+  will-change: transform;
+}
+
+.lbl[data-tip='open'] {
+  z-index: 2;
+}
+
+.lbl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 11px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .lbl-btn:hover {
+    border-color: var(--ink-3);
+  }
+}
+
+/* The label to read first, such as the line carrying the signal: filled in ink. */
+.lbl[data-tier='current'] .lbl-btn {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+}
+
+/* Leader lines from each label to the point it names, under the labels. */
+.lbl-leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lbl-leaders line {
+  stroke: var(--ink);
+  stroke-width: 1.25;
+  opacity: 0.7;
+}
+
+.lbl-leaders circle {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.lbl-leaders g {
+  transition: opacity var(--dur) var(--ease);
+}
+
+.lbl-leaders g.off {
+  opacity: 0;
+}
+
+.lbl-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.lbl-icon .icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Facility chips carry their APWA color, with a dark ring so the edge holds on any background. */
+.lbl-icon-facility {
+  background: var(--chip);
+  color: var(--chip-ink);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+.lbl.compact .lbl-btn {
+  padding: 2px;
+  gap: 0;
+}
+
+/* A crowded label shrinks to its icon but keeps its name for screen readers. */
+.lbl.compact .lbl-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.lbl.off {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur) var(--ease),
+    visibility 0s var(--dur);
+}
+
+/*
+ * Over the label cap: out of sight and out of the pointer's way, but still in the tab order and
+ * the accessibility tree. Focusing it shows it (the label layer always places a focused label).
+ */
+.lbl.capped:not(:focus-within) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lbl-tip {
+  top: calc(100% + 6px);
+  left: 50%;
+  max-width: 15rem;
+  transform: translateX(calc(-50% + var(--shift, 0px)));
+}
+
+.lbl-tip.above {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* Dialogs */
+.dialog {
+  width: min(34rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-3);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+/* The dialog itself never scrolls; its body does, under a header that stays put. */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-5) var(--space-5) var(--space-6);
+}
+
+.dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-5)) var(--space-2) 0;
+  padding: var(--space-4) var(--space-5) var(--space-2) 0;
+  background: var(--surface);
+}
+
+.dialog-head h2 {
+  margin: 0;
+  font-size: var(--text-h2);
+}
+
+/* The ?perf HUD. */
+.perf-hud {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: var(--layer-hud);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  font: 600 11px/1.4 var(--font-mono);
+  pointer-events: none;
+}

@@ -211,7 +211,8 @@ for (const size of SIZES) {
         await page.getByRole('button', { name: 'Details' }).click();
       }
 
-      const radios = '[role="radio"]';
+      // The lab's own controls; the header's settings menu is closed, so its choices are hidden.
+      const radios = '.lab-grid [role="radio"]';
       const count = await page.locator(radios).count();
       for (let i = 0; i < count; i++) {
         expect(await onTop(page, radios, i), `radio #${String(i)} is covered`).toBe(true);

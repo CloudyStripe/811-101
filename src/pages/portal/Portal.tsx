@@ -60,13 +60,18 @@ function ComingSoon({ section }: { section: Section }) {
 export function Portal() {
   return (
     <div class="portal">
-      <header class="portal-head">
+      <div class="portal-head">
         <h1>{BRAND.name}</h1>
         <p>{BRAND.tagline}</p>
-      </header>
+      </div>
       <main class="portal-sections">
         {SECTIONS.map((section) => (
-          <section key={section.id} class="portal-section" aria-labelledby={`${section.id}-title`}>
+          <section
+            key={section.id}
+            id={section.id}
+            class="portal-section"
+            aria-labelledby={`${section.id}-title`}
+          >
             <div class="section-head">
               <span class="section-icon" aria-hidden="true">
                 <Icon name={section.icon} />
