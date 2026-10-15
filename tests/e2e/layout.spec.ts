@@ -163,10 +163,12 @@ async function onTop(page: Page, selector: string, index: number) {
   });
 }
 
-/** Asserts the whole frequency dial is on screen, with nothing scrolled. */
+/** Asserts the whole frequency dial is on screen, and the page fits it without scrolling. */
 async function expectDialOnScreen(page: Page, height: number, when: string) {
-  const scrolled = await page.locator('#app').evaluate((el) => el.scrollTop);
-  expect(scrolled, `page scrolled ${when}`).toBe(0);
+  const overflow = await page.evaluate(
+    () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
+  );
+  expect(overflow, `page taller than the screen ${when}`).toBeLessThanOrEqual(1);
   for (const name of ['512 hertz', '83 kilohertz']) {
     const box = await page.getByRole('radio', { name }).boundingBox();
     expect(box, `${name} ${when}`).not.toBeNull();

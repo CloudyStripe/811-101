@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
 import { ABOUT, TAGLINE } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
-import { Segmented } from '../../design/Segmented.tsx';
 import { Rich } from '../../design/Term.tsx';
 import type { ThemeName } from '../../design/tokens.ts';
-import type { VisibleArea } from '../../kit3d/camera.ts';
+import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import type { SetupId } from '../../signal/model.ts';
-import { Console } from './Console.tsx';
+import { Legend } from './Legend.tsx';
 import { Panel, define } from './Panel.tsx';
 import { SceneLabel } from './SceneLabel.tsx';
 import type { LabScene, Rect } from './scene/index.ts';
@@ -18,6 +17,7 @@ import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
 import { useSettings } from '../../site/useSettings.ts';
 import { stateSummary } from './summary.ts';
+import { TransmitterDock } from './TransmitterDock.tsx';
 
 const PAGE = pageById('frequency-lab');
 
@@ -30,11 +30,6 @@ const TIER_PARAM = parseTier(params.get('tier'));
 const CAPTURE = params.has('capture');
 const PERF = params.has('perf');
 
-const SETUP_OPTIONS = [
-  { value: 'steel' as const, label: 'Steel main' },
-  { value: 'plastic' as const, label: 'Plastic main' },
-];
-
 const NO_WEBGL =
   'This lab draws a 3D view with WebGL, which this browser or device has turned off. The controls and explanations still work.';
 
@@ -45,6 +40,29 @@ const phoneQuery = matchMedia('(max-width: 760px)');
 const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
 /** Layouts where the guide is a sheet that opens over the 3D view. */
 const sheetLayout = () => phoneQuery.matches || shortQuery.matches;
+/** Phones tall enough to keep some of the view above an open sheet. */
+const tallPhoneQuery = matchMedia('(max-width: 760px) and (min-height: 681px)');
+/** Layouts where an open sheet covers the whole view. */
+const sheetCovers = () => sheetLayout() && !tallPhoneQuery.matches;
+/** Wide enough for the guide to start open beside the view; narrower, it starts closed. */
+const roomyQuery = matchMedia('(min-width: 1280px)');
+
+/** Whether the guide is a sheet in the layout now, kept up to date as the screen changes. */
+function useSheetLayout(): boolean {
+  const [sheet, setSheet] = useState(sheetLayout);
+  useEffect(() => {
+    const update = () => {
+      setSheet(sheetLayout());
+    };
+    phoneQuery.addEventListener('change', update);
+    shortQuery.addEventListener('change', update);
+    return () => {
+      phoneQuery.removeEventListener('change', update);
+      shortQuery.removeEventListener('change', update);
+    };
+  }, []);
+  return sheet;
+}
 
 function resolvedTheme(): ThemeName {
   const forced = document.documentElement.dataset.theme;
@@ -65,23 +83,45 @@ function rectWithin(el: Element, container: DOMRect): Rect | null {
 
 const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 
+/** The shown controls over the view, as boxes in the view's own pixels, with room around them. */
+function controlsOver(box: DOMRect, selectors: readonly string[]): Box[] {
+  return selectors.flatMap((selector) => {
+    const r = rectOf(selector);
+    if (!r || r.width === 0 || r.height === 0) return [];
+    const pad = 8;
+    return [
+      {
+        x: r.left - box.left - pad,
+        y: r.top - box.top - pad,
+        width: r.width + 2 * pad,
+        height: r.height + 2 * pad,
+      },
+    ];
+  });
+}
+
 export function App() {
   const [setup, setSetup] = useState<SetupId>(INITIAL_SETUP);
   const [frequency, setFrequency] = useState<Frequency>(INITIAL_FREQUENCY);
   // Changed in the header's settings menu; the scene follows.
   const [settings] = useSettings();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Wide screens: the guide panel starts open and can be closed down to its title.
-  const [panelOpen, setPanelOpen] = useState(true);
+  // Wide screens: the guide panel starts open where there's room, and closes down to its title.
+  const [panelOpen, setPanelOpen] = useState(roomyQuery.matches);
+  // The reader can pause the signal's motion, whatever the motion setting (WCAG 2.2.2).
+  const [paused, setPaused] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  // The key's rows find lines in the view once there's a view to find them in.
+  const [sceneReady, setSceneReady] = useState(false);
+  const sheet = useSheetLayout();
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef(new Map<LabelId, HTMLElement>());
   const sceneRef = useRef<LabScene | null>(null);
   // The scene's callbacks outlive renders, so they read current state from here.
-  const live = useRef({ setup, frequency, settings, sheetOpen, panelOpen });
-  live.current = { setup, frequency, settings, sheetOpen, panelOpen };
+  const live = useRef({ setup, frequency, settings, sheetOpen, panelOpen, paused });
+  live.current = { setup, frequency, settings, sheetOpen, panelOpen, paused };
   const lastArea = useRef<{ area: VisibleArea; size: string } | null>(null);
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
@@ -104,39 +144,50 @@ export function App() {
     const visibleArea = (): VisibleArea => {
       const box = stageEl.getBoundingClientRect();
       const size = `${String(box.width)}x${String(box.height)}`;
-      // An open sheet covers the view, so the framing stays as it was, unless the screen itself
-      // changed (a rotation); closing the sheet then frames the view afresh.
+      // Where an open sheet covers the view, the framing stays as it was, unless the screen itself
+      // changed (a rotation); closing the sheet then frames the view afresh. On taller phones the
+      // sheet leaves the top of the view, and the view is framed again there.
       const last = lastArea.current;
-      if (live.current.sheetOpen && sheetLayout() && last?.size === size) return last.area;
+      if (live.current.sheetOpen && sheetCovers() && last?.size === size) return last.area;
       const area = freeArea(box);
       lastArea.current = { area, size };
       return area;
     };
     const freeArea = (box: DOMRect): VisibleArea => {
-      const top = (rectOf('.lab-setup')?.bottom ?? box.top) - box.top;
       if (shortQuery.matches) {
         // Short screens: right of the column of controls.
-        const left = (rectOf('.lab-setup')?.right ?? box.left) - box.left + 8;
+        const left = (rectOf('.lab-dock')?.right ?? box.left) - box.left + 8;
         return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
       }
+      // Below the site header, and on wider screens below the lede too.
+      const top =
+        Math.max(rectOf('.site-header')?.bottom ?? 0, rectOf('.lab-lede')?.bottom ?? 0) - box.top;
       if (phoneQuery.matches) {
-        // Phones: between the setup switch and the sheet below the view.
+        // Phones: between the header and the sheet below the view.
         const bottom = (rectOf('.lab-panel')?.top ?? box.bottom) - box.top;
         return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
       }
       // Wider screens: left of the open panel, or the full width once it's closed to its title.
       // When the band between the controls above and below is taller than wide, frame the
-      // portrait view inside it, clear of the controls; otherwise the wide view uses the full
-      // height, since the transmitter only takes a corner.
+      // portrait view inside it, clear of the controls. Otherwise the wide view uses the full
+      // height, since the controls over it only take its corners, and the fit keeps what the
+      // lesson needs out from under them.
       const panel = rectOf('.lab-panel');
       const right = Math.max(
         160,
         panel && live.current.panelOpen ? panel.left - box.left - 8 : box.width,
       );
-      const bottom = (rectOf('.lab-console')?.top ?? box.bottom) - box.top;
+      const bottom = (rectOf('.lab-dock')?.top ?? box.bottom) - box.top;
       const band = { x: 0, y: top, width: right, height: Math.max(120, bottom - top) };
       if (band.width < band.height) return { ...band, portrait: true };
-      return { x: 0, y: 0, width: right, height: box.height, portrait: false };
+      return {
+        x: 0,
+        y: 0,
+        width: right,
+        height: box.height,
+        portrait: false,
+        keepOut: controlsOver(box, ['.lab-lede', '.lab-dock', '.lab-legend']),
+      };
     };
 
     void (async () => {
@@ -180,10 +231,12 @@ export function App() {
           return;
         }
         sceneRef.current = scene;
+        setSceneReady(true);
         // Settings changed while the scene was loading apply now.
         const now = live.current.settings;
         scene.setTheme(resolvedTheme());
         scene.setReducedMotion(reducesMotion(now.motion, reducedMotionQuery.matches));
+        scene.setPaused(live.current.paused);
         if (!TIER_PARAM && now.quality !== s.quality) void scene.setTier(now.quality);
         void document.fonts.ready.then(() => {
           scene?.setState(live.current.setup, live.current.frequency);
@@ -245,21 +298,87 @@ export function App() {
     if (!TIER_PARAM) void sceneRef.current?.setTier(settings.quality);
   }, [settings.quality]);
 
-  // Opening the sheet covers part of the view, so labels move out from under it. Closing it
-  // reframes the view, in case the screen rotated while it was open.
   useEffect(() => {
-    if (sheetOpen) sceneRef.current?.refreshLabels();
-    else sceneRef.current?.relayout();
+    sceneRef.current?.setPaused(paused);
+  }, [paused]);
+
+  // Where opening the sheet covers the view, labels move out from under it. Otherwise the view
+  // glides to fit what the sheet leaves, and closing it reframes the view, in case the screen
+  // rotated while it was open. The first run is the scene's own first framing, so only later
+  // changes glide.
+  const firstLayout = useRef(true);
+  useEffect(() => {
+    if (sheetOpen && sheetCovers()) sceneRef.current?.refreshLabels();
+    else sceneRef.current?.relayout(!firstLayout.current);
   }, [sheetOpen]);
 
-  // Closing or opening the panel changes how much of the screen the view has.
+  // Closing or opening the panel changes how much of the screen the view has; it glides there.
   useEffect(() => {
-    sceneRef.current?.relayout();
+    if (firstLayout.current) {
+      firstLayout.current = false;
+      return;
+    }
+    sceneRef.current?.relayout(true);
   }, [panelOpen]);
 
   function refreshLabels() {
     sceneRef.current?.refreshLabels();
   }
+
+  const dock = (
+    <TransmitterDock
+      key="dock"
+      setup={setup}
+      onSetup={setSetup}
+      frequency={frequency}
+      onFrequency={setFrequency}
+      paused={paused}
+      onPause={setPaused}
+    />
+  );
+
+  // Wider screens: the key beside the view, where each line's row finds it in the view.
+  const legend = (
+    <section key="legend" class="lab-legend" aria-labelledby="legend-title" data-chrome>
+      <h2 class="legend-title" id="legend-title">
+        Key
+      </h2>
+      <Legend
+        setup={setup}
+        find={
+          sceneReady
+            ? {
+                onHighlight: (id) => {
+                  sceneRef.current?.highlight(id);
+                },
+                onShow: (id) => {
+                  labelRefs.current.get(id)?.querySelector('button')?.focus();
+                },
+              }
+            : undefined
+        }
+      />
+    </section>
+  );
+
+  const panel = (
+    <Panel
+      key="panel"
+      setup={setup}
+      frequency={frequency}
+      panelOpen={panelOpen}
+      onPanelToggle={() => {
+        setPanelOpen(!panelOpen);
+      }}
+      sheetOpen={sheetOpen}
+      onSheetToggle={() => {
+        setSheetOpen(!sheetOpen);
+      }}
+      onAbout={() => {
+        setAboutOpen(true);
+      }}
+    />
+  );
 
   return (
     <div
@@ -271,12 +390,6 @@ export function App() {
       <p class="lab-lede" data-chrome>
         {TAGLINE.text}
       </p>
-
-      <div class="lab-setup" data-chrome>
-        <Segmented label="Setup" value={setup} options={SETUP_OPTIONS} onChange={setSetup} />
-      </div>
-
-      <Console frequency={frequency} onFrequency={setFrequency} />
 
       <main class="stage" ref={stageRef}>
         <canvas
@@ -317,21 +430,12 @@ export function App() {
         </p>
       )}
 
-      <Panel
-        setup={setup}
-        frequency={frequency}
-        panelOpen={panelOpen}
-        onPanelToggle={() => {
-          setPanelOpen(!panelOpen);
-        }}
-        sheetOpen={sheetOpen}
-        onSheetToggle={() => {
-          setSheetOpen(!sheetOpen);
-        }}
-        onAbout={() => {
-          setAboutOpen(true);
-        }}
-      />
+      {/*
+        The controls in reading order, which is their tab order: on phones and short screens the
+        guide's sheet sits above the transmitter; wider, the transmitter and the key come first,
+        then the guide beside them.
+      */}
+      {sheet ? [panel, dock] : [dock, legend, panel]}
 
       {/* What the 3D view shows, announced when it changes. */}
       <p id="lab-status" class="sr-only" role="status">

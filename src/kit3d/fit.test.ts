@@ -83,6 +83,27 @@ describe('fitShot', () => {
     expect(fitted.dot(given)).toBeGreaterThan(0.9999);
   });
 
+  it('keeps every point out from under a card over a corner, pulling back only as it must', () => {
+    const free = extent(SHOT, WIDE);
+    // A card over the right-hand edge, where the rightmost point lands without it.
+    const right = free.projected.reduce((m, v) => (v.x > m.x ? v : m));
+    const card = { x0: right.x - 0.2, y0: right.y - 0.2, x1: 1, y1: right.y + 0.2 };
+    const under = (v: Vector3) => v.x > card.x0 && v.x < card.x1 && v.y > card.y0 && v.y < card.y1;
+    expect(free.projected.some(under)).toBe(true);
+    const e = extent({ ...SHOT, keepOut: [card] }, WIDE);
+    expect(e.projected.some(under)).toBe(false);
+    expect(e.pose.position.distanceTo(e.pose.target)).toBeGreaterThan(
+      free.pose.position.distanceTo(free.pose.target),
+    );
+  });
+
+  it('ignores a card it cannot get the points out from under', () => {
+    const free = extent(SHOT, WIDE);
+    const everywhere = { x0: -1, y0: -1, x1: 1, y1: 1 };
+    const e = extent({ ...SHOT, keepOut: [everywhere] }, WIDE);
+    expect(e.pose.position.distanceTo(free.pose.position)).toBeLessThan(1e-6);
+  });
+
   it('gives a finite pose for a single point', () => {
     const { pose } = extent({ ...SHOT, mustSee: [[5, 1, 0]] }, WIDE);
     for (const n of [...pose.position.toArray(), ...pose.target.toArray()]) {

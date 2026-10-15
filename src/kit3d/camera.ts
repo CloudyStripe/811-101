@@ -2,10 +2,11 @@
  * Camera framing: a fixed view of the scene, fitted to the part of the canvas the panel or sheet
  * leaves free. The view doesn't move with the pointer; it's framed so the lesson needs no turning
  * or zooming. Each view names the points that must be in it, and the fit (fit.ts) places the
- * camera so they all sit inside the free area, centered, at any size.
+ * camera so they all sit inside the free area, centered, at any size, and out from under any
+ * controls that sit over it.
  */
-import type { PerspectiveCamera } from 'three';
-import { fitShot, type Point3 } from './fit.ts';
+import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
+import { fitShot, type FitRect, type Point3 } from './fit.ts';
 
 export interface View {
   /** Where the camera looks from and at; only the direction between them counts. */
@@ -19,35 +20,71 @@ export interface View {
   minDistance?: number;
   /** CSS pixels kept clear at the free area's sides for labels on points near them. */
   labelRoom?: number;
+  /**
+   * The vertical field of view across the whole canvas, in degrees, if not the camera's own. A
+   * wider one brings the camera in closer, so the near field looms larger against the far.
+   */
+  fov?: number;
 }
 
-/** The part of the canvas left free by the panel or sheet, in CSS pixels. */
-export interface VisibleArea {
+/** A rectangle in the canvas, in CSS pixels. */
+export interface Box {
   x: number;
   y: number;
   width: number;
   height: number;
+}
+
+/** The part of the canvas left free by the panel or sheet, in CSS pixels. */
+export interface VisibleArea extends Box {
   /** Frame a portrait view here. Left out, it follows the area's shape. */
   portrait?: boolean;
+  /** Controls over the area, such as a corner card: what the lesson needs stays out from under them. */
+  keepOut?: readonly Box[];
+}
+
+/** Where the camera is, what it looks at, and its vertical field of view in degrees. */
+export interface CameraPose {
+  position: Vector3;
+  target: Vector3;
+  fov: number;
+}
+
+/** A pose part way from one to another. */
+export function lerpPose(a: CameraPose, b: CameraPose, t: number): CameraPose {
+  return {
+    position: a.position.clone().lerp(b.position, t),
+    target: a.target.clone().lerp(b.target, t),
+    fov: MathUtils.lerp(a.fov, b.fov, t),
+  };
 }
 
 export class LabCamera {
   private readonly camera: PerspectiveCamera;
+  private readonly baseFov: number;
+  private readonly target = new Vector3();
   private visible: VisibleArea | null = null;
   private canvasSize = { width: 1, height: 1 };
 
   constructor(camera: PerspectiveCamera) {
     this.camera = camera;
+    this.baseFov = camera.fov;
   }
 
   /** Places the camera so the view's must-see points fit the free area. */
   frame(view: View): void {
+    this.setPose(this.poseFor(view));
+  }
+
+  /** The pose that frames the view in the free area set last, without moving the camera. */
+  poseFor(view: View): CameraPose {
     const v = this.visible ?? {
       x: 0,
       y: 0,
       width: this.canvasSize.width,
       height: this.canvasSize.height,
     };
+    const fov = view.fov ?? this.baseFov;
     const pose = fitShot(
       {
         from: view.position,
@@ -55,11 +92,30 @@ export class LabCamera {
         mustSee: view.mustSee,
         minDistance: view.minDistance,
         labelRoom: view.labelRoom,
+        keepOut: (v.keepOut ?? []).map((box) => toFitRect(box, v)),
       },
-      this.camera.fov,
+      fov,
       { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },
       view.margin,
     );
+    return { ...pose, fov };
+  }
+
+  /** The camera's pose now. */
+  pose(): CameraPose {
+    return {
+      position: this.camera.position.clone(),
+      target: this.target.clone(),
+      fov: this.camera.fov,
+    };
+  }
+
+  setPose(pose: CameraPose): void {
+    if (this.camera.fov !== pose.fov) {
+      this.camera.fov = pose.fov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.target.copy(pose.target);
     this.camera.position.copy(pose.position);
     this.camera.lookAt(pose.target);
     this.camera.updateMatrixWorld();
@@ -84,4 +140,11 @@ export class LabCamera {
     this.camera.aspect = canvasWidth / canvasHeight;
     this.camera.updateProjectionMatrix();
   }
+}
+
+/** A box in the canvas, in the free area's own -1 to 1 units, as the fit measures. */
+function toFitRect(box: Box, area: Box): FitRect {
+  const x = (px: number) => ((px - area.x) / Math.max(1, area.width)) * 2 - 1;
+  const y = (py: number) => 1 - ((py - area.y) / Math.max(1, area.height)) * 2;
+  return { x0: x(box.x), x1: x(box.x + box.width), y0: y(box.y + box.height), y1: y(box.y) };
 }

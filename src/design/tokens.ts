@@ -210,6 +210,9 @@ export const WORLD_COLORS = {
 /** Icon ink on APWA color chips: dark on every chip, in both themes. */
 export const CHIP_INK = '#1b1a17';
 
+/** A device's own screen, such as the transmitter's: dark, with light figures, in either theme. */
+export const DEVICE = { lcd: '#22231f', lcdInk: '#e9e6dd' } as const;
+
 /**
  * The locate signal's own color: a luminous cyan, chosen to sit well away from every APWA hue
  * (checked in tokens.test.ts). Strength is shown by brightness, never by a change of color.
@@ -249,6 +252,9 @@ export const TYPE_SCALE = {
 /** Spacing steps, in px: everything sits on a 4 px base. */
 export const SPACE = [4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 96] as const;
 
+/** The in-and-out curve's control points, shared by CSS and the moves the 3D view draws itself. */
+const EASE_IN_OUT = [0.65, 0, 0.35, 1] as const;
+
 /**
  * Motion, in ms. Every move eases in and out; reduced motion makes the CSS durations zero, and
  * camera moves become cuts.
@@ -262,8 +268,26 @@ export const MOTION = {
   /** The establishing move on arrival, at most; any input skips it. */
   establish: 2500,
   ease: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-  easeInOut: 'cubic-bezier(0.65, 0, 0.35, 1)',
+  easeInOut: `cubic-bezier(${EASE_IN_OUT.join(', ')})`,
 } as const;
+
+/** `MOTION.easeInOut` as a function of time (0 to 1), for moves the 3D view draws itself. */
+export function easeInOut(t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const [x1, y1, x2, y2] = EASE_IN_OUT;
+  const at = (a: number, b: number, u: number) =>
+    3 * a * u * (1 - u) ** 2 + 3 * b * u ** 2 * (1 - u) + u ** 3;
+  // Find where along the curve its x reaches t; its y there is the progress.
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(x1, x2, mid) < t) lo = mid;
+    else hi = mid;
+  }
+  return at(y1, y2, (lo + hi) / 2);
+}
 
 /** Stacking order: the 3D view, chrome over it, the site header, popovers, the perf HUD. */
 export const LAYER = { scene: 0, chrome: 10, header: 20, popover: 40, hud: 50 } as const;
@@ -310,6 +334,7 @@ export function tokensCss(): string {
     `--font-display: ${TYPE.display}; --font-body: ${TYPE.body}; --font-mono: ${TYPE.mono};`,
     type,
     `--signal: ${SIGNAL_COLOR}; --chip-ink: ${CHIP_INK}; --soil: ${MATERIAL_COLORS.subsoil};`,
+    `--lcd: ${DEVICE.lcd}; --lcd-ink: ${DEVICE.lcdInk};`,
     // The ground's layers, top down, for drawings in the page (the 404, the portal).
     `--strata-1: ${MATERIAL_COLORS.topsoil}; --strata-2: ${MATERIAL_COLORS.subsoil}; --strata-3: ${MATERIAL_COLORS.clay};`,
     space,

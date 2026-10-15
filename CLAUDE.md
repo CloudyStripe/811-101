@@ -23,8 +23,12 @@ An interactive learning site about buried utilities and line locating.
 - **Every page starts with** `src/site/boot.ts`: tokens, fonts, `base.css`, `components.css`,
   `site.css`, and the header's settings menu. Settings live in one store (`src/site/settings.ts`,
   `useSettings`), shared by the menu and the page.
-- **Shared styles:** `src/design/components.css` holds buttons, the segmented control, chips,
-  terms, dialogs and 3D labels. Hover styles go inside `@media (hover: hover)`.
+- **Shared styles:** `src/design/components.css` holds buttons, the segmented control, the rotary
+  dial, folding sections, chips, terms, dialogs and 3D labels. Hover styles go inside
+  `@media (hover: hover)`.
+- **Shared controls:** `Segmented` and `RotaryDial` are radio groups built on `useRadioGroup`
+  (one tab stop, arrows, Home and End); `Disclosure` is a folding section: a heading whose button
+  opens and closes it.
 - **The mark** (`src/design/mark.ts`) is original: never 811 or Common Ground Alliance artwork.
 - **404:** the dev and preview servers answer missing addresses with `404.html` and a 404 status,
   as GitHub Pages does. E2E tests that open one set `expectNotFound`.
@@ -123,7 +127,8 @@ In the field, the color is the code.
   - nothing needs dragging (the 3D view is fixed, framed to fit);
   - focus is never hidden under the panel or sheet, and both can be closed;
   - popovers can be hovered;
-  - nothing pulses faster than 3 Hz;
+  - nothing pulses faster than 3 Hz, and the signal's motion has a pause button, whatever the
+    motion setting;
   - the 3D view has a live text summary of what it shows.
 
 ## Git

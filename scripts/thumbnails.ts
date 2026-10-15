@@ -28,8 +28,7 @@ const WIDTH = 960;
 const POSTER = { width: 480, height: 270, quality: 0.6 };
 
 /** CSS that hides the lab's chrome, so an image is the 3D view alone. */
-const LAB_CHROME =
-  '.site-header, .lab-lede, .lab-setup, .lab-console, .lab-panel, .labels, .scene-loader';
+const LAB_CHROME = '.site-header, [data-chrome], .labels, .scene-loader';
 
 interface Shot {
   /** The lesson image it makes, saved as <name>.jpg. */

@@ -5,14 +5,14 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
-import { MUST_SEE, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
+import { MUST_SEE, PHONE_VIEW, TALL_VIEW, WIDE_VIEW, viewFor } from './layout.ts';
 
 /** The view's must-see points in canvas pixels, with the camera framed for this free area. */
 function onCanvas(canvas: { width: number; height: number }, area: VisibleArea) {
   const camera = new PerspectiveCamera(34, canvas.width / canvas.height, 0.5, 900);
   const lab = new LabCamera(camera);
   lab.setLayout(canvas.width, canvas.height, area);
-  const view = viewFor(area);
+  const view = viewFor(area, canvas);
   lab.frame(view);
   return view.mustSee.map((p) => {
     const v = new Vector3(...p).project(camera);
@@ -60,14 +60,32 @@ const CASES = [
 ] as const;
 
 describe('views', () => {
-  it('picks the tall view for portrait free areas and the wide one otherwise', () => {
-    expect(viewFor({ x: 0, y: 0, width: 390, height: 520 })).toBe(TALL_VIEW);
-    expect(viewFor({ x: 0, y: 0, width: 1000, height: 900 })).toBe(WIDE_VIEW);
-    expect(viewFor({ x: 0, y: 0, width: 1000, height: 900, portrait: true })).toBe(TALL_VIEW);
+  it('picks the phone view on phones held upright, the tall view for portrait areas, else wide', () => {
+    const phone = { width: 390, height: 664 };
+    // In the browser, with its bars showing, a phone's free area is about square.
+    expect(viewFor({ x: 0, y: 66, width: 390, height: 330 }, phone)).toBe(PHONE_VIEW);
+    expect(viewFor({ x: 0, y: 66, width: 390, height: 520 }, { width: 390, height: 844 })).toBe(
+      PHONE_VIEW,
+    );
+    // With the guide's sheet half open, the area left is clearly wider than tall.
+    expect(viewFor({ x: 0, y: 66, width: 390, height: 248 }, phone)).toBe(WIDE_VIEW);
+    // A tablet held upright, and the strip beside the controls on a phone held sideways.
+    expect(viewFor({ x: 0, y: 0, width: 820, height: 900 }, { width: 820, height: 1180 })).toBe(
+      TALL_VIEW,
+    );
+    expect(viewFor({ x: 330, y: 0, width: 311, height: 375 }, { width: 667, height: 375 })).toBe(
+      TALL_VIEW,
+    );
+    const desktop = { width: 1440, height: 900 };
+    expect(viewFor({ x: 0, y: 0, width: 1000, height: 900 }, desktop)).toBe(WIDE_VIEW);
+    expect(viewFor({ x: 0, y: 0, width: 1000, height: 900, portrait: true }, desktop)).toBe(
+      TALL_VIEW,
+    );
+    expect(PHONE_VIEW.fov).toBeGreaterThan(40);
   });
 
   it('every view shows the hookup and the far end of the line', () => {
-    for (const view of [WIDE_VIEW, TALL_VIEW]) {
+    for (const view of [WIDE_VIEW, TALL_VIEW, PHONE_VIEW]) {
       for (const p of MUST_SEE) expect(view.mustSee).toContainEqual(p);
     }
   });
@@ -92,7 +110,7 @@ describe('views', () => {
     expect(Math.abs((y0 + y1) / 2 - (c.area.y + c.area.height / 2))).toBeLessThan(4);
     // Room at the sides: the view's margin, and at least half a label's width (48 px), so a label
     // on a point near either side still fits beside it.
-    const margin = viewFor(c.area).margin ?? 0.08;
+    const margin = viewFor(c.area, c.canvas).margin ?? 0.08;
     const roomX = Math.max((margin * c.area.width) / 2, 48);
     const roomY = (margin * c.area.height) / 2;
     expect(x0 - c.area.x, 'room on the left').toBeGreaterThanOrEqual(roomX - 1);

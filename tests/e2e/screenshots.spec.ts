@@ -44,6 +44,27 @@ const STATES: State[] = [
     },
   },
   {
+    // The key finding a line: its row pointed at, the line's label lit in the view.
+    name: 'key-find',
+    query: 'setup=steel&f=33000',
+    desktopOnly: true,
+    prepare: async (page) => {
+      await page
+        .getByRole('region', { name: 'Key' })
+        .getByRole('button', { name: 'Telecom cable' })
+        .hover();
+      await expect(page.locator('[data-label="telecom"]')).toHaveClass(/\blit\b/);
+    },
+  },
+  {
+    name: 'paused',
+    query: 'setup=plastic&f=8000',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Pause the signal' }).click();
+      await expect(page.getByRole('button', { name: 'Play the signal' })).toBeVisible();
+    },
+  },
+  {
     name: 'sheet',
     query: 'setup=plastic&f=33000',
     phoneOnly: true,

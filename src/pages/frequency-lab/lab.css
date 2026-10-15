@@ -1,8 +1,13 @@
 /*
  * Frequency Lab layout: a full-bleed 3D stage, with the chrome laid out on a grid over it, under
- * the site header. Wide screens: the lesson's lede, setup and transmitter on the left, the guide in
- * a side panel on the right. Phones (760px and under): one column, with the guide as a bottom
- * sheet above the transmitter.
+ * the site header.
+ * - Wide screens: the lesson's lede at the top left, the transmitter at the bottom left, the key
+ *   at the bottom right of the view (in the guide on short windows), and the guide in a side
+ *   panel on the right.
+ * - Medium widths: the same, with the key inside the guide.
+ * - Phones (760px and under): the view, then the guide as a bottom sheet, then the transmitter,
+ *   in thumb reach. Short screens such as phones held sideways: the sheet and the transmitter in
+ *   a column beside the view.
  */
 
 body {
@@ -26,12 +31,11 @@ body {
   display: grid;
   flex: 1;
   grid-template-columns: auto minmax(0, 1fr) var(--panel-w);
-  grid-template-rows: auto auto minmax(180px, 1fr) auto;
+  grid-template-rows: auto minmax(120px, 1fr) auto;
   grid-template-areas:
-    'title title panel'
-    'setup setup panel'
+    'title . panel'
     'view view panel'
-    'console . panel';
+    'dock legend panel';
   gap: var(--space-3) var(--space-4);
   padding: var(--lab-top) max(var(--space-4), env(safe-area-inset-right))
     max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
@@ -50,8 +54,8 @@ body {
 }
 
 .lab-lede,
-.lab-setup,
-.lab-console,
+.lab-dock,
+.lab-legend,
 .lab-panel {
   position: relative;
   z-index: 1;
@@ -81,7 +85,8 @@ body {
 
 /* Chrome surfaces are opaque, so text contrast holds over any part of the 3D view. */
 .lab-lede,
-.lab-console,
+.lab-dock,
+.lab-legend,
 .lab-panel {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -101,38 +106,162 @@ body {
   line-height: 1.4;
 }
 
-.lab-setup {
-  grid-area: setup;
-  justify-self: start;
-}
-
-/* The transmitter: its frequency dial. */
-.lab-console {
-  grid-area: console;
+/*
+ * The transmitter's faceplate: the setup switch and the pause button, then its screen and the
+ * frequency knob.
+ */
+.lab-dock {
+  grid-area: dock;
   align-self: end;
   justify-self: start;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
 }
 
-.lab-console .segmented {
-  box-shadow: none;
+.dock-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
-.console-title {
-  margin: 0 0 var(--space-2);
-  font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 700;
+/* Inside the faceplate the switch sits flat. */
+.dock-setup {
+  box-shadow: none;
+  background: var(--surface-2);
+}
+
+.dock-pause {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.dock-pause[data-paused] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.dock-face {
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+/*
+ * The transmitter's own screen: a dark device display in either theme, with its own small type,
+ * apart from the page's scale. It only repeats what the knob and the view say, so where room runs
+ * short it gives way first, clipping its text rather than crowding the knob.
+ */
+.dock-lcd {
+  display: grid;
+  flex: 0 1 auto;
+  align-self: center;
+  gap: var(--space-1);
+  min-width: 9.5rem;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgb(255 255 255 / 0.06);
+  border-radius: var(--radius-md);
+  background: var(--lcd);
+  color: var(--lcd-ink);
+  /* Set into the faceplate. */
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+.lcd-frequency,
+.lcd-hookup {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lcd-frequency {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 600 1.35rem/1 var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* The transmitter is on: a small light in the signal's own color. */
+.lcd-led {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 8px var(--signal);
+}
+
+.lcd-hookup {
+  font: 600 0.68rem/1.2 var(--font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  opacity: 0.75;
 }
 
-.frequency .segmented-option {
+/*
+ * The key, beside the view on wide screens, in the paper below the cut: the lines in one column,
+ * the signal's marks in the other, and the note on colors under both, so it stays low.
+ */
+.lab-legend {
+  grid-area: legend;
+  align-self: end;
+  justify-self: end;
+  width: min(37rem, 100%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.lab-legend .legend {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-6);
+}
+
+.lab-legend .legend .muted {
+  grid-column: 1 / -1;
+}
+
+/*
+ * The key needs a wide, low corner of the view below the cut, about 34rem across. That's there on
+ * tall enough screens from 1400 px wide, or from 1200 px with the guide closed to its title;
+ * anywhere else, the key is in the guide.
+ */
+.lab-legend {
+  display: none;
+}
+
+@media (min-width: 1200px) and (min-height: 760px) {
+  .lab-grid[data-panel='closed'] .lab-legend {
+    display: block;
+  }
+}
+
+@media (min-width: 1400px) and (min-height: 760px) {
+  .lab-legend {
+    display: block;
+  }
+
+  .panel-key {
+    display: none;
+  }
+}
+
+.legend-title {
+  margin: 0 0 var(--space-2);
+  color: var(--ink-2);
   font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
   font-weight: 600;
-  min-width: 4.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lab-legend .muted {
+  margin: 0;
+  font-size: var(--text-small);
 }
 
 /* The guide: side panel on wide screens, bottom sheet on phones. */
@@ -176,13 +305,18 @@ body {
   padding: var(--space-1) var(--space-5) var(--space-5);
 }
 
-.panel-section {
-  padding: var(--space-4) 0;
-  border-top: 1px solid var(--line);
+/* The lede shows in the sheet; wider screens have it beside the view instead. */
+.panel-lede {
+  display: none;
 }
 
-.panel-section:first-child {
-  border-top: 0;
+.panel-lede {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-2);
+}
+
+.panel-section {
+  padding: var(--space-4) 0;
 }
 
 .panel-section h3 {
@@ -191,11 +325,13 @@ body {
   font-weight: 800;
 }
 
-.panel-section p {
+.panel-section p,
+.panel-body .disclosure-body p {
   margin: 0 0 var(--space-2);
 }
 
-.panel-section p:last-child {
+.panel-section p:last-child,
+.panel-body .disclosure-body p:last-child {
   margin-bottom: 0;
 }
 
@@ -232,6 +368,34 @@ body {
   gap: 10px;
 }
 
+/* A line's row in the key beside the view: it finds the line in the view. */
+.legend-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.legend-row:active {
+  background: var(--surface-2);
+}
+
+@media (hover: hover) {
+  .legend-row:hover {
+    background: var(--surface-2);
+  }
+}
+
 .sym {
   display: grid;
   flex: none;
@@ -261,16 +425,14 @@ body {
   padding-left: 1.15em;
 }
 
-/* Medium widths: too narrow for the transmitter and view toolbar side by side. */
+/* Medium widths: no room for the key beside the view, so it's in the guide. */
 @media (min-width: 761px) and (max-width: 1100px) {
   .lab-grid {
     grid-template-columns: minmax(0, 1fr) var(--panel-w);
-    grid-template-rows: auto auto minmax(180px, 1fr) auto;
     grid-template-areas:
       'title panel'
-      'setup panel'
       'view panel'
-      'console panel';
+      'dock panel';
   }
 }
 
@@ -305,40 +467,59 @@ body {
 
 /*
  * Phones, and short screens such as phones held sideways: the guide is a sheet that opens over
- * the 3D view. Collapsed, it's a bar that sums up what the view shows.
+ * the 3D view. Collapsed, it's a bar that sums up what the view shows. The lede moves into it.
  */
 @media (max-width: 760px), (max-height: 580px) and (min-width: 561px) {
   .lab-lede {
+    display: none;
+  }
+
+  .panel-lede {
+    display: block;
+  }
+
+  .lab-dock {
     justify-self: stretch;
-    max-width: none;
-    padding: var(--space-2) var(--space-3);
-    font-size: 0.82rem;
   }
 
-  .lab-setup {
-    justify-self: stretch;
+  .dock-setup {
+    flex: 1;
   }
 
-  .lab-setup .segmented,
-  .frequency {
-    display: flex;
-  }
-
-  .lab-setup .segmented-option {
+  .dock-setup .segmented-option {
     flex: 1;
     padding: 6px 8px;
     font-size: 0.85rem;
   }
 
-  .lab-console {
-    justify-self: stretch;
-    padding: var(--space-2) var(--space-3) var(--space-3);
+  .dock-face {
+    justify-content: space-between;
+    gap: var(--space-2);
   }
 
-  .frequency .segmented-option {
-    flex: 1;
+  .dock-lcd {
     min-width: 0;
-    padding: 6px 4px;
+    padding: var(--space-2);
+  }
+
+  .lcd-frequency {
+    font-size: 1.1rem;
+  }
+
+  .lcd-hookup {
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+  }
+
+  /* A little room past the end labels, for when text is spaced out wider. */
+  .dial {
+    --dial-r: 2.6rem;
+    --knob: 2.9rem;
+    width: calc(1.9 * var(--dial-r) + 7.2rem);
+  }
+
+  .dial-detent {
+    padding: 3px 5px;
   }
 
   .panel-head {
@@ -410,69 +591,113 @@ body {
   }
 }
 
-/* Phones: one column, the view between the setup switch and the controls below it. */
+/* Narrow phones, and the short screens' column: no room on the screen for the hookup. */
+@media (max-width: 380px), (max-height: 580px) and (min-width: 561px) {
+  .lcd-hookup {
+    display: none;
+  }
+}
+
+/* Narrower still, as when zoomed far in: the knob alone, since the screen only repeats it. */
+@media (max-width: 340px) {
+  .dock-lcd {
+    display: none;
+  }
+
+  .dock-face {
+    justify-content: center;
+  }
+}
+
+/* Phones: one column, the view, then the guide's sheet, then the transmitter. */
 @media (max-width: 760px) {
   .lab-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(200px, 1fr) auto auto;
+    grid-template-rows: minmax(200px, 1fr) auto auto;
     grid-template-areas:
-      'title'
-      'setup'
       'view'
       'panel'
-      'console';
+      'dock';
     gap: var(--space-2);
     padding: var(--lab-top) max(var(--space-3), env(safe-area-inset-right))
       max(var(--space-3), env(safe-area-inset-bottom))
       max(var(--space-3), env(safe-area-inset-left));
   }
 
-  /* An open sheet takes the room the view and its controls had, and scrolls inside it. */
+  /*
+   * An open sheet takes most of the view's room and scrolls inside it. The view keeps the rest,
+   * framed again there, so the signal stays in sight while the guide is read and the knob turned.
+   */
   .lab-grid[data-sheet='open'] {
-    grid-template-rows: auto auto 0 minmax(240px, 1fr) auto;
+    grid-template-rows: minmax(180px, 2fr) minmax(240px, 3fr) auto;
   }
 }
 
-/* Short phones: the lede gives way, and the view can be shorter, so the dial stays on screen. */
+/*
+ * Short phones: the view can be shorter, so the knob stays on screen, and an open sheet takes all
+ * of the view's room.
+ */
 @media (max-width: 760px) and (max-height: 680px) {
-  .lab-lede {
-    display: none;
+  .lab-grid {
+    grid-template-rows: minmax(120px, 1fr) auto auto;
   }
 
-  .lab-grid {
-    grid-template-rows: auto auto minmax(120px, 1fr) auto auto;
+  .lab-grid[data-sheet='open'] {
+    grid-template-rows: 0 minmax(240px, 1fr) auto;
   }
 }
 
-/* Short screens: the controls in a column on the left, the 3D view on the right. */
+/* Short screens: the sheet and the transmitter in a column on the left, the 3D view on the right. */
 @media (max-height: 580px) and (min-width: 561px) {
   .lab-grid {
     grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
-    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
     grid-template-areas:
-      'title view'
-      'setup view'
       'panel view'
       '. view'
-      'console view';
+      'dock view';
     gap: var(--space-2);
     padding: var(--lab-top) max(var(--space-3), env(safe-area-inset-right))
       max(var(--space-2), env(safe-area-inset-bottom))
       max(var(--space-3), env(safe-area-inset-left));
   }
 
-  /* No room for the lede beside a view this short; the guide's rule says it. */
-  .lab-lede {
-    display: none;
-  }
-
   /* Overrides the phone layout's rows when the sheet is open, at the sizes both match. */
   .lab-grid[data-sheet='open'] {
-    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
   }
 
   /* Open, the sheet covers the view, beside the controls. */
   .lab-grid[data-sheet='open'] .lab-panel {
     grid-area: view;
+  }
+}
+
+/*
+ * The shortest of those, such as small phones held sideways: the column steps down in size so it
+ * fits without scrolling. The screen goes, since it only repeats the knob.
+ */
+@media (max-height: 360px) and (min-width: 561px) {
+  .sheet-summary {
+    font-size: var(--text-small);
+    line-height: 1.3;
+  }
+
+  .lab-dock {
+    gap: 0;
+    padding-block: var(--space-1);
+  }
+
+  .dock-lcd {
+    display: none;
+  }
+
+  .dock-face {
+    justify-content: center;
+  }
+
+  .dial {
+    --dial-r: 2.3rem;
+    --knob: 2.6rem;
   }
 }
