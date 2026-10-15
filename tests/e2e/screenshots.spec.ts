@@ -1,11 +1,11 @@
 /**
- * Screenshots for review, at desktop and phone sizes, in light and dark: the portal, every
- * listed state of the lab, and the diorama. The lab is captured in `?capture` mode (fixed time
- * and tier, one settled frame) so it's deterministic, and each lab capture also checks that
+ * Screenshots for review, at desktop and phone sizes, in light and dark: the portal, and every
+ * listed state of the lab and the diorama. The 3D pages are captured in `?capture` mode (fixed
+ * time and tier, one settled frame) so they're deterministic, and each capture also checks that
  * labels are neither clipped nor overlapping each other or the chrome.
  */
 import type { Page } from '@playwright/test';
-import { DIORAMA_HOSTS, type DioramaWindow, expect, openDiorama, test } from './fixtures.ts';
+import { expect, loadImages, test } from './fixtures.ts';
 
 interface State {
   name: string;
@@ -14,6 +14,8 @@ interface State {
   prepare?: (page: Page, phone: boolean) => Promise<void>;
   phoneOnly?: boolean;
   desktopOnly?: boolean;
+  /** Reached through many states, each drawn in full: it needs longer under software rendering. */
+  slow?: boolean;
 }
 
 async function openSheet(page: Page) {
@@ -41,6 +43,27 @@ const STATES: State[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Close the lab guide' }).click();
       await expect(page.getByRole('button', { name: 'Open the lab guide' })).toBeVisible();
+    },
+  },
+  {
+    // The key finding a line: its row pointed at, the line's label lit in the view.
+    name: 'key-find',
+    query: 'setup=steel&f=33000',
+    desktopOnly: true,
+    prepare: async (page) => {
+      await page
+        .getByRole('region', { name: 'Key' })
+        .getByRole('button', { name: 'Telecom cable' })
+        .hover();
+      await expect(page.locator('[data-label="telecom"]')).toHaveClass(/\blit\b/);
+    },
+  },
+  {
+    name: 'paused',
+    query: 'setup=plastic&f=8000',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Pause the signal' }).click();
+      await expect(page.getByRole('button', { name: 'Play the signal' })).toBeVisible();
     },
   },
   {
@@ -81,6 +104,34 @@ function boxesOf(page: Page, selector: string): Promise<Box[]> {
   );
 }
 
+/**
+ * No clipped or overlapping labels among those showing (not out of sight or capped), nor any under
+ * the chrome, unless something was opened over the view.
+ */
+async function expectLabelsClear(
+  page: Page,
+  vp: { width: number; height: number },
+  checkChrome: boolean,
+) {
+  const labels = await boxesOf(page, '.lbl:not(.off):not(.capped):not([hidden])');
+  for (const b of labels) {
+    expect(b.x, `${b.id} clipped left`).toBeGreaterThanOrEqual(0);
+    expect(b.y, `${b.id} clipped top`).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.w, `${b.id} clipped right`).toBeLessThanOrEqual(vp.width);
+    expect(b.y + b.h, `${b.id} clipped bottom`).toBeLessThanOrEqual(vp.height);
+  }
+  labels.forEach((a, i) => {
+    for (const b of labels.slice(i + 1)) {
+      expect(overlaps(a, b), `${a.id} overlaps ${b.id}`).toBe(false);
+    }
+  });
+  if (!checkChrome) return;
+  const chrome = await boxesOf(page, '[data-chrome]');
+  for (const a of labels) {
+    for (const c of chrome) expect(overlaps(a, c), `${a.id} under ${c.id}`).toBe(false);
+  }
+}
+
 for (const theme of ['light', 'dark'] as const) {
   for (const vp of VIEWPORTS) {
     const phone = vp.name === 'phone';
@@ -105,26 +156,7 @@ for (const theme of ['light', 'dark'] as const) {
             animations: 'disabled',
           });
 
-          // No clipped or overlapping labels among those showing (not out of sight or capped).
-          const labels = await boxesOf(page, '.lbl:not(.off):not(.capped):not([hidden])');
-          for (const b of labels) {
-            expect(b.x, `${b.id} clipped left`).toBeGreaterThanOrEqual(0);
-            expect(b.y, `${b.id} clipped top`).toBeGreaterThanOrEqual(0);
-            expect(b.x + b.w, `${b.id} clipped right`).toBeLessThanOrEqual(vp.width);
-            expect(b.y + b.h, `${b.id} clipped bottom`).toBeLessThanOrEqual(vp.height);
-          }
-          labels.forEach((a, i) => {
-            for (const b of labels.slice(i + 1)) {
-              expect(overlaps(a, b), `${a.id} overlaps ${b.id}`).toBe(false);
-            }
-          });
-          // Nor under the chrome, unless something was opened over the view since.
-          if (!s.prepare) {
-            const chrome = await boxesOf(page, '[data-chrome]');
-            for (const a of labels) {
-              for (const c of chrome) expect(overlaps(a, c), `${a.id} under ${c.id}`).toBe(false);
-            }
-          }
+          await expectLabelsClear(page, vp, !s.prepare);
         });
       }
     });
@@ -144,8 +176,8 @@ for (const theme of ['light', 'dark'] as const) {
 
       test('the whole page', async ({ page }) => {
         await page.goto('./');
-        // Every preview decoded, so none is captured blank.
-        await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
+        // Every preview and the hero's still loaded, so none is captured blank.
+        await loadImages(page);
         await page.screenshot({
           path: `artifacts/screenshots/portal-${theme}-${vp.name}.png`,
           fullPage: true,
@@ -156,55 +188,82 @@ for (const theme of ['light', 'dark'] as const) {
   }
 }
 
-/** Waits until the diorama's camera has stopped moving; the page must be opened with #debug. */
-async function dioramaCameraAtRest(page: Page) {
-  let last = '';
-  let still = 0;
-  await expect
-    .poll(
-      async () => {
-        const now = await page.evaluate(() => {
-          const p = (window as DioramaWindow).__app?.camera.position;
-          return p ? [p.x, p.y, p.z].map((v) => v.toFixed(3)).join(',') : '';
-        });
-        still = now !== '' && now === last ? still + 1 : 0;
-        last = now;
-        return still;
-      },
-      { message: 'the camera comes to rest', intervals: [200], timeout: 20_000 },
-    )
-    .toBeGreaterThanOrEqual(3);
-}
+/**
+ * The diorama's states: the overview, a stop of each kind, the fork, the back view, a path's end,
+ * and on phones, a journey at a peek and a stop's sheet.
+ */
+const DIORAMA: State[] = [
+  { name: 'overview', query: '' },
+  { name: 'formation', query: 'stop=formation' },
+  { name: 'fork', query: 'stop=lifting' },
+  { name: 'city-gate', query: 'stop=city-gate' },
+  { name: 'storage', query: 'stop=storage-lng' },
+  { name: 'distillation', query: 'stop=distillation' },
+  {
+    // A path's end: its quiz answered, and where to go next.
+    name: 'end',
+    query: '',
+    desktopOnly: true,
+    slow: true,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Gasoline tour' }).click();
+      for (let i = 0; i < 7; i++) {
+        await page.locator('.gp-panel').getByRole('button', { name: 'Next step' }).click();
+      }
+      await page.locator('.gp-panel').getByRole('button', { name: 'Take the quiz' }).click();
+      for (const q of await page.locator('.q').all()) {
+        await q.getByRole('button').first().click();
+      }
+      await page.locator('.q-end').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // A journey on a phone: the view first, and where it is at a peek.
+    name: 'peek',
+    query: '',
+    phoneOnly: true,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Details' }).click();
+      await page.getByRole('button', { name: 'Start at the beginning' }).click();
+      await page.getByRole('button', { name: 'Details' }).click();
+    },
+  },
+  {
+    name: 'sheet',
+    query: 'stop=city-gate',
+    phoneOnly: true,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Details' }).click();
+    },
+  },
+];
 
 for (const theme of ['light', 'dark'] as const) {
   for (const vp of VIEWPORTS) {
+    const phone = vp.name === 'phone';
     test.describe(`diorama ${vp.name} ${theme}`, () => {
       test.use({
         viewport: { width: vp.width, height: vp.height },
         deviceScaleFactor: vp.scale,
         colorScheme: theme,
-        hasTouch: vp.name === 'phone',
-        isMobile: vp.name === 'phone',
-        reducedMotion: 'reduce',
-        allowHosts: DIORAMA_HOSTS,
+        hasTouch: phone,
+        isMobile: phone,
       });
-
-      test('the overview and the city gate', async ({ page }) => {
-        await openDiorama(page, '#debug');
-        await dioramaCameraAtRest(page);
-        await page.screenshot({
-          path: `artifacts/screenshots/diorama-${theme}-${vp.name}-overview.png`,
-          animations: 'disabled',
+      for (const s of DIORAMA.filter((st) => (phone ? !st.desktopOnly : !st.phoneOnly))) {
+        test(s.name, async ({ page }) => {
+          if (s.slow) test.slow();
+          await page.goto(`utilities/gas-petroleum/?${s.query}&tier=${vp.tier}&capture`);
+          await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+            timeout: 60_000,
+          });
+          await s.prepare?.(page, phone);
+          await page.screenshot({
+            path: `artifacts/screenshots/diorama-${theme}-${vp.name}-${s.name}.png`,
+            animations: 'disabled',
+          });
+          await expectLabelsClear(page, vp, !s.prepare);
         });
-        // The route map's dot; the 3D view's label for the stop has the same name.
-        await page.locator('.rmap .st[data-id="city-gate"]').click();
-        await expect(page.locator('#p-title')).toHaveText('Into town: lower pressure, added smell');
-        await dioramaCameraAtRest(page);
-        await page.screenshot({
-          path: `artifacts/screenshots/diorama-${theme}-${vp.name}-city-gate.png`,
-          animations: 'disabled',
-        });
-      });
+      }
     });
   }
 }

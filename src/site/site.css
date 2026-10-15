@@ -1,0 +1,393 @@
+/*
+ * The site shell: the header (floating pills over the page, so a 3D view stays full-bleed), the
+ * footer, the 3D loader and the settings menu. Every page imports this after the components.
+ */
+
+:root {
+  /* The header's height, which pages leave free at their top. */
+  --header-h: 66px;
+}
+
+/* Header */
+.site-header {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: var(--layer-header);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: max(var(--space-3), env(safe-area-inset-top))
+    max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  /* The gaps between the pills belong to whatever is under them. */
+  pointer-events: none;
+  view-transition-name: site-header;
+}
+
+.site-header > * {
+  pointer-events: auto;
+}
+
+.site-home,
+.site-page,
+.site-tools {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.site-home {
+  flex: none;
+  gap: 10px;
+  padding: 0 18px 0 7px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-stretch: 118%;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.site-mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.mark-tile {
+  fill: var(--ink);
+}
+
+.mark-cut {
+  stroke: var(--surface);
+}
+
+.site-page {
+  gap: 10px;
+  min-width: 0;
+  padding: 0 20px;
+}
+
+.site-crumb {
+  flex: none;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Drawn apart from the link, so its name is just the section's. */
+.site-crumb-sep {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.site-title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-stretch: 112%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-tools {
+  margin-left: auto;
+  padding: 4px;
+}
+
+/* Before the page's code mounts the button, its place is kept, so nothing shifts. */
+.site-settings {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+@media (hover: hover) {
+  .site-home:hover {
+    border-color: var(--ink-3);
+  }
+
+  .site-crumb:hover {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* Narrow screens: the mark alone stands for the site's name, and the section gives way. */
+@media (max-width: 560px) {
+  :root {
+    --header-h: 60px;
+  }
+
+  .site-header {
+    gap: 6px;
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
+  }
+
+  .site-home {
+    padding: 0 5px;
+  }
+
+  .site-home .site-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .site-home,
+  .site-page,
+  .site-tools {
+    min-height: 44px;
+  }
+
+  .site-page {
+    padding: 0 16px;
+  }
+
+  .site-crumb,
+  .site-crumb-sep {
+    display: none;
+  }
+
+  .site-title {
+    font-size: 1.05rem;
+  }
+}
+
+/* Footer */
+.site-footer {
+  margin-top: var(--space-16);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.site-footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: var(--space-6) var(--space-8);
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: var(--space-8) max(var(--space-5), env(safe-area-inset-right))
+    max(var(--space-8), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
+}
+
+.site-footer-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.site-footer-name {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-stretch: 118%;
+}
+
+.site-footer-tagline {
+  max-width: 26rem;
+  margin: 4px 0 0;
+  color: var(--ink-2);
+}
+
+.site-footer-nav ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer-nav li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--space-2);
+}
+
+.site-footer-nav a {
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+.site-footer-nav span {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+
+.site-footer-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+
+@media (max-width: 700px) {
+  .site-footer-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * The 3D loader: the view's poster, blurred, in the reader's theme, and a hairline that steps on
+ * as the view loads (`data-scene-stage` on <html>). It fades once the view draws.
+ */
+.scene-loader {
+  --poster: var(--poster-light);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+  transition:
+    opacity var(--dur-slow) var(--ease),
+    visibility 0s linear var(--dur-slow);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .scene-loader {
+    --poster: var(--poster-dark);
+  }
+}
+
+:root[data-theme='dark'] .scene-loader {
+  --poster: var(--poster-dark);
+}
+
+.scene-loader-poster {
+  position: absolute;
+  inset: -32px;
+  background: var(--poster) center / cover no-repeat;
+  filter: blur(16px) saturate(0.85);
+  opacity: 0.9;
+  /* The lesson's preview on the portal carries on into it, opening the lesson. */
+  view-transition-name: var(--lesson-transition, none);
+}
+
+/* Once the view draws, the poster has gone: leaving, it has nothing to carry on into. */
+:root[data-scene-ready] .scene-loader-poster {
+  view-transition-name: none;
+}
+
+.scene-loader-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 14px 18px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.scene-loader-bar {
+  width: 160px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.scene-loader-bar > span {
+  display: block;
+  width: 12%;
+  height: 100%;
+  background: var(--ink);
+  transition: width var(--dur-slow) var(--ease);
+}
+
+:root[data-scene-stage='code'] .scene-loader-bar > span {
+  width: 36%;
+}
+
+:root[data-scene-stage='build'] .scene-loader-bar > span {
+  width: 64%;
+}
+
+:root[data-scene-stage='compile'] .scene-loader-bar > span {
+  width: 88%;
+}
+
+.scene-loader-text {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+:root[data-scene-ready='true'] .scene-loader,
+.scene-loader[data-done] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Settings */
+.settings[popover] {
+  position: fixed;
+  inset: auto;
+  z-index: var(--layer-popover);
+  max-height: calc(100dvh - 24px);
+  margin: 0;
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-3);
+}
+
+.settings h2 {
+  margin: 0 0 var(--space-3);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.settings-row {
+  margin: 0 0 var(--space-3);
+}
+
+.settings-label {
+  margin: 0 0 6px;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+.settings-choices {
+  display: flex;
+  width: 100%;
+  box-shadow: none;
+}
+
+.settings-choices .segmented-option {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 0.82rem;
+}
+
+.settings-note {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}

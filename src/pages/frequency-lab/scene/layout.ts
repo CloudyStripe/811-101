@@ -217,8 +217,8 @@ export const WIDE_VIEW: View = {
 
 /**
  * For portrait screens: higher, so the block runs up the screen from the hookup toward the end
- * of the block, with room beside the hookup for its labels. (A phone held upright sees only about
- * 16° across, so the cross street beyond is left to run off the top.)
+ * of the block, with room beside the hookup for its labels. (A tablet held upright sees only about
+ * 24° across, so the cross street beyond is left to run off the top.)
  */
 export const TALL_VIEW: View = {
   position: [-95.7, 41.4, 40.1],
@@ -227,8 +227,24 @@ export const TALL_VIEW: View = {
   labelRoom: LABEL_ROOM,
 };
 
+/**
+ * For phones held upright: the tall view through a wider lens. The camera comes in closer, so the
+ * near end of the cut fills the bottom of the screen and the block recedes up it, instead of a
+ * thin strip across an empty page.
+ */
+export const PHONE_VIEW: View = { ...TALL_VIEW, fov: 58 };
+
+/**
+ * A phone held upright: a canvas narrower than this, and taller than wide. Once the browser's bars
+ * and the controls take their share, its free area is about square, and the phone view frames it
+ * unless the area is clearly wider than tall, as when the guide's sheet is half open.
+ */
+const PHONE = { width: 600, wideArea: 1.4 } as const;
+
 /** The view that suits the free part of the canvas. */
-export function viewFor(area: VisibleArea): View {
-  const portrait = area.portrait ?? area.width / Math.max(1, area.height) < 1;
-  return portrait ? TALL_VIEW : WIDE_VIEW;
+export function viewFor(area: VisibleArea, canvas: { width: number; height: number }): View {
+  const aspect = area.width / Math.max(1, area.height);
+  const upright = canvas.width < PHONE.width && canvas.height > canvas.width;
+  if (upright && aspect < PHONE.wideArea) return PHONE_VIEW;
+  return (area.portrait ?? aspect < 1) ? TALL_VIEW : WIDE_VIEW;
 }

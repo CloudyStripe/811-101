@@ -12,7 +12,17 @@ import {
   luminance,
   srgbToLinear,
 } from './color.ts';
-import { MATERIAL_COLORS, SIGNAL_COLOR, THEMES, WORLD_COLORS, type ThemeName } from './tokens.ts';
+import {
+  DEVICE,
+  DIORAMA_COLORS,
+  MATERIAL_COLORS,
+  MOTION,
+  SIGNAL_COLOR,
+  THEMES,
+  WORLD_COLORS,
+  easeInOut,
+  type ThemeName,
+} from './tokens.ts';
 
 const themes: ThemeName[] = ['light', 'dark'];
 const chromatic = (Object.keys(APWA) as ApwaCode[]).filter((c) => c !== 'white');
@@ -26,6 +36,10 @@ describe('chrome contrast (WCAG 2.2 AA)', () => {
       expect(contrast(t.ink3, bg), `muted text on ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t.accentInk, t.accent)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('device screens are readable: light figures on a dark screen, in both themes', () => {
+    expect(contrast(DEVICE.lcdInk, DEVICE.lcd)).toBeGreaterThanOrEqual(7);
   });
 
   it.each(themes)('%s: the focus ring passes 3:1 against every surface', (name) => {
@@ -65,6 +79,31 @@ describe('color means utility', () => {
     );
     for (const [name, hex] of world) {
       expect(hexToOklch(hex).c, name).toBeLessThan(Math.min(0.09, weakestMeaning * 0.6));
+    }
+  });
+
+  it("keeps the diorama muted too, its fuel paths' yellow the strongest color in it", () => {
+    const yellow = hexToOklch(APWA.yellow.fill).c;
+    for (const [name, hex] of Object.entries(DIORAMA_COLORS)) {
+      // Fire and its glow are lights, not surfaces.
+      if (name === 'flame' || name === 'flameCore' || name === 'furnaceGlow') continue;
+      expect(hexToOklch(hex).c, name).toBeLessThan(Math.min(0.09, yellow * 0.6));
+    }
+  });
+
+  it("never paints water in drinking water's blue, nor produced water in sewer's green", () => {
+    const blue = hexToOklch(APWA.blue.fill);
+    const green = hexToOklch(APWA.green.fill);
+    /** A color reads as a mark's hue only with real chroma and a hue near the mark's. */
+    const readsAs = (hex: string, mark: { h: number }) => {
+      const c = hexToOklch(hex);
+      return c.c > 0.04 && hueDistance(c.h, mark.h) < 40;
+    };
+    for (const name of ['aquifer', 'waterZone', 'producedWater', 'sea'] as const) {
+      expect(readsAs(DIORAMA_COLORS[name], blue), `${name} as blue`).toBe(false);
+    }
+    for (const name of ['waterZone', 'producedWater'] as const) {
+      expect(readsAs(DIORAMA_COLORS[name], green), `${name} as green`).toBe(false);
     }
   });
 
@@ -108,6 +147,11 @@ describe('the lit world stays muted on screen', () => {
     if (name === 'windowLit' || name === 'lamp') continue;
     if (typeof value === 'string') surfaces.push([name, value]);
     else value.forEach((hex, i) => surfaces.push([`${name}[${String(i)}]`, hex]));
+  }
+  for (const [name, hex] of Object.entries(DIORAMA_COLORS)) {
+    // Fire and its glow are lights, not surfaces.
+    if (name === 'flame' || name === 'flameCore' || name === 'furnaceGlow') continue;
+    surfaces.push([`diorama ${name}`, hex]);
   }
   const shown = (hex: string, light: readonly number[], k: number) => {
     const { r, g, b } = hexToRgb(hex);
@@ -192,5 +236,34 @@ describe('tone mapping keeps the color code true', () => {
       if (k <= 1)
         expect(out.c / (base.c * Math.cbrt(k)), `${code} chroma at ${k}x`).toBeGreaterThan(0.75);
     }
+  });
+});
+
+describe('motion', () => {
+  /** A CSS cubic-bezier's progress at time t, solved for t along the curve's x. */
+  function bezier(x1: number, y1: number, x2: number, y2: number, t: number): number {
+    const at = (a: number, b: number, u: number) =>
+      3 * a * u * (1 - u) ** 2 + 3 * b * u ** 2 * (1 - u) + u ** 3;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (at(x1, x2, mid) < t) lo = mid;
+      else hi = mid;
+    }
+    return at(y1, y2, (lo + hi) / 2);
+  }
+
+  it("the scene's easing is the same curve as the CSS token", () => {
+    const [x1 = 0, y1 = 0, x2 = 0, y2 = 0] = (
+      /cubic-bezier\(([^)]+)\)/.exec(MOTION.easeInOut)?.[1] ?? ''
+    )
+      .split(',')
+      .map(Number);
+    for (let t = 0; t <= 1; t += 0.05) {
+      expect(easeInOut(t)).toBeCloseTo(bezier(x1, y1, x2, y2, t), 6);
+    }
+    expect(easeInOut(0)).toBe(0);
+    expect(easeInOut(1)).toBe(1);
   });
 });

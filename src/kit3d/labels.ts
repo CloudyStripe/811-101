@@ -22,6 +22,10 @@ export interface Label {
   /** When set, the label shows only while the camera is on this side of the anchor. */
   facing?: Vector3;
   hidden?: boolean;
+  /** Shown however crowded the view, like a focused label: pointed at from elsewhere, e.g. a key. */
+  highlight?: boolean;
+  /** Shown only while focused: out of sight otherwise, however much room, but in the tab order. */
+  quiet?: boolean;
 }
 
 interface Rect {
@@ -33,6 +37,45 @@ interface Rect {
 
 const overlaps = (r: Rect, list: readonly Rect[]) =>
   list.some((q) => r.x < q.x + q.w && r.x + r.w > q.x && r.y < q.y + q.h && r.y + r.h > q.y);
+
+/** A label's open definition, as a rectangle in the label layer, or null when it's closed. */
+function openTip(element: HTMLElement): Rect | null {
+  const tip = element.querySelector<HTMLElement>('[role="tooltip"]');
+  const layer = element.parentElement;
+  if (!tip || tip.hidden || !layer) return null;
+  const t = tip.getBoundingClientRect();
+  if (t.width === 0 || t.height === 0) return null;
+  const l = layer.getBoundingClientRect();
+  return { x: t.left - l.left, y: t.top - l.top, w: t.width, h: t.height };
+}
+
+/**
+ * Moves a rectangle out from under the given ones by as little as it can, within the view: a
+ * focused label that would sit under a control shows beside it instead (WCAG 2.4.11).
+ */
+function clearOf(r: Rect, blocks: readonly Rect[], width: number, height: number, margin: number) {
+  if (!overlaps(r, blocks)) return r;
+  const within = (c: Rect) =>
+    c.x >= margin && c.y >= margin && c.x + c.w <= width - margin && c.y + c.h <= height - margin;
+  let best = r;
+  let bestMove = Infinity;
+  for (const q of blocks) {
+    if (!overlaps(r, [q])) continue;
+    for (const c of [
+      { ...r, y: q.y - r.h - margin },
+      { ...r, y: q.y + q.h + margin },
+      { ...r, x: q.x - r.w - margin },
+      { ...r, x: q.x + q.w + margin },
+    ]) {
+      const move = Math.abs(c.x - r.x) + Math.abs(c.y - r.y);
+      if (move < bestMove && within(c) && !overlaps(c, blocks)) {
+        best = c;
+        bestMove = move;
+      }
+    }
+  }
+  return best;
+}
 
 export class LabelLayer {
   private labels: Label[] = [];
@@ -118,6 +161,7 @@ export class LabelLayer {
     bounds: Rect = { x: 0, y: 0, w: width, h: height },
     maxVisible = Infinity,
   ): void {
+    // The controls first; each label placed joins them, so later ones keep clear of it.
     const placed: Rect[] = [...this.noGo()];
     const focused = document.activeElement;
     const items = this.labels
@@ -139,7 +183,7 @@ export class LabelLayer {
           point: q ? { x: (q.x * 0.5 + 0.5) * width, y: (-q.y * 0.5 + 0.5) * height } : { x, y },
           depth,
           visible: !label.hidden && facingOk && depth > -1 && depth < 1,
-          focused: !label.hidden && label.element.contains(focused),
+          focused: !label.hidden && (label.highlight === true || label.element.contains(focused)),
         };
       })
       .sort(
@@ -167,6 +211,7 @@ export class LabelLayer {
 
     let shown = 0;
     for (const it of items) {
+      it.label.element.classList.toggle('lit', it.label.highlight === true && !it.label.hidden);
       const size = this.sizes.get(it.label.id) ?? { w: 120, h: 28 };
       // Labels sit a little above their point, with room for the leader line between.
       const full = { x: it.x - size.w / 2, y: it.y - size.h - 14, w: size.w, h: size.h };
@@ -175,15 +220,19 @@ export class LabelLayer {
       // A leader only when its point is in view: a label pulled in from off screen has none.
       const point = it.visible ? it.point : null;
       if (it.focused) {
-        // A focused label is always shown, pulled into the free part of the view (WCAG 2.4.11).
-        const r = clamp(full);
+        // A focused label is always shown, pulled into the free part of the view and out from
+        // under the controls and any label shown before it (WCAG 2.4.11).
+        const r = clearOf(clamp(full), placed, width, height, margin);
         placed.push(r);
         shown++;
         this.place(it.label, r, '', point);
+        // Its definition may be open beside it; later labels keep clear of that too.
+        const tip = openTip(it.label.element);
+        if (tip) placed.push(tip);
       } else if (!it.visible) {
         this.place(it.label, full, 'off', null);
-      } else if (shown >= maxVisible) {
-        // Over the cap: out of sight, but still in the tab order, so focusing it shows it.
+      } else if (it.label.quiet === true || shown >= maxVisible) {
+        // Quiet, or over the cap: out of sight, but still in the tab order, so focusing it shows it.
         this.place(it.label, full, 'capped', null);
       } else if (slid && inside(slid) && !overlaps(slid, placed)) {
         placed.push(slid);

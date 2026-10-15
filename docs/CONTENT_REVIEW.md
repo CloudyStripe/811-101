@@ -2,12 +2,12 @@
 
 # Content review
 
-Every factual claim in the Frequency Lab, for locator sign-off.
+Every factual claim in the lessons, for locator sign-off.
 
 - **How to sign off:** add the claim to `content/review/signoffs.json` with the hash shown, your initials and the date. Or send the IDs and we'll add them.
 - **Edited claims:** editing a claim changes its hash and puts it back in review.
 
-**State-specific claims:** none so far. The lab teaches no state rules.
+**State-specific claims:** none so far. The lessons teach no state rules.
 
 ## Frequency Lab
 
@@ -48,6 +48,136 @@ Every factual claim in the Frequency Lab, for locator sign-off.
 | `fl.term.tracer-wire` | A wire buried along a plastic pipe so the pipe can be found. | No | `1f3b55f5ad` | Not reviewed |
 | `fl.term.bleed-over` | Signal that spreads from your line onto other lines nearby. It can lead a locator to the wrong line. | No | `e533842e00` | Not reviewed |
 
+## Gas & Petroleum
+
+| ID | Claim | State-specific | Hash | Status |
+|---|---|---|---|---|
+| `gp.overview.title` | Two fuels, one beginning | No | `65f05de987` | Not reviewed |
+| `gp.overview.start` | Natural gas and gasoline start the same way: tiny sea life, buried and slowly "cooked" by heat and pressure over millions of years into oil and gas. | No | `1dd48cd257` | Not reviewed |
+| `gp.overview.wells` | The two often come up the same wells. | No | `65b4df5181` | Not reviewed |
+| `gp.overview.split` | Then the paths split: gas is cleaned and piped to where it's used, while crude oil goes to a refinery to become gasoline. | No | `100d8f36c4` | Not reviewed |
+| `gp.formation.title` | It starts with tiny sea life | No | `ab04633adc` | Not reviewed |
+| `gp.formation.sank` | Long ago, tiny sea life called plankton died and sank into the mud on the seafloor. | No | `e602391f8a` | Not reviewed |
+| `gp.formation.cooked` | Over millions of years, layers of mud and sand buried it deeper, and heat and pressure slowly "cooked" it into oil and gas. | No | `2aa6d4a128` | Not reviewed |
+| `gp.reservoir.title` | Hiding in rock, like water in a sponge | No | `4905e31dfe` | Not reviewed |
+| `gp.reservoir.cap` | Oil and gas slowly creep upward through the rock until a tight layer of cap rock stops them, like a lid. | No | `189514c41c` | Not reviewed |
+| `gp.reservoir.sponge` | Below it, they fill the tiny holes in reservoir rock, like water in a sponge. | No | `51da916ee6` | Not reviewed |
+| `gp.reservoir.weight` | Everything settles by weight: gas on top, then oil, then salty water. | No | `9e8d4bc655` | Not reviewed |
+| `gp.drilling.title` | Finding it, then drilling down | No | `a0d34c6af0` | Not reviewed |
+| `gp.drilling.survey` | Crews map the rock layers with a seismic survey, which uses sound waves. | No | `bb7eac90df` | Not reviewed |
+| `gp.drilling.casing` | Then a rig drills down and lines the hole with steel and cement to seal it off from groundwater. | No | `cd4dfebb55` | Not reviewed |
+| `gp.drilling.fracking` | In tight rock, fracking cracks the rock open so oil and gas can flow out. | No | `a312acc608` | Not reviewed |
+| `gp.lifting.title` | Up the well, then sorted three ways | No | `6330a33258` | Not reviewed |
+| `gp.lifting.pump` | Gas usually rushes up the well on its own, but oil often needs a pump jack to lift it. | No | `b3cb822759` | Not reviewed |
+| `gp.lifting.separator` | What comes up is a mix of gas, oil and salty water, and a separator lets it settle into layers. | No | `d543f57ee1` | Not reviewed |
+| `gp.lifting.fork` | This is the fork: gas heads off along the natural gas path, oil along the gasoline one. | No | `5a6f15e704` | Not reviewed |
+| `gp.gas-plant.title` | Cleaning up the gas | No | `394c9109c2` | Not reviewed |
+| `gp.gas-plant.raw` | Raw gas from the well isn't ready to use. | No | `05be20f3d7` | Not reviewed |
+| `gp.gas-plant.clean` | A processing plant dries it, removes impurities, and pulls out heavier gases like propane to sell separately. | No | `afac489d04` | Not reviewed |
+| `gp.gas-plant.left` | What's left is the natural gas that heads into the pipelines. | No | `c2b8a773e2` | Not reviewed |
+| `gp.pipeline.title` | Pushed along long pipelines | No | `64f2a4b9d0` | Not reviewed |
+| `gp.pipeline.travel` | Clean gas travels long distances through big, buried steel pipelines. | No | `80f1c92fca` | Not reviewed |
+| `gp.pipeline.compress` | It slowly loses pressure along the way, so compressor stations squeeze it back up to keep it moving. | No | `d3aec92d8f` | Not reviewed |
+| `gp.storage-lng.title` | Saved for winter, or shipped overseas | No | `5df2d431e1` | Not reviewed |
+| `gp.storage-lng.winter` | People use far more gas in winter, so extra gas is pumped into underground storage in warmer months and pulled back out when it's cold. | No | `5a8f9041b0` | Not reviewed |
+| `gp.storage-lng.lng` | Some gas is chilled until it turns into a liquid, called LNG, so ships can carry it overseas. | No | `9200e91409` | Not reviewed |
+| `gp.city-gate.title` | Into town: lower pressure, added smell | No | `ff9a5b7b3f` | Not reviewed |
+| `gp.city-gate.local` | At the city gate, gas leaves the big pipeline for the local network. | No | `da00528e79` | Not reviewed |
+| `gp.city-gate.odorant` | Its pressure is lowered, and an odorant is added, because natural gas has no smell of its own. | No | `c4fb45b529` | Not reviewed |
+| `gp.city-gate.meter` | Smaller pipes under the streets then carry it to a gas meter at each building. | No | `e9dd57f998` | Not reviewed |
+| `gp.city-gate.safety` | If you ever smell rotten eggs indoors, leave right away and call the gas company from outside. | No | `79c1fe0401` | Not reviewed |
+| `gp.gas-uses.title` | Electricity, heat and things we make | No | `e559fa3125` | Not reviewed |
+| `gp.gas-uses.power` | Much natural gas goes to power plants to make electricity. | No | `e966032e6a` | Not reviewed |
+| `gp.gas-uses.homes` | In homes, it fuels furnaces, stoves and water heaters, and factories use it to make things like fertilizer. | No | `a6127fb3f6` | Not reviewed |
+| `gp.crude-transport.title` | Moving crude oil to a refinery | No | `b6943babd6` | Not reviewed |
+| `gp.crude-transport.crude` | Crude oil is the thick, dark oil that comes out of the ground. | No | `54d3ec7059` | Not reviewed |
+| `gp.crude-transport.pipeline` | On land, most of it travels to a refinery by pipeline. | No | `c9482580e8` | Not reviewed |
+| `gp.crude-transport.other` | Ships carry it across oceans, and trains and trucks go where there are no pipes. | No | `f4951968dc` | Not reviewed |
+| `gp.distillation.title` | Turning crude oil into fuels | No | `cf0632391b` | Not reviewed |
+| `gp.distillation.vapor` | At a refinery, crude oil is heated until much of it turns to vapor. | No | `2f889b1a5d` | Not reviewed |
+| `gp.distillation.tower` | In a tall distillation tower, the vapor cools as it rises and turns back to liquid at different heights: gasoline near the top, heavier fuels lower down. | No | `2bf3200ce7` | Not reviewed |
+| `gp.distillation.blend` | The refinery then turns some of the heavier oils into more gasoline and blends the finished fuel. | No | `a6a1ae7aa6` | Not reviewed |
+| `gp.delivery.title` | From refinery to your neighborhood | No | `954d9611f3` | Not reviewed |
+| `gp.delivery.terminals` | Finished fuels travel through pipelines to storage terminals, big tank farms near cities. | No | `69ac1e53a3` | Not reviewed |
+| `gp.delivery.trucks` | There, tanker trucks fill up and drive the fuel to gas stations, where it goes into large tanks buried under the station. | No | `deb6c372fc` | Not reviewed |
+| `gp.pump.title` | At the pump, then on the road | No | `ee48258541` | Not reviewed |
+| `gp.pump.tanks` | At the station, the pumps draw fuel from the tanks buried below. | No | `ac8f80f0b4` | Not reviewed |
+| `gp.pump.engines` | Most gasoline goes into cars and other vehicles, whose engines burn it to turn the wheels. | No | `a2d2366521` | Not reviewed |
+| `gp.term.plankton` | Tiny living things that drift in water, like algae and microscopic animals. | No | `580032f565` | Not reviewed |
+| `gp.term.cap-rock` | A tight layer of rock that fluids can't pass through. It seals oil and gas in. | No | `470ddb81b9` | Not reviewed |
+| `gp.term.reservoir-rock` | Rock with many tiny connected holes that can hold oil, gas or water. | No | `ac9d2ef70c` | Not reviewed |
+| `gp.term.seismic-survey` | Mapping underground rock by sending sound waves down and timing their echoes. | No | `56c0daae3c` | Not reviewed |
+| `gp.term.groundwater` | Fresh water held in soil and rock near the surface. Many people drink it from wells. | No | `dfe2da71f4` | Not reviewed |
+| `gp.term.fracking` | Short for hydraulic fracturing: pumping water, sand and a little chemical additive into a well at high pressure to crack the rock. | No | `5e79d39090` | Not reviewed |
+| `gp.term.pump-jack` | A nodding machine at an oil well. It moves a long rod up and down to lift oil to the surface. | No | `27fea36e4c` | Not reviewed |
+| `gp.term.separator` | A tank that lets the gas, oil and water coming out of a well separate by weight. | No | `1bce9ef308` | Not reviewed |
+| `gp.term.processing-plant` | A facility that cleans raw natural gas and separates it into useful parts. | No | `bfec574360` | Not reviewed |
+| `gp.term.pipelines` | Long steel pipes, usually buried, that carry gas or liquids over long distances. | No | `b8b3a8d89a` | Not reviewed |
+| `gp.term.compressor-station` | A facility along a pipeline that squeezes the gas to raise its pressure so it keeps flowing. | No | `7a0cae193e` | Not reviewed |
+| `gp.term.underground-storage` | Places deep underground, like old gas fields or caverns in salt, where gas is kept until it's needed. | No | `4a111017d2` | Not reviewed |
+| `gp.term.lng` | Liquefied natural gas: natural gas chilled until it turns into a liquid, so it takes up far less space. | No | `e5df3222db` | Not reviewed |
+| `gp.term.city-gate` | The station where gas moves from a long-distance pipeline into a local delivery network. | No | `26080d5aa0` | Not reviewed |
+| `gp.term.odorant` | A strong-smelling chemical added to gas so leaks can be noticed. | No | `7c97202ca2` | Not reviewed |
+| `gp.term.gas-meter` | A device on the outside of a building that measures how much gas it uses. | No | `bd6f3263fa` | Not reviewed |
+| `gp.term.power-plants` | Facilities that make electricity, often by burning fuel to spin a generator. | No | `72ddba804c` | Not reviewed |
+| `gp.term.crude-oil` | Oil as it comes out of the ground, before a refinery turns it into fuels. | No | `32e7728a8e` | Not reviewed |
+| `gp.term.distillation-tower` | A tall column where hot vapor cools and turns back to liquid at different heights, sorting crude oil into fuels. | No | `7dc49d5852` | Not reviewed |
+| `gp.term.storage-terminals` | Large groups of tanks where fuel is stored and loaded onto trucks. | No | `5547d57e02` | Not reviewed |
+| `gp.term.refinery` | A plant that turns crude oil into fuels like gasoline, diesel and jet fuel. | No | `3a8f4f0dd9` | Not reviewed |
+| `gp.quiz.gas.origin` | Both formed from plankton and algae that were buried and slowly "cooked" by heat and pressure. | No | `4b29cc1174` | Not reviewed |
+| `gp.quiz.gas.smell` | Natural gas has no smell. An odorant is added at the city gate so people can notice a leak. | No | `e1564fa1ed` | Not reviewed |
+| `gp.quiz.gas.compressor` | Gas loses pressure as it travels. Compressor stations push it back up so it keeps flowing. | No | `1856ad872f` | Not reviewed |
+| `gp.quiz.gasoline.rock` | Oil fills the tiny spaces in reservoir rock, like water in a sponge, trapped under a cap rock. | No | `e3ca170477` | Not reviewed |
+| `gp.quiz.gasoline.refinery` | A refinery heats and separates crude oil, then turns it into finished fuels like gasoline. | No | `5a61aeb6cb` | Not reviewed |
+| `gp.quiz.gasoline.tanks` | Tanker trucks unload into large tanks buried under the station, and the pumps draw fuel from them. | No | `07e4fad463` | Not reviewed |
+| `gp.timelapse.sea` | Plankton thrive in a warm, shallow sea. When they die, they sink into the mud. | No | `0dd9f48070` | Not reviewed |
+| `gp.timelapse.mud` | Low oxygen on the seafloor stops them rotting away. A dark, rich mud builds up. | No | `7ea81e9032` | Not reviewed |
+| `gp.timelapse.buried` | Rivers dump sand and mud on top. Layer by layer, the remains are buried deeper. | No | `a31aed6ceb` | Not reviewed |
+| `gp.timelapse.oil` | Now buried deep, where it is hot, the remains slowly turn into oil. | No | `3565a1f2fd` | Not reviewed |
+| `gp.timelapse.gas` | Deeper, hotter parts turn into gas. Oil and gas creep upward through the rock. | No | `bc56b120ff` | Not reviewed |
+| `gp.timelapse.today` | They collect in porous sandstone, trapped under tight cap rock. Today, we drill for them. | No | `614fd4dbb3` | Not reviewed |
+| `gp.timelapse.illustrative` | Illustrative timeline: real ages vary widely from place to place. | No | `3499c58ac5` | Not reviewed |
+| `gp.detail.source-rock` | Source rock: where oil and gas form | No | `d81f6ced1c` | Not reviewed |
+| `gp.detail.gas` | Gas | No | `e23a445d0f` | Not reviewed |
+| `gp.detail.oil` | Oil | No | `2378bdd2cf` | Not reviewed |
+| `gp.detail.salty-water` | Salty water | No | `185cd54317` | Not reviewed |
+| `gp.detail.cap-rock` | Cap rock (the lid) | No | `b0a75e4170` | Not reviewed |
+| `gp.detail.zoom` | Zoom: sand grains, oil in the gaps | No | `058ac2930d` | Not reviewed |
+| `gp.detail.groundwater` | Groundwater | No | `b921e5bcc6` | Not reviewed |
+| `gp.detail.casing` | Steel casing + cement | No | `8d8a127e3f` | Not reviewed |
+| `gp.detail.fractures` | Fractures held open by sand | No | `5fef341c63` | Not reviewed |
+| `gp.detail.seismic` | Seismic waves | No | `ac3180e4c0` | Not reviewed |
+| `gp.detail.pump-jack` | Pump jack lifts the oil | No | `9c510c6f50` | Not reviewed |
+| `gp.detail.gas-well` | Gas flows up on its own | No | `6877b1a5c2` | Not reviewed |
+| `gp.detail.water-tank` | Salty water | No | `185cd54317` | Not reviewed |
+| `gp.detail.separator` | Inside: gas · oil · water | No | `e3115c647a` | Not reviewed |
+| `gp.detail.propane` | Propane & butane removed | No | `6d6ce0547d` | Not reviewed |
+| `gp.detail.flare` | Flare: burns off gas safely | No | `30b15ed0a7` | Not reviewed |
+| `gp.detail.clean-gas` | Clean gas leaves | No | `cd3aa5b32f` | Not reviewed |
+| `gp.detail.compressors` | Compressors squeeze the gas | No | `5bf377b9ff` | Not reviewed |
+| `gp.detail.markers` | Buried pipeline (marker posts) | No | `d0f654ac05` | Not reviewed |
+| `gp.detail.storage-rock` | Gas stored in porous rock for winter | No | `b0ed070f03` | Not reviewed |
+| `gp.detail.chilled` | Gas chilled into a liquid | No | `758b04acfa` | Not reviewed |
+| `gp.detail.lng-ship` | LNG ship | No | `dd3e67a547` | Not reviewed |
+| `gp.detail.storage-well` | Underground storage well | No | `853f562c09` | Not reviewed |
+| `gp.detail.pressure` | Pressure lowered here | No | `715a395513` | Not reviewed |
+| `gp.detail.odorant` | Odorant added | No | `67c3959f79` | Not reviewed |
+| `gp.detail.power-plant` | Power plant: electricity | No | `62d84d1105` | Not reviewed |
+| `gp.detail.factory` | Factory: fertilizer, plastics | No | `797db78074` | Not reviewed |
+| `gp.detail.homes` | Homes: heat, hot water, cooking | No | `cc4fc5e0b3` | Not reviewed |
+| `gp.detail.crude` | Crude oil: thick and dark | No | `2dbf46e031` | Not reviewed |
+| `gp.detail.rail` | Rail tank cars | No | `d2d9943b24` | Not reviewed |
+| `gp.detail.asphalt` | Asphalt | No | `6fab0a9f38` | Not reviewed |
+| `gp.detail.heavy-oils` | Heavy oils | No | `daa92f23c9` | Not reviewed |
+| `gp.detail.diesel` | Diesel | No | `0a3408c47c` | Not reviewed |
+| `gp.detail.jet-fuel` | Jet fuel | No | `6e28f6c70c` | Not reviewed |
+| `gp.detail.gasoline` | Gasoline | No | `3023b176e3` | Not reviewed |
+| `gp.detail.light-gases` | Light gases | No | `0942709676` | Not reviewed |
+| `gp.detail.furnace` | Furnace heats the crude | No | `eeb9fe0ebf` | Not reviewed |
+| `gp.detail.terminal` | Storage terminal | No | `3f963a2c92` | Not reviewed |
+| `gp.detail.tanker` | Tanker truck | No | `65f2b113f4` | Not reviewed |
+| `gp.detail.fuel-tanks` | Underground fuel tanks | No | `3441abbde5` | Not reviewed |
+
 ## Signal model calibrations
 
 Teaching values from `src/signal/constants.ts`. `docs/SIGNAL_MODEL.md` explains how they combine and lists the eight resulting states.
@@ -68,7 +198,7 @@ Teaching values from `src/signal/constants.ts`. `docs/SIGNAL_MODEL.md` explains 
 
 ## Screen colors
 
-On-screen approximations of the APWA colors the lab uses.
+On-screen approximations of the APWA colors the lessons use.
 
 | ID | Claim | Hash | Status |
 |---|---|---|---|

@@ -5,9 +5,6 @@ test-results/
 artifacts/
 package-lock.json
 
-# The original diorama is published byte-for-byte; never reformat it.
-utilities/gas-petroleum/index.html
-
 # Local-only docs
 docs/BRIEF.md
 docs/PLAN.md

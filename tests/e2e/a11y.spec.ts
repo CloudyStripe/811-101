@@ -1,7 +1,8 @@
 /**
  * Accessibility: axe with the WCAG 2.2 AA rules, in both themes, at desktop and phone sizes, with
- * the settings, the About dialog and the phone sheet open. Violations fail the run; items axe
- * can't decide on its own (such as text over the 3D view) are listed for a person to check.
+ * the settings, the About dialog and the phone sheet open, and the key beside the view in use.
+ * Violations fail the run; items axe can't decide on its own (such as text over the 3D view) are
+ * listed for a person to check.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -51,6 +52,20 @@ for (const theme of ['light', 'dark'] as const) {
       await scan(page, `${theme} About`);
     });
 
+    test.describe('wide', () => {
+      test.use({ viewport: { width: 1440, height: 900 } });
+
+      test('the key beside the view, finding a line, and the signal paused', async ({ page }) => {
+        await open(page);
+        const key = page.getByRole('region', { name: 'Key' });
+        await key.getByRole('button', { name: 'Water main' }).hover();
+        await expect(page.locator('[data-label="water"]')).toHaveClass(/\blit\b/);
+        await scan(page, `${theme} wide, key`);
+        await page.getByRole('button', { name: 'Pause the signal' }).click();
+        await scan(page, `${theme} wide, paused`);
+      });
+    });
+
     test.describe('phone', () => {
       test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
@@ -59,6 +74,48 @@ for (const theme of ['light', 'dark'] as const) {
         await scan(page, `${theme} phone`);
         await page.getByRole('button', { name: 'Details' }).tap();
         await scan(page, `${theme} phone sheet`);
+      });
+    });
+  });
+}
+
+/** The diorama, open at a stop or at its overview. */
+async function openDiorama(page: Page, stop = '') {
+  await page.goto(`utilities/gas-petroleum/?tier=low${stop ? `&stop=${stop}` : ''}`);
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`diorama ${theme}`, () => {
+    test.use({ colorScheme: theme });
+
+    test('desktop: the overview, a stop with its safety tip, and a quiz answered', async ({
+      page,
+    }) => {
+      test.slow();
+      await openDiorama(page);
+      await scan(page, `${theme} diorama overview`);
+      await openDiorama(page, 'city-gate');
+      await scan(page, `${theme} diorama city gate`);
+      await openDiorama(page);
+      await page.getByRole('button', { name: 'Natural gas tour' }).click();
+      const guide = page.locator('.gp-panel');
+      for (let i = 0; i < 8; i++) await guide.getByRole('button', { name: 'Next step' }).click();
+      await guide.getByRole('button', { name: 'Take the quiz' }).click();
+      await page.locator('.q').first().getByRole('button').first().click();
+      await scan(page, `${theme} diorama quiz`);
+    });
+
+    test.describe('phone', () => {
+      test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+      test('the diorama with the sheet closed and open', async ({ page }) => {
+        await openDiorama(page, 'formation');
+        await scan(page, `${theme} diorama phone`);
+        await page.getByRole('button', { name: 'Details' }).tap();
+        await scan(page, `${theme} diorama phone sheet`);
       });
     });
   });

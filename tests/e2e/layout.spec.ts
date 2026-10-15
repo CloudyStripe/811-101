@@ -163,10 +163,12 @@ async function onTop(page: Page, selector: string, index: number) {
   });
 }
 
-/** Asserts the whole frequency dial is on screen, with nothing scrolled. */
+/** Asserts the whole frequency dial is on screen, and the page fits it without scrolling. */
 async function expectDialOnScreen(page: Page, height: number, when: string) {
-  const scrolled = await page.locator('#app').evaluate((el) => el.scrollTop);
-  expect(scrolled, `page scrolled ${when}`).toBe(0);
+  const overflow = await page.evaluate(
+    () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
+  );
+  expect(overflow, `page taller than the screen ${when}`).toBeLessThanOrEqual(1);
   for (const name of ['512 hertz', '83 kilohertz']) {
     const box = await page.getByRole('radio', { name }).boundingBox();
     expect(box, `${name} ${when}`).not.toBeNull();
@@ -211,7 +213,8 @@ for (const size of SIZES) {
         await page.getByRole('button', { name: 'Details' }).click();
       }
 
-      const radios = '[role="radio"]';
+      // The lab's own controls; the header's settings menu is closed, so its choices are hidden.
+      const radios = '.lab-grid [role="radio"]';
       const count = await page.locator(radios).count();
       for (let i = 0; i < count; i++) {
         expect(await onTop(page, radios, i), `radio #${String(i)} is covered`).toBe(true);
@@ -263,3 +266,49 @@ test.describe('rotating a phone', () => {
     }
   });
 });
+
+/** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
+for (const size of SIZES.filter((s) =>
+  ['tablet-portrait', 'small-laptop', 'small-window', 'small-phone', 'phone-landscape'].includes(
+    s.name,
+  ),
+)) {
+  test.describe(`diorama ${size.name}`, () => {
+    test.use({
+      viewport: { width: size.width, height: size.height },
+      hasTouch: size.touch,
+      isMobile: size.touch,
+    });
+
+    test('controls on screen and on top, none overlapping', async ({ page }) => {
+      await page.goto('utilities/gas-petroleum/?tier=low&stop=lifting');
+      await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+        timeout: 60_000,
+      });
+      await page.screenshot({ path: `artifacts/screenshots/layout-diorama-${size.name}.png` });
+      const overflow = await page.evaluate(
+        () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
+      );
+      expect(overflow, 'page taller than the screen').toBeLessThanOrEqual(1);
+      const controls = '.gp-dock button, .gp-dock [role="radio"], .gp-panel .sheet-toggle';
+      const count = await page.locator(controls).count();
+      for (let i = 0; i < count; i++) {
+        if (!(await page.locator(controls).nth(i).isVisible())) continue;
+        expect(await onTop(page, controls, i), `control #${String(i)} is covered`).toBe(true);
+      }
+      const chrome = await page.$$eval('[data-chrome]', (els) =>
+        els.flatMap((e) => {
+          const r = e.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) return [];
+          return [{ id: e.getAttribute('class') ?? '', x: r.x, y: r.y, w: r.width, h: r.height }];
+        }),
+      );
+      chrome.forEach((a, i) => {
+        for (const b of chrome.slice(i + 1)) {
+          const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+          expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+        }
+      });
+    });
+  });
+}

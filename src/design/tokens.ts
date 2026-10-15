@@ -27,6 +27,13 @@ export interface ChromeTokens {
   focus: string;
   accent: string;
   accentInk: string;
+  /** Behind a modal dialog. */
+  scrim: string;
+  /**
+   * Three levels of lift, as CSS shadows: resting chrome, raised cards and popovers, modals. By
+   * day a soft shadow under a hairline; by night almost none, since dark surfaces lift by tone.
+   */
+  elevation: readonly [string, string, string];
 }
 
 /** A directional light: its color and strength, and where it shines from. */
@@ -98,6 +105,12 @@ export const THEMES: Record<ThemeName, Theme> = {
       focus: '#1b1a17',
       accent: '#1b1a17',
       accentInk: '#fbfaf7',
+      scrim: 'rgb(27 26 23 / 0.45)',
+      elevation: [
+        '0 1px 2px rgb(27 26 23 / 0.06), 0 4px 14px rgb(27 26 23 / 0.07)',
+        '0 1px 2px rgb(27 26 23 / 0.06), 0 10px 28px rgb(27 26 23 / 0.11)',
+        '0 2px 6px rgb(27 26 23 / 0.08), 0 24px 64px rgb(27 26 23 / 0.2)',
+      ],
     },
     scene: {
       skyZenith: '#c4d4de',
@@ -127,6 +140,12 @@ export const THEMES: Record<ThemeName, Theme> = {
       focus: '#ece9e2',
       accent: '#ece9e2',
       accentInk: '#111315',
+      scrim: 'rgb(0 0 0 / 0.6)',
+      elevation: [
+        '0 1px 2px rgb(0 0 0 / 0.28)',
+        '0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.32)',
+        '0 2px 6px rgb(0 0 0 / 0.4), 0 24px 64px rgb(0 0 0 / 0.55)',
+      ],
     },
     scene: {
       skyZenith: '#0a0f14',
@@ -188,8 +207,75 @@ export const WORLD_COLORS = {
   lampHousing: '#3f4246',
 } as const;
 
+/**
+ * The Gas & Petroleum diorama's albedos (sRGB): the layers its block cuts through, what flows in
+ * them and in its routes, and its machines. As muted as the lab's, so the APWA yellow of the two
+ * fuel paths stays the most saturated color in the model. Water is never APWA blue, which means
+ * drinking water, and produced water is a murky brown-gray, never APWA green, which means sewer.
+ */
+export const DIORAMA_COLORS = {
+  // The layers, top to bottom.
+  soil: '#5f4532',
+  /** Sand holding fresh groundwater: a cool, pale sand. */
+  aquifer: '#a8a395',
+  overburden: '#9a8069',
+  /** The tight cap rock that seals oil and gas in: a dark slate. */
+  capRock: '#5c5a5f',
+  shale: '#837d73',
+  /** Dark, rich source rock, where oil and gas form. */
+  sourceRock: '#3e3a37',
+  basement: '#6c645b',
+  // What fills the reservoir rock, by weight: gas on top, then oil, then salty water.
+  gasZone: '#d8d1c2',
+  oilZone: '#3b2c22',
+  waterZone: '#786f60',
+  // What flows along the routes.
+  oil: '#2e231b',
+  /** Natural gas: a pale, warm neutral. */
+  gas: '#e8e2d4',
+  /** Salty water from the well: murky brown-gray. */
+  producedWater: '#857b69',
+  /** Finished fuel: a muted tan-gold, well apart from the paths' APWA yellow, even in shade. */
+  fuel: '#a69174',
+  // The harbor.
+  sea: '#5b6a70',
+  seabed: '#a39577',
+  // The refinery tower's fuels, heavy to light: a ramp of values. Gasoline's band is its path's.
+  asphalt: '#2f2a26',
+  heavyOil: '#544a41',
+  diesel: '#7b7064',
+  jetFuel: '#a2988b',
+  lightGases: '#d8d3ca',
+  // Machines and buildings: neutral, told apart by value, not hue.
+  machine: '#c9c5bd',
+  machineDark: '#5d6064',
+  tank: '#e4e0d8',
+  shell: '#d6d7d3',
+  steel: '#8a8d90',
+  graphite: '#2b2d30',
+  concrete: '#cdc8be',
+  pad: '#bdb7ab',
+  brick: '#7a6a60',
+  roof: '#64605b',
+  wall: '#d4cdc1',
+  truck: '#a9aaa6',
+  // Small things: fossils in the source rock, sand grains, sea life, glass.
+  fossil: '#e3d9c4',
+  sand: '#c9b795',
+  sandDark: '#a99572',
+  plankton: '#c7cfb1',
+  glass: '#d3dad8',
+  // Fire, and the glow of what burns: emitters, the only things bright enough to bloom.
+  flame: '#ffb35c',
+  flameCore: '#ffe3a6',
+  furnaceGlow: '#ff9a4d',
+} as const;
+
 /** Icon ink on APWA color chips: dark on every chip, in both themes. */
 export const CHIP_INK = '#1b1a17';
+
+/** A device's own screen, such as the transmitter's: dark, with light figures, in either theme. */
+export const DEVICE = { lcd: '#22231f', lcdInk: '#e9e6dd' } as const;
 
 /**
  * The locate signal's own color: a luminous cyan, chosen to sit well away from every APWA hue
@@ -206,6 +292,73 @@ export const TYPE = {
   mono: '"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace',
 } as const;
 
+/**
+ * Type sizes, phone to desktop. In rem, so text follows the reader's own font size; fluid in
+ * between, so there are no jumps at breakpoints.
+ */
+export const TYPE_SCALE = {
+  /** The portal's statement. 36 to 64 px. */
+  display: 'clamp(2.25rem, 1.5rem + 3.2vw, 4rem)',
+  /** A page's title. 22 to 28 px. */
+  h1: 'clamp(1.375rem, 1.2rem + 0.75vw, 1.75rem)',
+  /** Sections. 20 to 22 px. */
+  h2: 'clamp(1.25rem, 1.15rem + 0.35vw, 1.375rem)',
+  /** Cards. 16 to 18 px. */
+  h3: 'clamp(1rem, 0.95rem + 0.25vw, 1.125rem)',
+  /** Reading text. 15 to 16 px. */
+  body: 'clamp(0.9375rem, 0.9rem + 0.15vw, 1rem)',
+  /** Captions and notes. 13 px. */
+  small: '0.8125rem',
+  /** Mono eyebrows and readouts, upper case. 12 px. */
+  eyebrow: '0.75rem',
+} as const;
+
+/** Spacing steps, in px: everything sits on a 4 px base. */
+export const SPACE = [4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 96] as const;
+
+/** The in-and-out curve's control points, shared by CSS and the moves the 3D view draws itself. */
+const EASE_IN_OUT = [0.65, 0, 0.35, 1] as const;
+
+/**
+ * Motion, in ms. Every move eases in and out; reduced motion makes the CSS durations zero, and
+ * camera moves become cuts.
+ */
+export const MOTION = {
+  micro: 120,
+  ui: 200,
+  panel: 320,
+  /** Camera flights, scaled by distance between these. */
+  flight: [900, 1600],
+  /** The establishing move on arrival, at most; any input skips it. */
+  establish: 2500,
+  ease: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+  easeInOut: `cubic-bezier(${EASE_IN_OUT.join(', ')})`,
+} as const;
+
+/** `MOTION.easeInOut` as a function of time (0 to 1), for moves the 3D view draws itself. */
+export function easeInOut(t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const [x1, y1, x2, y2] = EASE_IN_OUT;
+  const at = (a: number, b: number, u: number) =>
+    3 * a * u * (1 - u) ** 2 + 3 * b * u ** 2 * (1 - u) + u ** 3;
+  // Find where along the curve its x reaches t; its y there is the progress.
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(x1, x2, mid) < t) lo = mid;
+    else hi = mid;
+  }
+  return at(y1, y2, (lo + hi) / 2);
+}
+
+/** Stacking order: the 3D view, chrome over it, the site header, popovers, the perf HUD. */
+export const LAYER = { scene: 0, chrome: 10, header: 20, popover: 40, hud: 50 } as const;
+
+/** At most this many 3D labels show at once: fewer in a narrow view, so the scene leads. */
+export const LABEL_LIMITS = { narrow: 4, wide: 7, narrowBelow: 600 } as const;
+
 function chromeVars(t: ChromeTokens, theme: ThemeName): string {
   const apwa = (Object.keys(APWA) as ApwaCode[])
     .map((code) => {
@@ -216,22 +369,43 @@ function chromeVars(t: ChromeTokens, theme: ThemeName): string {
   return [
     `--bg: ${t.bg}; --surface: ${t.surface}; --surface-2: ${t.surface2};`,
     `--ink: ${t.ink}; --ink-2: ${t.ink2}; --ink-3: ${t.ink3}; --line: ${t.line}; --focus: ${t.focus};`,
-    `--accent: ${t.accent}; --accent-ink: ${t.accentInk};`,
+    `--accent: ${t.accent}; --accent-ink: ${t.accentInk}; --scrim: ${t.scrim};`,
+    `--shadow-1: ${t.elevation[0]}; --shadow-2: ${t.elevation[1]}; --shadow-3: ${t.elevation[2]};`,
     apwa,
     `color-scheme: ${theme};`,
   ].join(' ');
+}
+
+/** The CSS durations for micro, UI and panel moves; all zero when motion is reduced. */
+function durations(moving: boolean): string {
+  const ms = (n: number) => (moving ? `${String(n)}ms` : '0ms');
+  return `--dur-fast: ${ms(MOTION.micro)}; --dur: ${ms(MOTION.ui)}; --dur-slow: ${ms(MOTION.panel)};`;
 }
 
 /** CSS custom properties for both themes: OS preference by default, `data-theme` to override. */
 export function tokensCss(): string {
   const light = chromeVars(THEMES.light.chrome, 'light');
   const dark = chromeVars(THEMES.dark.chrome, 'dark');
+  // --space-N is N × 4 px, for each step on the scale.
+  const space = SPACE.map((px) => `--space-${String(px / 4)}: ${String(px)}px;`).join(' ');
+  const type = Object.entries(TYPE_SCALE)
+    .map(([name, size]) => `--text-${name}: ${size};`)
+    .join(' ');
+  const layers = Object.entries(LAYER)
+    .map(([name, z]) => `--layer-${name}: ${String(z)};`)
+    .join(' ');
   const shared = [
     `--font-display: ${TYPE.display}; --font-body: ${TYPE.body}; --font-mono: ${TYPE.mono};`,
+    type,
     `--signal: ${SIGNAL_COLOR}; --chip-ink: ${CHIP_INK}; --soil: ${MATERIAL_COLORS.subsoil};`,
-    `--space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;`,
+    `--lcd: ${DEVICE.lcd}; --lcd-ink: ${DEVICE.lcdInk};`,
+    // The ground's layers, top down, for drawings in the page (the 404, the portal).
+    `--strata-1: ${MATERIAL_COLORS.topsoil}; --strata-2: ${MATERIAL_COLORS.subsoil}; --strata-3: ${MATERIAL_COLORS.clay};`,
+    space,
     `--radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-pill: 999px;`,
-    `--dur-fast: 120ms; --dur: 220ms; --dur-slow: 360ms; --ease: cubic-bezier(0.2, 0.8, 0.2, 1);`,
+    durations(true),
+    `--ease: ${MOTION.ease}; --ease-in-out: ${MOTION.easeInOut};`,
+    layers,
     `--panel-w: clamp(19rem, 27vw, 24rem);`,
   ].join(' ');
   return [
@@ -239,9 +413,9 @@ export function tokensCss(): string {
     `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${dark} } }`,
     `:root[data-theme="dark"] { ${dark} }`,
     `:root[data-theme="light"] { ${light} }`,
-    `@media (prefers-reduced-motion: reduce) { :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; } }`,
-    `:root[data-motion="reduce"] { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }`,
+    `@media (prefers-reduced-motion: reduce) { :root { ${durations(false)} } }`,
+    `:root[data-motion="reduce"] { ${durations(false)} }`,
     // Chosen in Settings, full motion overrides the device's preference.
-    `:root[data-motion="full"] { --dur-fast: 120ms; --dur: 220ms; --dur-slow: 360ms; }`,
+    `:root[data-motion="full"] { ${durations(true)} }`,
   ].join('\n');
 }

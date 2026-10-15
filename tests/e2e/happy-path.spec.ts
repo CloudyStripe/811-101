@@ -137,6 +137,8 @@ test.describe('on a phone', () => {
     await toggle.tap();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(heading).toBeVisible();
+    // On a phone this tall, the view stays in sight above the open sheet, framed again there.
+    await expect(page.locator('[data-label="target"]')).not.toHaveClass(/\b(off|capped)\b/);
 
     // The dial stays usable with the sheet open.
     await page.getByRole('radio', { name: '83 kilohertz' }).tap();
@@ -154,12 +156,12 @@ test('only one definition shows at a time, and Escape closes it from anywhere', 
   const visibleTips = page.locator('[role="tooltip"]:visible');
   const terms = page.locator('.lab-panel .term');
 
-  // Tabbing through terms, pressing Enter on each, never leaves more than one tip open.
-  await terms.first().focus();
+  // Going from term to term, pressing Enter on each, never leaves more than one tip open. (Focus
+  // moves straight to each: the guide's folding sections sit between them in the tab order.)
   for (let i = 0; i < 3; i++) {
+    await terms.nth(i).focus();
     await page.keyboard.press('Enter');
     await expect(visibleTips).toHaveCount(1);
-    await page.keyboard.press('Tab');
   }
 
   // With focus on one term, hovering another, a section away, swaps which tip shows.

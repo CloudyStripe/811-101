@@ -1,24 +1,39 @@
 /**
- * The portal and the ways between pages: the home page shows all three sections, links to every
- * lesson and says what's coming; each lesson links back. The built pages carry the brand and the
- * settings script before any of their JavaScript runs. Plus axe in both themes.
+ * The portal and the ways between pages: the home page's hero links to each section, and the
+ * sections show every lesson, with previews in the reader's theme, and say what's coming; a
+ * lesson's preview and its loader share a transition; each page has the site header, which leads
+ * home and back to the section; a missing address shows the site's 404 page. The built pages carry
+ * their title, share preview, favicons and the settings script before any of their JavaScript
+ * runs. Plus axe on the portal and the 404 page, in both themes, with the one hero still each
+ * screen loads.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
-import { BRAND } from '../../config/brand.ts';
-import { SECTIONS } from '../../content/portal.ts';
+import { BRAND, SITE_URL } from '../../config/brand.ts';
+import { SECTIONS, type Lesson } from '../../content/portal.ts';
+import { PAGES, lessonPage, lessonTransition, pageById } from '../../src/site/pages.ts';
 import { SETTINGS_KEY } from '../../src/site/settings.ts';
-import { DIORAMA_HOSTS, expect, test } from './fixtures.ts';
+import { PREVIEW_SIZE, heroPath, previewPath } from '../../src/site/stills.ts';
+import { expect, loadImages, test, waitReady } from './fixtures.ts';
 
 /** Opens the portal and waits until everything on it, previews included, is loaded and decoded. */
 async function openPortal(page: Page) {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: BRAND.name, level: 1 })).toBeVisible();
-  await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
+  await loadImages(page);
 }
 
 /** The portal's own address, with nothing after it. */
 const PORTAL_URL = /\/811-101\/$/;
+
+const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+async function expectNoViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`),
+  ).toEqual([]);
+}
 
 test('the portal shows every section, its lessons, and what’s coming', async ({ page }) => {
   await openPortal(page);
@@ -36,58 +51,195 @@ test('the portal shows every section, its lessons, and what’s coming', async (
     }
   }
   // The previews are real images, not broken ones.
-  for (const img of await page.locator('img.lesson-image').all()) {
-    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(960);
+  for (const img of await page.locator('img.tile-image').all()) {
+    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(PREVIEW_SIZE.width);
   }
 });
 
-test('the built pages carry the brand and the settings script before any JavaScript runs', async ({
+test('the hero states what the site is and leads to each section, live ones first', async ({
   page,
 }) => {
-  const portal = await (await page.request.get('./')).text();
-  expect(portal).toContain(`<title>${BRAND.name}</title>`);
-  expect(portal).toContain(`<h1>${BRAND.name}</h1>`);
-  expect(portal).not.toContain('%BRAND_');
-  const lab = await (await page.request.get('training/frequency-lab/')).text();
-  for (const html of [portal, lab]) expect(html).toContain(SETTINGS_KEY);
-  // The diorama is published as it is.
-  const diorama = await (await page.request.get('utilities/gas-petroleum/')).text();
-  expect(diorama).not.toContain(SETTINGS_KEY);
+  await openPortal(page);
+  const hero = page.getByRole('region', { name: BRAND.name });
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText(
+    `${BRAND.name} ${BRAND.tagline}`,
+  );
+  const links = hero.getByRole('navigation', { name: 'Sections' }).getByRole('link');
+  const ready = SECTIONS.filter((s) => s.lessons.length > 0);
+  const coming = SECTIONS.filter((s) => s.lessons.length === 0);
+  await expect(links).toHaveText([
+    ...ready.map((s) => s.title),
+    ...coming.map((s) => `${s.title} Coming soon`),
+  ]);
+  for (const section of [...ready, ...coming]) {
+    await expect(hero.getByRole('link', { name: section.title })).toHaveAttribute(
+      'href',
+      `#${section.id}`,
+    );
+  }
+  // Each one jumps to its section.
+  await hero.getByRole('link', { name: 'Utility Education' }).click();
+  await expect(page.getByRole('region', { name: 'Utility Education' })).toBeInViewport();
 });
 
-test('a page that isn’t there is a 404, as on the live site', async ({ page }) => {
-  for (const path of ['training/', 'utilities/', 'no-such-lesson/']) {
-    expect((await page.request.get(path)).status(), path).toBe(404);
+/** The preview a lesson's tile shows: the one in the reader's theme, of the two it holds. */
+function shownPreview(page: Page, lesson: Lesson) {
+  return page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('link', { name: lesson.title, exact: true }) })
+    .locator('img.tile-image:visible');
+}
+
+test('a preview shows in the reader’s theme, and carries on into its lesson’s loader', async ({
+  page,
+}) => {
+  await openPortal(page);
+  const lessons = SECTIONS.flatMap((section) => section.lessons);
+  for (const lesson of lessons) {
+    await expect(shownPreview(page, lesson)).toHaveAttribute(
+      'src',
+      `/811-101/${previewPath(lesson.image, 'light')}`,
+    );
+    // The tile and the lesson's own loader, in its static page, share a name.
+    const name = lessonTransition(lessonPage(lesson).id);
+    const tile = page.locator(`.tile[data-transition="${name}"]`);
+    await expect(tile).toHaveCount(1);
+    const html = await (await page.request.get(lesson.href)).text();
+    expect(html).toContain(`--lesson-transition: ${name}`);
+  }
+  // The device's dark theme, and the previews follow it...
+  await page.emulateMedia({ colorScheme: 'dark' });
+  for (const lesson of lessons) {
+    await expect(shownPreview(page, lesson)).toHaveAttribute(
+      'src',
+      `/811-101/${previewPath(lesson.image, 'dark')}`,
+    );
+  }
+  // ...or the one chosen in the settings, over the device's.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page
+    .getByRole('dialog', { name: 'Settings' })
+    .getByRole('radio', { name: 'Light' })
+    .click();
+  for (const lesson of lessons) {
+    await expect(shownPreview(page, lesson)).toHaveAttribute(
+      'src',
+      `/811-101/${previewPath(lesson.image, 'light')}`,
+    );
   }
 });
 
-test('the portal opens the Frequency Lab, and the lab comes back', async ({ page }) => {
+test('every built page carries its head and shell before any JavaScript runs', async ({ page }) => {
+  for (const info of PAGES) {
+    const res = await page.request.get(info.path);
+    const html = await res.text();
+    expect(html, info.id).toContain(SETTINGS_KEY);
+    expect(html, info.id).toContain(`<title>${info.title.replaceAll('&', '&amp;')}</title>`);
+    expect(html, info.id).toContain('<header class="site-header"');
+    expect(html, info.id).not.toMatch(/%BRAND_|%BASE%/);
+    // Share previews point to whole addresses, and the images are there.
+    const image = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1];
+    expect(image, info.id).toBe(`${SITE_URL}share/${info.share.image}`);
+    const local = (image ?? '').replace(SITE_URL, '');
+    expect((await page.request.get(local)).status(), local).toBe(200);
+    for (const icon of ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png']) {
+      expect(html, `${info.id} ${icon}`).toContain(`href="/811-101/${icon}"`);
+      expect((await page.request.get(icon)).status(), icon).toBe(200);
+    }
+  }
+});
+
+test('a page that isn’t there is a 404, as on the live site, with the site’s own page', async ({
+  page,
+}) => {
+  for (const path of ['training/', 'utilities/', 'no-such-lesson/', 'training/frequency-lab/x/']) {
+    const res = await page.request.get(path, { headers: { Accept: 'text/html' } });
+    expect(res.status(), path).toBe(404);
+    expect(await res.text(), path).toContain('This page isn’t here');
+  }
+  // A lesson's address without its slash goes on to the slashed one, as on GitHub Pages.
+  const bare = await page.request.get('training/frequency-lab?setup=plastic', {
+    headers: { Accept: 'text/html' },
+    maxRedirects: 0,
+  });
+  expect(bare.status()).toBe(301);
+  expect(bare.headers().location).toBe('/811-101/training/frequency-lab/?setup=plastic');
+});
+
+test.describe('the 404 page', () => {
+  test.use({ expectNotFound: true });
+
+  test('leads home, by its button and by the header', async ({ page }) => {
+    await page.goto('no-such-lesson/');
+    await expect(
+      page.getByRole('heading', { name: 'This page isn’t here', level: 1 }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(pageById('not-found').title);
+    await page.getByRole('link', { name: 'Go to all lessons' }).click();
+    await expect(page).toHaveURL(PORTAL_URL);
+    await page.goto('somewhere/deeper/still/');
+    await page.getByRole('link', { name: BRAND.name }).first().click();
+    await expect(page).toHaveURL(PORTAL_URL);
+  });
+});
+
+test('the portal opens the Frequency Lab, and the header leads back', async ({ page }) => {
   await openPortal(page);
-  await page.getByRole('link', { name: 'Frequency Lab', exact: true }).click();
+  // The lesson's card on the portal, not the footer's link to it.
+  await page.getByRole('main').getByRole('link', { name: 'Frequency Lab', exact: true }).click();
   // The lab adds its setup and frequency to the address.
   await expect(page).toHaveURL(/\/training\/frequency-lab\/(\?|$)/);
+  await expect(page.getByRole('heading', { name: 'Frequency Lab', level: 1 })).toBeVisible();
   // Leaving before the lab's 3D code arrives would cut those requests short.
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
     timeout: 60_000,
   });
-  await page.getByRole('link', { name: 'All lessons' }).click();
+  // The breadcrumb leads to the lab's section on the portal...
+  await page.getByRole('link', { name: 'Locator Training' }).click();
+  await expect(page).toHaveURL(/\/811-101\/#training$/);
+  await expect(page.getByRole('region', { name: 'Locator Training' })).toBeInViewport();
+  // ...and the mark, home.
+  await page.goto('training/frequency-lab/?tier=low');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+  await page.getByRole('link', { name: BRAND.name }).click();
   await expect(page).toHaveURL(PORTAL_URL);
   await expect(page).toHaveTitle(BRAND.name);
 });
 
+test('settings chosen on one page hold on the next', async ({ page }) => {
+  await openPortal(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('radio', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  // The browser's own bar follows the chosen theme.
+  const colors = await page.$$eval('meta[name="theme-color"]', (metas) =>
+    metas.map((m) => (m as HTMLMetaElement).content),
+  );
+  expect(new Set(colors)).toEqual(new Set(['#111315']));
+  await page.keyboard.press('Escape');
+  await page.goto('training/frequency-lab/?tier=low');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+});
+
 test.describe('the diorama', () => {
-  test.use({ allowHosts: DIORAMA_HOSTS });
+  test.use({ reducedMotion: 'reduce' });
 
   test('opens from Utility Education, and comes back', async ({ page }) => {
     await openPortal(page);
-    await page.getByRole('link', { name: 'Gas & Petroleum', exact: true }).click();
+    // The lesson's card on the portal, not the footer's link to it.
+    await page
+      .getByRole('main')
+      .getByRole('link', { name: 'Gas & Petroleum', exact: true })
+      .click();
     await expect(page).toHaveURL(/\/utilities\/gas-petroleum\/$/);
-    await expect(page).toHaveTitle('From Rock to Flame');
-    await expect(page.locator('#scene')).toBeVisible();
-    // Leaving before its scripts and fonts arrive would cut those requests short.
-    await page.waitForLoadState('load');
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    await page.getByRole('link', { name: 'All lessons' }).click();
+    await expect(page).toHaveTitle(pageById('gas-petroleum').title);
+    await waitReady(page);
+    await page.getByRole('link', { name: BRAND.name }).click();
     await expect(page).toHaveURL(PORTAL_URL);
     await expect(page).toHaveTitle(BRAND.name);
   });
@@ -110,20 +262,35 @@ for (const theme of ['light', 'dark'] as const) {
         reducedMotion: 'reduce',
       });
 
-      test('passes axe, and nothing runs off the side', async ({ page }) => {
+      test('the portal passes axe, loads its one hero still, and nothing runs off', async ({
+        page,
+      }) => {
+        // Of the hero's stills, only the one for this theme and screen loads.
+        const heroes: string[] = [];
+        page.on('request', (req) => {
+          if (req.url().includes('/stills/hero-')) heroes.push(new URL(req.url()).pathname);
+        });
         await openPortal(page);
-        const results = await new AxeBuilder({ page })
-          .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-          .analyze();
-        expect(
-          results.violations.map(
-            (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
-          ),
-        ).toEqual([]);
+        expect(heroes).toEqual([`/811-101/${heroPath(theme, vp.mobile ? 'square' : 'wide')}`]);
+        await expectNoViolations(page);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         );
         expect(overflow).toBe(0);
+      });
+
+      test.describe('404', () => {
+        test.use({ expectNotFound: true });
+
+        test('the 404 page passes axe, settings open', async ({ page }) => {
+          await page.goto('no-such-lesson/');
+          await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+          await expectNoViolations(page);
+          await page.getByRole('button', { name: 'Settings' }).click();
+          await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+          await expectNoViolations(page);
+          await page.screenshot({ path: `artifacts/screenshots/404-${theme}-${vp.name}.png` });
+        });
       });
     });
   }

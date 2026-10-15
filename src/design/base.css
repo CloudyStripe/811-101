@@ -18,8 +18,8 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: var(--text-body);
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -32,6 +32,15 @@ h3 {
   /* Archivo's space is narrow at heavy weights; this keeps two-word headings from running together. */
   word-spacing: 0.08em;
   text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
 }
 
 button,
@@ -71,4 +80,47 @@ select {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
+}
+
+/*
+ * Moving between pages: the site header holds still while the page under it fades and lifts a
+ * little. Reduced motion swaps pages at once.
+ */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: var(--dur-slow) var(--ease) both page-out;
+}
+
+::view-transition-new(root) {
+  animation: var(--dur-slow) var(--ease) both page-in;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full'])::view-transition-group(*),
+  :root:not([data-motion='full'])::view-transition-old(*),
+  :root:not([data-motion='full'])::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+:root[data-motion='reduce']::view-transition-group(*),
+:root[data-motion='reduce']::view-transition-old(*),
+:root[data-motion='reduce']::view-transition-new(*) {
+  animation: none !important;
 }

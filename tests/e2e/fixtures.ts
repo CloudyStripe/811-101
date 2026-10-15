@@ -1,39 +1,85 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-/** Hosts the original diorama still loads from. Only that page may use them, until it's ported. */
-export const DIORAMA_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
-
-/** The parts of the diorama's test hook (`window.__app`, with #debug in the URL) that tests read. */
-export interface DioramaApp {
-  camera: { position: { x: number; y: number; z: number } };
-  STAGES: {
-    id: string;
-    label: string;
-    title: string;
-    text: string;
-    note?: string;
-    safety?: string;
-    terms?: Record<string, string>;
-  }[];
-  OVERVIEW: { title: string; text: string };
-  GLOSSARY: Record<string, string>;
-  /** For each tour: [question, options, index of the right option, explanation]. */
-  QUIZZES: Record<string, [string, string[], number, string][]>;
-  /** [millions of years ago, caption]. */
-  TIMELAPSE: [number, string][];
+/** Waits until a 3D page's view is built and drawing. */
+export async function waitReady(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
 }
-export type DioramaWindow = Window & { __app?: DioramaApp };
 
-/** Opens the diorama and waits for its scripts and fonts, so leaving never cuts them short. */
-export async function openDiorama(page: Page, hash = ''): Promise<void> {
-  await page.goto(`utilities/gas-petroleum/${hash}`);
-  await expect(page.getByRole('heading', { name: 'Two fuels, one beginning' })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+type Counted = Window & { drawnFrames?: number };
+
+/**
+ * Counts the frames a 3D view draws, from before the page loads, and returns a reader of the count.
+ * The view's loop sleeps whenever nothing moves, so the count holds still exactly when the view
+ * does. (Screenshots of a moving canvas are too slow under software WebGL to compare instead.)
+ */
+export async function countFrames(page: Page): Promise<() => Promise<number>> {
+  await page.addInitScript(() => {
+    const w = window as Counted;
+    w.drawnFrames = 0;
+    let inFrame = false;
+    const gl = WebGL2RenderingContext.prototype;
+    for (const name of [
+      'drawArrays',
+      'drawElements',
+      'drawArraysInstanced',
+      'drawElementsInstanced',
+    ]) {
+      const draw: unknown = Reflect.get(gl, name);
+      if (typeof draw !== 'function') continue;
+      Reflect.set(gl, name, function (this: unknown, ...args: unknown[]) {
+        // A frame's draws all come in one task: its first draw starts the frame, its task ends it.
+        if (!inFrame) {
+          inFrame = true;
+          w.drawnFrames = (w.drawnFrames ?? 0) + 1;
+          setTimeout(() => {
+            inFrame = false;
+          }, 0);
+        }
+        Reflect.apply(draw, this, args);
+      });
+    }
+  });
+  return () => page.evaluate(() => (window as Counted).drawnFrames ?? 0);
+}
+
+/**
+ * Whether a view is moving: drawing frame after frame over the given time. A single frame isn't
+ * motion: one asked for before a pause can land late when software WebGL is busy.
+ */
+export async function isMoving(
+  page: Page,
+  frames: () => Promise<number>,
+  ms = 1500,
+): Promise<boolean> {
+  const before = await frames();
+  await page.waitForTimeout(ms);
+  return (await frames()) - before >= 2;
+}
+
+/**
+ * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
+ * previews, below the fold, and its hero's still, a CSS background.
+ */
+export async function loadImages(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    for (const img of document.images) img.loading = 'eager';
+    const hero = document.querySelector('.hero-image');
+    const url = hero
+      ? /url\("?([^")]+)"?\)/.exec(getComputedStyle(hero).backgroundImage)?.[1]
+      : null;
+    const still = url ? Object.assign(new Image(), { src: url }) : null;
+    await Promise.all([...document.images, ...(still ? [still] : [])].map((img) => img.decode()));
+  });
 }
 
 interface Problems {
-  /** Hosts a page may contact besides its own origin. Empty for every new page. */
-  allowHosts: string[];
+  /**
+   * Pages this test means to open at a missing address: the site's 404 page answers there, with a
+   * 404 status that's expected, not a broken link.
+   */
+  expectNotFound: boolean;
 }
 
 /**
@@ -41,12 +87,15 @@ interface Problems {
  * to another origin (no CDNs), or page that loads as an error.
  */
 export const test = base.extend<Problems>({
-  allowHosts: [[], { option: true }],
-  page: async ({ page, allowHosts, baseURL }, use) => {
+  expectNotFound: [false, { option: true }],
+  page: async ({ page, expectNotFound, baseURL }, use) => {
     const problems: string[] = [];
     const origin = new URL(baseURL ?? 'http://localhost').origin;
     page.on('console', (msg) => {
-      if (msg.type() === 'error' || msg.type() === 'warning') {
+      // The browser notes a 404 page's status in the console; that's the page meant here.
+      const notFoundNote =
+        expectNotFound && msg.text().includes('the server responded with a status of 404');
+      if ((msg.type() === 'error' || msg.type() === 'warning') && !notFoundNote) {
         problems.push(`console.${msg.type()}: ${msg.text()}`);
       }
     });
@@ -57,15 +106,20 @@ export const test = base.extend<Problems>({
     page.on('request', (req) => {
       const url = new URL(req.url());
       if (url.protocol === 'data:' || url.protocol === 'blob:') return;
-      if (url.origin !== origin && !allowHosts.includes(url.hostname)) {
+      if (url.origin !== origin) {
         problems.push(`cross-origin request: ${req.url()}`);
       }
     });
     // A link to a page that isn't there loads an error page, not a failed request.
     page.on('response', (res) => {
-      if (res.request().isNavigationRequest() && res.status() >= 400) {
-        problems.push(`page not found: ${res.url()} (${String(res.status())})`);
+      if (res.status() < 400) return;
+      if (!res.request().isNavigationRequest()) {
+        // A missing file, even on a 404 page, is a real problem.
+        problems.push(`missing file: ${res.url()} (${String(res.status())})`);
+        return;
       }
+      if (expectNotFound && res.status() === 404) return;
+      problems.push(`page not found: ${res.url()} (${String(res.status())})`);
     });
     await use(page);
     expect(problems, 'console, page errors and requests').toEqual([]);

@@ -1,6 +1,7 @@
 /**
- * The post chain: scene → ambient occlusion → signal effects → bloom → Neutral tone mapping →
- * SMAA. Bloom's threshold sits above anything a lit surface reaches, so only emitters glow.
+ * The post chain: scene → ambient occlusion → (the lab's signal effects) → bloom → Neutral tone
+ * mapping → SMAA. Bloom's threshold sits above anything a lit surface reaches, so only emitters
+ * glow.
  */
 import {
   BloomEffect,
@@ -24,6 +25,16 @@ export interface Post {
 
 export const BLOOM_THRESHOLD = 2.5;
 
+export interface PostOptions {
+  /** Effects drawn over the scene before bloom, such as the lab's signal. */
+  signal?: { scene: Scene; depth: DepthUniforms };
+  /** Ambient occlusion's reach and strength, in the scene's own units. */
+  ao?: { radius: number; falloff: number; intensity: number };
+}
+
+/** The lab's ambient occlusion, in feet. */
+const DEFAULT_AO = { radius: 2.2, falloff: 1.4, intensity: 2.2 };
+
 /** Starts fetching the ambient-occlusion chunk early, when the tier uses it. */
 export function preloadPost(tier: TierSettings): void {
   if (tier.ao) void import('n8ao');
@@ -32,10 +43,9 @@ export function preloadPost(tier: TierSettings): void {
 export async function createPost(
   renderer: WebGLRenderer,
   scene: Scene,
-  fxScene: Scene,
   camera: Camera,
   tier: TierSettings,
-  depthUniforms: DepthUniforms,
+  options: PostOptions = {},
 ): Promise<Post> {
   const composer = new EffectComposer(renderer, {
     frameBufferType: HalfFloatType,
@@ -46,10 +56,11 @@ export async function createPost(
   if (tier.ao) {
     const { N8AOPostPass } = await import('n8ao');
     const ao = new N8AOPostPass(scene, camera, 1, 1);
+    const reach = options.ao ?? DEFAULT_AO;
     Object.assign(ao.configuration, {
-      aoRadius: 2.2,
-      distanceFalloff: 1.4,
-      intensity: 2.2,
+      aoRadius: reach.radius,
+      distanceFalloff: reach.falloff,
+      intensity: reach.intensity,
       halfRes: true,
       depthAwareUpsampling: true,
       gammaCorrection: false,
@@ -59,8 +70,9 @@ export async function createPost(
     composer.addPass(ao);
   }
 
-  const signalPass = new SignalPass(fxScene, camera, depthUniforms);
-  composer.addPass(signalPass);
+  if (options.signal) {
+    composer.addPass(new SignalPass(options.signal.scene, camera, options.signal.depth));
+  }
 
   const bloom = new BloomEffect({
     mipmapBlur: true,

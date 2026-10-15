@@ -3,24 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Frequency Lab</title>
-    <meta
-      name="description"
-      content="An interactive 3D lab about a locator's transmitter frequency: how far the signal travels along a steel gas main or a tracer wire, and how much bleeds onto nearby lines."
-    />
-    <meta name="theme-color" content="#f2efe9" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)" />
     <script type="module" src="/src/pages/frequency-lab/main.tsx"></script>
   </head>
   <body>
     <div id="app" class="lab">
       <div class="lab-grid">
-        <header class="lab-title">
-          <h1>Frequency Lab</h1>
-          <p>
-            Use the lowest frequency that works: it travels farther and spreads less to other lines.
-          </p>
-        </header>
+        <p class="lab-lede">
+          Use the lowest frequency that works: it travels farther and spreads less to other lines.
+        </p>
+        <main class="stage"><!-- scene-loader --></main>
       </div>
       <noscript>
         <p class="noscript">
