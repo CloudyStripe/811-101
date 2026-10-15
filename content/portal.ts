@@ -9,7 +9,7 @@ export interface Lesson {
   summary: string;
   /** Relative to the site root. */
   href: string;
-  /** The lesson's preview image (see src/pages/portal/images). */
+  /** The name of the lesson's preview stills on the portal (see src/site/stills.ts). */
   image: 'frequency-lab' | 'gas-petroleum';
 }
 

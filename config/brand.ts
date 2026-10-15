@@ -17,19 +17,10 @@ export const SITE_URL = 'https://cloudystripe.github.io/811-101/';
 /** The site's path on its host: every page and file sits under it. */
 export const BASE_PATH = new URL(SITE_URL).pathname;
 
+/** Text made safe to put in HTML, as text or in a quoted attribute. */
 export const escapeHtml = (text: string): string =>
   text
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
-
-/**
- * Fills %BRAND_NAME% and %BRAND_TAGLINE% in a page's HTML. The site shell (src/site/vite.ts) runs
- * it on every page Vite serves or builds.
- */
-export function fillBrand(html: string): string {
-  return html
-    .replaceAll('%BRAND_NAME%', escapeHtml(BRAND.name))
-    .replaceAll('%BRAND_TAGLINE%', escapeHtml(BRAND.tagline));
-}

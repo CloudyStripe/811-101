@@ -19,32 +19,7 @@ import {
   stopById,
 } from '../../content/utilities/gas-petroleum.ts';
 import { stopName, stopSummary } from '../../src/pages/gas-petroleum/summary.ts';
-import { expect, test, waitReady } from './fixtures.ts';
-
-type Counted = Window & { draws?: number };
-
-/** Counts the page's WebGL draws, from before it loads: `drawn()` says how many so far. */
-async function countDraws(page: Page): Promise<() => Promise<number>> {
-  await page.addInitScript(() => {
-    const w = window as Counted;
-    w.draws = 0;
-    const gl = WebGL2RenderingContext.prototype;
-    for (const name of [
-      'drawArrays',
-      'drawElements',
-      'drawArraysInstanced',
-      'drawElementsInstanced',
-    ]) {
-      const draw: unknown = Reflect.get(gl, name);
-      if (typeof draw !== 'function') continue;
-      Reflect.set(gl, name, function (this: unknown, ...args: unknown[]) {
-        w.draws = (w.draws ?? 0) + 1;
-        Reflect.apply(draw, this, args);
-      });
-    }
-  });
-  return () => page.evaluate(() => (window as Counted).draws ?? 0);
-}
+import { countFrames, expect, isMoving, test, waitReady } from './fixtures.ts';
 
 async function open(page: Page, query = '') {
   await page.goto(`utilities/gas-petroleum/?tier=low${query}`);
@@ -306,21 +281,18 @@ test.describe('with motion', () => {
   test.use({ reducedMotion: 'no-preference' });
 
   test('the overview stays alive, and the pause stills it', async ({ page }) => {
-    const drawn = await countDraws(page);
+    const frames = await countFrames(page);
     await open(page);
-    const moving = async (ms = 500) => {
-      const before = await drawn();
-      await page.waitForTimeout(ms);
-      return (await drawn()) > before;
-    };
-    await expect.poll(() => moving(), { message: 'the overview moves' }).toBe(true);
+    await expect.poll(() => isMoving(page, frames), { message: 'the overview moves' }).toBe(true);
     await dock(page).getByRole('button', { name: 'Pause the motion' }).click();
+    // Still once two whole seconds pass without a frame (one asked for may land late), and then
+    // it stays still.
     let last = -1;
     let quiet = 0;
     await expect
       .poll(
         async () => {
-          const now = await drawn();
+          const now = await frames();
           quiet = now === last ? quiet + 1 : 0;
           last = now;
           return quiet;
@@ -328,13 +300,16 @@ test.describe('with motion', () => {
         { message: 'paused, it holds still', intervals: [1000] },
       )
       .toBeGreaterThanOrEqual(2);
+    expect(await isMoving(page, frames), 'and stays still').toBe(false);
     await dock(page).getByRole('button', { name: 'Play the motion' }).click();
-    await expect.poll(() => moving(), { message: 'playing, it moves again' }).toBe(true);
+    await expect
+      .poll(() => isMoving(page, frames), { message: 'playing, it moves again' })
+      .toBe(true);
   });
 });
 
 test('losing the graphics context: a clear message, then a clean recovery', async ({ page }) => {
-  const drawn = await countDraws(page);
+  const frames = await countFrames(page);
   await open(page);
   await page.evaluate(() => {
     const ext = document
@@ -346,11 +321,11 @@ test('losing the graphics context: a clear message, then a clean recovery', asyn
   });
   const message = page.locator('.stage-message');
   await expect(message).toBeVisible();
-  const before = await drawn();
+  const before = await frames();
   await page.evaluate(() => {
     (window as Window & { restoreGl?: () => void }).restoreGl?.();
   });
   await expect(message).toBeHidden();
   // The view is drawn again, not left blank.
-  await expect.poll(() => drawn(), { message: 'drawn again' }).toBeGreaterThan(before);
+  await expect.poll(() => frames(), { message: 'drawn again' }).toBeGreaterThan(before);
 });

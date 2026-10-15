@@ -276,6 +276,13 @@
   background: var(--poster) center / cover no-repeat;
   filter: blur(16px) saturate(0.85);
   opacity: 0.9;
+  /* The lesson's preview on the portal carries on into it, opening the lesson. */
+  view-transition-name: var(--lesson-transition, none);
+}
+
+/* Once the view draws, the poster has gone: leaving, it has nothing to carry on into. */
+:root[data-scene-ready] .scene-loader-poster {
+  view-transition-name: none;
 }
 
 .scene-loader-status {

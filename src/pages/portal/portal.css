@@ -1,141 +1,250 @@
 /*
- * The portal: the brand, then three section cards side by side on wide screens (one column on
- * narrow ones). Each card's heading, summary and lessons line up with its neighbors'.
+ * The portal: a hero (the statement and a way into each section, beside a still of a lesson that
+ * runs to the edge of the screen), then a band for each section with its lessons as large tiles.
+ * The words never sit on the picture, so they read the same in any theme.
  */
 
 .portal {
-  max-width: 76rem;
-  margin: 0 auto;
-  /* Below the site header, which floats over the top of the page. */
-  padding: calc(var(--header-h) + var(--space-8)) max(var(--space-5), env(safe-area-inset-right))
-    var(--space-8) max(var(--space-5), env(safe-area-inset-left));
+  /* Its width is what the gutter is measured from (cqw), which a scrollbar doesn't change. */
+  container-type: inline-size;
+  --page-pad: max(var(--space-5), env(safe-area-inset-left), env(safe-area-inset-right));
+  /* The content's width, and the gutter that centers it on wide screens, as the footer's is. */
+  --measure: 76rem;
+  --gutter: max(var(--page-pad), calc((100cqw - var(--measure)) / 2 + var(--page-pad)));
 }
 
-/* The header's breadcrumb jumps to a section; leave the header's room above it. */
-.portal-section {
+/*
+ * The hero: the words on the page's own color, in a measure of their own from the gutter the bands
+ * share, and the still beside them, to the screen's edge, faded in at its own.
+ */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, calc(var(--gutter) + 34rem)) minmax(0, 1fr);
+  min-height: min(70svh, 46rem);
+}
+
+.hero-text {
+  align-self: center;
+  /* Below the site header, which floats over the top of the page. */
+  padding: calc(var(--header-h) + var(--space-6)) var(--space-6) var(--space-12) var(--gutter);
+}
+
+.hero-title {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.hero-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.hero-line {
+  font-size: var(--text-display);
+  font-weight: 800;
+  font-stretch: 112%;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.hero-paths ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-path {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.hero-path-soon {
+  color: var(--ink-2);
+  background: transparent;
+}
+
+.hero-path-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+@media (hover: hover) {
+  .hero-path:hover {
+    border-color: var(--ink-3);
+    background: var(--surface-2);
+  }
+}
+
+/*
+ * The still: the reader's theme, the screen's shape. Only the one that applies loads. Its left
+ * edge fades into the page, as the scene's own floor is the page's color.
+ */
+.hero-image {
+  --hero: var(--hero-light-wide);
+  background: var(--hero) center / cover no-repeat;
+  mask-image: linear-gradient(to right, transparent, #000 18%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .hero-image {
+    --hero: var(--hero-dark-wide);
+  }
+}
+
+:root[data-theme='dark'] .hero-image {
+  --hero: var(--hero-dark-wide);
+}
+
+/* The sections: a band each, its words beside its lessons. */
+.bands {
+  display: grid;
+  padding: var(--space-6) var(--gutter) var(--space-16);
+}
+
+.band {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  gap: var(--space-6);
+  align-items: start;
+  padding: var(--space-12) 0;
+  border-top: 1px solid var(--line);
+  /* The header's breadcrumb and the hero's links jump here; leave the header's room above. */
   scroll-margin-top: calc(var(--header-h) + var(--space-4));
 }
 
-.portal-head {
-  margin-bottom: var(--space-8);
-}
-
-.portal-head h1 {
-  margin: 0;
-  font-size: clamp(2.2rem, 5vw, 3.4rem);
-  font-weight: 800;
-  font-stretch: 118%;
-  letter-spacing: -0.02em;
-}
-
-.portal-head p {
-  max-width: 36rem;
-  margin: var(--space-2) 0 0;
-  color: var(--ink-2);
-  font-size: 1.1rem;
-}
-
-.portal-sections {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  /* Heading, summary, lessons: each row lines up across the three cards. */
-  grid-template-rows: auto auto 1fr;
-  gap: 0 var(--space-5);
-}
-
-.portal-section {
-  display: grid;
-  grid-row: span 3;
-  grid-template-rows: subgrid;
-  align-content: start;
-  padding: var(--space-5);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
-}
-
-.section-head {
+.band-title {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-}
-
-.section-icon {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
-.section-icon .icon {
-  width: 20px;
-  height: 20px;
-}
-
-.portal-section h2 {
   margin: 0;
   font-size: var(--text-h2);
   font-weight: 800;
 }
 
-.section-summary {
-  margin: var(--space-2) 0 var(--space-4);
+.band-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.band-icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.band-summary {
+  max-width: 28rem;
+  margin: var(--space-3) 0 0;
   color: var(--ink-2);
 }
 
-/* Lesson cards fill their row, so neighboring cards end level. */
-.lessons {
+/* A section still being built: a short teaser, its words in one row. */
+.band-soon {
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--space-5) 0;
+}
+
+.band-soon .band-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.band-soon .band-summary {
+  max-width: none;
+  margin: 0;
+}
+
+.soon-label {
+  margin: 0;
+  padding: 2px var(--space-3);
+  border: 1px dashed var(--ink-3);
+  border-radius: var(--radius-pill);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* A lesson: its preview large, then its name and what it covers; the link covers the tile. */
+.tiles {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* A lesson card: its title's link stretches over the whole card. */
-.lesson {
+.tile {
   position: relative;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-1);
   transition:
     box-shadow var(--dur) var(--ease),
     transform var(--dur) var(--ease);
 }
 
 @media (hover: hover) {
-  .lesson:has(.lesson-link:hover) {
+  .tile:has(.tile-link:hover) {
     box-shadow: var(--shadow-2);
     transform: translateY(-2px);
   }
 
-  .lesson:has(.lesson-link:hover) .lesson-go .icon {
+  .tile:has(.tile-link:hover) .tile-go .icon {
     transform: translateX(3px);
   }
 }
 
-/* The whole card shows focus, not just its title, where the browser can tell. */
+/* The whole tile shows focus, not just its title, where the browser can tell. */
 @supports selector(:has(*)) {
-  .lesson:has(.lesson-link:focus-visible) {
+  .tile:has(.tile-link:focus-visible) {
     outline: 2px solid var(--focus);
     outline-offset: 3px;
   }
 
-  .lesson-link:focus-visible {
+  .tile-link:focus-visible {
     outline: none;
     box-shadow: none;
   }
 }
 
-.lesson-image {
+.tile-image {
   display: block;
   width: 100%;
   height: auto;
@@ -144,110 +253,116 @@
   background: var(--surface-2);
 }
 
-/* The previews are daytime scenes; in the dark theme they're softened so they don't glare. */
+/* Each tile holds its preview in both themes; the other theme's isn't shown, so it never loads. */
+.tile-image[data-theme-image='dark'] {
+  display: none;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) img.lesson-image {
-    filter: brightness(0.82);
+  :root:not([data-theme='light']) .tile-image[data-theme-image='light'] {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .tile-image[data-theme-image='dark'] {
+    display: block;
   }
 }
 
-:root[data-theme='dark'] img.lesson-image {
-  filter: brightness(0.82);
+:root[data-theme='dark'] .tile-image[data-theme-image='light'] {
+  display: none;
 }
 
-.lesson-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+:root[data-theme='dark'] .tile-image[data-theme-image='dark'] {
+  display: block;
+}
+
+.tile-text {
+  display: grid;
   gap: 4px;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
-.lesson h3 {
+.tile h3 {
   margin: 0;
   font-size: var(--text-h3);
   font-weight: 800;
 }
 
-.lesson-link {
+.tile-link {
   color: inherit;
   text-decoration: none;
 }
 
-.lesson-link::after {
+.tile-link::after {
   content: '';
   position: absolute;
   inset: 0;
 }
 
-.lesson-text p {
+.tile-text p {
   margin: 0;
   color: var(--ink-2);
 }
 
-.lesson-go {
+.tile-go {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: auto;
   padding-top: var(--space-2);
   font-size: 0.9rem;
   font-weight: 700;
 }
 
-.lesson-go .icon {
+/* Icons are drawn by the page's script into slots already their size, so nothing moves. */
+.tile-arrow {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+}
+
+.tile-go .icon {
   width: 16px;
   height: 16px;
   transition: transform var(--dur) var(--ease);
 }
 
-/* A section still being built. */
-.lesson-soon {
-  border-style: dashed;
-  background: transparent;
-}
-
-.soon-art {
-  display: grid;
-  place-items: center;
-  color: var(--ink-2);
-  background: repeating-linear-gradient(135deg, var(--surface-2) 0 10px, transparent 10px 20px);
-}
-
-.soon-art .icon {
-  width: 44px;
-  height: 44px;
-}
-
-.soon-label {
-  margin: 0;
-  color: var(--ink-2);
-  font-weight: 700;
-}
-
-/* Without JavaScript, a note in place of the sections. */
-.portal .noscript {
-  margin: 0;
-}
-
+/* Narrower: the sections' words above their lessons. */
 @media (max-width: 900px) {
-  .portal {
-    max-width: 38rem;
-    padding-top: calc(var(--header-h) + var(--space-5));
-  }
-
-  .portal-head {
-    margin-bottom: var(--space-6);
-  }
-
-  .portal-sections {
+  .band {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
     gap: var(--space-4);
+    padding: var(--space-6) 0;
   }
 
-  .portal-section {
-    display: block;
-    grid-row: auto;
+  .band-summary {
+    max-width: 36rem;
+  }
+}
+
+/* Phones: the words first, then the still, square, the screen's whole width. */
+@media (max-width: 760px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .hero-text {
+    padding: calc(var(--header-h) + var(--space-4)) var(--page-pad) var(--space-5);
+  }
+
+  .hero-image {
+    --hero: var(--hero-light-square);
+    aspect-ratio: 1;
+    mask-image: linear-gradient(to bottom, transparent, #000 14%);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .hero-image {
+      --hero: var(--hero-dark-square);
+    }
+  }
+
+  :root[data-theme='dark'] .hero-image {
+    --hero: var(--hero-dark-square);
   }
 }

@@ -1,15 +1,18 @@
 /**
  * The site shell, as HTML: each page's head (title, description, share preview, favicons, the
- * settings script), the header, the footer and the 3D loader. Static, so it's there at first
- * paint and with no JavaScript, and the header never re-renders, so it holds still between pages.
+ * settings script), the header, the footer, the 3D loader, and the portal's hero and sections.
+ * Static, so it's there at first paint and with no JavaScript, and the header never re-renders, so
+ * it holds still between pages.
  * Pure string functions: the build runs them (src/site/vite.ts), and unit tests read them.
  */
-import { BASE_PATH, BRAND, SITE_URL, escapeHtml, fillBrand } from '../../config/brand.ts';
-import { SECTIONS } from '../../content/portal.ts';
+import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
+import { SECTIONS, type Lesson, type Section } from '../../content/portal.ts';
+import type { IconName } from '../design/icons.tsx';
 import { markInline } from '../design/mark.ts';
 import { THEMES } from '../design/tokens.ts';
-import { posterPath, sectionOf, type PageInfo } from './pages.ts';
+import { lessonPage, lessonTransition, posterPath, sectionOf, type PageInfo } from './pages.ts';
 import { BOOT_SCRIPT } from './settings.ts';
+import { HERO_SHAPES, PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 /** The settings script every page runs first. */
 export const BOOT = BOOT_SCRIPT;
@@ -19,6 +22,12 @@ export const SHARE_SIZE = { width: 1200, height: 630 } as const;
 
 /** Where the loader goes in a 3D page's static shell. */
 export const LOADER_SLOT = '<!-- scene-loader -->';
+
+/** Where the hero goes in the portal's static shell. */
+export const HERO_SLOT = '<!-- portal-hero -->';
+
+/** Where the sections go in the portal's static shell. */
+export const BANDS_SLOT = '<!-- portal-bands -->';
 
 const attr = escapeHtml;
 
@@ -111,18 +120,96 @@ export function loaderHtml(page: PageInfo): string {
   const url = (theme: 'light' | 'dark') => `url('/${posterPath(page, theme)}')`;
   return [
     `<div class="scene-loader" aria-hidden="true" style="--poster-light: ${url('light')}; --poster-dark: ${url('dark')}">`,
-    '<div class="scene-loader-poster"></div>',
+    // Named so the lesson's preview on the portal carries on into it (see site.css).
+    `<div class="scene-loader-poster" style="--lesson-transition: ${lessonTransition(page.id)}"></div>`,
     '<div class="scene-loader-status"><span class="scene-loader-bar"><span></span></span>',
     '<span class="scene-loader-text">Loading the 3D view</span></div>',
     '</div>',
   ].join('');
 }
 
-/** A page's HTML with the shell put in: head tags, the settings script, header, footer, loader. */
+/**
+ * The portal's hero: the site's name with its tagline as the statement, a link to each section
+ * (those with lessons first, then what's coming), and a still of a lesson beside them. The still
+ * comes in the reader's theme and the screen's shape (see portal.css): only one of them loads.
+ */
+export function heroHtml(): string {
+  const link = (section: Section) => {
+    const soon = section.lessons.length === 0;
+    const note = soon ? ' <span class="hero-path-note">Coming soon</span>' : '';
+    return `<li><a class="hero-path${soon ? ' hero-path-soon' : ''}" href="#${section.id}">${escapeHtml(section.title)}${note}</a></li>`;
+  };
+  const sections = [
+    ...SECTIONS.filter((s) => s.lessons.length > 0),
+    ...SECTIONS.filter((s) => s.lessons.length === 0),
+  ];
+  // Root-relative, from public/: the build puts the site's base path in front.
+  const stills = THEME_NAMES.flatMap((theme) =>
+    HERO_SHAPES.map((shape) => `--hero-${theme}-${shape}: url('/${heroPath(theme, shape)}')`),
+  ).join('; ');
+  return [
+    '<section class="hero" aria-labelledby="hero-title">',
+    '<div class="hero-text">',
+    `<h1 id="hero-title" class="hero-title"><span class="hero-name">${escapeHtml(BRAND.name)}</span> <span class="hero-line">${escapeHtml(BRAND.tagline)}</span></h1>`,
+    `<nav class="hero-paths" aria-label="Sections"><ul>${sections.map(link).join('')}</ul></nav>`,
+    '</div>',
+    `<div class="hero-image" aria-hidden="true" style="${stills}"></div>`,
+    '</section>',
+  ].join('');
+}
+
+/** A place for an icon, which the page's script draws: it's decoration, so it can come late. */
+const iconSlot = (name: IconName, className: string) =>
+  `<span class="${className}" aria-hidden="true" data-icon="${name}"></span>`;
+
+/**
+ * The portal's sections, static like its hero: a band each, with its lessons as large tiles. A
+ * tile holds its preview in each theme, lazy, and the page's CSS shows the reader's, so only that
+ * one loads. A section still being built is a short teaser.
+ */
+export function bandsHtml(): string {
+  const tile = (lesson: Lesson) => {
+    // Root-relative, from public/: the build puts the site's base path in front.
+    const previews = THEME_NAMES.map(
+      (theme) =>
+        `<img class="tile-image" data-theme-image="${theme}" src="/${previewPath(lesson.image, theme)}" alt="" width="${String(PREVIEW_SIZE.width)}" height="${String(PREVIEW_SIZE.height)}" loading="lazy" decoding="async" />`,
+    ).join('');
+    return [
+      `<li class="tile" data-transition="${lessonTransition(lessonPage(lesson).id)}">${previews}`,
+      '<div class="tile-text">',
+      // The link covers the whole tile, so anywhere on it opens the lesson.
+      `<h3><a class="tile-link" href="${BASE_PATH}${lesson.href}">${escapeHtml(lesson.title)}</a></h3>`,
+      `<p>${escapeHtml(lesson.summary)}</p>`,
+      `<span class="tile-go" aria-hidden="true">Open${iconSlot('forward', 'tile-arrow')}</span>`,
+      '</div></li>',
+    ].join('');
+  };
+  const band = (section: Section) => {
+    const soon = section.lessons.length === 0;
+    return [
+      `<section id="${section.id}" class="band${soon ? ' band-soon' : ''}" aria-labelledby="${section.id}-title">`,
+      '<div class="band-text">',
+      `<h2 id="${section.id}-title" class="band-title">${iconSlot(section.icon, 'band-icon')}${escapeHtml(section.title)}</h2>`,
+      `<p class="band-summary">${escapeHtml(section.summary)}</p>`,
+      soon ? '<p class="soon-label">Coming soon</p>' : '',
+      '</div>',
+      soon
+        ? ''
+        : `<ul class="tiles" aria-label="${attr(section.title)} lessons">${section.lessons.map(tile).join('')}</ul>`,
+      '</section>',
+    ].join('');
+  };
+  return `<div class="bands">${SECTIONS.map(band).join('')}</div>`;
+}
+
+/**
+ * A page's HTML with the shell put in: head tags, the settings script, header, footer, loader, and
+ * on the portal, its hero and sections.
+ */
 export function renderPage(html: string, page: PageInfo): string {
   // Replacers are functions, so nothing in the inserted text is read as a $ pattern. Links in a
   // page's own HTML use %BASE%, since a 404 page is served at any address and needs whole paths.
-  let out = fillBrand(html).replaceAll('%BASE%', () => BASE_PATH);
+  let out = html.replaceAll('%BASE%', () => BASE_PATH);
   // The settings script runs before any style, so a saved theme never flashes; it follows the
   // charset, which must come within the page's first 1024 bytes.
   out = /<meta charset=[^>]*>/i.test(out)
@@ -132,5 +219,7 @@ export function renderPage(html: string, page: PageInfo): string {
   out = out.replace(/<body([^>]*)>/, (body) => `${body}\n    ${headerHtml(page)}`);
   if (page.footer) out = out.replace(/\s*<\/body>/, () => `\n    ${footerHtml()}\n  </body>`);
   if (page.scene) out = out.replace(LOADER_SLOT, () => loaderHtml(page));
+  out = out.replace(HERO_SLOT, () => heroHtml());
+  out = out.replace(BANDS_SLOT, () => bandsHtml());
   return out;
 }

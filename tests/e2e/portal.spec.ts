@@ -1,23 +1,26 @@
 /**
- * The portal and the ways between pages: the home page shows all three sections, links to every
- * lesson and says what's coming; each page has the site header, which leads home and back to the
- * section; a missing address shows the site's 404 page. The built pages carry their title, share
- * preview, favicons and the settings script before any of their JavaScript runs. Plus axe on the
- * portal and the 404 page, in both themes.
+ * The portal and the ways between pages: the home page's hero links to each section, and the
+ * sections show every lesson, with previews in the reader's theme, and say what's coming; a
+ * lesson's preview and its loader share a transition; each page has the site header, which leads
+ * home and back to the section; a missing address shows the site's 404 page. The built pages carry
+ * their title, share preview, favicons and the settings script before any of their JavaScript
+ * runs. Plus axe on the portal and the 404 page, in both themes, with the one hero still each
+ * screen loads.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { BRAND, SITE_URL } from '../../config/brand.ts';
-import { SECTIONS } from '../../content/portal.ts';
-import { PAGES, pageById } from '../../src/site/pages.ts';
+import { SECTIONS, type Lesson } from '../../content/portal.ts';
+import { PAGES, lessonPage, lessonTransition, pageById } from '../../src/site/pages.ts';
 import { SETTINGS_KEY } from '../../src/site/settings.ts';
-import { expect, test, waitReady } from './fixtures.ts';
+import { PREVIEW_SIZE, heroPath, previewPath } from '../../src/site/stills.ts';
+import { expect, loadImages, test, waitReady } from './fixtures.ts';
 
 /** Opens the portal and waits until everything on it, previews included, is loaded and decoded. */
 async function openPortal(page: Page) {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: BRAND.name, level: 1 })).toBeVisible();
-  await page.evaluate(() => Promise.all([...document.images].map((img) => img.decode())));
+  await loadImages(page);
 }
 
 /** The portal's own address, with nothing after it. */
@@ -48,8 +51,81 @@ test('the portal shows every section, its lessons, and what’s coming', async (
     }
   }
   // The previews are real images, not broken ones.
-  for (const img of await page.locator('img.lesson-image').all()) {
-    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(960);
+  for (const img of await page.locator('img.tile-image').all()) {
+    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(PREVIEW_SIZE.width);
+  }
+});
+
+test('the hero states what the site is and leads to each section, live ones first', async ({
+  page,
+}) => {
+  await openPortal(page);
+  const hero = page.getByRole('region', { name: BRAND.name });
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText(
+    `${BRAND.name} ${BRAND.tagline}`,
+  );
+  const links = hero.getByRole('navigation', { name: 'Sections' }).getByRole('link');
+  const ready = SECTIONS.filter((s) => s.lessons.length > 0);
+  const coming = SECTIONS.filter((s) => s.lessons.length === 0);
+  await expect(links).toHaveText([
+    ...ready.map((s) => s.title),
+    ...coming.map((s) => `${s.title} Coming soon`),
+  ]);
+  for (const section of [...ready, ...coming]) {
+    await expect(hero.getByRole('link', { name: section.title })).toHaveAttribute(
+      'href',
+      `#${section.id}`,
+    );
+  }
+  // Each one jumps to its section.
+  await hero.getByRole('link', { name: 'Utility Education' }).click();
+  await expect(page.getByRole('region', { name: 'Utility Education' })).toBeInViewport();
+});
+
+/** The preview a lesson's tile shows: the one in the reader's theme, of the two it holds. */
+function shownPreview(page: Page, lesson: Lesson) {
+  return page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('link', { name: lesson.title, exact: true }) })
+    .locator('img.tile-image:visible');
+}
+
+test('a preview shows in the reader’s theme, and carries on into its lesson’s loader', async ({
+  page,
+}) => {
+  await openPortal(page);
+  const lessons = SECTIONS.flatMap((section) => section.lessons);
+  for (const lesson of lessons) {
+    await expect(shownPreview(page, lesson)).toHaveAttribute(
+      'src',
+      `/811-101/${previewPath(lesson.image, 'light')}`,
+    );
+    // The tile and the lesson's own loader, in its static page, share a name.
+    const name = lessonTransition(lessonPage(lesson).id);
+    const tile = page.locator(`.tile[data-transition="${name}"]`);
+    await expect(tile).toHaveCount(1);
+    const html = await (await page.request.get(lesson.href)).text();
+    expect(html).toContain(`--lesson-transition: ${name}`);
+  }
+  // The device's dark theme, and the previews follow it...
+  await page.emulateMedia({ colorScheme: 'dark' });
+  for (const lesson of lessons) {
+    await expect(shownPreview(page, lesson)).toHaveAttribute(
+      'src',
+      `/811-101/${previewPath(lesson.image, 'dark')}`,
+    );
+  }
+  // ...or the one chosen in the settings, over the device's.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page
+    .getByRole('dialog', { name: 'Settings' })
+    .getByRole('radio', { name: 'Light' })
+    .click();
+  for (const lesson of lessons) {
+    await expect(shownPreview(page, lesson)).toHaveAttribute(
+      'src',
+      `/811-101/${previewPath(lesson.image, 'light')}`,
+    );
   }
 });
 
@@ -186,8 +262,16 @@ for (const theme of ['light', 'dark'] as const) {
         reducedMotion: 'reduce',
       });
 
-      test('the portal passes axe, and nothing runs off the side', async ({ page }) => {
+      test('the portal passes axe, loads its one hero still, and nothing runs off', async ({
+        page,
+      }) => {
+        // Of the hero's stills, only the one for this theme and screen loads.
+        const heroes: string[] = [];
+        page.on('request', (req) => {
+          if (req.url().includes('/stills/hero-')) heroes.push(new URL(req.url()).pathname);
+        });
         await openPortal(page);
+        expect(heroes).toEqual([`/811-101/${heroPath(theme, vp.mobile ? 'square' : 'wide')}`]);
         await expectNoViolations(page);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

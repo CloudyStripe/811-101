@@ -2,7 +2,8 @@
  * Captures the site's images from its own 3D views: `npm run thumbnails`. Run it again when a
  * lesson's look changes. It serves the site with Vite's dev server and opens each view with its
  * chrome hidden, then writes:
- * - the portal's lesson images: 960 × 540 JPEGs, cropped to the scene (src/pages/portal/images/);
+ * - the portal's stills, day and night (public/stills/): each lesson's preview, cropped to the
+ *   scene, and the hero, wide and square;
  * - each 3D page's loader posters, day and night: small WebPs, shown blurred (public/posters/);
  * - share previews: 1200 × 630 JPEGs with the mark and the page's name (public/share/).
  * It stops without saving anything wrong: on a page error, a crop outside the 3D view, or an
@@ -17,13 +18,19 @@ import { markInline } from '../src/design/mark.ts';
 import { THEMES, TYPE } from '../src/design/tokens.ts';
 import { PAGES, pageById, posterPath, type PageInfo } from '../src/site/pages.ts';
 import { SHARE_SIZE } from '../src/site/shell.ts';
+import {
+  HERO_SIZES,
+  PREVIEW_SIZE,
+  THEME_NAMES,
+  heroPath,
+  previewPath,
+} from '../src/site/stills.ts';
 
 const PORT = 5199;
 const BASE = `http://localhost:${String(PORT)}/811-101/`;
-const OUT = 'src/pages/portal/images';
 const VIEWPORT = { width: 1280, height: 720 };
-/** Output width: sharp on the portal's cards, light to load. */
-const WIDTH = 960;
+/** WebP quality for the portal's stills: sharp enough at their size, light to load. */
+const STILL_QUALITY = 0.7;
 /** Posters are shown blurred, so a small one does. */
 const POSTER = { width: 480, height: 270, quality: 0.6 };
 
@@ -31,7 +38,7 @@ const POSTER = { width: 480, height: 270, quality: 0.6 };
 const LAB_CHROME = '.site-header, [data-chrome], .labels, .scene-loader';
 
 interface Shot {
-  /** The lesson image it makes, saved as <name>.jpg. */
+  /** The lesson whose preview it makes (see previewPath). */
   name: Lesson['image'];
   path: string;
   /** Gets the view ready: waits for it to load and puts away anything open over it. */
@@ -63,7 +70,8 @@ const SHOTS: Shot[] = [
     path: 'training/frequency-lab/?setup=steel&f=33000&tier=high&capture',
     ready: labReady,
     hide: LAB_CHROME,
-    crop: { x: 0, y: 90, width: 1060 },
+    // Close on the hookup and the signal setting off along the main, apart from the hero.
+    crop: { x: 260, y: 230, width: 620 },
   },
   {
     name: 'gas-petroleum',
@@ -73,6 +81,19 @@ const SHOTS: Shot[] = [
     crop: { x: 120, y: 120, width: 1040 },
   },
 ];
+
+/**
+ * The phone's square hero, cut from the wide capture (1200 × 900) around the block: the hookup, the
+ * trench and the signal setting off, with little of the empty floor in front.
+ */
+const HERO_SQUARE_CROP = { x: 160, y: 60, width: 800, height: 800 };
+
+/** The portal's hero: the lab's block in its town, the signal along the gas main. */
+const HERO = {
+  path: 'training/frequency-lab/?setup=steel&f=8000&tier=high&capture',
+  ready: labReady,
+  hide: LAB_CHROME,
+};
 
 /** What each 3D page shows in its poster and share preview. */
 const STILLS: Partial<
@@ -117,31 +138,43 @@ function spreadOf(page: Page, image: Buffer, type: string): Promise<number> {
   );
 }
 
-/** Re-encodes an image in the browser: scaled to a size, as WebP or JPEG. */
+/** Re-encodes an image in the browser: a part of it (or all), scaled to a size, as WebP or JPEG. */
 function encode(
   page: Page,
   image: Buffer,
   size: { width: number; height: number },
   type: 'image/webp' | 'image/jpeg',
   quality: number,
+  from?: { x: number; y: number; width: number; height: number },
 ): Promise<Buffer> {
   return page
     .evaluate(
-      async ({ base64, size, type, quality }) => {
+      async ({ base64, size, type, quality, from }) => {
         const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
         const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
         const canvas = new OffscreenCanvas(size.width, size.height);
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('No 2D canvas');
         ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(bitmap, 0, 0, size.width, size.height);
+        const part = from ?? { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
+        ctx.drawImage(
+          bitmap,
+          part.x,
+          part.y,
+          part.width,
+          part.height,
+          0,
+          0,
+          size.width,
+          size.height,
+        );
         const blob = await canvas.convertToBlob({ type, quality });
         const out = new Uint8Array(await blob.arrayBuffer());
         let binary = '';
         for (const b of out) binary += String.fromCharCode(b);
         return btoa(binary);
       },
-      { base64: image.toString('base64'), size, type, quality },
+      { base64: image.toString('base64'), size, type, quality, from },
     )
     .then((b64) => Buffer.from(b64, 'base64'));
 }
@@ -250,49 +283,71 @@ const browser = await chromium.launch({
 });
 
 try {
-  // The portal's lesson images.
+  // The portal's lesson previews, in each theme.
   for (const shot of SHOTS) {
-    // Render at the scale that makes the crop come out WIDTH pixels wide.
-    await withPage(
-      browser,
-      { ...VIEWPORT, scale: WIDTH / shot.crop.width, scheme: 'light' },
-      async (page, errors) => {
-        await page.goto(`${BASE}${shot.path}`);
-        await shot.ready(page);
-        const clip = { ...shot.crop, height: (shot.crop.width * 9) / 16 };
-        const canvas = await page.locator('canvas').first().boundingBox();
-        if (
-          !canvas ||
-          clip.x < canvas.x ||
-          clip.y < canvas.y ||
-          clip.x + clip.width > canvas.x + canvas.width ||
-          clip.y + clip.height > canvas.y + canvas.height
-        ) {
-          throw new Error(`${shot.name}: the crop isn't inside the 3D view`);
-        }
-        const jpeg = await page.screenshot({
-          type: 'jpeg',
-          quality: 80,
-          animations: 'disabled',
-          style: `${shot.hide} { visibility: hidden !important; }`,
-          clip,
-        });
-        if (errors.length) throw new Error(`${shot.name}: ${errors.join(' | ')}`);
-        if ((await spreadOf(page, jpeg, 'image/jpeg')) < 8) {
-          throw new Error(`${shot.name}: the image is blank`);
-        }
-        const path = `${OUT}/${shot.name}.jpg`;
-        await writeFile(path, jpeg);
-        console.log(`Wrote ${path}.`);
-      },
-    );
+    for (const scheme of THEME_NAMES) {
+      // Render at the scale that makes the crop come out as wide as the preview.
+      const png = await withPage(
+        browser,
+        { ...VIEWPORT, scale: PREVIEW_SIZE.width / shot.crop.width, scheme },
+        async (page, errors) => {
+          await page.goto(`${BASE}${shot.path}`);
+          await shot.ready(page);
+          const clip = { ...shot.crop, height: (shot.crop.width * 9) / 16 };
+          const canvas = await page.locator('canvas').first().boundingBox();
+          if (
+            !canvas ||
+            clip.x < canvas.x ||
+            clip.y < canvas.y ||
+            clip.x + clip.width > canvas.x + canvas.width ||
+            clip.y + clip.height > canvas.y + canvas.height
+          ) {
+            throw new Error(`${shot.name}: the crop isn't inside the 3D view`);
+          }
+          const image = await page.screenshot({
+            animations: 'disabled',
+            style: `${shot.hide} { visibility: hidden !important; }`,
+            clip,
+          });
+          if (errors.length) throw new Error(`${shot.name}: ${errors.join(' | ')}`);
+          if ((await spreadOf(page, image, 'image/png')) < 8) {
+            throw new Error(`${shot.name}: the image is blank`);
+          }
+          return image;
+        },
+      );
+      const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
+        encode(tab, png, PREVIEW_SIZE, 'image/webp', STILL_QUALITY),
+      );
+      const path = `public/${previewPath(shot.name, scheme)}`;
+      await writeFile(path, webp);
+      console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
+    }
+  }
+
+  // The portal's hero, in each theme: wide beside its words, and square, cut from the same
+  // capture, under them on phones.
+  for (const scheme of THEME_NAMES) {
+    const png = await still(browser, HERO, HERO_SIZES.wide, scheme);
+    const shapes = [
+      ['wide', undefined],
+      ['square', HERO_SQUARE_CROP],
+    ] as const;
+    for (const [shape, crop] of shapes) {
+      const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
+        encode(tab, png, HERO_SIZES[shape], 'image/webp', STILL_QUALITY, crop),
+      );
+      const path = `public/${heroPath(scheme, shape)}`;
+      await writeFile(path, webp);
+      console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
+    }
   }
 
   // Posters and share previews, for every 3D page built on the site's shell.
   for (const page of PAGES.filter((p) => p.scene)) {
     const view = STILLS[page.id];
     if (!view) throw new Error(`No still for ${page.id}`);
-    for (const scheme of ['light', 'dark'] as const) {
+    for (const scheme of THEME_NAMES) {
       const png = await still(browser, view, VIEWPORT, scheme);
       const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
         encode(tab, png, POSTER, 'image/webp', POSTER.quality),
