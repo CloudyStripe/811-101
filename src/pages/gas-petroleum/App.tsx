@@ -3,7 +3,6 @@ import {
   OVERVIEW,
   QUIZZES,
   STOPS,
-  TOURS,
   stopById,
   type StopId,
 } from '../../../content/utilities/gas-petroleum.ts';
@@ -16,10 +15,32 @@ import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
 import { useSettings } from '../../site/useSettings.ts';
 import type { DioramaScene, Filter, Rect } from './scene/index.ts';
+import {
+  FORK,
+  PATHS,
+  SHARED,
+  back,
+  begin,
+  choose,
+  forward,
+  fromFork,
+  reach,
+  stopAt,
+  stopsOf,
+  type Journey,
+  type PathKey,
+} from './journey.ts';
 import type { TimeLapseState } from './scene/timelapse.ts';
-import { QUIZ_TITLE, viewSummary, type TourKey } from './summary.ts';
+import { QUIZ_TITLE, viewSummary } from './summary.ts';
 import { Dock } from './ui/Dock.tsx';
-import { OverviewPanel, QuizPanel, StopPanel, TourBar, neighbors } from './ui/Panels.tsx';
+import {
+  JourneyBar,
+  JourneyStrip,
+  OverviewPanel,
+  QuizPanel,
+  StopPanel,
+  neighbors,
+} from './ui/Panels.tsx';
 import { StopLabel } from './ui/StopLabel.tsx';
 
 const PAGE = pageById('gas-petroleum');
@@ -30,6 +51,14 @@ const INITIAL_STOP: StopId | null = STOP_IDS.find((id) => id === params.get('sto
 const TIER_PARAM = parseTier(params.get('tier'));
 const CAPTURE = params.has('capture');
 const PERF = params.has('perf');
+/** The overview's landmarks, named in the view: where it starts, the fork, and each path's end. */
+const LANDMARKS: readonly StopId[] = [
+  SHARED[0] ?? FORK,
+  FORK,
+  ...PATHS.flatMap((path) => stopsOf(path).slice(-1)),
+];
+/** What lands the establishing move: any input at all. */
+const LAND_ON = ['pointerdown', 'keydown', 'wheel'] as const;
 
 const NO_WEBGL =
   'This model draws a 3D view with WebGL, which this browser or device has turned off. The guide still works.';
@@ -103,15 +132,10 @@ function useSheetLayout(): boolean {
   return sheet;
 }
 
-interface Tour {
-  key: TourKey;
-  index: number;
-  quiz: boolean;
-}
-
 export function App() {
   const [stop, setStop] = useState<StopId | null>(INITIAL_STOP);
-  const [tour, setTour] = useState<Tour | null>(null);
+  /** The story under way, from Start or a tour button; null while the reader roams freely. */
+  const [journey, setJourney] = useState<Journey | null>(null);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [filter, setFilter] = useState<Filter>('both');
   const [paused, setPaused] = useState(false);
@@ -135,8 +159,12 @@ export function App() {
   const sceneRef = useRef<DioramaScene | null>(null);
   /** The room the view was last framed for, and the stage's size then. */
   const lastArea = useRef<{ area: VisibleArea; size: string } | null>(null);
-  const live = useRef({ stop, settings, panelOpen, sheetOpen, paused, filter });
-  live.current = { stop, settings, panelOpen, sheetOpen, paused, filter };
+  /** The way a shared stop leans: the journey's path, the filter's, or natural gas first. */
+  const lean: PathKey = journey?.path ?? (filter === 'gasoline' ? 'gasoline' : 'gas');
+  /** The stops whose labels the view names: where it is and where it goes next, or landmarks. */
+  const named: readonly StopId[] = stop ? [stop, ...neighbors(stop, lean).next] : LANDMARKS;
+  const live = useRef({ stop, settings, panelOpen, sheetOpen, paused, filter, named });
+  live.current = { stop, settings, panelOpen, sheetOpen, paused, filter, named };
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -236,7 +264,14 @@ export function App() {
         scene.setReducedMotion(reducesMotion(now.settings.motion, reducedMotionQuery.matches));
         scene.setPaused(now.paused);
         scene.setFilter(now.filter);
+        scene.nameLabels(now.named);
         if (now.stop) scene.show(now.stop, { fly: false });
+        else {
+          // Arriving: the view comes in from farther out, unless motion is reduced; any input
+          // lands it at once.
+          scene.establish();
+          for (const type of LAND_ON) window.addEventListener(type, land, true);
+        }
         if (!TIER_PARAM && now.settings.quality !== s.quality)
           void scene.setTier(now.settings.quality);
         void document.fonts.ready.then(() => {
@@ -250,6 +285,10 @@ export function App() {
       }
     })();
 
+    function land() {
+      scene?.land();
+      for (const type of LAND_ON) window.removeEventListener(type, land, true);
+    }
     const onTheme = () => scene?.setTheme(resolvedTheme());
     const onMotion = () => {
       scene?.setReducedMotion(
@@ -267,6 +306,7 @@ export function App() {
       darkQuery.removeEventListener('change', onTheme);
       reducedMotionQuery.removeEventListener('change', onMotion);
       window.removeEventListener('pagehide', onPageHide);
+      for (const type of LAND_ON) window.removeEventListener(type, land, true);
       scene?.dispose();
       sceneRef.current = null;
     };
@@ -294,6 +334,10 @@ export function App() {
   useEffect(() => {
     sceneRef.current?.setFilter(filter);
   }, [filter]);
+  const namedKey = named.join(' ');
+  useEffect(() => {
+    sceneRef.current?.nameLabels(live.current.named);
+  }, [namedKey]);
   useEffect(() => {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
@@ -326,74 +370,102 @@ export function App() {
     sceneRef.current?.relayout(true);
   }, [panelOpen]);
 
-  /** Opens a stop (or the overview), keeping a tour going if the stop is on it. */
+  /** Shows the guide: the panel beside the view, or on phones, the sheet. */
+  function showGuide() {
+    if (sheet) setSheetOpen(true);
+    else setPanelOpen(true);
+  }
+
+  /**
+   * Opens a stop (or the overview) from the map, a label or the stop's own links. A journey under
+   * way goes on if the stop is on its way, and going down a path chooses it; anywhere else, it ends.
+   */
   function open(id: StopId | null) {
-    if (tour && id) {
-      const index = (TOURS[tour.key].stops as readonly StopId[]).indexOf(id);
-      if (index >= 0) setTour({ ...tour, index, quiz: false });
-      else setTour(null);
-    } else if (tour && !id) {
-      setTour(null);
-    }
-    // A stop on the path the filter hides brings both paths back.
-    if (id && filter !== 'both') {
+    const next = journey && id ? reach(journey, id) : null;
+    if (journey) setJourney(next);
+    if (next?.path && next.path !== journey?.path) {
+      // Going down a path chose it: the view shows it, as the fork's choice does.
+      setFilter(next.path);
+    } else if (id && filter !== 'both') {
+      // A stop on the path the filter hides brings both paths back.
       const path = stopById(id).path;
       if (path !== 'shared' && path !== filter) setFilter('both');
     }
     setStop(id);
-    if (sheet) setSheetOpen(true);
-    else setPanelOpen(true);
+    showGuide();
   }
 
-  function startTour(key: TourKey) {
-    setTour({ key, index: 0, quiz: false });
+  /** Starts a journey: from the start (Start, or a tour button's path), or a path from the fork. */
+  function beginJourney(next: Journey) {
+    setJourney(next);
     setAnswers([]);
-    setFilter(key);
-    setStop(TOURS[key].stops[0]);
-    if (sheet) setSheetOpen(true);
-    else setPanelOpen(true);
+    setFilter(next.path ?? 'both');
+    setStop(stopAt(next));
+    showGuide();
   }
 
-  function tourNext() {
-    if (!tour) return;
-    const n = TOURS[tour.key].stops.length;
-    if (tour.quiz) {
-      setTour(null);
+  /**
+   * Moves the journey to `next`, and the view with it; its quiz starts with no answers. Arriving
+   * at the fork with no path chosen, the guide shows, since the way on is its choice.
+   */
+  function walk(next: Journey | null) {
+    if (!next) return;
+    if (next.quiz && next.path && !journey?.quiz) setAnswers(QUIZZES[next.path].map(() => null));
+    setJourney(next);
+    setStop(stopAt(next));
+    if (waitsAtFork(next)) showGuide();
+  }
+
+  /** At the fork, with the path still to choose. */
+  const waitsAtFork = (j: Journey | null) => j !== null && j.path === null && stopAt(j) === FORK;
+
+  /** Asked for from the dock: the guide, and focus on the fork's first way on. */
+  const focusChoice = useRef(false);
+  function toChoice() {
+    const way = document.querySelector<HTMLElement>('.fork-way');
+    // Already showing: focus goes there now; else once the guide has opened.
+    if (way && way.offsetParent !== null) {
+      way.focus();
+      return;
+    }
+    focusChoice.current = true;
+    showGuide();
+  }
+  useEffect(() => {
+    if (!focusChoice.current) return;
+    focusChoice.current = false;
+    document.querySelector<HTMLElement>('.fork-way')?.focus();
+  });
+
+  /** On a step: after the quiz, the journey ends in the overview. */
+  function journeyNext() {
+    if (!journey) return;
+    if (journey.quiz) {
+      setJourney(null);
       setStop(null);
       return;
     }
-    if (tour.index < n - 1) {
-      const index = tour.index + 1;
-      setTour({ ...tour, index });
-      setStop(TOURS[tour.key].stops[index] ?? null);
+    walk(forward(journey));
+  }
+
+  function journeyBack() {
+    if (journey) walk(back(journey));
+  }
+
+  /** At the fork: on along the path chosen, which the view then shows. */
+  function choosePath(path: PathKey) {
+    if (journey) {
+      setFilter(path);
+      walk(choose(path));
     } else {
-      setTour({ ...tour, quiz: true });
-      setAnswers(QUIZZES[tour.key].map(() => null));
-      setStop(null);
+      open(stopsOf(path)[SHARED.length] ?? FORK);
     }
   }
-
-  function tourBack() {
-    if (!tour) return;
-    if (tour.quiz) {
-      setTour({ ...tour, quiz: false });
-      setStop(TOURS[tour.key].stops[tour.index] ?? null);
-      return;
-    }
-    if (tour.index > 0) {
-      const index = tour.index - 1;
-      setTour({ ...tour, index });
-      setStop(TOURS[tour.key].stops[index] ?? null);
-    }
-  }
-
-  /** The way a shared stop leans: the tour's path, the filter's, or natural gas first. */
-  const lean: TourKey = tour?.key ?? (filter === 'gasoline' ? 'gasoline' : 'gas');
 
   // A control in the guide that changes the view is often gone with the old view: a stop on the
   // map, the button to the next stop. Then focus moves to the new view's heading (or, on phones,
   // the sheet's summary), so the reader hears where they are and keeps their place.
-  const viewKey = `${stop ?? ''}/${tour?.quiz ? tour.key : ''}`;
+  const viewKey = `${stop ?? ''}/${journey?.quiz ? (journey.path ?? '') : ''}`;
   const shownView = useRef(viewKey);
   useEffect(() => {
     if (shownView.current === viewKey) return;
@@ -406,21 +478,21 @@ export function App() {
     heading?.focus({ preventScroll: true });
   }, [viewKey]);
 
-  // ← and → step through the stops (or a tour's steps), unless focus is in something that uses
+  // ← and → step through the stops (or a journey's steps), unless focus is in something that uses
   // them: a radio group, a quiz, a field, or the view while it's on the overview, which they turn.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
       const target = event.target as HTMLElement | null;
-      if (target?.closest('[role="radiogroup"], .q, input, textarea, select')) return;
+      if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
       if (!stop && target?.closest('canvas')) return;
       const forward = event.key === 'ArrowRight';
-      if (tour) {
-        if (tour.quiz) return;
+      if (journey) {
+        if (journey.quiz) return;
         event.preventDefault();
-        if (forward) tourNext();
-        else tourBack();
+        if (forward) journeyNext();
+        else journeyBack();
         return;
       }
       if (!stop) return;
@@ -499,11 +571,12 @@ export function App() {
     sceneRef.current?.playTimeLapse();
   }
 
-  const title = tour?.quiz ? QUIZ_TITLE : stop ? stopById(stop).title.text : OVERVIEW.title.text;
-  const tourSteps = tour ? (TOURS[tour.key].stops as readonly StopId[]) : null;
-  const neighborsNow = stop && !tour ? neighbors(stop, lean) : null;
-  const dockPrev = tour
-    ? tour.quiz || tour.index > 0
+  const quizPath = journey?.quiz ? journey.path : null;
+  const title = quizPath ? QUIZ_TITLE : stop ? stopById(stop).title.text : OVERVIEW.title.text;
+  const neighborsNow = stop && !journey ? neighbors(stop, lean) : null;
+  const journeyAhead = journey && !journey.quiz ? forward(journey) : null;
+  const dockPrev = journey
+    ? back(journey)
       ? { id: null, label: 'Back' }
       : null
     : neighborsNow?.prev
@@ -514,15 +587,13 @@ export function App() {
         ? neighborsNow.next[1]
         : neighborsNow.next[0]) ?? null)
     : null;
-  const dockNext = tour
-    ? {
-        id: null,
-        label: tour.quiz
-          ? 'Finish the tour'
-          : tour.index === (tourSteps?.length ?? 0) - 1
-            ? 'Take the quiz'
-            : 'Next step',
-      }
+  // In the quiz the dock is the overview's, so a journey's next is a step, the quiz, or the choice.
+  const dockNext = journey
+    ? journeyAhead
+      ? { id: null, label: journeyAhead.quiz ? 'Take the quiz' : 'Next step' }
+      : waitsAtFork(journey)
+        ? { id: null, label: 'Choose a path' }
+        : null
     : nextId
       ? { id: nextId, label: `Next stop: ${stopById(nextId).label}` }
       : null;
@@ -537,9 +608,12 @@ export function App() {
       data-chrome
     >
       <div class="sheet-bar">
-        <p class="sheet-summary" tabIndex={-1}>
-          {viewSummary(stop, tour?.quiz ? tour.key : null)}
-        </p>
+        <div class="sheet-where">
+          <p class="sheet-summary" tabIndex={-1}>
+            {viewSummary(stop, quizPath)}
+          </p>
+          {journey && <JourneyStrip journey={journey} />}
+        </div>
         <button
           type="button"
           class="sheet-toggle"
@@ -572,37 +646,42 @@ export function App() {
         </button>
       </div>
       <div class="panel-body" id="gp-body">
-        {tour?.quiz ? (
+        {quizPath ? (
           <QuizPanel
-            tour={tour.key}
+            path={quizPath}
             answers={answers}
             onAnswer={(q, o) => {
               setAnswers((a) => a.map((v, i) => (i === q ? o : v)));
             }}
-            onTour={startTour}
+            onOtherPath={(path) => {
+              beginJourney(fromFork(path));
+            }}
           />
         ) : stop ? (
           <StopPanel
             stop={stop}
-            touring={tour !== null}
+            journey={journey}
             lean={lean}
+            hasView={failed === null}
             timeLapse={timeLapse}
             onPlayTimeLapse={playTimeLapse}
+            onStepTimeLapse={(step) => sceneRef.current?.stepTimeLapse(step)}
             onOpen={open}
+            onChoose={choosePath}
           />
         ) : (
-          <OverviewPanel onOpen={open} onTour={startTour} />
+          <OverviewPanel
+            onStart={() => {
+              beginJourney(begin());
+            }}
+            onTour={(path) => {
+              beginJourney(begin(path));
+            }}
+            onOpen={open}
+          />
         )}
       </div>
-      {tour && (
-        <TourBar
-          tour={tour.key}
-          index={tour.index}
-          quiz={tour.quiz}
-          onBack={tourBack}
-          onNext={tourNext}
-        />
-      )}
+      {journey && <JourneyBar journey={journey} onBack={journeyBack} onNext={journeyNext} />}
     </aside>
   );
 
@@ -613,15 +692,16 @@ export function App() {
       onFilter={setFilter}
       paused={paused}
       onPause={setPaused}
-      stop={tour?.quiz ? null : stop}
+      stop={quizPath ? null : stop}
       prev={dockPrev}
       next={dockNext}
       onPrev={() => {
-        if (tour) tourBack();
+        if (journey) journeyBack();
         else if (dockPrev?.id) open(dockPrev.id);
       }}
       onNext={() => {
-        if (tour) tourNext();
+        if (waitsAtFork(journey)) toChoice();
+        else if (journey) journeyNext();
         else if (dockNext?.id) open(dockNext.id);
       }}
       onOverview={() => {
@@ -697,7 +777,7 @@ export function App() {
       {sheet ? [panel, dock] : [dock, panel]}
 
       <p id="gp-status" class="sr-only" role="status">
-        {viewSummary(stop, tour?.quiz ? tour.key : null)}
+        {viewSummary(stop, quizPath)}
       </p>
     </div>
   );

@@ -4,7 +4,12 @@
  */
 import type { Matrix4, Mesh, Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
-import { DETAILS, STOPS, stopById } from '../../../../content/utilities/gas-petroleum.ts';
+import {
+  DETAILS,
+  STOPS,
+  TIMELAPSE,
+  stopById,
+} from '../../../../content/utilities/gas-petroleum.ts';
 import { buildStops } from './stops/index.ts';
 import type { TimeLapse } from './timelapse.ts';
 
@@ -24,6 +29,20 @@ describe('the stops', () => {
   it("are built in the content's order, the formation's with its time-lapse", () => {
     expect(models.map((m) => m.id)).toEqual(STOPS.map((s) => s.id));
     expect(timeLapse.current).not.toBeNull();
+  });
+
+  it('step through the time-lapse, each step held where the clock reads its own time', () => {
+    const lapse = timeLapse.current;
+    if (!lapse) throw new Error('no time-lapse');
+    TIMELAPSE.forEach((entry, i) => {
+      lapse.seekStep(i);
+      expect(lapse.state).toMatchObject({ playing: false, caption: i, ma: entry.ma });
+    });
+    // The last step is today: the column whole again.
+    expect(lapse.state.progress).toBe(1);
+    lapse.seekStep(0);
+    lapse.reset();
+    expect(lapse.state).toMatchObject({ progress: 1, ma: 0 });
   });
 
   it.each(models.map((m) => [m.id, m] as const))(

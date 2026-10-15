@@ -2,11 +2,11 @@
 import {
   OVERVIEW,
   PATH_NAMES,
-  TOURS,
   stopById,
   type StopId,
 } from '../../../content/utilities/gas-petroleum.ts';
 import { plainText } from '../../content-kit/terms.ts';
+import type { PathKey } from './journey.ts';
 
 /** A stop's place and title, e.g. "Natural gas path, stage 8: Into town: lower pressure, added smell". */
 export function stopSummary(id: StopId): string {
@@ -14,14 +14,12 @@ export function stopSummary(id: StopId): string {
   return `${PATH_NAMES[stop.path]}, stage ${String(stop.step)}: ${plainText(stop.title.text)}`;
 }
 
-export type TourKey = keyof typeof TOURS;
-
 /** The quiz's heading, which its panel and the live status share. */
 export const QUIZ_TITLE = 'Quick check: 3 questions';
 
-/** What the view shows now: the overview, a stop, or a tour's quiz. */
-export function viewSummary(stop: StopId | null, quiz: TourKey | null): string {
-  if (quiz) return `${TOURS[quiz].name} tour. ${QUIZ_TITLE}`;
+/** What the view shows now: the overview, a stop, or a path's quiz. */
+export function viewSummary(stop: StopId | null, quiz: PathKey | null): string {
+  if (quiz) return `${PATH_NAMES[quiz]}. ${QUIZ_TITLE}`;
   if (stop) return stopSummary(stop);
   return `Overview: ${OVERVIEW.title.text}`;
 }

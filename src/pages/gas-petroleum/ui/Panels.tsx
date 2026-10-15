@@ -1,7 +1,10 @@
 /**
- * What the guide shows: the overview with its map and tours, a stop, or a tour's quiz, and the
- * bar that steps through a tour. Every sentence comes from the content module, word for word.
+ * What the guide shows: the overview with one way to start, its map and its tours; a stop, with
+ * the fork's choice of path; a path's quiz, and where to go after it; and the bar that steps
+ * through a journey, with a strip of where it is. Every sentence of the lesson comes from the
+ * content module, word for word; the rest is the guide's own wording.
  */
+import { useState } from 'preact/hooks';
 import {
   OVERVIEW,
   PATH_NAMES,
@@ -14,22 +17,35 @@ import {
   stopById,
   type StopId,
 } from '../../../../content/utilities/gas-petroleum.ts';
-import { useState } from 'preact/hooks';
 import { plainText } from '../../../content-kit/terms.ts';
 import { Icon } from '../../../design/icons.tsx';
 import { PATH_STYLE } from '../../../design/paths.ts';
 import { Rich } from '../../../design/Term.tsx';
+import { pageById } from '../../../site/pages.ts';
+import {
+  FORK,
+  PATHS,
+  SHARED,
+  back,
+  forward,
+  otherPath,
+  progressOf,
+  stopsOf,
+  type Journey,
+  type PathKey,
+} from '../journey.ts';
 import type { TimeLapseState } from '../scene/timelapse.ts';
-import { clockText, type TourKey } from '../summary.ts';
+import { clockText } from '../summary.ts';
 import { RouteMap } from './RouteMap.tsx';
 
 export const define = (key: string): string | undefined => TERMS[key]?.text;
 
-const OTHER: Record<TourKey, TourKey> = { gas: 'gasoline', gasoline: 'gas' };
+const BASE = import.meta.env.BASE_URL;
 
 export function OverviewPanel(props: {
+  onStart: () => void;
+  onTour: (path: PathKey) => void;
   onOpen: (id: StopId) => void;
-  onTour: (key: TourKey) => void;
 }) {
   return (
     <>
@@ -41,23 +57,31 @@ export function OverviewPanel(props: {
           </span>
         ))}
       </p>
+      <div class="start">
+        <button type="button" class="button button-primary" onClick={props.onStart}>
+          <Icon name="play" />
+          Start at the beginning
+        </button>
+        <p class="start-note">The stops both fuels share, then you choose a path.</p>
+      </div>
       <RouteMap onOpen={props.onOpen} />
+      <p class="eyebrow tour-title">Or one path from start to end</p>
       <div class="tour-pick">
-        {(['gas', 'gasoline'] as const).map((key) => (
+        {PATHS.map((path) => (
           <button
-            key={key}
+            key={path}
             type="button"
             class="tour-button"
-            data-path={key}
+            data-path={path}
             onClick={() => {
-              props.onTour(key);
+              props.onTour(path);
             }}
           >
-            <Icon name={PATH_STYLE[key].icon} />
+            <Icon name={PATH_STYLE[path].icon} />
             <span>
-              <b>{TOURS[key].name} tour</b>
+              <b>{TOURS[path].name} tour</b>
               <small>
-                {TOURS[key].stops.length} steps, {TOUR_SPANS[key]}
+                {TOURS[path].stops.length} steps, {TOUR_SPANS[path]}
               </small>
             </span>
           </button>
@@ -76,9 +100,19 @@ export function OverviewPanel(props: {
   );
 }
 
-/** The formation time-lapse's controls: its clock, its caption, and play. */
-function TimeLapseBox({ state, onPlay }: { state: TimeLapseState; onPlay: () => void }) {
-  const caption = TIMELAPSE[state.caption]?.caption.text ?? '';
+/**
+ * The formation time-lapse: its clock and caption, steps back and forth through it (held still,
+ * and stopping a replay), and the replay.
+ */
+function TimeLapseBox(props: {
+  state: TimeLapseState;
+  onPlay: () => void;
+  onStep: (step: number) => void;
+}) {
+  const { state } = props;
+  const step = state.caption;
+  const earlier = step > 0;
+  const later = step < TIMELAPSE.length - 1;
   return (
     <div class="tl">
       <p class="tl-clock" aria-live="off">
@@ -87,18 +121,46 @@ function TimeLapseBox({ state, onPlay }: { state: TimeLapseState; onPlay: () => 
       <div class="tl-bar" aria-hidden="true">
         <i style={{ width: `${(state.progress * 100).toFixed(1)}%` }} />
       </div>
-      <p class="tl-caption">{caption}</p>
-      <button
-        type="button"
-        class="button button-primary"
-        aria-disabled={state.playing}
-        onClick={() => {
-          if (!state.playing) onPlay();
-        }}
-      >
-        <Icon name="play" />
-        {state.playing ? 'Playing…' : 'Play the formation time-lapse'}
-      </button>
+      <p class="tl-caption" aria-live="polite">
+        {TIMELAPSE[step]?.caption.text ?? ''}
+      </p>
+      <div class="tl-controls">
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Earlier in the time-lapse"
+          title="Earlier"
+          aria-disabled={!earlier || undefined}
+          onClick={() => {
+            if (earlier) props.onStep(step - 1);
+          }}
+        >
+          <Icon name="back" />
+        </button>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Later in the time-lapse"
+          title="Later"
+          aria-disabled={!later || undefined}
+          onClick={() => {
+            if (later) props.onStep(step + 1);
+          }}
+        >
+          <Icon name="forward" />
+        </button>
+        <button
+          type="button"
+          class="button button-primary"
+          aria-disabled={state.playing}
+          onClick={() => {
+            if (!state.playing) props.onPlay();
+          }}
+        >
+          <Icon name="play" />
+          {state.playing ? 'Playing…' : 'Play the formation time-lapse'}
+        </button>
+      </div>
       <p class="tl-note">
         {TIMELAPSE_NOTE.howTo} {TIMELAPSE_NOTE.illustrative.text}
       </p>
@@ -107,34 +169,94 @@ function TimeLapseBox({ state, onPlay }: { state: TimeLapseState; onPlay: () => 
 }
 
 /** The next and previous stops along a stop's path, and the fork's two ways on. */
-export function neighbors(id: StopId, lean: TourKey): { prev: StopId | null; next: StopId[] } {
+export function neighbors(id: StopId, lean: PathKey): { prev: StopId | null; next: StopId[] } {
   const stop = stopById(id);
-  const tour: TourKey = stop.path === 'shared' ? lean : stop.path;
-  const seq = TOURS[tour].stops as readonly StopId[];
+  const path: PathKey = stop.path === 'shared' ? lean : stop.path;
+  const seq = stopsOf(path);
   const i = seq.indexOf(id);
   const prev = i > 0 ? (seq[i - 1] ?? null) : null;
-  if (id === 'lifting') return { prev, next: ['gas-plant', 'crude-transport'] };
+  if (id === FORK) return { prev, next: PATHS.map((p) => stopsOf(p)[SHARED.length] ?? id) };
   if (i < seq.length - 1) return { prev, next: [seq[i + 1] ?? id] };
   // One path's end leads to the other path.
-  return { prev, next: [stop.path === 'gas' ? 'crude-transport' : 'gas-plant'] };
+  return { prev, next: [stopsOf(otherPath(path))[SHARED.length] ?? id] };
+}
+
+/**
+ * The fork: the two ways on, each with its path's pattern and icon, where it goes first and how
+ * far it runs. The path already chosen, if any, says so.
+ */
+export function ForkChoice(props: { chosen: PathKey | null; onChoose: (path: PathKey) => void }) {
+  return (
+    <div class="fork" role="group" aria-labelledby="fork-title">
+      <p class="fork-title" id="fork-title">
+        Choose a path
+      </p>
+      {PATHS.map((path) => {
+        const own = stopsOf(path).slice(SHARED.length);
+        const first = own[0];
+        const style = PATH_STYLE[path];
+        return (
+          <button
+            key={path}
+            type="button"
+            class="fork-way"
+            data-path={path}
+            data-chosen={props.chosen === path ? '' : undefined}
+            onClick={() => {
+              props.onChoose(path);
+            }}
+          >
+            <span class="fork-mark" aria-hidden="true" style={{ '--path': style.color }}>
+              <Icon name={style.icon} />
+            </span>
+            <span class="fork-text">
+              <b>{PATH_NAMES[path]}</b>
+              <small>
+                {first ? `Next: ${stopById(first).label}, ` : ''}
+                {own.length} stops{props.chosen === path ? ', your path' : ''}
+              </small>
+            </span>
+            {/* A piece of the path's line, drawn as on the map and in the view. */}
+            <svg class="fork-line" viewBox="0 0 40 10" aria-hidden="true">
+              <path
+                class="rmap-line"
+                d="M3 5H37"
+                stroke={style.color}
+                stroke-dasharray={style.pattern === 'dashed' ? '7 5' : undefined}
+              />
+              {style.pattern === 'banded' && (
+                <path class="rmap-bands" d="M3 5H37" stroke-dasharray="2.5 7" />
+              )}
+            </svg>
+            <Icon name="forward" />
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function StopPanel(props: {
   stop: StopId;
-  touring: boolean;
-  lean: TourKey;
+  journey: Journey | null;
+  lean: PathKey;
+  /** Whether the 3D view is there: without it, the time-lapse has nothing to show. */
+  hasView: boolean;
   timeLapse: TimeLapseState;
   onPlayTimeLapse: () => void;
+  onStepTimeLapse: (step: number) => void;
   onOpen: (id: StopId) => void;
+  onChoose: (path: PathKey) => void;
 }) {
   const stop = stopById(props.stop);
   const { prev, next } = neighbors(props.stop, props.lean);
+  const fork = props.stop === FORK;
   return (
     <>
       <p class="eyebrow stop-path" data-path={stop.path}>
         <Icon name={PATH_STYLE[stop.path].icon} />
         {PATH_NAMES[stop.path]}
-        {!props.touring && <span class="stop-step">Stage {stop.step}</span>}
+        {!props.journey && <span class="stop-step">Stage {stop.step}</span>}
       </p>
       <p class="lead">
         {stop.text.map((c, i) => (
@@ -152,15 +274,20 @@ export function StopPanel(props: {
           </span>
         </p>
       )}
-      {stop.id === 'formation' && (
-        <TimeLapseBox state={props.timeLapse} onPlay={props.onPlayTimeLapse} />
+      {stop.id === 'formation' && props.hasView && (
+        <TimeLapseBox
+          state={props.timeLapse}
+          onPlay={props.onPlayTimeLapse}
+          onStep={props.onStepTimeLapse}
+        />
       )}
+      {fork && <ForkChoice chosen={props.journey?.path ?? null} onChoose={props.onChoose} />}
       {stop.safety && (
         <p class="callout">
           <b>Safety tip:</b> <Rich text={stop.safety.text} define={define} />
         </p>
       )}
-      {!props.touring && (
+      {!props.journey && (
         <nav class="stop-nav" aria-label="Stops">
           {prev ? (
             <button
@@ -176,33 +303,36 @@ export function StopPanel(props: {
           ) : (
             <span />
           )}
-          <span class="stop-nav-next">
-            {next.map((id) => {
-              const to = stopById(id);
-              const fork = props.stop === 'lifting' || to.path !== stop.path;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  class={fork ? 'button button-secondary' : 'button button-primary'}
-                  data-path={fork ? to.path : undefined}
-                  onClick={() => {
-                    props.onOpen(id);
-                  }}
-                >
-                  {fork ? (
-                    <>
-                      <Icon name={PATH_STYLE[to.path].icon} />
-                      {PATH_NAMES[to.path]}
-                    </>
-                  ) : (
-                    `Next: ${to.label}`
-                  )}
-                  <Icon name="forward" />
-                </button>
-              );
-            })}
-          </span>
+          {!fork && (
+            <span class="stop-nav-next">
+              {next.map((id) => {
+                const to = stopById(id);
+                // At a path's end, the way on is the other path, marked as such.
+                const across = to.path !== stop.path;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    class={across ? 'button button-secondary' : 'button button-primary'}
+                    data-path={across ? to.path : undefined}
+                    onClick={() => {
+                      props.onOpen(id);
+                    }}
+                  >
+                    {across ? (
+                      <>
+                        <Icon name={PATH_STYLE[to.path].icon} />
+                        {PATH_NAMES[to.path]}
+                      </>
+                    ) : (
+                      `Next: ${to.label}`
+                    )}
+                    <Icon name="forward" />
+                  </button>
+                );
+              })}
+            </span>
+          )}
         </nav>
       )}
     </>
@@ -210,15 +340,15 @@ export function StopPanel(props: {
 }
 
 export function QuizPanel(props: {
-  tour: TourKey;
+  path: PathKey;
   answers: readonly (number | null)[];
   onAnswer: (question: number, option: number) => void;
-  onTour: (key: TourKey) => void;
+  onOtherPath: (path: PathKey) => void;
 }) {
-  const questions = QUIZZES[props.tour];
+  const questions = QUIZZES[props.path];
   const done = props.answers.length === questions.length && props.answers.every((a) => a !== null);
   const score = questions.filter((q, i) => props.answers[i] === q.answer).length;
-  const other = OTHER[props.tour];
+  const other = otherPath(props.path);
   /** What was just answered, read out: right or not and why, then the score once all are in. */
   const [said, setSaid] = useState('');
   function answer(question: number, option: number) {
@@ -287,63 +417,101 @@ export function QuizPanel(props: {
               ? 'Nicely done. You followed the whole journey.'
               : 'The tour is always here if you want another look.'}
           </p>
-          <button
-            type="button"
-            class="button button-primary"
-            data-path={other}
-            onClick={() => {
-              props.onTour(other);
-            }}
-          >
-            <Icon name={PATH_STYLE[other].icon} />
-            Take the {TOURS[other].name.toLowerCase()} tour
-          </button>
+          <div class="q-next">
+            <button
+              type="button"
+              class="button button-primary"
+              data-path={other}
+              onClick={() => {
+                props.onOtherPath(other);
+              }}
+            >
+              <Icon name={PATH_STYLE[other].icon} />
+              Take the {TOURS[other].name.toLowerCase()} path, from the fork
+            </button>
+            <a class="button button-secondary" href={`${BASE}${pageById('frequency-lab').path}`}>
+              On to the Frequency Lab
+            </a>
+            <a class="button button-secondary" href={BASE}>
+              All lessons
+            </a>
+          </div>
         </div>
       )}
     </>
   );
 }
 
-export function TourBar(props: {
-  tour: TourKey;
-  index: number;
-  quiz: boolean;
-  onBack: () => void;
-  onNext: () => void;
-}) {
-  const n = TOURS[props.tour].stops.length;
-  const last = props.index === n - 1;
+/**
+ * Where a journey is, at a glance: the shared start's stops, then the chosen path's own, or the
+ * fork ahead while none is chosen. The words beside it (the step, or the view's summary) say it to
+ * screen readers, so the strip itself is hidden from them.
+ */
+export function JourneyStrip({ journey }: { journey: Journey }) {
+  return (
+    <ol class="jstrip" aria-hidden="true">
+      {stopsOf(journey.path).map((id, i) => {
+        const path = stopById(id).path;
+        return (
+          <li
+            key={id}
+            data-path={path}
+            data-state={
+              journey.quiz || i < journey.index
+                ? 'done'
+                : i === journey.index
+                  ? 'current'
+                  : undefined
+            }
+            style={path === 'shared' ? undefined : { '--path': PATH_STYLE[path].color }}
+          />
+        );
+      })}
+      {journey.path === null && (
+        <li class="jstrip-fork">
+          <svg viewBox="0 0 14 10">
+            <path d="M1 5h5l6-4M6 5l6 4" />
+          </svg>
+        </li>
+      )}
+    </ol>
+  );
+}
+
+/** Steps through a journey: back, where it is, and on (or to its quiz, or the end). */
+export function JourneyBar(props: { journey: Journey; onBack: () => void; onNext: () => void }) {
+  const { journey } = props;
+  const { step, of } = progressOf(journey);
+  const next = forward(journey);
+  const toQuiz = next?.quiz === true;
+  // At the fork with no path chosen, the way on is the choice above.
+  const waiting = !journey.quiz && next === null;
   return (
     <div class="tourbar">
       <button
         type="button"
         class="button button-secondary"
-        aria-disabled={(!props.quiz && props.index === 0) || undefined}
+        aria-disabled={back(journey) === null || undefined}
         onClick={props.onBack}
       >
         <Icon name="back" />
         Back
       </button>
       <div class="tourbar-progress">
-        <span>{props.quiz ? 'Quiz' : `Step ${String(props.index + 1)} of ${String(n)}`}</span>
-        <span class="tourbar-dots" aria-hidden="true">
-          {Array.from({ length: n }, (_, i) => (
-            <i
-              key={i}
-              data-state={
-                props.quiz || i < props.index ? 'done' : i === props.index ? 'current' : undefined
-              }
-            />
-          ))}
-        </span>
+        <span>{journey.quiz ? 'Quiz' : `Step ${String(step)} of ${String(of)}`}</span>
+        <JourneyStrip journey={journey} />
       </div>
       <button
         type="button"
         class="button button-primary"
-        aria-label={props.quiz ? 'Finish the tour' : last ? 'Take the quiz' : 'Next step'}
+        aria-label={
+          journey.quiz ? 'Finish, back to the overview' : toQuiz ? 'Take the quiz' : 'Next step'
+        }
+        aria-disabled={waiting || undefined}
+        title={waiting ? 'Choose a path first' : undefined}
         onClick={props.onNext}
       >
-        {props.quiz ? 'Finish' : last ? 'Quiz' : 'Next'}
+        {journey.quiz ? 'Finish' : toQuiz ? 'Quiz' : 'Next'}
         <Icon name="forward" />
       </button>
     </div>
