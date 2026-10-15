@@ -44,8 +44,10 @@ An interactive learning site about buried utilities and line locating.
 
 - Done: Phase 0 (the Frequency Lab) and the portal home. The rest of the brief's phases are on
   hold: don't plan or build them unless the owner asks.
-- Read `docs/BRIEF.md` and `docs/PLAN.md` before starting work. Both are **local-only**
-  (gitignored) and so is `docs/private/`.
+- Read `docs/private/redo-brief.md` before starting work: it's the current brief for the site's
+  look and UX, and it wins wherever it conflicts with `docs/BRIEF.md` or this file. Then read
+  `docs/BRIEF.md`. Ignore `docs/PLAN.md`, an earlier plan. All of `docs/private/`, `docs/BRIEF.md`
+  and `docs/PLAN.md` are **local-only** (gitignored).
 - Never commit them, and never quote them in public text: commit messages, PR descriptions,
   code comments and content sign-offs stay free of business, product or customer details.
 - Push nothing until the owner has tried the build and said OK.
