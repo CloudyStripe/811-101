@@ -3,7 +3,6 @@ import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
 import { ABOUT, TAGLINE } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
 import { Rich } from '../../design/Term.tsx';
-import type { ThemeName } from '../../design/tokens.ts';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import type { SetupId } from '../../signal/model.ts';
@@ -15,6 +14,7 @@ import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
+import { darkQuery, resolvedTheme } from '../../site/theme.ts';
 import { useSettings } from '../../site/useSettings.ts';
 import { stateSummary } from './summary.ts';
 import { TransmitterDock } from './TransmitterDock.tsx';
@@ -34,7 +34,6 @@ const NO_WEBGL =
   'This lab draws a 3D view with WebGL, which this browser or device has turned off. The controls and explanations still work.';
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
-const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 /** Match the layouts in lab.css: phones, and short screens such as phones held sideways. */
 const phoneQuery = matchMedia('(max-width: 760px)');
 const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
@@ -62,12 +61,6 @@ function useSheetLayout(): boolean {
     };
   }, []);
   return sheet;
-}
-
-function resolvedTheme(): ThemeName {
-  const forced = document.documentElement.dataset.theme;
-  if (forced === 'light' || forced === 'dark') return forced;
-  return darkQuery.matches ? 'dark' : 'light';
 }
 
 function rectWithin(el: Element, container: DOMRect): Rect | null {
