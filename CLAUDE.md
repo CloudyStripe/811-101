@@ -6,7 +6,7 @@ An interactive learning site about buried utilities and line locating.
 | ------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------ |
 | Portal (home)                                           | `/811-101/`                         | `index.html`, `src/pages/portal/`, `content/portal.ts` |
 | Frequency Lab (Locator Training)                        | `/811-101/training/frequency-lab/`  | `training/frequency-lab/`, `src/pages/frequency-lab/`  |
-| Gas & Petroleum: From Rock to Flame (Utility Education) | `/811-101/utilities/gas-petroleum/` | `utilities/gas-petroleum/index.html`                   |
+| Gas & Petroleum: From Rock to Flame (Utility Education) | `/811-101/utilities/gas-petroleum/` | `utilities/gas-petroleum/`, `src/pages/gas-petroleum/` |
 | Page not found                                          | any missing address                 | `404.html`, `src/pages/not-found/`                     |
 
 811 Basics shows on the portal as coming soon. The site's name, tagline and address live in
@@ -55,12 +55,12 @@ An interactive learning site about buried utilities and line locating.
 | `npm run thumbnails` | Re-capture lesson images, loader posters and share previews; run it when a lesson's look changes |
 | `npm run icons`      | Re-render the favicons from the mark                                                             |
 
-Useful URL parameters on the lab page:
+Useful URL parameters on the 3D pages:
 
-- `?setup=steel|plastic` and `&f=512|8000|33000|83000` set the starting state.
-- `?tier=low|medium|high` forces a quality tier.
-- `?perf` shows the performance HUD.
-- `?capture` gives deterministic frames for screenshots.
+- Lab: `?setup=steel|plastic` and `&f=512|8000|33000|83000` set the starting state.
+- Diorama: `?stop=<id>` opens a stop (ids in `content/utilities/gas-petroleum.ts`).
+- Both: `?tier=low|medium|high` forces a quality tier, `?perf` shows the performance HUD, and
+  `?capture` gives deterministic frames for screenshots.
 
 ## Quality gates (every change)
 
@@ -90,6 +90,8 @@ In the field, the color is the code.
 - **Never color alone:** color is never the only cue. Pair it with an icon, label, pattern or arrow.
 - **Tints are a teaching aid:** buried lines get a muted tint of their APWA color, with an icon and label. Real pipe and cable color underground is unreliable, so say so where it matters.
 - **The signal's color:** the locate signal uses `SIGNAL_COLOR` (`src/design/tokens.ts`), which tests keep away from every APWA hue. Strength is brightness, not color.
+- **Two yellow paths:** natural gas and petroleum share APWA yellow, so the diorama tells its fuel paths apart by pattern and icon (`src/design/paths.ts`): natural gas dashed with a flame, gasoline banded with a fuel can. The shared start is a neutral stone.
+- **Water isn't blue:** in the diorama, groundwater, the sea and salty produced water are muted, never APWA blue (drinking water); produced water is a murky brown-gray, never green (sewer). Machines are neutral, and quiz answers are marked in ink, icons and words, not green and red.
 
 ## Tokens and design
 
@@ -105,6 +107,7 @@ In the field, the color is the code.
 - **Voice:** plain words, no background assumed, never talking down.
 - **Depth:** keep it conceptual. One idea per sentence, qualitative words over numbers, and no data tables or readouts; leave out detail the lesson doesn't need.
 - **Terms:** mark them with `[[term]]` or `[[shown words|term key]]`. Every marked term needs a definition, and a test enforces it.
+- **The diorama's text** (`content/utilities/gas-petroleum.ts`): a few plain sentences per stop, no figures (the time-lapse's clock aside) and no side trips. A test holds it to the original word for word (`gas-petroleum.legacy.json`), but for the fork note.
 
 ## Signal model
 
@@ -117,6 +120,9 @@ In the field, the color is the code.
 - **Banned APIs:** never use `PCFSoftShadowMap`, `Clock` or `ColorManagement.from/toWorkingColorSpace`. They log warnings in r186, and ESLint bans them. Use `PCFShadowMap` with `shadow.radius`, and `Timer`.
 - **N8AO:** use only `FogExp2`, since N8AO errors on custom fog, and keep its debug mode and neural denoise off.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
+- **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
+- **Bloom only for emitters,** and no NaN: a shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame. The diorama's builders run `fixNormals`.
+- **Shadows hold still:** the shadow map renders once (and on theme or tier changes), so moving parts don't cast into it.
 
 ## Performance and accessibility
 
@@ -124,7 +130,7 @@ In the field, the color is the code.
 - **GPU resources:** disposed on exit. Quality tiers have a manual override.
 - **WCAG 2.2 AA:**
   - every control works by keyboard;
-  - nothing needs dragging (the 3D view is fixed, framed to fit);
+  - nothing needs dragging: the lab's view is fixed, and the diorama's overview, which turns by dragging, also turns by buttons and keys;
   - focus is never hidden under the panel or sheet, and both can be closed;
   - popovers can be hovered;
   - nothing pulses faster than 3 Hz, and the signal's motion has a pause button, whatever the
@@ -134,4 +140,3 @@ In the field, the color is the code.
 ## Git
 
 - **Work:** one branch per phase and small commits. Commit messages end with the `Co-Authored-By` line.
-- **The diorama** (`utilities/gas-petroleum/index.html`) is published byte-for-byte, and the deploy checks it. Its text follows the content rules: a few plain sentences per stop, no figures (the time-lapse's clock aside) and no side trips; `tests/e2e/diorama.spec.ts` checks it. Beyond its link back to the portal and content edits the owner asks for, leave it alone until it's rebuilt to the lab's standard.

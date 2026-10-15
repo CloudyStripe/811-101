@@ -40,8 +40,7 @@ export function siteShell(): Plugin {
       order: 'pre',
       handler(html, ctx) {
         const page = pageAt(root, ctx.filename);
-        // The diorama is still published as it is.
-        return page?.built ? renderPage(html, page) : html;
+        return page ? renderPage(html, page) : html;
       },
     },
   };

@@ -38,8 +38,6 @@ export interface PageInfo {
   share: { image: string; alt: string };
   /** Pages with a 3D view get a loader in their shell, and their scene code preloaded. */
   scene: boolean;
-  /** Built by Vite. The diorama is still published as it is, until it's rebuilt. */
-  built: boolean;
   /** The site footer, for pages that scroll. */
   footer: boolean;
   /** Kept out of search results. */
@@ -72,7 +70,6 @@ export const PAGES: readonly PageInfo[] = [
       alt: 'A street block cut away to show the gas main, telecom cable and water main under it.',
     },
     scene: false,
-    built: true,
     footer: true,
     budgets: { js: 30, css: 15, fonts: 150, images: 150, firstVisit: 350 },
   },
@@ -89,7 +86,6 @@ export const PAGES: readonly PageInfo[] = [
       alt: 'The Frequency Lab: a locate signal glowing along a gas main in a street cut away to show what is buried.',
     },
     scene: true,
-    built: true,
     footer: false,
     budgets: {
       js: 50,
@@ -106,7 +102,7 @@ export const PAGES: readonly PageInfo[] = [
     id: 'gas-petroleum',
     html: 'utilities/gas-petroleum/index.html',
     path: 'utilities/gas-petroleum/',
-    title: 'From Rock to Flame',
+    title: lessonTitle('Gas & Petroleum'),
     heading: 'Gas & Petroleum',
     description:
       'From Rock to Flame: how natural gas and gasoline are made, moved and used, in an interactive 3D model.',
@@ -115,8 +111,17 @@ export const PAGES: readonly PageInfo[] = [
       alt: 'A cutaway model of the path from a gas well and an oil well to a city.',
     },
     scene: true,
-    built: false,
     footer: false,
+    budgets: {
+      js: 50,
+      css: 30,
+      fonts: 200,
+      vendor3d: 240,
+      ao: 85,
+      scene: 70,
+      poster: 20,
+      firstVisit: 750,
+    },
   },
   {
     id: 'not-found',
@@ -130,7 +135,6 @@ export const PAGES: readonly PageInfo[] = [
       alt: 'A street block cut away to show the gas main, telecom cable and water main under it.',
     },
     scene: false,
-    built: true,
     footer: true,
     noindex: true,
     budgets: { js: 30, css: 15, fonts: 150, firstVisit: 250 },

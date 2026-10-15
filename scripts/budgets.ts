@@ -205,7 +205,7 @@ async function pageRows(page: PageInfo, budgets: PageBudgets): Promise<Row[]> {
 }
 
 const rows: Row[] = [];
-for (const page of PAGES.filter((p) => p.built)) {
+for (const page of PAGES) {
   if (!page.budgets) throw new Error(`${page.id} has no budgets`);
   rows.push(...(await pageRows(page, page.budgets)));
 }

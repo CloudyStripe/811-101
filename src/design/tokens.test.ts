@@ -14,6 +14,7 @@ import {
 } from './color.ts';
 import {
   DEVICE,
+  DIORAMA_COLORS,
   MATERIAL_COLORS,
   MOTION,
   SIGNAL_COLOR,
@@ -81,6 +82,31 @@ describe('color means utility', () => {
     }
   });
 
+  it("keeps the diorama muted too, its fuel paths' yellow the strongest color in it", () => {
+    const yellow = hexToOklch(APWA.yellow.fill).c;
+    for (const [name, hex] of Object.entries(DIORAMA_COLORS)) {
+      // Fire and its glow are lights, not surfaces.
+      if (name === 'flame' || name === 'flameCore' || name === 'furnaceGlow') continue;
+      expect(hexToOklch(hex).c, name).toBeLessThan(Math.min(0.09, yellow * 0.6));
+    }
+  });
+
+  it("never paints water in drinking water's blue, nor produced water in sewer's green", () => {
+    const blue = hexToOklch(APWA.blue.fill);
+    const green = hexToOklch(APWA.green.fill);
+    /** A color reads as a mark's hue only with real chroma and a hue near the mark's. */
+    const readsAs = (hex: string, mark: { h: number }) => {
+      const c = hexToOklch(hex);
+      return c.c > 0.04 && hueDistance(c.h, mark.h) < 40;
+    };
+    for (const name of ['aquifer', 'waterZone', 'producedWater', 'sea'] as const) {
+      expect(readsAs(DIORAMA_COLORS[name], blue), `${name} as blue`).toBe(false);
+    }
+    for (const name of ['waterZone', 'producedWater'] as const) {
+      expect(readsAs(DIORAMA_COLORS[name], green), `${name} as green`).toBe(false);
+    }
+  });
+
   it('gives the signal its own hue, well away from every APWA color', () => {
     const signal = hexToOklch(SIGNAL_COLOR);
     expect(signal.c).toBeGreaterThan(0.1);
@@ -121,6 +147,11 @@ describe('the lit world stays muted on screen', () => {
     if (name === 'windowLit' || name === 'lamp') continue;
     if (typeof value === 'string') surfaces.push([name, value]);
     else value.forEach((hex, i) => surfaces.push([`${name}[${String(i)}]`, hex]));
+  }
+  for (const [name, hex] of Object.entries(DIORAMA_COLORS)) {
+    // Fire and its glow are lights, not surfaces.
+    if (name === 'flame' || name === 'flameCore' || name === 'furnaceGlow') continue;
+    surfaces.push([`diorama ${name}`, hex]);
   }
   const shown = (hex: string, light: readonly number[], k: number) => {
     const { r, g, b } = hexToRgb(hex);

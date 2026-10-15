@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { FREQUENCIES, frequencyLabel } from '../config/equipment.ts';
 import { CONTENT_MODULES } from '../content/index.ts';
-import { APWA, LAB_APWA } from '../src/design/apwa.ts';
+import { APWA, DIORAMA_APWA, LAB_APWA } from '../src/design/apwa.ts';
 import { collectClaims, type Claim } from '../src/content-kit/claims.ts';
 import { plainText } from '../src/content-kit/terms.ts';
 import { ALL_CONSTANTS, type Constant, type PerFrequency } from '../src/signal/constants.ts';
@@ -58,7 +58,10 @@ const modelClaims = ALL_CONSTANTS.map((c) => ({
   text: `${c.name}: ${valueText(c)}. ${c.why}`,
 }));
 
-const colorClaims = LAB_APWA.map((code) => ({
+/** Every APWA color a lesson shows, once each. */
+const usedApwa = [...new Set([...LAB_APWA, ...DIORAMA_APWA])];
+
+const colorClaims = usedApwa.map((code) => ({
   id: `apwa.${code}`,
   text: `${APWA[code].name} means ${APWA[code].meaning.toLowerCase()}; shown on screen as ${APWA[code].fill}.`,
 }));
@@ -69,12 +72,12 @@ function render(): string {
     '',
     '# Content review',
     '',
-    'Every factual claim in the Frequency Lab, for locator sign-off.',
+    'Every factual claim in the lessons, for locator sign-off.',
     '',
     "- **How to sign off:** add the claim to `content/review/signoffs.json` with the hash shown, your initials and the date. Or send the IDs and we'll add them.",
     '- **Edited claims:** editing a claim changes its hash and puts it back in review.',
     '',
-    '**State-specific claims:** none so far. The lab teaches no state rules.',
+    '**State-specific claims:** none so far. The lessons teach no state rules.',
   ];
   for (const mod of CONTENT_MODULES) {
     parts.push(
@@ -100,7 +103,7 @@ function render(): string {
     '',
     '## Screen colors',
     '',
-    'On-screen approximations of the APWA colors the lab uses.',
+    'On-screen approximations of the APWA colors the lessons use.',
     '',
     '| ID | Claim | Hash | Status |',
     '|---|---|---|---|',

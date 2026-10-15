@@ -1,39 +1,13 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-/** Hosts the original diorama still loads from. Only that page may use them, until it's ported. */
-export const DIORAMA_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
-
-/** The parts of the diorama's test hook (`window.__app`, with #debug in the URL) that tests read. */
-export interface DioramaApp {
-  camera: { position: { x: number; y: number; z: number } };
-  STAGES: {
-    id: string;
-    label: string;
-    title: string;
-    text: string;
-    note?: string;
-    safety?: string;
-    terms?: Record<string, string>;
-  }[];
-  OVERVIEW: { title: string; text: string };
-  GLOSSARY: Record<string, string>;
-  /** For each tour: [question, options, index of the right option, explanation]. */
-  QUIZZES: Record<string, [string, string[], number, string][]>;
-  /** [millions of years ago, caption]. */
-  TIMELAPSE: [number, string][];
-}
-export type DioramaWindow = Window & { __app?: DioramaApp };
-
-/** Opens the diorama and waits for its scripts and fonts, so leaving never cuts them short. */
-export async function openDiorama(page: Page, hash = ''): Promise<void> {
-  await page.goto(`utilities/gas-petroleum/${hash}`);
-  await expect(page.getByRole('heading', { name: 'Two fuels, one beginning' })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+/** Waits until a 3D page's view is built and drawing. */
+export async function waitReady(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
 }
 
 interface Problems {
-  /** Hosts a page may contact besides its own origin. Empty for every new page. */
-  allowHosts: string[];
   /**
    * Pages this test means to open at a missing address: the site's 404 page answers there, with a
    * 404 status that's expected, not a broken link.
@@ -46,9 +20,8 @@ interface Problems {
  * to another origin (no CDNs), or page that loads as an error.
  */
 export const test = base.extend<Problems>({
-  allowHosts: [[], { option: true }],
   expectNotFound: [false, { option: true }],
-  page: async ({ page, allowHosts, expectNotFound, baseURL }, use) => {
+  page: async ({ page, expectNotFound, baseURL }, use) => {
     const problems: string[] = [];
     const origin = new URL(baseURL ?? 'http://localhost').origin;
     page.on('console', (msg) => {
@@ -66,7 +39,7 @@ export const test = base.extend<Problems>({
     page.on('request', (req) => {
       const url = new URL(req.url());
       if (url.protocol === 'data:' || url.protocol === 'blob:') return;
-      if (url.origin !== origin && !allowHosts.includes(url.hostname)) {
+      if (url.origin !== origin) {
         problems.push(`cross-origin request: ${req.url()}`);
       }
     });

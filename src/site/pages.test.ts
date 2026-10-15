@@ -18,18 +18,15 @@ describe('the pages', () => {
     expect(page.description.length).toBeGreaterThan(20);
   });
 
-  it.each(PAGES.filter((p) => p.built))(
-    '$id: has budgets, a share image, and (with a 3D view) posters',
-    (page) => {
-      expect(page.budgets).toBeDefined();
-      expect(existsSync(`public/share/${page.share.image}`), page.share.image).toBe(true);
-      if (page.scene) {
-        for (const theme of ['light', 'dark'] as const) {
-          expect(existsSync(`public/${posterPath(page, theme)}`), theme).toBe(true);
-        }
+  it.each(PAGES)('$id: has budgets, a share image, and (with a 3D view) posters', (page) => {
+    expect(page.budgets).toBeDefined();
+    expect(existsSync(`public/share/${page.share.image}`), page.share.image).toBe(true);
+    if (page.scene) {
+      for (const theme of ['light', 'dark'] as const) {
+        expect(existsSync(`public/${posterPath(page, theme)}`), theme).toBe(true);
       }
-    },
-  );
+    }
+  });
 
   it('lists every lesson on the portal, under its section', () => {
     for (const section of SECTIONS) {

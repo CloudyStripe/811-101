@@ -2,32 +2,23 @@
  * The Frequency Lab's 3D scene: the street block, both setups, the signal effects and the
  * labels, behind a small API the UI drives.
  */
-import {
-  Box3,
-  FogExp2,
-  HalfFloatType,
-  PerspectiveCamera,
-  Scene,
-  Vector3,
-  WebGLRenderTarget,
-} from 'three';
+import { Box3, FogExp2, PerspectiveCamera, Scene, Vector3 } from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
 import { LABEL_LIMITS, MOTION, THEMES, easeInOut, type ThemeName } from '../../../design/tokens.ts';
-import { LabCamera, lerpPose, type CameraPose, type VisibleArea } from '../../../kit3d/camera.ts';
+import {
+  LabCamera,
+  areaBetween,
+  lerpPose,
+  type CameraPose,
+  type VisibleArea,
+} from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
 import { LabelLayer } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
-import { PerfHud } from '../../../kit3d/perf.ts';
-import { createPost, preloadPost, type Post } from '../../../kit3d/post.ts';
-import {
-  Governor,
-  TIER_SETTINGS,
-  guessTier,
-  pixelRatioFor,
-  type Tier,
-} from '../../../kit3d/quality.ts';
+import { createPost, preloadPost } from '../../../kit3d/post.ts';
+import type { Tier } from '../../../kit3d/quality.ts';
+import { SceneRuntime } from '../../../kit3d/runtime.ts';
 import { createDepthUniforms } from '../../../kit3d/signal-pass.ts';
-import { Stage } from '../../../kit3d/stage.ts';
 import { labState, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, type LabelId } from './labels.ts';
@@ -86,19 +77,6 @@ export interface LabScene {
 
 const FACE_NORMAL = new Vector3(0, 0, 1);
 
-/** A free area part way from one to another, for a glide between framings. */
-function between(a: VisibleArea, b: VisibleArea, t: number): VisibleArea {
-  const mix = (x: number, y: number) => x + (y - x) * t;
-  return {
-    x: mix(a.x, b.x),
-    y: mix(a.y, b.y),
-    width: mix(a.width, b.width),
-    height: mix(a.height, b.height),
-    ...(b.portrait === undefined ? {} : { portrait: b.portrait }),
-    ...(b.keepOut === undefined ? {} : { keepOut: b.keepOut }),
-  };
-}
-
 /** What the transmitter's screen can show: the frequency it's set to. */
 const READINGS = FREQUENCIES.map(frequencyLabel);
 
@@ -126,20 +104,20 @@ function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[]
 
 /** Builds the scene. If building fails, the renderer it created is released before the error is passed on. */
 export async function createLabScene(o: LabSceneOptions): Promise<LabScene> {
-  let stage: Stage | null = null;
+  let runtime: SceneRuntime | null = null;
   try {
-    return await buildLabScene(o, (s) => {
-      stage = s;
+    return await buildLabScene(o, (r) => {
+      runtime = r;
     });
   } catch (error) {
-    (stage as Stage | null)?.dispose();
+    (runtime as SceneRuntime | null)?.dispose();
     throw error;
   }
 }
 
 async function buildLabScene(
   o: LabSceneOptions,
-  onStage: (stage: Stage) => void,
+  onRuntime: (runtime: SceneRuntime) => void,
 ): Promise<LabScene> {
   const scene = new Scene();
   const fxScene = new Scene();
@@ -147,9 +125,6 @@ async function buildLabScene(
   const camera = new PerspectiveCamera(34, 1, 0.5, 2400);
   const depthUniforms = createDepthUniforms();
 
-  let tier: Tier = o.tier === 'auto' ? 'medium' : o.tier;
-  let governor: Governor | null = null;
-  let post: Post | null = null;
   let labelsDirty = true;
   let animTime = 1.25;
   let reducedMotion = o.reducedMotion;
@@ -169,17 +144,23 @@ async function buildLabScene(
   let current: Label[] = [];
   let setup = o.setup;
   let frequency = o.frequency;
-  let rebuilding = false;
   let theme = o.theme;
-  /** The tier asked for most recently, which a rebuild in progress picks up when it's done. */
-  let wantedTier: Tier | null = null;
   let disposed = false;
 
-  const stage = new Stage(
-    o.canvas,
+  const runtime: SceneRuntime = new SceneRuntime(
+    {
+      canvas: o.canvas,
+      tier: o.tier,
+      capture: o.capture,
+      perf: o.perf,
+      camera,
+      post: (tierSettings) =>
+        createPost(runtime.renderer, scene, camera, tierSettings, {
+          signal: { scene: fxScene, depth: depthUniforms },
+        }),
+    },
     {
       frame(dt) {
-        if (!post) return false;
         const animating = !reducedMotion && !paused && !o.capture;
         if (animating) {
           animTime += dt;
@@ -199,17 +180,16 @@ async function buildLabScene(
           labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
           labelsDirty = false;
         }
-        post.render(dt);
-        const now = performance.now();
-        hud?.frame(dt * 1000, now, stage.renderer, tier, stage.pixelRatio);
-        const next = governor?.sample(dt * 1000, now);
-        if (next) void changeTier(next);
         return animating || glide !== null;
       },
-      resize(width, height) {
+      resize() {
         glide = null;
-        post?.setSize(width, height);
         frameArea(o.visibleArea());
+      },
+      tierChanged(tierSettings) {
+        lighting.setShadowQuality(tierSettings.shadowMapSize, tierSettings.shadowRadius);
+        street.setDetail(tierSettings.detail);
+        contact.visible = !tierSettings.ao;
       },
       contextLost() {
         o.onContextLost?.();
@@ -221,23 +201,15 @@ async function buildLabScene(
         o.onContextRestored?.();
       },
     },
-    (w, h) => pixelRatioFor(tier, w, h, window.devicePixelRatio || 1),
   );
-  const { renderer } = stage;
-  onStage(stage);
-  if (o.tier === 'auto') {
-    const gl = renderer.getContext();
-    const gpu = String(gl.getParameter(gl.RENDERER));
-    const guessed = guessTier(gpu, matchMedia('(pointer: coarse)').matches);
-    tier = o.capture ? 'medium' : guessed;
-    if (!o.capture) governor = new Governor(tier, guessed);
-  }
+  onRuntime(runtime);
+  const { stage, renderer } = runtime;
 
   const bounds = new Box3(
     new Vector3(BLOCK.x0, BLOCK.bottom, BLOCK.z0),
     new Vector3(BLOCK.x1, 4, BLOCK.z1),
   );
-  const settings = () => TIER_SETTINGS[tier];
+  const settings = () => runtime.settings;
   // The ambient-occlusion chunk downloads while the scene is built and compiled.
   preloadPost(settings());
   const lighting = createLighting(renderer, scene, bounds, THEMES[o.theme].scene, {
@@ -272,7 +244,6 @@ async function buildLabScene(
     const v = o.visibleArea();
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
-  const hud = o.perf ? new PerfHud(document.body) : null;
   const mustSee = MUST_SEE.map((p) => new Vector3(...p));
   const worldEdge = new Vector3(...WORLD_EDGE);
   /** Frames the view for a free area of the canvas, with the view that suits it unless given. */
@@ -287,7 +258,7 @@ async function buildLabScene(
   /** A glide part way, at `e` along its eased course. */
   function showGlide(e: number) {
     if (!glide) return;
-    const area = between(glide.from, glide.to, e);
+    const area = areaBetween(glide.from, glide.to, e);
     cam.setLayout(stage.width, stage.height, area);
     cam.setPose(lerpPose(glide.fromPose, glide.toPose, e));
     framed();
@@ -328,93 +299,19 @@ async function buildLabScene(
     stage.requestFrame();
   }
 
-  /** Builds the new post chain before retiring the old one, so no frame renders without one. */
-  /** Builds a post chain for a tier. The current one keeps rendering until it's swapped in. */
-  async function buildPost(forTier: Tier): Promise<Post> {
-    const next = await createPost(
-      renderer,
-      scene,
-      fxScene,
-      camera,
-      TIER_SETTINGS[forTier],
-      depthUniforms,
-    );
-    next.setSize(stage.width, stage.height);
-    return next;
-  }
-
-  function swapPost(next: Post) {
-    const old = post;
-    post = next;
-    old?.dispose();
-  }
-
-  /** Rebuilds for a new tier. A tier asked for during a rebuild is applied right after it. */
-  async function changeTier(next: Tier) {
-    wantedTier = next;
-    if (rebuilding) return;
-    rebuilding = true;
-    // Read through functions: other calls can change these during the await below.
-    const wanted = (): Tier | null => wantedTier;
-    const gone = () => disposed;
-    try {
-      for (let want = wanted(); want !== null && want !== tier && !gone(); want = wanted()) {
-        // The tier changes only once its post chain is built, so a failed build changes nothing.
-        const next = await buildPost(want);
-        if (gone()) {
-          next.dispose();
-          break;
-        }
-        swapPost(next);
-        tier = want;
-        lighting.setShadowQuality(settings().shadowMapSize, settings().shadowRadius);
-        street.setDetail(settings().detail);
-        contact.visible = !settings().ao;
-        stage.resize();
-        governor?.settle(performance.now());
-        stage.requestFrame();
-      }
-    } catch (error) {
-      // E.g. the ambient-occlusion chunk failed to load; the current tier keeps working.
-      console.error(error);
-    } finally {
-      rebuilding = false;
-      wantedTier = null;
-    }
-  }
-
   /**
    * Compiles every setup's shaders, effects included, so switching setups never stalls or blanks
-   * the view. three keys programs on the render target, so this compiles against an offscreen
-   * target like the post chain's, not the canvas. Async needs KHR_parallel_shader_compile; three
-   * warns without it.
+   * the view.
    */
   async function precompile() {
     setups.steel.visible = true;
     setups.plastic.visible = true;
     fx.showAll();
-    const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType });
-    renderer.setRenderTarget(target);
-    // compileAsync starts compiling before it returns, so the target only needs binding until then.
-    let ready: Promise<unknown> | null = null;
-    if (renderer.extensions.has('KHR_parallel_shader_compile')) {
-      ready = Promise.all([
-        renderer.compileAsync(scene, camera),
-        renderer.compileAsync(fxScene, camera),
-      ]);
-    } else {
-      renderer.compile(scene, camera);
-      renderer.compile(fxScene, camera);
-    }
-    renderer.setRenderTarget(null);
-    target.dispose();
-    await ready;
+    await runtime.compile([scene, fxScene]);
   }
 
   // Everything is built and compiled before the loop starts, so the first frame is the real one.
-  stage.resize();
-  const firstPost = await buildPost(tier);
-  swapPost(firstPost);
+  await runtime.init();
   frameArea(o.visibleArea());
   document.documentElement.dataset.sceneStage = 'compile';
   await precompile();
@@ -431,24 +328,18 @@ async function buildLabScene(
     });
   }
   applyState();
-  stage.start();
-
-  if (o.capture) {
-    // One settled frame, then hold still for the screenshot.
+  // In capture mode, one settled frame, labels placed, then still for the screenshot.
+  runtime.start(() => {
     labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
-    firstPost.render(1 / 60);
-    stage.stop();
-  }
-  document.documentElement.dataset.sceneReady = 'true';
-  window.dispatchEvent(new Event('scene:ready'));
+  });
 
   return {
     get tier() {
-      return tier;
+      return runtime.tier;
     },
     setState(nextSetup, nextFrequency) {
       // A setup switch swaps only what's underground; the view stays as it is.
-      if (nextSetup !== setup) governor?.settle(performance.now());
+      if (nextSetup !== setup) runtime.settle();
       setup = nextSetup;
       frequency = nextFrequency;
       applyState();
@@ -476,19 +367,8 @@ async function buildLabScene(
       for (const label of current) label.highlight = label.id === id;
       labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
     },
-    async setTier(next) {
-      if (next === 'auto') {
-        const gl = renderer.getContext();
-        const guessed = guessTier(
-          String(gl.getParameter(gl.RENDERER)),
-          matchMedia('(pointer: coarse)').matches,
-        );
-        governor = new Governor(guessed, guessed);
-        await changeTier(guessed);
-      } else {
-        governor = null;
-        await changeTier(next);
-      }
+    setTier(next) {
+      return runtime.setTier(next);
     },
     refreshLabels() {
       // Labels are HTML and the camera hasn't moved, so they're placed now, without waiting for a
@@ -519,7 +399,7 @@ async function buildLabScene(
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
         labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
-        post?.render(1 / 60);
+        runtime.renderOnce();
         return;
       }
       labelsDirty = true;
@@ -528,9 +408,7 @@ async function buildLabScene(
     dispose() {
       if (disposed) return;
       disposed = true;
-      stage.dispose();
-      post?.dispose();
-      hud?.dispose();
+      runtime.dispose();
       lighting.dispose();
       shared.screen.dispose();
       disposeObject(scene);

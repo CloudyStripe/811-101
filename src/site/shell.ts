@@ -8,14 +8,11 @@ import { BASE_PATH, BRAND, SITE_URL, escapeHtml, fillBrand } from '../../config/
 import { SECTIONS } from '../../content/portal.ts';
 import { markInline } from '../design/mark.ts';
 import { THEMES } from '../design/tokens.ts';
-import { PAGES, posterPath, sectionOf, type PageInfo } from './pages.ts';
-import { bootScript } from './settings.ts';
+import { posterPath, sectionOf, type PageInfo } from './pages.ts';
+import { BOOT_SCRIPT } from './settings.ts';
 
-/**
- * The settings script every page runs first. Pages outside the shell (the original diorama) don't
- * take part in page transitions, so leaving for one skips the fade.
- */
-export const BOOT = bootScript(PAGES.filter((p) => !p.built).map((p) => `${BASE_PATH}${p.path}`));
+/** The settings script every page runs first. */
+export const BOOT = BOOT_SCRIPT;
 
 /** Share images are 1200 × 630, the size every preview uses. */
 export const SHARE_SIZE = { width: 1200, height: 630 } as const;
