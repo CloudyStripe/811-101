@@ -42,6 +42,9 @@ export const ICONS = {
   check: 'check',
   'turn-left': 'arrow-counter-clockwise',
   'turn-right': 'arrow-clockwise',
+  // The lab's guide, and its key to the colors and marks in the view.
+  guide: 'book-open-text',
+  key: 'swatches',
 } as const;
 
 const PACKAGE = new URL('../node_modules/@phosphor-icons/core/', import.meta.url);

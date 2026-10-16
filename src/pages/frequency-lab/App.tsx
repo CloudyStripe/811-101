@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
-import { ABOUT, TAGLINE } from '../../../content/training/frequency-lab.ts';
+import { ABOUT, KEY, TAGLINE } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
 import { Rich } from '../../design/Term.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import type { SetupId } from '../../signal/model.ts';
+import { Console, type DrawerId } from './Console.tsx';
+import { Drawer } from './Drawer.tsx';
+import { Guide, define } from './Guide.tsx';
 import { Legend } from './Legend.tsx';
-import { Panel, define } from './Panel.tsx';
 import { SceneLabel } from './SceneLabel.tsx';
 import type { LabScene, Rect } from './scene/index.ts';
 import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
@@ -16,8 +18,6 @@ import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
 import { darkQuery, resolvedTheme } from '../../site/theme.ts';
 import { useSettings } from '../../site/useSettings.ts';
-import { stateSummary } from './summary.ts';
-import { TransmitterDock } from './TransmitterDock.tsx';
 
 const PAGE = pageById('frequency-lab');
 
@@ -34,34 +34,17 @@ const NO_WEBGL =
   'This lab draws a 3D view with WebGL, which this browser or device has turned off. The controls and explanations still work.';
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
-/** Match the layouts in lab.css: phones, and short screens such as phones held sideways. */
-const phoneQuery = matchMedia('(max-width: 760px)');
+/** Matches lab.css: short screens, such as phones held sideways, put the controls in a column. */
 const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
-/** Layouts where the guide is a sheet that opens over the 3D view. */
-const sheetLayout = () => phoneQuery.matches || shortQuery.matches;
-/** Phones tall enough to keep some of the view above an open sheet. */
-const tallPhoneQuery = matchMedia('(max-width: 760px) and (min-height: 681px)');
-/** Layouts where an open sheet covers the whole view. */
-const sheetCovers = () => sheetLayout() && !tallPhoneQuery.matches;
-/** Wide enough for the guide to start open beside the view; narrower, it starts closed. */
-const roomyQuery = matchMedia('(min-width: 1280px)');
 
-/** Whether the guide is a sheet in the layout now, kept up to date as the screen changes. */
-function useSheetLayout(): boolean {
-  const [sheet, setSheet] = useState(sheetLayout);
-  useEffect(() => {
-    const update = () => {
-      setSheet(sheetLayout());
-    };
-    phoneQuery.addEventListener('change', update);
-    shortQuery.addEventListener('change', update);
-    return () => {
-      phoneQuery.removeEventListener('change', update);
-      shortQuery.removeEventListener('change', update);
-    };
-  }, []);
-  return sheet;
-}
+/** The element the guide and the key open in. */
+const DRAWER_ID = 'lab-drawer';
+
+const DRAWER_TITLES: Record<DrawerId, string> = { guide: 'Lab guide', key: KEY.heading };
+const DRAWER_CLOSE: Record<DrawerId, string> = {
+  guide: 'Close the lab guide',
+  key: 'Close the key',
+};
 
 function rectWithin(el: Element, container: DOMRect): Rect | null {
   const r = el.getBoundingClientRect();
@@ -98,24 +81,21 @@ export function App() {
   const [frequency, setFrequency] = useState<Frequency>(INITIAL_FREQUENCY);
   // Changed in the header's settings menu; the scene follows.
   const [settings] = useSettings();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  // Wide screens: the guide panel starts open where there's room, and closes down to its title.
-  const [panelOpen, setPanelOpen] = useState(roomyQuery.matches);
+  // The guide or the key, open between the view and the console; or neither.
+  const [drawer, setDrawer] = useState<DrawerId | null>(null);
   // The reader can pause the signal's motion, whatever the motion setting (WCAG 2.2.2).
   const [paused, setPaused] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   // The key's rows find lines in the view once there's a view to find them in.
   const [sceneReady, setSceneReady] = useState(false);
-  const sheet = useSheetLayout();
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef(new Map<LabelId, HTMLElement>());
   const sceneRef = useRef<LabScene | null>(null);
   // The scene's callbacks outlive renders, so they read current state from here.
-  const live = useRef({ setup, frequency, settings, sheetOpen, panelOpen, paused });
-  live.current = { setup, frequency, settings, sheetOpen, panelOpen, paused };
-  const lastArea = useRef<{ area: VisibleArea; size: string } | null>(null);
+  const live = useRef({ setup, frequency, settings, paused });
+  live.current = { setup, frequency, settings, paused };
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -133,54 +113,31 @@ export function App() {
         (el) => rectWithin(el, box) ?? [],
       );
     };
-    /** The part of the 3D view the chrome leaves free, which the camera frames. */
+    /**
+     * The part of the 3D view the chrome leaves free, which the camera frames: below the site
+     * header, and above the drawer when it's open, or the console; on short screens, right of the
+     * column that holds them. The lede and the scale tag only take the view's top corners, so the
+     * fit keeps what the lesson needs out from under them.
+     */
     const visibleArea = (): VisibleArea => {
       const box = stageEl.getBoundingClientRect();
-      const size = `${String(box.width)}x${String(box.height)}`;
-      // Where an open sheet covers the view, the framing stays as it was, unless the screen itself
-      // changed (a rotation); closing the sheet then frames the view afresh. On taller phones the
-      // sheet leaves the top of the view, and the view is framed again there.
-      const last = lastArea.current;
-      if (live.current.sheetOpen && sheetCovers() && last?.size === size) return last.area;
-      const area = freeArea(box);
-      lastArea.current = { area, size };
-      return area;
-    };
-    const freeArea = (box: DOMRect): VisibleArea => {
+      const top = Math.max(0, (rectOf('.site-header')?.bottom ?? box.top) - box.top);
+      const keepOut = controlsOver(box, ['.lab-lede', '.lab-scale']);
       if (shortQuery.matches) {
-        // Short screens: right of the column of controls.
-        const left = (rectOf('.lab-dock')?.right ?? box.left) - box.left + 8;
-        return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
+        // The whole height beside the column, clear of the header's pills over its top.
+        const left = (rectOf('.lab-console')?.right ?? box.left) - box.left + 8;
+        return {
+          x: left,
+          y: 0,
+          width: Math.max(160, box.width - left),
+          height: box.height,
+          keepOut: [...keepOut, ...controlsOver(box, ['.site-home', '.site-page', '.site-tools'])],
+        };
       }
-      // Below the site header, and on wider screens below the lede too.
-      const top =
-        Math.max(rectOf('.site-header')?.bottom ?? 0, rectOf('.lab-lede')?.bottom ?? 0) - box.top;
-      if (phoneQuery.matches) {
-        // Phones: between the header and the sheet below the view.
-        const bottom = (rectOf('.lab-panel')?.top ?? box.bottom) - box.top;
-        return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
-      }
-      // Wider screens: left of the open panel, or the full width once it's closed to its title.
-      // When the band between the controls above and below is taller than wide, frame the
-      // portrait view inside it, clear of the controls. Otherwise the wide view uses the full
-      // height, since the controls over it only take its corners, and the fit keeps what the
-      // lesson needs out from under them.
-      const panel = rectOf('.lab-panel');
-      const right = Math.max(
-        160,
-        panel && live.current.panelOpen ? panel.left - box.left - 8 : box.width,
-      );
-      const bottom = (rectOf('.lab-dock')?.top ?? box.bottom) - box.top;
-      const band = { x: 0, y: top, width: right, height: Math.max(120, bottom - top) };
-      if (band.width < band.height) return { ...band, portrait: true };
-      return {
-        x: 0,
-        y: 0,
-        width: right,
-        height: box.height,
-        portrait: false,
-        keepOut: controlsOver(box, ['.lab-lede', '.lab-scale', '.lab-dock', '.lab-legend']),
-      };
+      const drawerBox = rectOf(`#${DRAWER_ID}:not([hidden])`);
+      const below = drawerBox && drawerBox.height > 0 ? drawerBox : rectOf('.lab-console');
+      const bottom = Math.min(box.height, (below?.top ?? box.bottom) - box.top - 8);
+      return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top), keepOut };
     };
 
     void (async () => {
@@ -210,6 +167,10 @@ export function App() {
           perf: PERF,
           visibleArea,
           noGo,
+          // Which view the block is built for, on the page for tests and styles to read.
+          onView: (kind) => {
+            stageEl.dataset.view = kind;
+          },
           onContextLost: () => {
             setFailed(
               "The 3D view paused because the graphics context was lost. It usually comes back on its own; if it doesn't, reload the page.",
@@ -295,90 +256,30 @@ export function App() {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
 
-  // Where opening the sheet covers the view, labels move out from under it. Otherwise the view
-  // glides to fit what the sheet leaves, and closing it reframes the view, in case the screen
-  // rotated while it was open. The first run is the scene's own first framing, so only later
-  // changes glide.
+  // Opening or closing the drawer changes how much room the view has: it glides to frame the
+  // lines above the drawer. The first run is the scene's own first framing.
   const firstLayout = useRef(true);
-  useEffect(() => {
-    if (sheetOpen && sheetCovers()) sceneRef.current?.refreshLabels();
-    else sceneRef.current?.relayout(!firstLayout.current);
-  }, [sheetOpen]);
-
-  // Closing or opening the panel changes how much of the screen the view has; it glides there.
   useEffect(() => {
     if (firstLayout.current) {
       firstLayout.current = false;
       return;
     }
     sceneRef.current?.relayout(true);
-  }, [panelOpen]);
+  }, [drawer]);
 
   function refreshLabels() {
     sceneRef.current?.refreshLabels();
   }
 
-  const dock = (
-    <TransmitterDock
-      key="dock"
-      setup={setup}
-      onSetup={setSetup}
-      frequency={frequency}
-      onFrequency={setFrequency}
-      paused={paused}
-      onPause={setPaused}
-    />
-  );
-
-  // Wider screens: the key beside the view, where each line's row finds it in the view.
-  const legend = (
-    <section key="legend" class="lab-legend" aria-labelledby="legend-title" data-chrome>
-      <h2 class="legend-title" id="legend-title">
-        Key
-      </h2>
-      <Legend
-        setup={setup}
-        find={
-          sceneReady
-            ? {
-                onHighlight: (id) => {
-                  sceneRef.current?.highlight(id);
-                },
-                onShow: (id) => {
-                  labelRefs.current.get(id)?.querySelector('button')?.focus();
-                },
-              }
-            : undefined
-        }
-      />
-    </section>
-  );
-
-  const panel = (
-    <Panel
-      key="panel"
-      setup={setup}
-      frequency={frequency}
-      panelOpen={panelOpen}
-      onPanelToggle={() => {
-        setPanelOpen(!panelOpen);
-      }}
-      sheetOpen={sheetOpen}
-      onSheetToggle={() => {
-        setSheetOpen(!sheetOpen);
-      }}
-      onAbout={() => {
-        setAboutOpen(true);
-      }}
-    />
-  );
+  /** Closes the drawer, and hands focus back to the button that opened it. */
+  function closeDrawer() {
+    const was = drawer;
+    setDrawer(null);
+    if (was) document.querySelector<HTMLElement>(`.console-toggle[data-drawer="${was}"]`)?.focus();
+  }
 
   return (
-    <div
-      class="lab-grid"
-      data-sheet={sheetOpen ? 'open' : 'closed'}
-      data-panel={panelOpen ? 'open' : 'closed'}
-    >
+    <div class="lab-grid" data-drawer={drawer ?? undefined}>
       {/* The lab's one-line lesson, under the site header that names it. */}
       <p class="lab-lede" data-chrome>
         {TAGLINE.text}
@@ -427,17 +328,55 @@ export function App() {
         </p>
       )}
 
-      {/*
-        The controls in reading order, which is their tab order: on phones and short screens the
-        guide's sheet sits above the transmitter; wider, the transmitter and the key come first,
-        then the guide beside them.
-      */}
-      {sheet ? [panel, dock] : [dock, legend, panel]}
+      {/* The guide or the key, between the view and the console: it reads in that order too. */}
+      <Drawer
+        id={DRAWER_ID}
+        title={drawer ? DRAWER_TITLES[drawer] : null}
+        closeLabel={drawer ? DRAWER_CLOSE[drawer] : ''}
+        onClose={closeDrawer}
+      >
+        {drawer === 'guide' && (
+          <Guide
+            setup={setup}
+            frequency={frequency}
+            onAbout={() => {
+              setAboutOpen(true);
+            }}
+          />
+        )}
+        {drawer === 'key' && (
+          <Legend
+            setup={setup}
+            find={
+              sceneReady
+                ? {
+                    onHighlight: (id) => {
+                      sceneRef.current?.highlight(id);
+                    },
+                    onShow: (id) => {
+                      labelRefs.current.get(id)?.querySelector('button')?.focus();
+                    },
+                  }
+                : undefined
+            }
+          />
+        )}
+      </Drawer>
 
-      {/* What the 3D view shows, announced when it changes. */}
-      <p id="lab-status" class="sr-only" role="status">
-        {stateSummary(setup, frequency)}
-      </p>
+      <Console
+        setup={setup}
+        onSetup={setSetup}
+        frequency={frequency}
+        onFrequency={setFrequency}
+        paused={paused}
+        onPause={setPaused}
+        drawer={drawer}
+        drawerElement={DRAWER_ID}
+        onDrawer={(next) => {
+          if (next) setDrawer(next);
+          else closeDrawer();
+        }}
+      />
 
       <Dialog
         open={aboutOpen}

@@ -16,10 +16,16 @@ interface State {
   desktopOnly?: boolean;
   /** Reached through many states, each drawn in full: it needs longer under software rendering. */
   slow?: boolean;
+  /** Something opens over the view, such as a dialog, so labels may sit under it. */
+  overView?: boolean;
 }
 
-async function openSheet(page: Page) {
-  await page.getByRole('button', { name: 'Details' }).click();
+/** Opens the guide or the key from the console. */
+async function openDrawer(page: Page, name: 'Guide' | 'Key') {
+  await page
+    .getByRole('region', { name: 'Controls' })
+    .getByRole('button', { name, exact: true })
+    .click();
 }
 
 const STATES: State[] = [
@@ -30,19 +36,20 @@ const STATES: State[] = [
   {
     name: 'about',
     query: 'setup=steel&f=33000',
-    prepare: async (page, phone) => {
-      if (phone) await openSheet(page);
+    overView: true,
+    prepare: async (page) => {
+      await openDrawer(page, 'Guide');
       await page.getByRole('button', { name: 'About this model' }).click();
       await expect(page.getByRole('dialog', { name: 'About this model' })).toBeVisible();
     },
   },
   {
-    name: 'guide-closed',
-    query: 'setup=steel&f=83000',
-    desktopOnly: true,
+    // The guide, open between the view and the console.
+    name: 'guide',
+    query: 'setup=plastic&f=33000',
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Close the lab guide' }).click();
-      await expect(page.getByRole('button', { name: 'Open the lab guide' })).toBeVisible();
+      await openDrawer(page, 'Guide');
+      await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
     },
   },
   {
@@ -51,6 +58,7 @@ const STATES: State[] = [
     query: 'setup=steel&f=33000',
     desktopOnly: true,
     prepare: async (page) => {
+      await openDrawer(page, 'Key');
       await page
         .getByRole('region', { name: 'Key' })
         .getByRole('button', { name: 'Telecom cable' })
@@ -64,15 +72,6 @@ const STATES: State[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Pause the signal' }).click();
       await expect(page.getByRole('button', { name: 'Play the signal' })).toBeVisible();
-    },
-  },
-  {
-    name: 'sheet',
-    query: 'setup=plastic&f=33000',
-    phoneOnly: true,
-    prepare: async (page) => {
-      await openSheet(page);
-      await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
     },
   },
 ];
@@ -156,7 +155,8 @@ for (const theme of ['light', 'dark'] as const) {
             animations: 'disabled',
           });
 
-          await expectLabelsClear(page, vp, !s.prepare);
+          // The view is framed clear of the guide, the key and the console, so labels are too.
+          await expectLabelsClear(page, vp, !s.overView);
         });
       }
     });

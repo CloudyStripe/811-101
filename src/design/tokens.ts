@@ -306,9 +306,6 @@ export const DIORAMA_COLORS = {
 /** Icon ink on APWA color chips: dark on every chip, in both themes. */
 export const CHIP_INK = '#1b1a17';
 
-/** A device's own screen, such as the transmitter's: dark, with light figures, in either theme. */
-export const DEVICE = { lcd: '#22231f', lcdInk: '#e9e6dd' } as const;
-
 /**
  * The locate signal's own color: a luminous cyan, chosen to sit well away from every APWA hue
  * (checked in tokens.test.ts). Strength is shown by brightness, never by a change of color.
@@ -446,7 +443,6 @@ export function tokensCss(): string {
     `--font-display: ${TYPE.display}; --font-body: ${TYPE.body}; --font-mono: ${TYPE.mono};`,
     type,
     `--signal: ${SIGNAL_COLOR}; --chip-ink: ${CHIP_INK}; --soil: ${MATERIAL_COLORS.subsoil};`,
-    `--lcd: ${DEVICE.lcd}; --lcd-ink: ${DEVICE.lcdInk};`,
     // The ground's layers, top down, for drawings in the page (the 404, the portal).
     `--strata-1: ${MATERIAL_COLORS.topsoil}; --strata-2: ${MATERIAL_COLORS.subsoil}; --strata-3: ${MATERIAL_COLORS.clay};`,
     space,

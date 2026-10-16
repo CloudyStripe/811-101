@@ -30,12 +30,15 @@ An interactive learning site about buried utilities and line locating.
 - **Every page starts with** `src/site/boot.ts`: tokens, fonts, `base.css`, `components.css`,
   `site.css`, and the header's settings menu. Settings live in one store (`src/site/settings.ts`,
   `useSettings`), shared by the menu and the page.
-- **Shared styles:** `src/design/components.css` holds buttons, the segmented control, the rotary
-  dial, folding sections, chips, terms, dialogs and 3D labels. Hover styles go inside
-  `@media (hover: hover)`.
-- **Shared controls:** `Segmented` and `RotaryDial` are radio groups built on `useRadioGroup`
-  (one tab stop, arrows, Home and End); `Disclosure` is a folding section: a heading whose button
-  opens and closes it.
+- **Shared styles:** `src/design/components.css` holds buttons, the segmented control, chips,
+  terms, dialogs and 3D labels. Hover styles go inside `@media (hover: hover)`.
+- **Shared controls:** `Segmented` is a radio group built on `useRadioGroup` (one tab stop,
+  arrows, Home and End): the lab's setup and its four frequency buttons, and the diorama's path
+  switch.
+- **The lab's layout:** the view, then a drawer (the guide or the key, one at a time, opened from
+  the console and closed by its button or Escape), then the console (the one-line summary, setup,
+  frequency, pause, Guide and Key). The view is framed above whichever is open, so neither covers
+  the lines; on short screens the drawer and console are a column beside the view.
 - **The wordmark** is the site's name set in Archivo, heavy and wide: in the header and footer,
   and as the two-line "811 / 101" tile of the favicons and share previews (`scripts/wordmark.ts`).
   Never 811 or Common Ground Alliance artwork.
