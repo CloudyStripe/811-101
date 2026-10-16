@@ -76,7 +76,7 @@ const SHOTS: Shot[] = [
     ready: labReady,
     hide: LAB_CHROME,
     // Close on the hookup and the signal setting off along the main, apart from the hero.
-    crop: { x: 260, y: 230, width: 620 },
+    crop: { x: 40, y: 185, width: 600 },
   },
   {
     name: 'gas-petroleum',
@@ -88,10 +88,10 @@ const SHOTS: Shot[] = [
 ];
 
 /**
- * The phone's square hero, cut from the wide capture (1200 × 900) around the block: the hookup, the
- * trench and the signal setting off, with little of the empty floor in front.
+ * The phone's square hero, cut from the wide capture (1200 × 900) around the block's near end: the
+ * hookup, the trench and the signal setting off along the main.
  */
-const HERO_SQUARE_CROP = { x: 160, y: 60, width: 800, height: 800 };
+const HERO_SQUARE_CROP = { x: 20, y: 150, width: 600, height: 600 };
 
 /** The portal's hero: the lab's block in its town, the signal along the gas main. */
 const HERO = {
