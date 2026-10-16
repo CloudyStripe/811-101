@@ -295,10 +295,12 @@ export function buildStreet(layout: LabLayout): Street {
     tuft(0.14).scale(1, 0.48, 1).translate(-0.12, 0.03, -0.1),
   ]);
   const clumpMaterial = surface('#ffffff', { finish: 'matte', roughness: 1 });
+  // Clear of the equipment, at the size it's drawn.
+  const k = layout.equipment;
   const avoid = [
-    { ...hookup.transmitter, r: 1.5 },
-    { ...hookup.access, r: 0.9 },
-    { x: hookup.stake.x, z: hookup.stake.z, r: 0.7 },
+    { ...hookup.transmitter, r: 0.3 + 1.2 * k },
+    { ...hookup.access, r: 0.4 + 0.5 * k },
+    { x: hookup.stake.x, z: hookup.stake.z, r: 0.4 + 0.3 * k },
     { ...hookup.pedestal, r: 1.1 },
     { ...hydrant, r: 1.0 },
   ];

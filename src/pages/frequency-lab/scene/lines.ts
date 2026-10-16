@@ -154,7 +154,7 @@ export interface SharedLines {
 
 /** Lines and equipment present in both setups. */
 export function buildShared(layout: LabLayout, readings: readonly string[]): SharedLines {
-  const { lines, hookup, leads, block } = layout;
+  const { lines, hookup, leads, block, equipment: k } = layout;
   const group = new Group();
   group.name = 'shared-lines';
   const t = lines.telecom;
@@ -178,11 +178,13 @@ export function buildShared(layout: LabLayout, readings: readonly string[]): Sha
     ),
   );
 
-  // Generic transmitter: no manufacturer's design. Rounded case, handle, screen, two terminals.
+  // Generic transmitter: no manufacturer's design. Rounded case, handle, screen, two terminals,
+  // built at true size and drawn at the equipment's size.
   const tx = hookup.transmitter;
   const unit = new Group();
   unit.position.set(tx.x, 0.12, tx.z);
-  unit.rotation.y = -0.55;
+  unit.rotation.y = tx.turn;
+  unit.scale.setScalar(k);
   const graphite = MATERIALS.graphite();
   unit.add(
     mesh(roundedBox(1.5, 0.92, 1.0, 0.16, [0, 0.46, 0]), graphite),
@@ -215,26 +217,31 @@ export function buildShared(layout: LabLayout, readings: readonly string[]): Sha
   group.add(
     mesh(
       merge([
-        post(s.x, s.z, s.tip + 0.25, s.top, 0.05),
-        new ConeGeometry(0.05, 0.25, 16).rotateX(Math.PI).translate(s.x, s.tip + 0.125, s.z),
-        new CylinderGeometry(0.045, 0.045, 0.9, 16).rotateZ(Math.PI / 2).translate(s.x, s.top, s.z),
+        post(s.x, s.z, s.tip + 0.25 * k, s.top, 0.05 * k),
+        new ConeGeometry(0.05 * k, 0.25 * k, 16)
+          .rotateX(Math.PI)
+          .translate(s.x, s.tip + 0.125 * k, s.z),
+        new CylinderGeometry(0.045 * k, 0.045 * k, 0.9 * k, 16)
+          .rotateZ(Math.PI / 2)
+          .translate(s.x, s.top, s.z),
       ]),
       steel,
     ),
   );
 
-  // Leads lying in the grass: signal lead to the access point, ground lead to the stake.
-  const lead = MATERIALS.graphite();
-  group.add(cable(leads.signal, 0.045, lead), cable(leads.ground, 0.045, lead));
+  // The ground lead, lying in the grass from the transmitter to the stake. Each setup has its own
+  // signal lead, to its own access point.
+  group.add(cable(leads.ground, layout.leadRadius, MATERIALS.graphite()));
   return { group, screen };
 }
 
-/** The target line and its access point, for one setup. */
+/** The target line, its access point, and the signal lead to it, for one setup. */
 export function buildSetup(layout: LabLayout, setup: SetupId): Group {
-  const { lines, hookup, risers, block } = layout;
+  const { lines, hookup, risers, block, equipment: k } = layout;
   const group = new Group();
   group.name = `setup-${setup}`;
   const a = hookup.access;
+  group.add(cable(layout.leads.signal[setup], layout.leadRadius, MATERIALS.graphite()));
 
   if (setup === 'steel') {
     const m = lines.steel;
@@ -257,9 +264,13 @@ export function buildSetup(layout: LabLayout, setup: SetupId): Group {
     );
     // Cathodic-protection test station: a yellow post, with its test lead up the cut face.
     group.add(
-      mesh(post(a.x, a.z, 0, 3.0, 0.17), MATERIALS.yellowPost()),
+      mesh(post(a.x, a.z, 0, 3.0 * k, 0.17 * k), MATERIALS.yellowPost()),
       mesh(
-        new SphereGeometry(0.19, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).translate(a.x, 3.0, a.z),
+        new SphereGeometry(0.19 * k, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).translate(
+          a.x,
+          3.0 * k,
+          a.z,
+        ),
         MATERIALS.graphite(),
       ),
       cable(risers.steel, 0.035, MATERIALS.graphite()),
@@ -282,14 +293,14 @@ export function buildSetup(layout: LabLayout, setup: SetupId): Group {
     ),
   );
   group.add(mesh(pipeAlongX(tr.x0, block.x1, tr.y, 0, tr.radius, 12), MATERIALS.tracer()));
-  // Tracer-wire test box, flush with the grass; the wire comes up the cut face to it.
+  // Tracer-wire test box, set in the grass; the wire comes up the cut face to it.
   group.add(
     mesh(
-      new CylinderGeometry(0.42, 0.44, 0.24, 32).translate(a.x, 0.06, a.z),
+      new CylinderGeometry(0.42 * k, 0.44 * k, 0.24 * k, 32).translate(a.x, 0.06 * k, a.z),
       MATERIALS.graphite(),
     ),
     mesh(
-      new CylinderGeometry(0.37, 0.37, 0.05, 32).translate(a.x, 0.2, a.z),
+      new CylinderGeometry(0.37 * k, 0.37 * k, 0.05 * k, 32).translate(a.x, 0.2 * k, a.z),
       MATERIALS.yellowPost(),
     ),
     cable(risers.plastic, tr.radius, MATERIALS.tracer()),

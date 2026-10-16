@@ -257,11 +257,18 @@ export class SignalEffects {
     return { material, source };
   }
 
-  /** The signal along a lead or riser: the transmitter's full current, banded like the lines. */
-  private wireGlow(points: readonly (readonly [number, number, number])[], direction: 1 | -1) {
+  /**
+   * The signal along a lead or riser: the transmitter's full current, banded like the lines, in a
+   * sleeve `radius` thick.
+   */
+  private wireGlow(
+    points: readonly (readonly [number, number, number])[],
+    direction: 1 | -1,
+    radius = 0.075,
+  ) {
     const curve = new CatmullRomCurve3(points.map(([x, y, z]) => new Vector3(x, y, z)));
     const length = curve.getLength();
-    const geometry = withTubeDistance(new TubeGeometry(curve, 48, 0.075, 8, false), length);
+    const geometry = withTubeDistance(new TubeGeometry(curve, 48, radius, 8, false), length);
     const material = this.material({
       uMode: { value: 1 },
       uIntensity: { value: WIRE_INTENSITY },
@@ -295,10 +302,12 @@ export class SignalEffects {
     });
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.
+    // The leads' sleeves are as much wider than the leads as the risers' are than a thin wire.
+    const sleeve = this.layout.leadRadius * (0.075 / 0.045);
     const wires = [
-      this.wireGlow(leads.signal, 1),
+      this.wireGlow(leads.signal[setup], 1, sleeve),
       this.wireGlow(risers[setup], -1),
-      this.wireGlow(leads.ground, -1),
+      this.wireGlow(leads.ground, -1, sleeve),
     ];
     group.add(targetSleeve, telecomSleeve, ...wires);
 

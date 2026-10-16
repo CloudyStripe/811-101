@@ -5,9 +5,10 @@
  *
  * The block is a slab cut out of the ground, from the stake to the far end, and it's drawn deeper
  * than true: below ground every height is `depth` times its real value, and the lines are as many
- * times thicker, so the cut face reads as a broad band with the lines plain on it. The view says
- * it's not to scale. Above ground, everything is true size. Nothing here touches three.js, so the
- * layout can be checked in plain tests.
+ * times thicker, so the cut face reads as a broad band with the lines plain on it. The locating
+ * equipment (transmitter, stake, access point and leads) is drawn `equipment` times its size, so
+ * it reads beside the long block. The view says it's not to scale. Everything else above ground is
+ * true size. Nothing here touches three.js, so the layout can be checked in plain tests.
  */
 import { GEOMETRY } from '../../../signal/constants.ts';
 import type { SetupId } from '../../../signal/model.ts';
@@ -52,10 +53,29 @@ export interface Stratum {
 export interface LabLayoutOptions {
   /** How many times deeper than true the ground is drawn, and the lines thicker: 1 is to scale. */
   depth: number;
+  /** How many times its true size the locating equipment is drawn: 1 is to scale. */
+  equipment?: number;
 }
+
+/** The two views of the slab: from in front, on wide screens, and at three-quarters, on tall ones. */
+export type ViewKind = 'wide' | 'tall';
+
+/**
+ * How deep each view draws the ground: deeper in the tall view, whose screen has the height for a
+ * taller cut face.
+ */
+export const VIEW_DEPTH: Readonly<Record<ViewKind, number>> = { wide: 3, tall: 5 };
+
+/** How many times its true size the locating equipment is drawn, so it reads beside the block. */
+export const EQUIPMENT_SIZE = 2.5;
+
+/** The transmitter's turn about the vertical, toward the access point. */
+const TRANSMITTER_TURN = -0.55;
 
 export interface LabLayout {
   depth: number;
+  /** How many times its true size the locating equipment is drawn. */
+  equipment: number;
   block: { x0: number; x1: number; z0: number; z1: number; bottom: number };
   strata: readonly Stratum[];
   /** The backfilled trench the gas main and telecom cable share, seen in section. */
@@ -70,16 +90,31 @@ export interface LabLayout {
   };
   hookup: {
     access: { x: number; z: number };
-    transmitter: { x: number; z: number };
+    /** `turn`: its turn about the vertical, in radians. */
+    transmitter: { x: number; z: number; turn: number };
     stake: { x: number; z: number; tip: number; top: number };
     pedestal: { x: number; z: number };
   };
   hydrant: { x: number; z: number };
   /**
-   * The transmitter's leads, lying in the grass, from the transmitter outward: the signal lead to
-   * the access point and the ground lead to the stake. The signal glows along both, closing the loop.
+   * Where the leads clip on: the transmitter's signal and ground terminals, the access point's
+   * terminal in each setup (the test station's, or the tracer box's under its lid), and the
+   * stake's rod, just under its handle.
    */
-  leads: { signal: readonly Point[]; ground: readonly Point[] };
+  terminals: {
+    signal: Point;
+    ground: Point;
+    access: Record<SetupId, Point>;
+    stake: Point;
+  };
+  /** How thick the leads are drawn. */
+  leadRadius: number;
+  /**
+   * The transmitter's leads, lying in the grass, from its terminals outward: the signal lead to the
+   * access point (per setup, since each has its own terminal) and the ground lead to the stake. The
+   * signal glows along both, closing the loop.
+   */
+  leads: { signal: Record<SetupId, readonly Point[]>; ground: readonly Point[] };
   /** The wire up the cut face from the line to its access point, from the line upward. */
   risers: Record<SetupId, readonly Point[]>;
   /** Where the earth-return flow lines converge: the stake's tip, on the cut face. */
@@ -100,8 +135,9 @@ export interface LabLayout {
 const LAWN_Z = -37;
 
 /** The block's layout, drawn `depth` times deeper than true below ground. */
-export function labLayout({ depth }: LabLayoutOptions): LabLayout {
+export function labLayout({ depth, equipment = 1 }: LabLayoutOptions): LabLayout {
   const d = (y: number) => y * depth;
+  const k = equipment;
   const x1 = GEOMETRY.blockLengthFt.value + 6;
   const block = { x0: -34, x1, z0: -40, z1: 0, bottom: d(-10) };
   const strata = TRUE_STRATA.map((s) => ({ name: s.name, top: d(s.top), bottom: d(s.bottom) }));
@@ -125,27 +161,57 @@ export function labLayout({ depth }: LabLayoutOptions): LabLayout {
   const trench = { x0: -1.6, zBack: -Math.max(2.4, steel.radius * 3), bottom: d(-4.6) };
   const hookup = {
     access: { x: 0, z: -1.5 },
-    transmitter: { x: -6.5, z: -3.3 },
-    stake: { x: -24, z: 0, tip: d(-2.6), top: 1.1 },
+    transmitter: { x: -6.5, z: -3.3, turn: TRANSMITTER_TURN },
+    stake: { x: -24, z: 0, tip: d(-2.6), top: 1.1 * k },
     pedestal: { x: -14, z: -4.3 },
   };
   const hydrant = { x: GEOMETRY.waterCrossingAtFt.value + 4, z: -4.6 };
   const tx = hookup.transmitter;
   const access = hookup.access;
   const stake = hookup.stake;
+  // A point on the transmitter, from its own frame (true size, its front facing +z) to the block's.
+  const onTransmitter = (x: number, y: number, z: number): Point => {
+    const [c, s] = [Math.cos(tx.turn), Math.sin(tx.turn)];
+    return [tx.x + (x * c + z * s) * k, 0.12 + y * k, tx.z + (z * c - x * s) * k];
+  };
+  const terminals = {
+    // The terminals' tips, on the transmitter's front: signal toward the access point, ground away.
+    signal: onTransmitter(0.45, 0.22, 0.64),
+    ground: onTransmitter(-0.45, 0.22, 0.64),
+    access: {
+      // The test station's terminal, on its post, a hand's height up.
+      steel: [access.x - 0.17 * k - 0.02, 0.5 * k, access.z],
+      // The tracer box's terminal, under the lid's edge.
+      plastic: [access.x - 0.3 * k, 0.2 * k, access.z],
+    } satisfies Record<SetupId, Point>,
+    stake: [stake.x + 0.05 * k, stake.top - 0.25 * k, stake.z],
+  } satisfies LabLayout['terminals'];
+  const leadRadius = 0.045 * k;
+  // Where a lead lies in the grass: on the verge's top, its own thickness up.
+  const lie = 0.12 + leadRadius;
+  const out = terminals.signal;
+  const back = terminals.ground;
+  const signalLead = (clip: Point): Point[] => [
+    out,
+    [out[0] + 0.25 * k, lie + 0.1 * k, out[2] + 0.2 * k],
+    [out[0] + 0.7 * k, lie, out[2] + 0.35 * k],
+    [clip[0] - 0.7 * k, lie, clip[2] - 0.15 * k],
+    [clip[0] - 0.25 * k, (lie + clip[1]) / 2, clip[2]],
+    clip,
+  ];
   const leads = {
-    signal: [
-      [tx.x + 0.3, 0.35, tx.z + 0.5],
-      [tx.x + 1.6, 0.16, tx.z + 1.4],
-      [access.x - 1.4, 0.16, access.z - 0.4],
-      [access.x - 0.3, 0.3, access.z],
-    ],
+    signal: {
+      steel: signalLead(terminals.access.steel),
+      plastic: signalLead(terminals.access.plastic),
+    },
     ground: [
-      [tx.x - 0.4, 0.35, tx.z + 0.5],
-      [tx.x - 3, 0.16, tx.z + 1.6],
-      [stake.x + 6, 0.16, -1.4],
-      [stake.x + 0.6, 0.18, -0.5],
-      [stake.x + 0.08, stake.top - 0.3, 0],
+      back,
+      [back[0] - 0.25 * k, lie + 0.1 * k, back[2] + 0.15 * k],
+      [back[0] - 0.8 * k, lie, back[2] + 0.4 * k],
+      [stake.x + 6, lie, -1.4],
+      [stake.x + 0.25 * k, lie, -0.25 * k],
+      [stake.x + 0.1 * k, (lie + terminals.stake[1]) / 2, -0.05],
+      terminals.stake,
     ],
   } satisfies LabLayout['leads'];
   const risers: Record<SetupId, readonly Point[]> = {
@@ -194,9 +260,9 @@ export function labLayout({ depth }: LabLayoutOptions): LabLayout {
     { x0: block.x0, x1: block.x1, z0: SURFACE.curbBack, z1: SURFACE.curbFront },
     { x0: block.x0, x1: block.x1, z0: SURFACE.sidewalkBack, z1: SURFACE.farCurbBack },
     { x0: DRIVEWAY.x0, x1: DRIVEWAY.x1, z0: SURFACE.vergeBack, z1: 0 },
-    around(tx.x, tx.z, 1),
-    around(access.x, access.z, 0.4),
-    around(stake.x, stake.z, 0.3),
+    around(tx.x, tx.z, 1 * k),
+    around(access.x, access.z, 0.45 * k),
+    around(stake.x, stake.z, 0.3 * k),
     around(hookup.pedestal.x, hookup.pedestal.z, 0.6),
     around(hydrant.x, hydrant.z, 0.5),
     ...steppingStones,
@@ -209,17 +275,20 @@ export function labLayout({ depth }: LabLayoutOptions): LabLayout {
     [block.x1, 0.5, block.z0],
     ...trees.map((t): Point => [t.x, t.height + 0.5, t.z]),
     [stake.x - 2, stake.top + 3, stake.z],
-    [tx.x, 4, tx.z],
-    [access.x, 6, access.z],
+    [tx.x, 0.12 + 1.4 * k + 2.5, tx.z],
+    [access.x, 3 * k + 3, access.z],
   ];
   return {
     depth,
+    equipment: k,
     block,
     strata,
     trench,
     lines,
     hookup,
     hydrant,
+    terminals,
+    leadRadius,
     leads,
     risers,
     stakeTip: [stake.x, stake.tip, 0.12],
@@ -282,16 +351,31 @@ export function tallView(layout: LabLayout): View {
 const TALL = 1.05;
 
 /**
- * The view that suits the screen: the tall view on a screen held upright, whatever strip of it the
+ * Which view suits the screen: the tall view on a screen held upright, whatever strip of it the
  * controls leave free, or in a free area taller than wide, as beside the controls on a phone held
  * sideways; the wide view otherwise. A free area can also ask for one or the other.
  */
+export function viewKind(area: VisibleArea, canvas: { width: number; height: number }): ViewKind {
+  const tall =
+    area.portrait ?? (canvas.height > canvas.width * TALL || area.height > area.width * TALL);
+  return tall ? 'tall' : 'wide';
+}
+
+/** A view of the layout: from in front, or at three-quarters. */
+export function viewOf(layout: LabLayout, kind: ViewKind): View {
+  return kind === 'tall' ? tallView(layout) : wideView(layout);
+}
+
+/** The view that suits the screen, of the given layout. */
 export function viewFor(
   layout: LabLayout,
   area: VisibleArea,
   canvas: { width: number; height: number },
 ): View {
-  const tall =
-    area.portrait ?? (canvas.height > canvas.width * TALL || area.height > area.width * TALL);
-  return tall ? tallView(layout) : wideView(layout);
+  return viewOf(layout, viewKind(area, canvas));
+}
+
+/** The layout each view is drawn with: the ground as deep as the view asks, the equipment large. */
+export function layoutFor(kind: ViewKind): LabLayout {
+  return labLayout({ depth: VIEW_DEPTH[kind], equipment: EQUIPMENT_SIZE });
 }

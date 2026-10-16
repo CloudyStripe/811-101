@@ -95,24 +95,30 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
 ];
 
 /**
- * Where each label sits in the block's layout. Labels on the lines hang under or over them, just
- * in front of the cut face.
+ * Where each label sits in the block's layout. Labels on the equipment sit over it, at the size
+ * it's drawn; labels on the lines hang under or over them, just in front of the cut face.
  */
 export function labelPlaces(layout: LabLayout): Record<LabelId, LabelPlace> {
-  const { hookup, lines } = layout;
+  const { hookup, lines, equipment: k } = layout;
   const { transmitter: tx, stake, access } = hookup;
+  // The transmitter's case top, and its handle's, standing on the grass.
+  const caseTop = 0.12 + 0.92 * k;
+  const handleTop = 0.12 + 1.39 * k;
   return {
     transmitter: {
-      anchor: same([tx.x, 1.5, tx.z]),
-      point: same([tx.x, 1.05, tx.z]),
+      anchor: same([tx.x, handleTop + 0.05 * k, tx.z]),
+      point: same([tx.x, caseTop, tx.z]),
     },
     stake: {
-      anchor: same([stake.x, stake.top + 0.4, stake.z]),
+      anchor: same([stake.x, stake.top + 0.3 + 0.1 * k, stake.z]),
       point: same([stake.x, stake.top, stake.z]),
     },
     access: {
-      anchor: { steel: [access.x, 3.5, access.z], plastic: [access.x, 0.6, access.z] },
-      point: { steel: [access.x, 3.0, access.z], plastic: [access.x, 0.22, access.z] },
+      anchor: {
+        steel: [access.x, 3 * k + 0.5, access.z],
+        plastic: [access.x, 0.225 * k + 0.375, access.z],
+      },
+      point: { steel: [access.x, 3 * k, access.z], plastic: [access.x, 0.225 * k, access.z] },
     },
     target: {
       anchor: {
