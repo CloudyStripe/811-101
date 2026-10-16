@@ -540,6 +540,10 @@ body {
     justify-self: stretch;
   }
 
+  .console-drawers {
+    justify-self: stretch;
+  }
+
   .console-drawers .console-toggle {
     flex: 1;
     min-height: 40px;
