@@ -138,9 +138,8 @@ const PATHS = [
 ] as const;
 
 /**
- * Street lights, lit at night: on both sides of the town's street, between the homes, and along
- * the walk toward the city gate, and one by the gate itself. Each arm reaches over the ground its
- * lamp lights.
+ * Street lights, lit at night: along both sides of the town's street, along the walk toward the
+ * city gate, and one by the gate itself. Each arm reaches over the ground its lamp lights.
  */
 const LAMPS: readonly LampSpot[] = [
   { x: 24, z: SITE.street.z - 1.2, facing: Math.PI },
@@ -152,6 +151,12 @@ const LAMPS: readonly LampSpot[] = [
   { x: 23.7, z: -8.4, facing: Math.PI / 2 },
   { x: SITE.cityGate.x + 2.9, z: SITE.cityGate.z + 2.6, facing: 0.84 },
 ];
+
+/**
+ * The pools the lamps throw at night: spilling past the street onto the lawn, and bright enough to
+ * show warm on the moonlit ground.
+ */
+export const LAMP_POOL = { y: 0.09, radius: 1.6, strength: 0.6 } as const;
 
 /** The roads and walks on the lawn, as rectangles: the grass wears thin along them. */
 const ROADS: readonly GroundRect[] = [
@@ -367,13 +372,12 @@ export function buildGround(pads: readonly GroundRect[] = []): Ground {
   );
   group.add(buildShrubs(shrubs, WORLD_COLORS));
 
-  // Street lights at the scale of the homes, their pools as wide as the street, and bright enough
-  // to show warm on the moonlit ground.
+  // Street lights at the scale of the homes.
   const lamps = buildStreetLights(LAMPS, WORLD_COLORS, {
     height: 2.2,
     reach: 0.45,
     size: 0.11,
-    pool: { y: 0.09, radius: 1.6, strength: 0.6 },
+    pool: LAMP_POOL,
   });
   group.add(lamps.group);
 

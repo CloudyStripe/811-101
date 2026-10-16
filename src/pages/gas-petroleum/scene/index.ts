@@ -362,8 +362,17 @@ async function buildDiorama(
   }
 
   const overviewMustSee = overviewPoints(models);
-  /** How far the overview's camera stands from what it looks at, in the room the view has now. */
-  let overviewReach = Infinity;
+  /**
+   * How far the overview's camera would stand from what it looks at, in the room the view is
+   * framed for (`shownArea`): measured again only when that room changes.
+   */
+  let overviewReach: { area: VisibleArea | null | undefined; reach: number } = {
+    // Never measured yet: the first grade measures, whatever room the view has.
+    area: undefined,
+    reach: 1,
+  };
+  /** The theme and strength the ground was last graded at. */
+  let graded = { theme: '', strength: -1 };
   const currentView = () => {
     const model = shown ? models.find((m) => m.id === shown) : undefined;
     return model ? stopView(model) : overviewView(overviewMustSee, yaw);
@@ -373,16 +382,27 @@ async function buildDiorama(
   function target(): { area: VisibleArea; pose: CameraPose } {
     const area = o.visibleArea();
     cam.setLayout(runtime.stage.width, runtime.stage.height, area);
-    const overview = cam.poseFor(overviewView(overviewMustSee, 0));
-    overviewReach = overview.position.distanceTo(overview.target);
     return { area, pose: cam.poseFor(currentView()) };
   }
 
-  /** The ground's night grade, by how near the camera is (`nightGradeAt`). By day there's none. */
+  /**
+   * The ground's night grade, by how near the camera is (`nightGradeAt`), measured against the
+   * overview in the room the view is framed for now. That room eases along with every move, as
+   * when the guide opens, so the grade never jumps. By day there's none.
+   */
   function gradeGround() {
+    if (overviewReach.area !== shownArea) {
+      const overview = cam.poseFor(overviewView(overviewMustSee, 0));
+      overviewReach = {
+        area: shownArea,
+        reach: overview.position.distanceTo(overview.target),
+      };
+    }
     const pose = cam.pose();
-    const share = pose.position.distanceTo(pose.target) / overviewReach;
-    setGroundGrade(THEMES[theme].scene.ground, nightGradeAt(share));
+    const strength = nightGradeAt(pose.position.distanceTo(pose.target) / overviewReach.reach);
+    if (graded.theme === theme && graded.strength === strength) return;
+    graded = { theme, strength };
+    setGroundGrade(THEMES[theme].scene.ground, strength);
   }
 
   /** Frames the current view at once. */

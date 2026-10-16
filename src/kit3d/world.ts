@@ -1,8 +1,8 @@
 /**
  * Scenery around a model: a soft contact shadow, and instanced low-poly trees, shrubs and street
  * lights. Everything here is scenery: no APWA hues, few draw calls. Trees and shrubs are the
- * ground's cover, graded at night with the lawn; at night the lamps light up (`setLamps`), with
- * pools of light on the street.
+ * ground's cover, graded with the lawn wherever a scene grades it at night (`setGroundGrade`); at
+ * night the lamps light up (`setLamps`), with pools of light on the street.
  */
 import {
   AdditiveBlending,
@@ -242,10 +242,11 @@ export function buildStreetLights(
     lampMaterial,
     spots.length,
   );
-  // Pools take the warm color of lamplight, as lit windows do, so they read as light on the street.
+  // Pools take the lamp's own warm white, never a yellow: on the ground, yellow would read as the
+  // gas code.
   const poolMaterial = new MeshBasicMaterial({
     map: poolTexture(),
-    color: new Color(palette.windowLit),
+    color: new Color(palette.lamp),
     transparent: true,
     opacity: 0,
     blending: AdditiveBlending,

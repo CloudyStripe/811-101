@@ -8,6 +8,9 @@ import { WORLD_COLORS, type SceneTokens } from '../../../design/tokens.ts';
 import { buildShrubs, buildStreetLights, buildTrees, contactShadow } from '../../../kit3d/world.ts';
 import type { LabLayout } from './layout.ts';
 
+/** The pools the lamps throw on the far sidewalk at night: wide, and faint. */
+export const LAMP_POOL = { y: 0.1, radius: 5, strength: 0.26 } as const;
+
 export interface Scenery {
   readonly group: Group;
   /** Day or night: the lamps, and the shadow at the slab's foot. */
@@ -23,7 +26,7 @@ export function buildScenery(layout: LabLayout): Scenery {
     layout.lamps.map((l) => ({ ...l, facing: Math.PI })),
     WORLD_COLORS,
     // Low, like the trees, so the cut face stays the biggest thing in view.
-    { height: 14, reach: 3, pool: { y: 0.1, radius: 5, strength: 0.26 } },
+    { height: 14, reach: 3, pool: LAMP_POOL },
   );
   group.add(
     foot.mesh,

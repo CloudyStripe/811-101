@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { LAMP_POOL as LAB_POOL } from '../pages/frequency-lab/scene/world.ts';
+import { LAMP_POOL as DIORAMA_POOL } from '../pages/gas-petroleum/scene/ground.ts';
 import { FLAME_GLOW } from '../pages/gas-petroleum/scene/kit.ts';
 import { DataUtils } from 'three';
 import { BACKDROP_STOPS, backdropAt, backdropTexture } from '../kit3d/backdrop.ts';
@@ -352,6 +354,52 @@ describe('the ground at night', () => {
       expect(hueDistance(graded.h, water.h)).toBeGreaterThanOrEqual(75);
     },
   );
+
+  it.each([
+    {
+      lesson: 'the diorama',
+      pool: DIORAMA_POOL,
+      grade: THEMES.dark.scene.ground,
+      codes: DIORAMA_APWA,
+      grounds: [
+        MATERIAL_COLORS.grass,
+        MATERIAL_COLORS.grassPatch,
+        MATERIAL_COLORS.grassWorn,
+        DIORAMA_COLORS.pad,
+        DIORAMA_COLORS.concrete,
+      ],
+    },
+    {
+      lesson: 'the lab',
+      pool: LAB_POOL,
+      grade: null,
+      codes: LAB_APWA,
+      // Where its pools fall: the far sidewalk, the curb and the street, never the lawn.
+      grounds: [MATERIAL_COLORS.concrete, MATERIAL_COLORS.curb, MATERIAL_COLORS.asphalt],
+    },
+  ])("$lesson: the lamps' pools are light on the ground, never a code color", (c) => {
+    // The middle of a pool, where it's brightest: the ground in moonlight, the pool's light added.
+    const key = linear(THEMES.dark.scene.key.color);
+    const lamp = linear(WORLD_COLORS.lamp);
+    for (const hex of c.grounds) {
+      const albedo = c.grade ? groundGrade(linear(hex), c.grade) : linear(hex);
+      for (const k of [0.35, 1]) {
+        const [r, g, b] = pbrNeutral([
+          albedo[0] * key[0] * k + c.pool.strength * lamp[0],
+          albedo[1] * key[1] * k + c.pool.strength * lamp[1],
+          albedo[2] * key[2] * k + c.pool.strength * lamp[2],
+        ]);
+        const pooled = linearRgbToOklch({ r, g, b });
+        for (const code of c.codes) {
+          const meaning = lit(linear(APWA[code].fill), 'dark', k);
+          if (hueDistance(pooled.h, meaning.h) > 35) continue;
+          const weaker = pooled.c <= meaning.c * 0.6;
+          const apart = Math.abs(pooled.l - meaning.l) >= 0.2;
+          expect(weaker || apart, `${hex} beside ${code} at ${String(k)}x`).toBe(true);
+        }
+      }
+    }
+  });
 
   it('tints the hue only, never the brightness', () => {
     const tinted = { dim: 0, gray: 1, tint: THEMES.dark.scene.ground.tint };

@@ -248,7 +248,8 @@ export function groundGrade(
  */
 export function gradeAsGround<M extends Material>(material: M): M {
   const before = material.onBeforeCompile.bind(material);
-  const key = material.customProgramCacheKey.bind(material);
+  // Read before the hook is wrapped: by default a material's key is its hook's own source.
+  const key = material.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
     before(shader, renderer);
     Object.assign(shader.uniforms, GRADE);
@@ -256,7 +257,7 @@ export function gradeAsGround<M extends Material>(material: M): M {
       .replace('#include <common>', `#include <common>\n${GRADE_UNIFORMS}`)
       .replace('#include <alphamap_fragment>', `${GRADE_GLSL}#include <alphamap_fragment>`);
   };
-  material.customProgramCacheKey = () => `${key()}+ground`;
+  material.customProgramCacheKey = () => `${key}+ground`;
   return material;
 }
 

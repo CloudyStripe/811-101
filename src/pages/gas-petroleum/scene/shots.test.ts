@@ -117,16 +117,17 @@ describe('stop shots', () => {
 describe("the ground's night grade", () => {
   const overview = overviewView(overviewPoints(models), 0);
   for (const layout of LAYOUTS) {
-    it(`${layout.name}: all of it at every stop, none in the overview or farther out`, () => {
+    it(`${layout.name}: all of it at every stop`, () => {
       const far = distanceFor(overview, layout);
       for (const m of models) {
         expect(nightGradeAt(distanceFor(stopView(m), layout) / far), m.id).toBe(1);
       }
-      expect(nightGradeAt(1)).toBe(0);
-      // The arrival's establishing move starts farther out than the overview.
-      expect(nightGradeAt(1.6)).toBe(0);
     });
   }
+
+  it('none in the overview, however it is turned, or farther out, as the arrival starts', () => {
+    for (const share of [0.9, 1, 1.2, 1.8, 3]) expect(nightGradeAt(share)).toBe(0);
+  });
 });
 
 describe('the overview', () => {
