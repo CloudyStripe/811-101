@@ -27,19 +27,30 @@ export function pbrNeutral([r0, g0, b0]: Linear): Linear {
 
 /**
  * The color to render so that, after tone mapping, the screen shows `target` (both linear).
- * Backdrops that must match the page, such as the sky, fog and paper, are authored as what the
- * eye should see; this finds what to draw. The curve crushes dark colors toward their darkest
- * channel, so a dark graphite needs a lighter source, or it comes out navy.
+ * The sky behind a model is authored as what the eye should see; this finds what to draw. It
+ * undoes each step of the curve in turn, exactly: the desaturation, then the compression of the
+ * brightest channel, then the offset that crushes dark colors toward their darkest channel (so a
+ * dark navy needs a lighter source, or it comes out nearly black). A pale sky needs a source
+ * well above 1.
  */
 export function inversePbrNeutral(target: Linear): Linear {
-  let input: [number, number, number] = [target[0], target[1], target[2]];
-  for (let i = 0; i < 40; i++) {
-    const out = pbrNeutral(input);
-    input = [
-      Math.max(0, input[0] + target[0] - out[0]),
-      Math.max(0, input[1] + target[1] - out[1]),
-      Math.max(0, input[2] + target[2] - out[2]),
-    ];
+  const startCompression = 0.8 - 0.04;
+  const desaturation = 0.15;
+  const d = 1 - startCompression;
+  // Tone mapping never quite reaches white, so nor can a target.
+  const newPeak = Math.min(Math.max(...target), 0.9999);
+  let c: [number, number, number] = [target[0], target[1], target[2]];
+  if (newPeak >= startCompression) {
+    // The peak before compression, from the curve's formula for the peak after it.
+    const peak = (d * d) / (1 - newPeak) - d + startCompression;
+    const mix = 1 - 1 / (desaturation * (peak - newPeak) + 1);
+    // Undo the pull toward the peak, then the scaling down to it.
+    c = c.map((v) => ((v - newPeak * mix) / (1 - mix)) * (peak / newPeak)) as typeof c;
   }
-  return input;
+  // Undo the offset, which depends on the darkest channel of the source: a fixed 0.04, or less
+  // for dark colors (the source's darkest channel x became 6.25 x squared).
+  const low = Math.min(...c);
+  const x = low < 0.04 ? Math.sqrt(Math.max(0, low) / 6.25) : low + 0.04;
+  const offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  return [c[0] + offset, c[1] + offset, c[2] + offset];
 }

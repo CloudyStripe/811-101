@@ -1,9 +1,10 @@
 /**
  * The camera's shots: the overview, from the south and above, turned within its bounds; and each
  * stop's own shot. A shot gives a direction and what must be in view; the fit sets the distance,
- * so it frames the same things in whatever room the panel and the dock leave.
+ * so it frames the same things in whatever room the panel and the dock leave. How near a shot
+ * stands sets how much of the ground's night grade it gets.
  */
-import { Spherical, Vector3 } from 'three';
+import { MathUtils, Spherical, Vector3 } from 'three';
 import type { View } from '../../../kit3d/camera.ts';
 import type { Point } from './build.ts';
 import { MODEL_BOX } from './layout.ts';
@@ -17,6 +18,16 @@ const OVERVIEW = {
 
 /** How far the overview turns about its middle, either way: about 35°, in radians. */
 export const TURN_LIMIT = (35 * Math.PI) / 180;
+
+/**
+ * How much of the ground's night grade a view gets, by how near its camera stands, as a share of
+ * the overview's distance: all of it as near as a stop's shot, where the lawn fills the view and
+ * would read as day, and none at the overview's distance or farther, where the small model in the
+ * dark sky reads as night already.
+ */
+export function nightGradeAt(share: number): number {
+  return 1 - MathUtils.smoothstep(share, 0.55, 0.9);
+}
 
 /** A turn held within the overview's bounds. */
 export const clampYaw = (yaw: number): number => Math.max(-TURN_LIMIT, Math.min(TURN_LIMIT, yaw));

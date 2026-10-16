@@ -24,7 +24,9 @@ export const TIER_SETTINGS: Record<Tier, TierSettings> = {
   high: {
     renderCapMp: 2.1,
     msaa: 4,
-    smaa: false,
+    // MSAA resolves before tone mapping, where the pale sky is far brighter than 1, so an edge
+    // against it shows almost all sky; SMAA after tone mapping smooths what that leaves.
+    smaa: true,
     ao: true,
     shadowMapSize: 2048,
     shadowRadius: 4,

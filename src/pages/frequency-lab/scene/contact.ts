@@ -3,7 +3,7 @@
  * occlusion shows these instead, so objects still sit in the grass rather than float on it.
  */
 import { CanvasTexture, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from 'three';
-import { HOOKUP, HYDRANT } from './layout.ts';
+import type { LabLayout } from './layout.ts';
 
 /** Just above the grass, which tops out at 0.12 ft. */
 const GROUND_Y = 0.13;
@@ -27,14 +27,16 @@ function blobTexture(): CanvasTexture {
 }
 
 /** Footprints in feet: center, size along x and z, and turn about the vertical. */
-const FOOTPRINTS = [
-  { x: HOOKUP.transmitter.x, z: HOOKUP.transmitter.z, w: 2.5, d: 1.9, turn: -0.55 },
-  { x: HOOKUP.pedestal.x, z: HOOKUP.pedestal.z, w: 2.0, d: 1.7, turn: 0 },
-  { x: HYDRANT.x, z: HYDRANT.z, w: 1.5, d: 1.5, turn: 0 },
-  { x: HOOKUP.access.x, z: HOOKUP.access.z, w: 1.0, d: 1.0, turn: 0 },
-] as const;
+function footprints({ hookup, hydrant }: LabLayout) {
+  return [
+    { x: hookup.transmitter.x, z: hookup.transmitter.z, w: 2.5, d: 1.9, turn: -0.55 },
+    { x: hookup.pedestal.x, z: hookup.pedestal.z, w: 2.0, d: 1.7, turn: 0 },
+    { x: hydrant.x, z: hydrant.z, w: 1.5, d: 1.5, turn: 0 },
+    { x: hookup.access.x, z: hookup.access.z, w: 1.0, d: 1.0, turn: 0 },
+  ];
+}
 
-export function buildContactShadows(): Group {
+export function buildContactShadows(layout: LabLayout): Group {
   const group = new Group();
   group.name = 'contact-shadows';
   const material = new MeshBasicMaterial({
@@ -48,7 +50,7 @@ export function buildContactShadows(): Group {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
-  for (const f of FOOTPRINTS) {
+  for (const f of footprints(layout)) {
     const geometry = new PlaneGeometry(f.w, f.d).rotateX(-Math.PI / 2).rotateY(f.turn);
     const blob = new Mesh(geometry, material);
     blob.position.set(f.x, GROUND_Y, f.z);

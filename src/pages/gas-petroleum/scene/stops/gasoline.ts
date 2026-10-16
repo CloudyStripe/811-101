@@ -37,8 +37,8 @@ function start() {
 export function crudeTransport(): StopModel {
   const { finishes, parts } = start();
   // The rails and their sleepers.
-  parts.box(17.8, 0.1, 0.09, C.steel, -15.3, 0.06, 15.05, { metal: true });
-  parts.box(17.8, 0.1, 0.09, C.steel, -15.3, 0.06, 15.95, { metal: true });
+  parts.box(17.8, 0.1, 0.09, C.steel, -15.3, 0.06, 15.05, { finish: 'metal' });
+  parts.box(17.8, 0.1, 0.09, C.steel, -15.3, 0.06, 15.95, { finish: 'metal' });
   for (let x = -23.8; x <= -6.8; x += 0.85)
     parts.box(0.22, 0.07, 1.4, WORLD_COLORS.trunk, x, 0, 15.5, { cast: false });
   parts.box(0.3, 0.6, 1.2, C.machineDark, -6.2, 0, 15.5);
@@ -97,8 +97,8 @@ export function distillation(): StopModel {
   parts.box(2.4, 2.2, 2.4, C.brick, fx, 0, tz);
   parts.box(2.5, 0.25, 2.5, C.machineDark, fx, 2.2, tz);
   parts.cyl(0.24, 0.3, 3.2, C.brick, fx - 0.6, 2.4, tz - 0.6, { segments: 8 });
-  parts.rod([fx + 1.2, 1.0, tz], [tx - R + 0.05, 1.0, tz], 0.18, C.steel, { metal: true });
-  parts.cyl(R + 0.15, R + 0.25, 0.6, C.steel, tx, 0, tz, { metal: true, segments: 24 });
+  parts.rod([fx + 1.2, 1.0, tz], [tx - R + 0.05, 1.0, tz], 0.18, C.steel, { finish: 'metal' });
+  parts.cyl(R + 0.15, R + 0.25, 0.6, C.steel, tx, 0, tz, { finish: 'metal', segments: 24 });
   parts.dome(R, 1, C.machine, tx, H, tz, { segments: 24 });
   // A tray and an outlet at each fraction's level; the outlets carry each fuel away.
   for (const f of FRACTIONS) {
@@ -262,9 +262,9 @@ export function delivery(): StopModel {
     [17.0, 8.9],
     [19.4, 8.9],
   ] as const) {
-    parts.box(0.15, 2.2, 0.15, C.steel, x, 0, z, { metal: true });
+    parts.box(0.15, 2.2, 0.15, C.steel, x, 0, z, { finish: 'metal' });
   }
-  parts.box(2.8, 0.15, 1.2, C.steel, 18.2, 2.2, 8.9, { metal: true });
+  parts.box(2.8, 0.15, 1.2, C.steel, 18.2, 2.2, 8.9, { finish: 'metal' });
   parts.rod([18.2, 2.2, 8.9], [18.6, 1.6, 10.1], 0.06, C.machineDark);
   // The tanker truck.
   const truck = parts.moving(18, 0, 10.6, () => {
@@ -274,7 +274,11 @@ export function delivery(): StopModel {
     parts.bullet(2.4, 0.55, C.tank, -0.55, 1.1, 0);
     for (const a of [-1.5, -0.6, 1.6]) {
       for (const b of [-0.52, 0.52])
-        parts.cyl(0.27, 0.27, 0.2, C.graphite, a, 0.18, b, { rx: Math.PI / 2, segments: 10 });
+        parts.cyl(0.27, 0.27, 0.2, C.graphite, a, 0.18, b, {
+          rx: Math.PI / 2,
+          finish: 'matte',
+          segments: 10,
+        });
     }
   });
   const root = parts.finish();
@@ -316,7 +320,7 @@ export function delivery(): StopModel {
 
 export function pump(): StopModel {
   const { finishes, parts } = start();
-  parts.box(11.5, 0.06, 11.4, C.concrete, 23.4, 0, 17.9, { cast: false });
+  parts.box(11.5, 0.06, 11.4, C.concrete, 23.4, 0, 17.9, { cast: false, finish: 'ground' });
   // The canopy over the pumps.
   parts.box(6.4, 0.45, 4.4, C.tank, 23.5, 3.6, 18);
   parts.box(6.46, 0.16, 4.46, C.machineDark, 23.5, 3.72, 18);
@@ -326,7 +330,7 @@ export function pump(): StopModel {
     [21, 19.6],
     [26, 19.6],
   ] as const) {
-    parts.cyl(0.12, 0.12, 3.6, C.steel, x, 0, z, { metal: true, segments: 8 });
+    parts.cyl(0.12, 0.12, 3.6, C.steel, x, 0, z, { finish: 'metal', segments: 8 });
   }
   parts.box(4.6, 0.2, 0.9, C.pad, 23.5, 0, 18);
   for (const x of [22.2, 24.8]) {
@@ -341,12 +345,16 @@ export function pump(): StopModel {
     parts.box(1.85, 0.42, 1.45, C.graphite, -0.25, 1.08, 0);
     for (const a of [-1.15, 1.15]) {
       for (const b of [-0.78, 0.78])
-        parts.cyl(0.34, 0.34, 0.26, C.graphite, a, 0.21, b, { rx: Math.PI / 2, segments: 10 });
+        parts.cyl(0.34, 0.34, 0.26, C.graphite, a, 0.21, b, {
+          rx: Math.PI / 2,
+          finish: 'matte',
+          segments: 10,
+        });
     }
   });
   // The station's shop.
   parts.box(3.2, 2.0, 2.2, C.wall, 30.6, 0, 20.6);
-  parts.box(3.25, 0.25, 2.25, C.roof, 30.6, 1.75, 20.6);
+  parts.box(3.25, 0.25, 2.25, C.roof, 30.6, 1.75, 20.6, { finish: 'matte' });
   parts.box(1.6, 0.8, 0.05, C.graphite, 30.6, 0.6, 21.72);
   // The tanks buried under the station, on the cut face, full of fuel.
   for (const x of [22.0, 25.6]) faceStrip(parts, x - 0.9, -0.15, -1.25, 0.13, C.graphite, 0.06);

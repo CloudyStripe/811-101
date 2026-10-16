@@ -1,19 +1,21 @@
 /**
  * Procedural lighting, from the scene tokens:
- * - a gradient-sky environment (no HDR photos), prefiltered for soft image-based light;
+ * - a gradient-sky environment (no HDR photos), prefiltered for soft image-based light, with a
+ *   soft panel on the sun's side for broad highlights;
  * - a key light (the sun, or the moon at night) whose shadow frustum hugs the scene;
  * - a sky and ground fill, and a rim light from behind that separates forms from the sky;
- * - the sky dome itself, and fog that fades into its horizon.
+ * - the sky itself, as a gradient backdrop behind the model (backdrop.ts). There's no fog: the
+ *   model is all there is, and it floats in the sky.
  * One exposure scales every light, so night can be darker and still read.
  */
 import {
   BackSide,
   Color,
   DirectionalLight,
-  FogExp2,
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
+  OrthographicCamera,
   PlaneGeometry,
   PMREMGenerator,
   Scene,
@@ -21,12 +23,20 @@ import {
   SphereGeometry,
   Vector3,
   type Box3,
+  type Texture,
   type WebGLRenderer,
   type WebGLRenderTarget,
 } from 'three';
 import type { SceneTokens } from '../design/tokens.ts';
+import { backdropTexture } from './backdrop.ts';
 import { disposeObject } from './dispose.ts';
-import { Sky, directionFrom, screenColor } from './sky.ts';
+
+/** A unit vector from a light's azimuth (degrees from the scene's front, toward +x) and elevation. */
+export function directionFrom(azimuth: number, elevation: number, out = new Vector3()): Vector3 {
+  const az = (azimuth * Math.PI) / 180;
+  const el = (elevation * Math.PI) / 180;
+  return out.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+}
 
 const ENV_VERTEX = /* glsl */ `
 varying vec3 vDir;
@@ -68,7 +78,10 @@ function buildEnvironment(t: SceneTokens): Scene {
   // A large soft panel on the key light's side: a broad highlight along pipes and rounded edges.
   const panel = new Mesh(
     new PlaneGeometry(40, 18),
-    new MeshBasicMaterial({ color: new Color(t.key.color).multiplyScalar(2.2), side: BackSide }),
+    new MeshBasicMaterial({
+      color: new Color(t.key.color).multiplyScalar(t.softbox),
+      side: BackSide,
+    }),
   );
   panel.position
     .copy(directionFrom(t.key.azimuth, Math.max(t.key.elevation, 35)))
@@ -83,22 +96,11 @@ export interface Lighting {
   /** After a lost graphics context comes back: renders the environment again from scratch. */
   restore(tokens: SceneTokens): void;
   setShadowQuality(mapSize: number, radius: number): void;
-  /**
-   * After the camera is framed: centers the sky on it, and sets the fog so the farthest point the
-   * lesson needs, `farDistance` away, has the theme's share of fog over it, and the edge of the
-   * world, `edgeDistance` away, is all but hidden.
-   */
-  setViewpoint(camera: Vector3, farDistance: number, edgeDistance?: number): void;
   dispose(): void;
 }
 
-/** How much fog lies over the edge of the world, at the least. */
-const EDGE_FOG = 0.98;
-
 export interface LightingOptions {
   shadow: { mapSize: number; radius: number };
-  /** The sky dome's radius, in scene units: well inside the camera's far plane. */
-  skyRadius: number;
 }
 
 export function createLighting(
@@ -106,44 +108,17 @@ export function createLighting(
   scene: Scene,
   bounds: Box3,
   tokens: SceneTokens,
-  { shadow, skyRadius }: LightingOptions,
+  { shadow }: LightingOptions,
 ): Lighting {
   const pmrem = new PMREMGenerator(renderer);
   let envTarget: WebGLRenderTarget | null = null;
+  let backdrop: Texture | null = null;
 
   const center = bounds.getCenter(new Vector3());
-  const size = bounds.getSize(new Vector3());
-
-  const sky = new Sky(skyRadius);
-  sky.follow(center);
-  scene.add(sky.mesh);
-  const fog = new FogExp2(0xffffff, 0.003);
-  let fogAtFar = tokens.fogAtFar;
-  let farDistance = Math.max(size.x, size.z);
-  let edgeDistance = Infinity;
-  /** FogExp2 hides a share f at distance d when density = sqrt(-ln(1 - f)) / d. */
-  const densityFor = (share: number, distance: number) =>
-    Math.sqrt(-Math.log(1 - share)) / Math.max(1, distance);
-  const applyFog = () => {
-    fog.density = Math.max(
-      densityFor(Math.min(0.95, fogAtFar), farDistance),
-      // Wherever the camera sits, the world's edge stays out of sight.
-      densityFor(EDGE_FOG, edgeDistance),
-    );
-  };
 
   const key = new DirectionalLight();
   key.castShadow = true;
   key.target.position.copy(center);
-  const half = Math.max(size.x, size.z) * 0.62;
-  Object.assign(key.shadow.camera, {
-    left: -half,
-    right: half,
-    top: half,
-    bottom: -half,
-    near: 120,
-    far: 420,
-  });
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.03;
 
@@ -153,6 +128,38 @@ export function createLighting(
   scene.add(key, key.target, hemisphere, rim, rim.target);
 
   const direction = new Vector3();
+  const probe = new OrthographicCamera();
+  const corner = new Vector3();
+
+  /**
+   * Fits the shadow's frustum to the scene as the key light sees it, so its map is spent on the
+   * model, wherever the sun is. Ground in a shadow lies in line with what casts it, so only depth
+   * needs room beyond the model: farther, for long shadows, and nearer, for anything standing taller.
+   */
+  function fitShadow() {
+    probe.position.copy(key.position);
+    probe.lookAt(center);
+    probe.updateMatrixWorld();
+    const lo = new Vector3(Infinity, Infinity, Infinity);
+    const hi = new Vector3(-Infinity, -Infinity, -Infinity);
+    for (const x of [bounds.min.x, bounds.max.x])
+      for (const y of [bounds.min.y, bounds.max.y])
+        for (const z of [bounds.min.z, bounds.max.z]) {
+          corner.set(x, y, z).applyMatrix4(probe.matrixWorldInverse);
+          lo.min(corner);
+          hi.max(corner);
+        }
+    const margin = 1;
+    Object.assign(key.shadow.camera, {
+      left: lo.x - margin,
+      right: hi.x + margin,
+      bottom: lo.y - margin,
+      top: hi.y + margin,
+      near: Math.max(1, -hi.z - 60),
+      far: -lo.z + 120,
+    });
+    key.shadow.camera.updateProjectionMatrix();
+  }
 
   function setShadowQuality(mapSize: number, radius: number) {
     key.shadow.mapSize.set(mapSize, mapSize);
@@ -169,20 +176,16 @@ export function createLighting(
     envTarget?.dispose();
     envTarget = next;
     scene.environment = next.texture;
-    // The sky dome is the backdrop; the environment only lights.
-    scene.background = null;
     scene.environmentIntensity = t.envIntensity * t.exposure;
-    // Fully fogged distance shows exactly the sky's horizon, so the two meet without a seam.
-    screenColor(t.skyHorizon, fog.color);
-    fogAtFar = t.fogAtFar;
-    applyFog();
-    scene.fog = fog;
-    sky.setTheme(t);
+    backdrop?.dispose();
+    backdrop = backdropTexture(t);
+    scene.background = backdrop;
 
     directionFrom(t.key.azimuth, t.key.elevation, direction);
     key.position.copy(center).addScaledVector(direction, 260);
     key.color.set(t.key.color);
     key.intensity = t.key.intensity * t.exposure;
+    fitShadow();
 
     hemisphere.color.set(t.hemisphere.sky);
     hemisphere.groundColor.set(t.hemisphere.ground);
@@ -202,24 +205,20 @@ export function createLighting(
   return {
     setTheme,
     restore(t: SceneTokens) {
-      // The old environment's GPU objects went with the lost context; disposing them now would
-      // only ask the new context to delete objects it never had.
+      // The old environment's and backdrop's GPU objects went with the lost context; disposing
+      // them now would only ask the new context to delete objects it never had.
       envTarget = null;
+      backdrop = null;
       setTheme(t);
     },
     setShadowQuality,
-    setViewpoint(camera: Vector3, far: number, edge = Infinity) {
-      sky.follow(camera);
-      farDistance = far;
-      edgeDistance = edge;
-      applyFog();
-    },
     dispose() {
       envTarget?.dispose();
+      backdrop?.dispose();
       pmrem.dispose();
       key.shadow.map?.dispose();
-      sky.dispose();
-      scene.remove(key, key.target, hemisphere, rim, rim.target, sky.mesh);
+      scene.remove(key, key.target, hemisphere, rim, rim.target);
+      scene.background = null;
     },
   };
 }

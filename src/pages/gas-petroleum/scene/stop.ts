@@ -42,6 +42,8 @@ export interface StopModel {
   pops: Object3D[];
   /** Moves the stop's machines. */
   animate?(motion: StopMotion): void;
+  /** Lit windows and lamps: 0 by day, 1 at night. Shown from the next frame. */
+  setLamps?(level: number): void;
 }
 
 /** A hit volume centered on (x, y, z), w by h by d. */

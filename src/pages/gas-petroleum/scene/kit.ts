@@ -14,15 +14,17 @@ import {
   Vector3,
 } from 'three';
 import { DIORAMA_COLORS as C, WORLD_COLORS } from '../../../design/tokens.ts';
+import type { Finish } from '../../../kit3d/materials.ts';
 import type { Finishes, Parts, Point } from './build.ts';
 import { FACE } from './layout.ts';
 
-/** A concrete pad on the ground. */
+/** A concrete pad on the ground: matte, and graded at night, like the ground it lies on. */
 export function pad(parts: Parts, w: number, d: number, x: number, z: number, hex: string = C.pad) {
-  parts.box(w, 0.08, d, hex, x, 0, z, { cast: false });
+  parts.box(w, 0.08, d, hex, x, 0, z, { cast: false, finish: 'ground' });
+  parts.pads.push({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 });
 }
 
-/** A vertical strip drawn on the cut face, from y0 down to y1, `dz` proud of it. */
+/** A vertical strip drawn on the cut face, from y0 down to y1, `dz` proud of it, in a finish. */
 export function faceStrip(
   parts: Parts,
   x: number,
@@ -31,11 +33,12 @@ export function faceStrip(
   w: number,
   hex: string,
   dz = 0,
+  finish: Finish = 'paint',
 ) {
-  parts.box(w, y0 - y1, 0.06, hex, x, y1, FACE + dz, { cast: false });
+  parts.box(w, y0 - y1, 0.06, hex, x, y1, FACE + dz, { cast: false, finish });
 }
 
-/** A tree: a trunk and a soft, round crown, like the lab's. */
+/** A tree: a trunk and a soft, round crown, like the lab's, part of the ground's cover. */
 export function tree(
   parts: Parts,
   x: number,
@@ -43,9 +46,10 @@ export function tree(
   s = 1,
   foliage: string = WORLD_COLORS.foliage,
 ) {
-  parts.cyl(0.1 * s, 0.14 * s, 0.9 * s, WORLD_COLORS.trunk, x, 0, z, { segments: 6 });
-  parts.ball(0.85 * s, foliage, x, 1.55 * s, z, { segments: 10 });
-  parts.ball(0.6 * s, foliage, x + 0.25 * s, 2.15 * s, z - 0.1 * s, { segments: 8 });
+  const ground = { finish: 'ground' } as const;
+  parts.cyl(0.1 * s, 0.14 * s, 0.9 * s, WORLD_COLORS.trunk, x, 0, z, { ...ground, segments: 6 });
+  parts.ball(0.85 * s, foliage, x, 1.55 * s, z, { ...ground, segments: 16 });
+  parts.ball(0.6 * s, foliage, x + 0.25 * s, 2.15 * s, z - 0.1 * s, { ...ground, segments: 12 });
 }
 
 /** A material that glows: fire, a furnace window, a lit screen. Only these bloom. */
@@ -59,8 +63,8 @@ export function glowing(hex: string, intensity: number): MeshStandardMaterial {
   });
 }
 
-/** How brightly fire glows: above the bloom threshold, so it's the one thing besides lights that blooms. */
-export const FLAME_GLOW = 3.2;
+/** How brightly fire glows: above the bloom threshold, so it blooms, as the signal does. */
+export const FLAME_GLOW = 5;
 
 /**
  * A flame: a soft outer tongue and a pale core, which fade with their stop. It flickers by its

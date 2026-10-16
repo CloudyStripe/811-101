@@ -41,11 +41,17 @@ export function formation(timelapse: { current: TimeLapse | null }): StopModel {
     [-34.9, -13.2],
   ];
   specks.forEach(([x, y], i) => {
-    if (i % 2) parts.torus(0.2, 0.07, C.fossil, x, y, FACE + 0.04, { cast: false, segments: 10 });
+    if (i % 2)
+      parts.torus(0.2, 0.07, C.fossil, x, y, FACE + 0.04, {
+        cast: false,
+        finish: 'matte',
+        segments: 10,
+      });
     else
       parts.cyl(0.22, 0.22, 0.04, C.fossil, x, y, FACE + 0.01, {
         rx: Math.PI / 2,
         cast: false,
+        finish: 'matte',
         segments: 8,
       });
   });
@@ -91,6 +97,7 @@ export function reservoir(): StopModel {
       0.2,
       {
         cast: false,
+        finish: 'matte',
         segments: 6,
       },
     );
@@ -167,7 +174,7 @@ export function drilling(): StopModel {
     parts.box(0.6, 0.8, 0.6, C.machineDark, 0, 0, 0);
   });
   const pipe = parts.moving(rx, 2.5, rz, () => {
-    parts.cyl(0.08, 0.08, 1, C.steel, 0, 0, 0, { metal: true, segments: 6 });
+    parts.cyl(0.08, 0.08, 1, C.steel, 0, 0, 0, { finish: 'metal', segments: 6 });
   });
   parts.box(2.2, 1.6, 1.6, C.tank, rx - 4.2, 0, rz + 0.6); // the doghouse
   parts.box(2.2, 1.1, 1.3, C.machine, rx + 3.6, 0, rz + 0.8); // mud tanks
@@ -180,7 +187,7 @@ export function drilling(): StopModel {
       0.08,
       C.steel,
       {
-        metal: true,
+        finish: 'metal',
         segments: 6,
       },
     );
@@ -188,8 +195,8 @@ export function drilling(): StopModel {
 
   // The well on the cut face: cement, then steel casing, then the open hole, turning to run
   // along the rock, where the cracks are held open by sand.
-  faceStrip(parts, rx, -0.15, -4.4, 0.62, C.concrete);
-  faceStrip(parts, rx, -0.15, -4.4, 0.38, C.steel, 0.02);
+  faceStrip(parts, rx, -0.15, -4.4, 0.62, C.concrete, 0, 'matte');
+  faceStrip(parts, rx, -0.15, -4.4, 0.38, C.steel, 0.02, 'metal');
   faceStrip(parts, rx, -0.15, -11.2, 0.16, C.graphite, 0.04);
   const yH = -12.85;
   const bend = [
@@ -215,7 +222,7 @@ export function drilling(): StopModel {
     parts.cone(0.28, 0.55, C.steel, 0, 0, 0, {
       rz: -Math.PI / 2,
       cast: false,
-      metal: true,
+      finish: 'metal',
       segments: 6,
     });
   });
@@ -343,7 +350,7 @@ export function lifting(): StopModel {
   parts.rod([px + 0.6, 0.35, wz], [px, py, wz], 0.1, C.machineDark, { segments: 5 });
   parts.box(1.0, 0.9, 0.8, C.machine, px - 2.2, 0.36, wz); // gearbox
   parts.box(0.8, 0.6, 0.6, C.machineDark, px - 3.1, 0.36, wz - 0.4); // motor
-  parts.cyl(0.28, 0.32, 0.9, C.steel, wx, 0, wz, { metal: true }); // wellhead
+  parts.cyl(0.28, 0.32, 0.9, C.steel, wx, 0, wz, { finish: 'metal' }); // wellhead
   const beam = parts.moving(px, py, wz, () => {
     parts.box(4.4, 0.32, 0.36, C.graphite, 0, -0.16, 0);
     parts.box(0.5, 1.2, 0.5, C.machineDark, 2.1, -0.75, 0); // the horse head
@@ -356,16 +363,16 @@ export function lifting(): StopModel {
     parts.box(0.9, 0.6, 0.2, C.machineDark, 0, -1.3, -0.55);
   });
   const rodLift = parts.moving(wx, 0.9, wz, () => {
-    parts.cyl(0.05, 0.05, 1, C.steel, 0, 0, 0, { metal: true, segments: 5 });
+    parts.cyl(0.05, 0.05, 1, C.steel, 0, 0, 0, { finish: 'metal', segments: 5 });
   });
 
   // The gas wellhead on the crest of the dome: gas flows up on its own.
   const gx = SITE.gasWell.x;
   const gz = SITE.gasWell.z;
   pad(parts, 2, 1.6, gx, gz);
-  parts.cyl(0.38, 0.42, 0.45, C.steel, gx, 0, gz, { metal: true });
-  parts.box(0.32, 1.4, 0.32, C.steel, gx, 0.45, gz, { metal: true });
-  parts.rod([gx - 0.6, 1.25, gz], [gx + 0.6, 1.25, gz], 0.1, C.steel, { metal: true });
+  parts.cyl(0.38, 0.42, 0.45, C.steel, gx, 0, gz, { finish: 'metal' });
+  parts.box(0.32, 1.4, 0.32, C.steel, gx, 0.45, gz, { finish: 'metal' });
+  parts.rod([gx - 0.6, 1.25, gz], [gx + 0.6, 1.25, gz], 0.1, C.steel, { finish: 'metal' });
   for (const [x, y, z] of [
     [gx, 1.95, gz + 0.3],
     [gx - 0.62, 1.25, gz + 0.26],
@@ -389,8 +396,8 @@ export function lifting(): StopModel {
   const wt = SITE.waterTank;
   pad(parts, 8, 3.6, sx - 0.6, sz - 0.2);
   for (const d of [-1.6, 1.6]) parts.box(0.4, 0.6, 1.4, C.machineDark, sx + d, 0.05, sz);
-  parts.ball(0.95, C.steel, sx - len / 2, sy, sz, { metal: true });
-  parts.ball(0.95, C.steel, sx + len / 2, sy, sz, { metal: true });
+  parts.ball(0.95, C.steel, sx - len / 2, sy, sz, { finish: 'metal' });
+  parts.ball(0.95, C.steel, sx + len / 2, sy, sz, { finish: 'metal' });
   for (const [a, b, hex] of [
     [-0.86, -0.36, C.producedWater],
     [-0.36, 0.08, C.oilZone],
@@ -415,17 +422,19 @@ export function lifting(): StopModel {
   // its route starts (routes.ts uses the same offsets).
   const gasOut = [sx + 1.6, sz - 1.3] as const;
   const oilOut = [sx + len / 2 + 1.6, sz] as const;
-  parts.rod([gasOut[0], sy + 0.9, sz], [gasOut[0], sy + 1.45, sz], 0.12, C.steel, { metal: true });
+  parts.rod([gasOut[0], sy + 0.9, sz], [gasOut[0], sy + 1.45, sz], 0.12, C.steel, {
+    finish: 'metal',
+  });
   parts.rod([gasOut[0], sy + 1.45, sz], [gasOut[0], sy + 1.45, gasOut[1]], 0.12, C.steel, {
-    metal: true,
+    finish: 'metal',
   });
   parts.rod([gasOut[0], sy + 1.45, gasOut[1]], [gasOut[0], 0.05, gasOut[1]], 0.12, C.steel, {
-    metal: true,
+    finish: 'metal',
   });
-  parts.rod([sx + len / 2 + 0.85, sy, sz], [oilOut[0], sy, sz], 0.12, C.steel, { metal: true });
-  parts.rod([oilOut[0], sy, sz], [oilOut[0], 0.05, sz], 0.12, C.steel, { metal: true });
+  parts.rod([sx + len / 2 + 0.85, sy, sz], [oilOut[0], sy, sz], 0.12, C.steel, { finish: 'metal' });
+  parts.rod([oilOut[0], sy, sz], [oilOut[0], 0.05, sz], 0.12, C.steel, { finish: 'metal' });
   parts.rod([sx - 1.5, sy - 0.85, sz - 0.5], [wt.x + 0.6, 0.5, wt.z + 0.5], 0.1, C.steel, {
-    metal: true,
+    finish: 'metal',
   });
   parts.cyl(1.0, 1.0, 1.9, C.tank, wt.x, 0, wt.z, { segments: 20 });
   parts.cyl(1.02, 1.02, 0.2, C.producedWater, wt.x, 1.3, wt.z, { segments: 20 });

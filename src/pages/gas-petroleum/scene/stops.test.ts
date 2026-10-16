@@ -1,6 +1,7 @@
 /**
  * The thirteen stops as built: in the content's order, each with its labels' words in the content,
- * shadows only from still parts, and on the two paths, every material fading with the filter.
+ * shadows only from still parts, pads graded at night as the ground they lie on, and on the two
+ * paths, every material fading with the filter.
  */
 import type { Matrix4, Mesh, Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
@@ -10,6 +11,7 @@ import {
   TIMELAPSE,
   stopById,
 } from '../../../../content/utilities/gas-petroleum.ts';
+import { padsOn } from './build.ts';
 import { buildStops } from './stops/index.ts';
 import type { TimeLapse } from './timelapse.ts';
 
@@ -23,6 +25,15 @@ function meshesOf(root: Object3D): Mesh[] {
     if ((object as Partial<Mesh>).isMesh === true) found.push(object as Mesh);
   });
   return found;
+}
+
+/** The program keys of every material in an object's tree. */
+function programKeys(root: Object3D): string[] {
+  return meshesOf(root).flatMap((mesh) =>
+    (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) =>
+      m.customProgramCacheKey(),
+    ),
+  );
 }
 
 describe('the stops', () => {
@@ -74,12 +85,15 @@ describe('the stops', () => {
   it.each(models.filter((m) => stopById(m.id).path !== 'shared').map((m) => [m.id, m] as const))(
     '%s: everything it is made of fades when the path filter dims it',
     (_id, model) => {
-      for (const mesh of meshesOf(model.root)) {
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const material of materials) {
-          expect(material.customProgramCacheKey(), `a ${mesh.type} fades`).toBe('gp-fade');
-        }
-      }
+      // Pads fade too, graded as the ground's cover as well.
+      for (const key of programKeys(model.root)) expect(key).toMatch(/^gp-fade(\+ground)?$/);
+    },
+  );
+
+  it.each(models.filter((m) => padsOn(m.root).length > 0).map((m) => [m.id, m] as const))(
+    "%s: its pads are the ground's cover, graded at night with the lawn",
+    (_id, model) => {
+      expect(programKeys(model.root)).toContain('gp-fade+ground');
     },
   );
 

@@ -69,6 +69,8 @@ test('the guide closes down to its title, and opens again', async ({ page }) => 
 });
 
 test('About, settings, and the definitions on labels and terms', async ({ page }) => {
+  // Two loads of the lab, a dialog, the settings and several tips, in software.
+  test.slow();
   await open(page);
 
   // About this model opens, closes on Escape, and hands focus back.

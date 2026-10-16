@@ -54,6 +54,7 @@ body {
 }
 
 .lab-lede,
+.lab-scale,
 .lab-dock,
 .lab-legend,
 .lab-panel {
@@ -104,6 +105,22 @@ body {
   color: var(--ink-2);
   font-size: 0.92rem;
   line-height: 1.4;
+}
+
+/* The view is drawn deeper than true, and says so, in the view's top corner. */
+.lab-scale {
+  grid-area: view;
+  align-self: start;
+  justify-self: end;
+  margin: 0;
+  padding: 4px var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 700;
 }
 
 /*
@@ -202,7 +219,7 @@ body {
 }
 
 /*
- * The key, beside the view on wide screens, in the paper below the cut: the lines in one column,
+ * The key, beside the view on wide screens, in the room below the cut: the lines in one column,
  * the signal's marks in the other, and the note on colors under both, so it stays low.
  */
 .lab-legend {

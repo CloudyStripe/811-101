@@ -1,16 +1,9 @@
 /**
- * The portal's script. The page itself is static (src/site/shell.ts writes its hero and sections),
- * so this only draws its icons, which are decoration, and, as a lesson opens, lets that lesson's
- * preview carry on into the lesson's loader.
+ * The portal's script. The page itself is static (src/site/shell.ts writes its hero, its sections
+ * and their icons), so this only lets a lesson's preview carry on into its loader as it opens.
  */
 import '../../site/boot.ts';
 import './portal.css';
-import { render } from 'preact';
-import { Icon, type IconName } from '../../design/icons.tsx';
-
-for (const slot of document.querySelectorAll<HTMLElement>('[data-icon]')) {
-  render(<Icon name={slot.dataset.icon as IconName} />, slot);
-}
 
 /** The parts of a page-swap event read here (the event is newer than some type libraries). */
 interface PageSwap extends Event {

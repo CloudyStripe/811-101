@@ -2,12 +2,20 @@
  * The diorama's shots, checked through the page's own camera: framed by LabCamera into the room the
  * guide and the dock leave, then projected to CSS pixels. What each shot must show lands in that
  * room and out from under the controls, for every stop, and for the overview however it's turned;
- * and every stop is seen from closer in than the overview.
+ * and every stop is seen from closer in than the overview, near enough for the ground's whole night
+ * grade, which the overview never gets.
  */
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { LabCamera, type View, type VisibleArea } from '../../../kit3d/camera.ts';
-import { TURN_LIMIT, clampYaw, overviewPoints, overviewView, stopView } from './shots.ts';
+import {
+  TURN_LIMIT,
+  clampYaw,
+  nightGradeAt,
+  overviewPoints,
+  overviewView,
+  stopView,
+} from './shots.ts';
 import { buildStops } from './stops/index.ts';
 
 const models = buildStops({ current: null });
@@ -104,6 +112,22 @@ describe('stop shots', () => {
       },
     );
   }
+});
+
+describe("the ground's night grade", () => {
+  const overview = overviewView(overviewPoints(models), 0);
+  for (const layout of LAYOUTS) {
+    it(`${layout.name}: all of it at every stop`, () => {
+      const far = distanceFor(overview, layout);
+      for (const m of models) {
+        expect(nightGradeAt(distanceFor(stopView(m), layout) / far), m.id).toBe(1);
+      }
+    });
+  }
+
+  it('none in the overview, however it is turned, or farther out, as the arrival starts', () => {
+    for (const share of [0.9, 1, 1.2, 1.8, 3]) expect(nightGradeAt(share)).toBe(0);
+  });
 });
 
 describe('the overview', () => {

@@ -1,7 +1,7 @@
 /**
  * The diorama's text: word for word what the original said (but for the fork note, which now
- * names the paths), a few plain sentences per stop, no figures, every marked term defined, and
- * tours and quizzes that hold together.
+ * names the paths, and one stop's label), a few plain sentences per stop, no figures, every
+ * marked term defined, and tours and quizzes that hold together.
  */
 import { describe, expect, it } from 'vitest';
 import { collectClaims } from '../../src/content-kit/claims.ts';
@@ -21,9 +21,12 @@ import {
   type StopId,
 } from './gas-petroleum.ts';
 
-/** The one change to the lesson's words: the fork note names the paths, not their old colors. */
+/** A change to the lesson's words: the fork note names the paths, not their old colors. */
 const FORK_NOTE =
   'This is the fork: gas heads off along the natural gas path, oil along the gasoline one.';
+
+/** The other: the stop on using natural gas says so, since many readers call gasoline gas. */
+const RELABELED: Partial<Record<string, string>> = { 'gas-uses': 'Using natural gas' };
 
 /** Every string in the content, claims and prompts alike. */
 function stringsIn(value: unknown, into: string[] = []): string[] {
@@ -40,7 +43,7 @@ const claims = collectClaims(GAS_PETROLEUM);
 describe('Gas & Petroleum, word for word', () => {
   it('has every stop the original had, in its order, on its path', () => {
     expect(STOPS.map((s) => [s.id, s.path, s.step, s.label])).toEqual(
-      LEGACY.stops.map((s) => [s.id, s.path, s.step, s.label]),
+      LEGACY.stops.map((s) => [s.id, s.path, s.step, RELABELED[s.id] ?? s.label]),
     );
   });
 

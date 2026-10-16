@@ -39,34 +39,21 @@
   box-shadow: var(--shadow-1);
 }
 
+/* The wordmark: the site's name, set heavy and wide. */
 .site-home {
   flex: none;
-  gap: 10px;
-  padding: 0 18px 0 7px;
+  padding: 0 18px;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 800;
-  font-stretch: 118%;
-  letter-spacing: -0.01em;
+  font-size: 1.1rem;
+  font-weight: 900;
+  font-stretch: 112%;
+  letter-spacing: 0;
+  white-space: nowrap;
   text-decoration: none;
   transition:
     border-color var(--dur-fast) var(--ease),
     background var(--dur-fast) var(--ease);
-}
-
-.site-mark {
-  flex: none;
-  width: 32px;
-  height: 32px;
-}
-
-.mark-tile {
-  fill: var(--ink);
-}
-
-.mark-cut {
-  stroke: var(--surface);
 }
 
 .site-page {
@@ -123,7 +110,7 @@
   }
 }
 
-/* Narrow screens: the mark alone stands for the site's name, and the section gives way. */
+/* Narrow screens: the wordmark stays, and the section gives way. */
 @media (max-width: 560px) {
   :root {
     --header-h: 60px;
@@ -136,16 +123,8 @@
   }
 
   .site-home {
-    padding: 0 5px;
-  }
-
-  .site-home .site-name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+    padding: 0 14px;
+    font-size: 1rem;
   }
 
   .site-home,
@@ -185,18 +164,12 @@
     max(var(--space-8), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
 }
 
-.site-footer-brand {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
 .site-footer-name {
   margin: 2px 0 0;
   font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 800;
-  font-stretch: 118%;
+  font-size: 1.15rem;
+  font-weight: 900;
+  font-stretch: 112%;
 }
 
 .site-footer-tagline {
@@ -230,13 +203,25 @@
   font-size: var(--text-small);
 }
 
-.site-footer-note {
+.site-footer-meta {
+  display: flex;
+  flex-wrap: wrap;
   grid-column: 1 / -1;
-  margin: 0;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
   padding-top: var(--space-4);
   border-top: 1px solid var(--line);
-  color: var(--ink-2);
   font-size: var(--text-small);
+}
+
+.site-footer-note {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.site-footer-credits {
+  font-weight: 700;
+  text-underline-offset: 3px;
 }
 
 @media (max-width: 700px) {

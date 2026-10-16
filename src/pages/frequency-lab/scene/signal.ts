@@ -35,7 +35,7 @@ import {
   type SetupId,
 } from '../../../signal/model.ts';
 import { GLOW_POWER } from './glow.ts';
-import { HOOKUP, LEADS, LINES, RISERS, STAKE_TIP } from './layout.ts';
+import type { LabLayout } from './layout.ts';
 
 /** Band spacing per frequency, in feet: the slowed-down stand-in for wavelength. */
 const BAND_SPACING_FT: Record<Frequency, number> = { 512: 14, 8000: 7, 33000: 3.5, 83000: 1.8 };
@@ -45,27 +45,17 @@ const LINE_INTENSITY = 6.5;
 const FLOW_INTENSITY = 2.6;
 const WIRE_INTENSITY = 3.4;
 const BLOCK_FT = GEOMETRY.blockLengthFt.value;
-/** The lines run on past the block, and so does their signal, as far as the model follows them. */
-const MODEL_FT = GEOMETRY.modelLengthFt.value;
-/**
- * Over the last stretch the model follows, the glow tapers away, far down the street, so it never
- * stops at a point along a line that runs on.
- */
-const MODEL_TAPER_FT = 150;
 
 const VERTEX = /* glsl */ `
 attribute float aDist;
 varying float vDist;
 varying vec3 vNormalV;
 varying vec3 vViewDir;
-varying float vViewDist;
 void main() {
   vDist = aDist;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   vNormalV = normalize(normalMatrix * normal);
   vViewDir = normalize(-mv.xyz);
-  // Depth from the camera, as the scene's fog measures it.
-  vViewDist = -mv.z;
   gl_Position = projectionMatrix * mv;
 }`;
 
@@ -95,12 +85,9 @@ uniform float uTaper;
 uniform float uBase;
 // Band sharpness: wider pulses on lines, short dashes on soil return paths.
 uniform float uSharp;
-// The scene's fog density: the signal fades into the distance like everything around it.
-uniform float uFog;
 varying float vDist;
 varying vec3 vNormalV;
 varying vec3 vViewDir;
-varying float vViewDist;
 
 // Same formula as targetCurrentAt() in src/signal/model.ts.
 float currentAt(float x) {
@@ -126,8 +113,7 @@ void main() {
   float band = pow(0.5 + 0.5 * cos(6.2831853 * phase), uSharp);
   float rim = mix(1.0, 0.55, abs(dot(vNormalV, vViewDir)));
   float ends = smoothstep(uStart, uStart + 2.0, vDist) * (1.0 - smoothstep(uEnd - uTaper, uEnd, vDist));
-  float haze = exp(-pow(uFog * vViewDist, 2.0));
-  float glow = (uBase + (1.0 - uBase) * band) * b * ends * rim * haze;
+  float glow = (uBase + (1.0 - uBase) * band) * b * ends * rim;
   // Premultiplied: bright bands read as pure signal color, and the line keeps its own color between them.
   gl_FragColor = vec4(uColor * uIntensity * glow, clamp(glow * 1.8, 0.0, 1.0));
 }`;
@@ -182,13 +168,14 @@ interface SetupFx {
 export class SignalEffects {
   readonly group = new Group();
   private readonly time = { value: 0 };
-  private readonly fog = { value: 0 };
   private readonly depth: DepthUniforms;
+  private readonly layout: LabLayout;
   private readonly color = new Color(SIGNAL_COLOR);
   private readonly setups: Record<SetupId, SetupFx>;
 
-  constructor(depth: DepthUniforms) {
+  constructor(depth: DepthUniforms, layout: LabLayout) {
     this.depth = depth;
+    this.layout = layout;
     this.group.name = 'signal';
     this.setups = { steel: this.buildSetup('steel'), plastic: this.buildSetup('plastic') };
     for (const id of SETUPS) this.group.add(this.setups[id].group);
@@ -199,7 +186,6 @@ export class SignalEffects {
       uniforms: {
         ...this.depth,
         uTime: this.time,
-        uFog: this.fog,
         uColor: { value: this.color },
         uIntensity: { value: LINE_INTENSITY },
         uSpacing: { value: 7 },
@@ -227,7 +213,7 @@ export class SignalEffects {
   }
 
   private sleeve(x0: number, x1: number, y: number, radius: number, extra: Uniforms = {}): Mesh {
-    const geometry = withXDistance(pipeAlongX(x0, x1, y, 0, radius * 1.18 + 0.025, 24));
+    const geometry = withXDistance(pipeAlongX(x0, x1, y, 0, radius * 1.06 + 0.025, 24));
     const material = this.material({ uStart: { value: x0 }, uEnd: { value: x1 }, ...extra });
     const m = new Mesh(geometry, material);
     m.frustumCulled = false;
@@ -235,7 +221,7 @@ export class SignalEffects {
   }
 
   private flow(start: Vector3, depth: number, source: Flow['source'], group: Group): Flow {
-    const end = new Vector3(...STAKE_TIP);
+    const end = new Vector3(...this.layout.stakeTip);
     const span = start.x - end.x;
     const curve = new CubicBezierCurve3(
       start,
@@ -245,7 +231,14 @@ export class SignalEffects {
     );
     const length = curve.getLength();
     const geometry = withTubeDistance(
-      new TubeGeometry(curve, Math.max(24, Math.round(length / 1.2)), 0.04, 6, false),
+      // Thicker as the ground is drawn deeper, so the paths keep their weight on a taller face.
+      new TubeGeometry(
+        curve,
+        Math.max(24, Math.round(length / 1.2)),
+        0.04 * ((1 + this.layout.depth) / 2),
+        6,
+        false,
+      ),
       length,
     );
     const material = this.material({
@@ -282,26 +275,30 @@ export class SignalEffects {
   }
 
   private buildSetup(setup: SetupId): SetupFx {
+    const { lines, hookup, leads, risers, block, depth } = this.layout;
     const group = new Group();
     // The conductor that carries the signal: the steel main, or the plastic main's tracer wire.
-    const line = setup === 'steel' ? LINES.steel : LINES.tracer;
+    const line = setup === 'steel' ? lines.steel : lines.tracer;
     const glowRadius = setup === 'steel' ? line.radius : line.radius * 2.2;
-    const targetSleeve = this.sleeve(line.x0, MODEL_FT, line.y, glowRadius, {
+    // The lines end at the cut, and the glow runs on to it at full strength.
+    const targetSleeve = this.sleeve(line.x0, block.x1, line.y, glowRadius, {
       uTrace: { value: 1 },
-      uTaper: { value: MODEL_TAPER_FT },
+      uTaper: { value: 0.3 },
+      // Almost no glow between pulses, so the line's own yellow shows there.
+      uBase: { value: 0.012 },
     });
-    const t = LINES.telecom;
-    const telecomSleeve = this.sleeve(t.x0, MODEL_FT, t.y, t.radius, {
+    const t = lines.telecom;
+    const telecomSleeve = this.sleeve(t.x0, block.x1, t.y, t.radius, {
       uDir: { value: -1 },
-      uMinX: { value: HOOKUP.pedestal.x },
-      uTaper: { value: MODEL_TAPER_FT },
+      uMinX: { value: hookup.pedestal.x },
+      uTaper: { value: 0.3 },
     });
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.
     const wires = [
-      this.wireGlow(LEADS.signal, 1),
-      this.wireGlow(RISERS[setup], -1),
-      this.wireGlow(LEADS.ground, -1),
+      this.wireGlow(leads.signal, 1),
+      this.wireGlow(risers[setup], -1),
+      this.wireGlow(leads.ground, -1),
     ];
     group.add(targetSleeve, telecomSleeve, ...wires);
 
@@ -311,18 +308,23 @@ export class SignalEffects {
     const start = (x: number) =>
       setup === 'steel'
         ? new Vector3(x, line.y - glowRadius - 0.15, 0.12)
-        : new Vector3(x, LINES.tracer.y, LINES.plastic.radius + 0.12);
+        : new Vector3(x, lines.tracer.y, lines.plastic.radius + 0.12);
     // A few return paths, each carrying the soil leakage from a 20 ft stretch of the target.
     const bins = 7;
     for (let i = 0; i < bins; i++) {
       const x = 10 + i * 20;
-      const depthY = -5.2 - 3.2 * (i / (bins - 1));
+      const depthY = (-5.2 - 3.2 * (i / (bins - 1))) * depth;
       flows.push(this.flow(start(x), depthY, { kind: 'leak', from: x - 10, to: x + 10 }, group));
     }
     // Current still on the target at the end of the block returns from beyond it.
-    flows.push(this.flow(start(BLOCK_FT - 2), -8.6, { kind: 'beyond' }, group));
+    flows.push(this.flow(start(BLOCK_FT - 2), -8.6 * depth, { kind: 'beyond' }, group));
     flows.push(
-      this.flow(new Vector3(t.x0, t.y - t.radius - 0.1, 0.12), -3.6, { kind: 'telecom' }, group),
+      this.flow(
+        new Vector3(t.x0, t.y - t.radius - 0.1, 0.12),
+        -3.6 * depth,
+        { kind: 'telecom' },
+        group,
+      ),
     );
     return {
       group,
@@ -384,10 +386,5 @@ export class SignalEffects {
   /** Advances the bands. Pass a fixed time to freeze them (reduced motion, screenshots). */
   setTime(seconds: number): void {
     this.time.value = seconds;
-  }
-
-  /** The scene's fog density, so the signal fades into the distance with the lines it rides on. */
-  setFogDensity(density: number): void {
-    this.fog.value = density;
   }
 }
