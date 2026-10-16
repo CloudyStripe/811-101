@@ -263,7 +263,7 @@ async function buildLabScene(
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
   /** Frames the view for a free area of the canvas, with the view that suits it unless given. */
-  function frameArea(area: VisibleArea, view = viewFor(layout, area)) {
+  function frameArea(area: VisibleArea, view = viewFor(layout, area, stage)) {
     cam.setLayout(stage.width, stage.height, area);
     cam.frame(view);
     shownArea = area;
@@ -383,7 +383,7 @@ async function buildLabScene(
       if (ease && !reducedMotion && !o.capture && shownArea) {
         // Where it lands: the pose that frames the new area, fitted without moving the camera.
         cam.setLayout(stage.width, stage.height, area);
-        const toPose = cam.poseFor(viewFor(layout, area));
+        const toPose = cam.poseFor(viewFor(layout, area, stage));
         cam.setLayout(stage.width, stage.height, shownArea);
         glide = {
           from: shownArea,

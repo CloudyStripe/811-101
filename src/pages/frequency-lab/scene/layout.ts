@@ -277,11 +277,20 @@ export function tallView(layout: LabLayout): View {
   return slabView(layout, -58, 24, { margin: 0.03, labelRoom: 18, fov: 50 });
 }
 
-/** A free area this much taller than wide gets the tall view. */
+/** A screen or free area this much taller than wide gets the tall view. */
 const TALL = 1.05;
 
-/** The view that suits the free part of the canvas. */
-export function viewFor(layout: LabLayout, area: VisibleArea): View {
-  const tall = area.portrait ?? area.height > area.width * TALL;
+/**
+ * The view that suits the screen: the tall view on a screen held upright, whatever strip of it the
+ * controls leave free, or in a free area taller than wide, as beside the controls on a phone held
+ * sideways; the wide view otherwise. A free area can also ask for one or the other.
+ */
+export function viewFor(
+  layout: LabLayout,
+  area: VisibleArea,
+  canvas: { width: number; height: number },
+): View {
+  const tall =
+    area.portrait ?? (canvas.height > canvas.width * TALL || area.height > area.width * TALL);
   return tall ? tallView(layout) : wideView(layout);
 }

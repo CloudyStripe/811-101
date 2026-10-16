@@ -89,6 +89,9 @@ async function squint(page: Page, tokens: SceneTokens): Promise<Squint> {
   );
 }
 
+// No fades: the loader is gone the moment the view draws, so nothing veils the frame measured.
+test.use({ reducedMotion: 'reduce' });
+
 const VIEWS = [
   { name: 'lab', path: 'training/frequency-lab/?capture&tier=medium', tokens: labSceneTokens },
   {
@@ -104,6 +107,7 @@ for (const view of VIEWS) {
       await page.emulateMedia({ colorScheme: theme });
       await page.goto(view.path);
       await waitReady(page);
+      await expect(page.locator('.scene-loader')).toBeHidden();
       const s = await squint(page, view.tokens(theme));
       // The sky really is the sky's gradient (most of the view), and the model takes real room.
       expect(s.share, 'model share').toBeGreaterThan(0.12);

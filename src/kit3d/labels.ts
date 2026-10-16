@@ -223,7 +223,23 @@ export class LabelLayer {
         w: size.w,
         h: size.h,
       };
-      const slid = slide(full);
+      // Where it may sit: over its point, then to either side, then a row further out, so labels
+      // on things close together stack beside each other, each with its leader, before any
+      // shrinks to its icon.
+      const dx = size.w / 2 + 10;
+      const dy = (size.h + 8) * (below ? 1 : -1);
+      const spots = [
+        [0, 0],
+        [-dx, 0],
+        [dx, 0],
+        [0, dy],
+        [-dx, dy],
+        [dx, dy],
+      ].flatMap(([ox = 0, oy = 0]) => {
+        const r = slide({ ...full, x: full.x + ox, y: full.y + oy });
+        return r ? [r] : [];
+      });
+      const spot = spots.find((r) => inside(r) && !overlaps(r, placed));
       const compact = { x: it.x - 15, y: below ? it.y + 12 : it.y - 42, w: 30, h: 30 };
       // A leader only when its point is in view: a label pulled in from off screen has none.
       const point = it.visible ? it.point : null;
@@ -242,10 +258,10 @@ export class LabelLayer {
       } else if (it.label.quiet === true || shown >= maxVisible) {
         // Quiet, or over the cap: out of sight, but still in the tab order, so focusing it shows it.
         this.place(it.label, full, 'capped', null);
-      } else if (slid && inside(slid) && !overlaps(slid, placed)) {
-        placed.push(slid);
+      } else if (spot) {
+        placed.push(spot);
         shown++;
-        this.place(it.label, slid, '', point);
+        this.place(it.label, spot, '', point);
       } else if (inside(compact) && !overlaps(compact, placed)) {
         placed.push(compact);
         shown++;

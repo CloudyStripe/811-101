@@ -141,12 +141,13 @@ export const THEMES: Record<ThemeName, Theme> = {
       ],
     },
     scene: {
-      skyZenith: '#14306a',
-      skyHorizon: '#3d62a8',
-      // Darker under the model, so the moonlit model stands clear of the sky around it.
-      skyBelow: '#0e1c3a',
-      key: { color: '#c3d4ff', intensity: 1.25, azimuth: -30, elevation: 50 },
-      hemisphere: { sky: '#3a5a9a', ground: '#2a3b2a', intensity: 0.75 },
+      // A deep night blue, darkest under the model, so the moonlit model stands clear of it.
+      skyZenith: '#0b1c44',
+      skyHorizon: '#11275a',
+      skyBelow: '#091530',
+      // Bright moonlight: the model reads well clear of the night sky.
+      key: { color: '#c3d4ff', intensity: 2.1, azimuth: -30, elevation: 50 },
+      hemisphere: { sky: '#3a5a9a', ground: '#2a3b2a', intensity: 0.9 },
       rim: { color: '#ffd9a0', intensity: 0.6, azimuth: 150, elevation: 24 },
       envIntensity: 0.45,
       softbox: 1.6,
@@ -158,13 +159,16 @@ export const THEMES: Record<ThemeName, Theme> = {
   },
 };
 
+/** Where the lab's key light comes from, degrees round from its cut face: see labSceneTokens. */
+const LAB_KEY_AZIMUTH: Record<ThemeName, number> = { light: -60, dark: -15 };
+
 /**
- * The lab's sky and light. The lab looks square at its cut face, so by day its sun swings a little
- * toward the front, and the face stays in sunlight.
+ * The lab's sky and light. The lab looks square at its cut face, so its sun or moon swings a little
+ * toward the front, and the face stays lit.
  */
 export function labSceneTokens(theme: ThemeName): SceneTokens {
   const scene = THEMES[theme].scene;
-  return theme === 'light' ? { ...scene, key: { ...scene.key, azimuth: -60 } } : scene;
+  return { ...scene, key: { ...scene.key, azimuth: LAB_KEY_AZIMUTH[theme] } };
 }
 
 /**

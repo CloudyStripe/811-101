@@ -80,7 +80,7 @@ function onCanvas(layout: LabLayout, canvas: { width: number; height: number }, 
   const camera = new PerspectiveCamera(34, canvas.width / canvas.height, 0.5, 900);
   const lab = new LabCamera(camera);
   lab.setLayout(canvas.width, canvas.height, area);
-  const view = viewFor(layout, area);
+  const view = viewFor(layout, area, canvas);
   lab.frame(view);
   return view.mustSee.map((p) => {
     const v = new Vector3(...p).project(camera);
@@ -124,15 +124,32 @@ const CASES = [
 describe('views', () => {
   const layout = labLayout({ depth: 3 });
 
-  it('picks the tall view for areas taller than wide, else the wide one', () => {
+  it('picks the tall view on screens held upright, else the wide one, unless the area asks', () => {
     const wide = wideView(layout);
     const tall = tallView(layout);
-    expect(viewFor(layout, { x: 0, y: 0, width: 1000, height: 900 })).toEqual(wide);
-    expect(viewFor(layout, { x: 0, y: 66, width: 390, height: 520 })).toEqual(tall);
-    expect(viewFor(layout, { x: 0, y: 0, width: 820, height: 900 })).toEqual(tall);
-    // About square goes wide; a portrait flag wins.
-    expect(viewFor(layout, { x: 0, y: 0, width: 600, height: 620 })).toEqual(wide);
-    expect(viewFor(layout, { x: 0, y: 0, width: 1000, height: 900, portrait: true })).toEqual(tall);
+    const desktop = { width: 1440, height: 900 };
+    const phone = { width: 390, height: 844 };
+    expect(viewFor(layout, { x: 0, y: 0, width: 1000, height: 900 }, desktop)).toEqual(wide);
+    // On a phone held upright, whatever strip the controls leave.
+    expect(viewFor(layout, { x: 0, y: 66, width: 390, height: 520 }, phone)).toEqual(tall);
+    expect(viewFor(layout, { x: 0, y: 66, width: 390, height: 248 }, phone)).toEqual(tall);
+    expect(
+      viewFor(layout, { x: 0, y: 0, width: 820, height: 900 }, { width: 820, height: 1180 }),
+    ).toEqual(tall);
+    // About square, or held sideways, goes wide; a portrait area asks for the tall view.
+    expect(
+      viewFor(layout, { x: 0, y: 0, width: 600, height: 620 }, { width: 600, height: 620 }),
+    ).toEqual(wide);
+    expect(
+      viewFor(layout, { x: 300, y: 0, width: 544, height: 390 }, { width: 844, height: 390 }),
+    ).toEqual(wide);
+    // Beside the controls on a small phone held sideways, the free area is taller than wide.
+    expect(
+      viewFor(layout, { x: 330, y: 0, width: 311, height: 375 }, { width: 667, height: 375 }),
+    ).toEqual(tall);
+    expect(
+      viewFor(layout, { x: 0, y: 0, width: 400, height: 900, portrait: true }, desktop),
+    ).toEqual(tall);
   });
 
   it('shows the whole slab, the trees on it, and the hookup in every view', () => {
@@ -163,7 +180,7 @@ describe('views', () => {
     const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     expect(Math.abs((x0 + x1) / 2 - (c.area.x + c.area.width / 2))).toBeLessThan(4);
     expect(Math.abs((y0 + y1) / 2 - (c.area.y + c.area.height / 2))).toBeLessThan(4);
-    const view = viewFor(layout, c.area);
+    const view = viewFor(layout, c.area, c.canvas);
     const margin = view.margin ?? 0.08;
     const roomX = Math.max((margin * c.area.width) / 2, view.labelRoom ?? 0);
     const roomY = (margin * c.area.height) / 2;
