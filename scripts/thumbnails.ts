@@ -33,6 +33,11 @@ const VIEWPORT = { width: 1280, height: 720 };
 const STILL_QUALITY = 0.7;
 /** Posters are shown blurred, so a small one does. */
 const POSTER = { width: 480, height: 270, quality: 0.6 };
+/**
+ * How long a screenshot of a 3D view may take. In software WebGL the first frame after a view is
+ * ready can take a quarter of a minute to reach the screen, as its shaders finish compiling.
+ */
+const SHOT_TIMEOUT = 120_000;
 
 /** CSS that hides the lab's chrome, so an image is the 3D view alone. */
 const LAB_CHROME = '.site-header, [data-chrome], .labels, .scene-loader';
@@ -225,6 +230,7 @@ async function still(
     const png = await page.screenshot({
       animations: 'disabled',
       style: `${view.hide} { visibility: hidden !important; }`,
+      timeout: SHOT_TIMEOUT,
     });
     if (errors.length) throw new Error(`${view.path}: ${errors.join(' | ')}`);
     if ((await spreadOf(page, png, 'image/png')) < 8) throw new Error(`${view.path}: blank`);
@@ -297,6 +303,7 @@ try {
             animations: 'disabled',
             style: `${shot.hide} { visibility: hidden !important; }`,
             clip,
+            timeout: SHOT_TIMEOUT,
           });
           if (errors.length) throw new Error(`${shot.name}: ${errors.join(' | ')}`);
           if ((await spreadOf(page, image, 'image/png')) < 8) {
