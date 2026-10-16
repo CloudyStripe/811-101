@@ -226,7 +226,7 @@ export interface Routes {
   group: Group;
   /** Moves the flow on by dt seconds, each path at its own pace (0 still, 1 full). */
   update(dt: number, pace: Readonly<Record<PathId, number>>): void;
-  /** Fades a path's routes back toward the haze, 0 to 1. */
+  /** Fades a path's routes back toward the quiet fade color, 0 to 1. */
   setDim(path: PathId, dim: number): void;
   setDimColor(hex: string): void;
 }

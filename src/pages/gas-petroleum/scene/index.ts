@@ -211,7 +211,7 @@ async function buildDiorama(
   const pathDims: Record<'gas' | 'gasoline', number> = { gas: 0, gasoline: 0 };
   scene.add(ground.group, routes.group, ...models.map((m) => m.root));
   for (const m of models) for (const pop of m.pops) pop.visible = false;
-  applyHaze();
+  applyFade();
   timeLapse.current?.onChange((state) => {
     details.setClock(clockShown() ? clockText(state.ma) : null);
     labelsDirty = true;
@@ -342,7 +342,7 @@ async function buildDiorama(
   }
 
   /** The quiet gray faded stops and routes lean toward, for the theme. */
-  function applyHaze() {
+  function applyFade() {
     const tokens = THEMES[theme].scene;
     setDimColor(tokens.fade);
     routes.setDimColor(tokens.fade);
@@ -481,7 +481,7 @@ async function buildDiorama(
       const tokens = THEMES[theme].scene;
       lighting.setTheme(tokens);
       for (const m of models) m.setLamps?.(tokens.lamps);
-      applyHaze();
+      applyFade();
       renderer.shadowMap.needsUpdate = true;
       redraw();
     },
