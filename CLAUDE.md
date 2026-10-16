@@ -127,7 +127,7 @@ In the field, the color is the code.
 - **Voice:** plain words, no background assumed, never talking down.
 - **Depth:** keep it conceptual. One idea per sentence, qualitative words over numbers, and no data tables or readouts; leave out detail the lesson doesn't need.
 - **Terms:** mark them with `[[term]]` or `[[shown words|term key]]`. Every marked term needs a definition, and a test enforces it.
-- **The diorama's text** (`content/utilities/gas-petroleum.ts`): a few plain sentences per stop, no figures (the time-lapse's clock aside) and no side trips. A test holds it to the original word for word (`gas-petroleum.legacy.json`), but for the fork note.
+- **The diorama's text** (`content/utilities/gas-petroleum.ts`): a few plain sentences per stop, no figures (the time-lapse's clock aside) and no side trips. A test holds it to the original word for word (`gas-petroleum.legacy.json`), but for the fork note and the "Using natural gas" label.
 
 ## Signal model
 

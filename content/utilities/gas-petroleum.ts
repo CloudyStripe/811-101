@@ -203,7 +203,7 @@ export const STOPS: readonly Stop[] = [
     id: 'gas-uses',
     path: 'gas',
     step: 9,
-    label: 'Using gas',
+    label: 'Using natural gas',
     title: claim('gp.gas-uses.title', 'Electricity, heat and things we make'),
     text: [
       claim('gp.gas-uses.power', 'Much natural gas goes to [[power plants]] to make electricity.'),
