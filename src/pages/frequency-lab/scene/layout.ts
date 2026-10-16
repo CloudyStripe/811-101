@@ -200,7 +200,7 @@ export function labLayout({ depth }: LabLayoutOptions): LabLayout {
     around(hydrant.x, hydrant.z, 0.5),
     ...steppingStones,
   ];
-  // Room above each label's point; the stake and transmitter carry their labels over them.
+  // The whole slab, the trees on it, and room above the hookup for its labels.
   const mustSee: Point[] = [
     [block.x0, block.bottom, 0],
     [block.x1, block.bottom, 0],
