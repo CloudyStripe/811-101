@@ -6,6 +6,8 @@ export default defineConfig({
   testDir: 'tests/e2e',
   outputDir: 'test-results',
   fullyParallel: true,
+  // Software WebGL is heavy: more test browsers at once than this only starve each other.
+  workers: process.env.CI ? 2 : 4,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   // CI runners render with software WebGL on fewer cores, so give each test more room there.

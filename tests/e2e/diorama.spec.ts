@@ -285,6 +285,8 @@ test.describe('with motion', () => {
   test.use({ reducedMotion: 'no-preference' });
 
   test('the overview stays alive, and the pause stills it', async ({ page }) => {
+    // Motion to show twice, and stillness to hold, in software.
+    test.slow();
     const frames = await countFrames(page);
     await open(page);
     await expect

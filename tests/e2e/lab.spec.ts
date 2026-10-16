@@ -85,6 +85,8 @@ test.describe('with motion', () => {
   });
 
   test('pausing holds the signal still, and playing starts it again', async ({ page }) => {
+    // Motion to show twice, and stillness to hold, in software.
+    test.slow();
     const frames = await countFrames(page);
     await open(page);
     await expect

@@ -187,6 +187,8 @@ test.describe('the 404 page', () => {
 });
 
 test('the portal opens the Frequency Lab, and the header leads back', async ({ page }) => {
+  // Two loads of the lab, in software.
+  test.slow();
   await openPortal(page);
   // The lesson's card on the portal, not the footer's link to it.
   await page.getByRole('main').getByRole('link', { name: 'Frequency Lab', exact: true }).click();
