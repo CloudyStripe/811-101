@@ -14,7 +14,6 @@ import { chromium, type Browser, type Page } from '@playwright/test';
 import { createServer } from 'vite';
 import { BRAND } from '../config/brand.ts';
 import type { Lesson } from '../content/portal.ts';
-import { markInline } from '../src/design/mark.ts';
 import { THEMES, TYPE } from '../src/design/tokens.ts';
 import { PAGES, pageById, posterPath, type PageInfo } from '../src/site/pages.ts';
 import { SHARE_SIZE } from '../src/site/shell.ts';
@@ -25,6 +24,7 @@ import {
   heroPath,
   previewPath,
 } from '../src/site/stills.ts';
+import { TILE_COLORS, WORDMARK_HTML, archivoFace, wordmarkCss } from './wordmark.ts';
 
 const PORT = 5199;
 const BASE = `http://localhost:${String(PORT)}/811-101/`;
@@ -234,28 +234,18 @@ async function still(
 
 /** The site's own fonts, embedded, so share previews are set in them like the pages are. */
 async function fontFaces(): Promise<string> {
-  const face = async (family: string, file: string, weight: string, stretch = '100%') => {
-    const data = (await readFile(file)).toString('base64');
-    return `@font-face { font-family: "${family}"; src: url(data:font/woff2;base64,${data}) format("woff2"); font-weight: ${weight}; font-stretch: ${stretch}; }`;
-  };
-  return (
-    await Promise.all([
-      face(
-        'Archivo Variable',
-        'node_modules/@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2',
-        '100 900',
-        '62% 125%',
-      ),
-      face(
-        'Atkinson Hyperlegible',
-        'node_modules/@fontsource/atkinson-hyperlegible/files/atkinson-hyperlegible-latin-400-normal.woff2',
-        '400',
-      ),
-    ])
-  ).join('\n');
+  const body = (
+    await readFile(
+      'node_modules/@fontsource/atkinson-hyperlegible/files/atkinson-hyperlegible-latin-400-normal.woff2',
+    )
+  ).toString('base64');
+  return [
+    await archivoFace(),
+    `@font-face { font-family: "Atkinson Hyperlegible"; src: url(data:font/woff2;base64,${body}) format("woff2"); font-weight: 400; }`,
+  ].join('\n');
 }
 
-/** The share preview: the page's still, its name and the site's mark over a soft fade. */
+/** The share preview: the page's still, its name and the wordmark tile over a soft fade. */
 function shareCard(page: PageInfo, background: Buffer, fonts: string): string {
   const t = THEMES.light.chrome;
   const name = page.heading ?? BRAND.name;
@@ -266,11 +256,10 @@ function shareCard(page: PageInfo, background: Buffer, fonts: string): string {
     .card { position: relative; width: 100%; height: 100%; background: ${t.bg} url(data:image/png;base64,${background.toString('base64')}) center / cover; }
     .fade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 38%, ${t.bg}e6 72%, ${t.bg} 100%); }
     .text { position: absolute; left: 64px; right: 64px; bottom: 56px; display: flex; align-items: center; gap: 28px; color: ${t.ink}; }
-    .mark { width: 96px; height: 96px; flex: none; }
-    .mark-tile { fill: ${t.ink}; } .mark-cut { stroke: ${t.bg}; }
-    h1 { margin: 0; font: 800 72px/1.02 ${TYPE.display}; font-stretch: 116%; letter-spacing: -0.02em; }
+    ${wordmarkCss(108, TILE_COLORS.light)}
+    h1 { margin: 0; font: 900 72px/1.02 ${TYPE.display}; font-stretch: 112%; letter-spacing: -0.01em; }
     p { margin: 10px 0 0; font: 400 30px/1.3 ${TYPE.body}; color: ${t.ink2}; }
-  </style></head><body><div class="card"><div class="fade"></div><div class="text">${markInline('mark')}<div><h1>${name}</h1><p>${line}</p></div></div></div></body></html>`;
+  </style></head><body><div class="card"><div class="fade"></div><div class="text">${WORDMARK_HTML}<div><h1>${name}</h1><p>${line}</p></div></div></div></body></html>`;
 }
 
 const server = await createServer({

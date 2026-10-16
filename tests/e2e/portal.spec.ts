@@ -11,6 +11,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { BRAND, SITE_URL } from '../../config/brand.ts';
 import { SECTIONS, type Lesson } from '../../content/portal.ts';
+import { THEMES } from '../../src/design/tokens.ts';
 import { PAGES, lessonPage, lessonTransition, pageById } from '../../src/site/pages.ts';
 import { SETTINGS_KEY } from '../../src/site/settings.ts';
 import { PREVIEW_SIZE, heroPath, previewPath } from '../../src/site/stills.ts';
@@ -147,6 +148,8 @@ test('every built page carries its head and shell before any JavaScript runs', a
       expect((await page.request.get(icon)).status(), icon).toBe(200);
     }
   }
+  // The footer's credits for the open-source software and typefaces the site is built with.
+  expect((await page.request.get('credits.txt')).status()).toBe(200);
 });
 
 test('a page that isn’t there is a 404, as on the live site, with the site’s own page', async ({
@@ -198,7 +201,7 @@ test('the portal opens the Frequency Lab, and the header leads back', async ({ p
   await page.getByRole('link', { name: 'Locator Training' }).click();
   await expect(page).toHaveURL(/\/811-101\/#training$/);
   await expect(page.getByRole('region', { name: 'Locator Training' })).toBeInViewport();
-  // ...and the mark, home.
+  // ...and the wordmark, home.
   await page.goto('training/frequency-lab/?tier=low');
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
     timeout: 60_000,
@@ -217,7 +220,7 @@ test('settings chosen on one page hold on the next', async ({ page }) => {
   const colors = await page.$$eval('meta[name="theme-color"]', (metas) =>
     metas.map((m) => (m as HTMLMetaElement).content),
   );
-  expect(new Set(colors)).toEqual(new Set(['#111315']));
+  expect(new Set(colors)).toEqual(new Set([THEMES.dark.chrome.bg]));
   await page.keyboard.press('Escape');
   await page.goto('training/frequency-lab/?tier=low');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

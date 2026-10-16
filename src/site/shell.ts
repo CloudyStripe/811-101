@@ -7,8 +7,7 @@
  */
 import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
 import { SECTIONS, type Lesson, type Section } from '../../content/portal.ts';
-import type { IconName } from '../design/icons.tsx';
-import { markInline } from '../design/mark.ts';
+import { iconSvg, type IconName } from '../design/icon-svg.ts';
 import { THEMES } from '../design/tokens.ts';
 import { lessonPage, lessonTransition, posterPath, sectionOf, type PageInfo } from './pages.ts';
 import { BOOT_SCRIPT } from './settings.ts';
@@ -67,7 +66,7 @@ export function headTags(page: PageInfo): string {
 }
 
 /**
- * The header: the mark and the site's name (home), and on a lesson, its section and title. The
+ * The header: the site's name as its wordmark (home), and on a lesson, its section and title. The
  * settings button mounts into its slot once the page's code runs.
  */
 export function headerHtml(page: PageInfo): string {
@@ -85,14 +84,17 @@ export function headerHtml(page: PageInfo): string {
     : '';
   return [
     '<header class="site-header" data-chrome>',
-    `<a class="site-home" href="${BASE_PATH}"${home}>${markInline('site-mark')}<span class="site-name">${escapeHtml(BRAND.name)}</span></a>`,
+    `<a class="site-home" href="${BASE_PATH}"${home}><span class="site-name">${escapeHtml(BRAND.name)}</span></a>`,
     title,
     '<div class="site-tools"><div class="site-settings" id="site-settings"></div></div>',
     '</header>',
   ].join('');
 }
 
-/** The footer: the brand, every lesson, and what the site keeps (only settings). */
+/**
+ * The footer: the brand, every lesson, what the site keeps (only settings), and the credits for
+ * the open-source software and typefaces it's built with.
+ */
 export function footerHtml(): string {
   const lessons = SECTIONS.flatMap((section) =>
     section.lessons.map(
@@ -103,9 +105,12 @@ export function footerHtml(): string {
   return [
     '<footer class="site-footer">',
     '<div class="site-footer-inner">',
-    `<div class="site-footer-brand">${markInline('site-mark')}<div><p class="site-footer-name">${escapeHtml(BRAND.name)}</p><p class="site-footer-tagline">${escapeHtml(BRAND.tagline)}</p></div></div>`,
+    `<div class="site-footer-brand"><p class="site-footer-name">${escapeHtml(BRAND.name)}</p><p class="site-footer-tagline">${escapeHtml(BRAND.tagline)}</p></div>`,
     `<nav class="site-footer-nav" aria-label="Lessons"><ul>${lessons.join('')}</ul></nav>`,
+    '<div class="site-footer-meta">',
     '<p class="site-footer-note">No tracking and no accounts: the only thing kept is your display settings, in this browser.</p>',
+    `<a class="site-footer-credits" href="${BASE_PATH}credits.txt">Open-source credits</a>`,
+    '</div>',
     '</div>',
     '</footer>',
   ].join('');
@@ -158,9 +163,9 @@ export function heroHtml(): string {
   ].join('');
 }
 
-/** A place for an icon, which the page's script draws: it's decoration, so it can come late. */
+/** An icon, drawn into the page with the rest of the shell. It's decoration, hidden from readers. */
 const iconSlot = (name: IconName, className: string) =>
-  `<span class="${className}" aria-hidden="true" data-icon="${name}"></span>`;
+  `<span class="${className}" aria-hidden="true">${iconSvg(name)}</span>`;
 
 /**
  * The portal's sections, static like its hero: a band each, with its lessons as large tiles. A
