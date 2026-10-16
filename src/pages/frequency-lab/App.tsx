@@ -179,7 +179,7 @@ export function App() {
         width: right,
         height: box.height,
         portrait: false,
-        keepOut: controlsOver(box, ['.lab-lede', '.lab-dock', '.lab-legend']),
+        keepOut: controlsOver(box, ['.lab-lede', '.lab-scale', '.lab-dock', '.lab-legend']),
       };
     };
 
@@ -382,6 +382,10 @@ export function App() {
       {/* The lab's one-line lesson, under the site header that names it. */}
       <p class="lab-lede" data-chrome>
         {TAGLINE.text}
+      </p>
+      {/* The ground is drawn deeper than true, and the lines thicker, so the cut face reads. */}
+      <p class="lab-scale" data-chrome>
+        Not to scale
       </p>
 
       <main class="stage" ref={stageRef}>

@@ -54,6 +54,7 @@ body {
 }
 
 .lab-lede,
+.lab-scale,
 .lab-dock,
 .lab-legend,
 .lab-panel {
@@ -104,6 +105,22 @@ body {
   color: var(--ink-2);
   font-size: 0.92rem;
   line-height: 1.4;
+}
+
+/* The view is drawn deeper than true, and says so, in the view's top corner. */
+.lab-scale {
+  grid-area: view;
+  align-self: start;
+  justify-self: end;
+  margin: 0;
+  padding: 4px var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 700;
 }
 
 /*

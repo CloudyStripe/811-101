@@ -28,7 +28,7 @@ import {
 } from '../../../kit3d/geometry.ts';
 import { surface, tint, type SurfaceOptions } from '../../../kit3d/materials.ts';
 import type { SetupId } from '../../../signal/model.ts';
-import { DETAIL_END, HOOKUP, LEADS, LINES, PIPE_END, RISERS } from './layout.ts';
+import type { LabLayout } from './layout.ts';
 
 function mesh(geometry: BufferGeometry, material: Material, cast = true): Mesh {
   const m = new Mesh(geometry, material);
@@ -68,16 +68,15 @@ export function setLineGlow(root: Object3D, level: number): void {
 
 const strength = FACILITY_TINT_STRENGTH;
 const MATERIALS = {
-  steelMain: () =>
-    line(C.coatedSteel, APWA.yellow.fill, strength, { roughness: 0.5, metalness: 0.15 }),
-  plasticMain: () => line(C.casing, APWA.yellow.fill, 0.82, { roughness: 0.42 }),
-  tracer: () => line(C.graphite, APWA.yellow.fill, 0.85, { roughness: 0.5 }),
+  steelMain: () => line(C.coatedSteel, APWA.yellow.fill, strength, { roughness: 0.5 }),
+  plasticMain: () => line(C.casing, APWA.yellow.fill, strength, { roughness: 0.42 }),
+  tracer: () => line(C.graphite, APWA.yellow.fill, strength, { roughness: 0.5 }),
   telecom: () => line(C.graphite, APWA.orange.fill, strength, { roughness: 0.55 }),
-  water: () => line('#4b4f55', APWA.blue.fill, strength, { roughness: 0.6, metalness: 0.1 }),
-  graphite: () => surface(C.graphite, { roughness: 0.45 }),
-  steel: () => surface(C.steel, { roughness: 0.35, metalness: 0.8 }),
-  yellowPost: () => surface(APWA.yellow.fill, { roughness: 0.5 }),
-  casing: () => surface(C.casing, { roughness: 0.5 }),
+  water: () => line('#4b4f55', APWA.blue.fill, strength, { roughness: 0.6 }),
+  graphite: () => surface(C.graphite, { finish: 'paint' }),
+  steel: () => surface(C.steel, { finish: 'metal', roughness: 0.3, metalness: 0.8 }),
+  yellowPost: () => surface(APWA.yellow.fill, { finish: 'paint' }),
+  casing: () => surface(C.casing, { finish: 'paint' }),
 };
 
 const CELL_W = 256;
@@ -154,15 +153,16 @@ export interface SharedLines {
 }
 
 /** Lines and equipment present in both setups. */
-export function buildShared(readings: readonly string[]): SharedLines {
+export function buildShared(layout: LabLayout, readings: readonly string[]): SharedLines {
+  const { lines, hookup, leads, block } = layout;
   const group = new Group();
   group.name = 'shared-lines';
-  const t = LINES.telecom;
-  const w = LINES.water;
+  const t = lines.telecom;
+  const w = lines.water;
   group.add(
     mesh(
       merge([
-        pipeAlongX(t.x0, PIPE_END, t.y, 0, t.radius, 24),
+        pipeAlongX(t.x0, block.x1, t.y, 0, t.radius, 24),
         new SphereGeometry(t.radius, 24, 12).translate(t.x0, t.y, 0),
       ]),
       MATERIALS.telecom(),
@@ -172,14 +172,14 @@ export function buildShared(readings: readonly string[]): SharedLines {
     mesh(
       merge([
         pipeAlongZ(w.z0, w.z1, w.x, w.y, w.radius, 32),
-        new TorusGeometry(w.radius + 0.03, 0.06, 12, 40).translate(w.x, w.y, -0.6),
+        new TorusGeometry(w.radius + 0.03, 0.06 * layout.depth, 12, 40).translate(w.x, w.y, -0.6),
       ]),
       MATERIALS.water(),
     ),
   );
 
   // Generic transmitter: no manufacturer's design. Rounded case, handle, screen, two terminals.
-  const tx = HOOKUP.transmitter;
+  const tx = hookup.transmitter;
   const unit = new Group();
   unit.position.set(tx.x, 0.12, tx.z);
   unit.rotation.y = -0.55;
@@ -210,7 +210,7 @@ export function buildShared(readings: readonly string[]): SharedLines {
   group.add(unit);
 
   // Ground stake: a steel rod with a T-handle, driven in at the cut face so its rod shows.
-  const s = HOOKUP.stake;
+  const s = hookup.stake;
   const steel = MATERIALS.steel();
   group.add(
     mesh(
@@ -225,31 +225,32 @@ export function buildShared(readings: readonly string[]): SharedLines {
 
   // Leads lying in the grass: signal lead to the access point, ground lead to the stake.
   const lead = MATERIALS.graphite();
-  group.add(cable(LEADS.signal, 0.045, lead), cable(LEADS.ground, 0.045, lead));
+  group.add(cable(leads.signal, 0.045, lead), cable(leads.ground, 0.045, lead));
   return { group, screen };
 }
 
 /** The target line and its access point, for one setup. */
-export function buildSetup(setup: SetupId): Group {
+export function buildSetup(layout: LabLayout, setup: SetupId): Group {
+  const { lines, hookup, risers, block } = layout;
   const group = new Group();
   group.name = `setup-${setup}`;
-  const a = HOOKUP.access;
+  const a = hookup.access;
 
   if (setup === 'steel') {
-    const m = LINES.steel;
+    const m = lines.steel;
     const coating = MATERIALS.steelMain();
     group.add(
       mesh(
         merge([
-          pipeAlongX(m.x0, PIPE_END, m.y, 0, m.radius, 40),
+          pipeAlongX(m.x0, block.x1, m.y, 0, m.radius, 40),
           new SphereGeometry(m.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2)
             .rotateZ(Math.PI / 2)
             .translate(m.x0, m.y, 0),
-          // Couplings every 40 ft, on past the block until the fog closes in.
+          // Couplings every 40 ft along the block.
           ...Array.from(
-            { length: Math.floor((DETAIL_END - 20) / 40) + 1 },
+            { length: Math.floor((block.x1 - 20) / 40) + 1 },
             (_, i) => 20 + i * 40,
-          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02, 0.05)),
+          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02 * layout.depth, 0.05 * layout.depth)),
         ]),
         coating,
       ),
@@ -261,18 +262,18 @@ export function buildSetup(setup: SetupId): Group {
         new SphereGeometry(0.19, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).translate(a.x, 3.0, a.z),
         MATERIALS.graphite(),
       ),
-      cable(RISERS.steel, 0.035, MATERIALS.graphite()),
+      cable(risers.steel, 0.035, MATERIALS.graphite()),
     );
     return group;
   }
 
   // Plastic main: the pipe itself can't carry a signal, so a tracer wire rides along on top.
-  const p = LINES.plastic;
-  const tr = LINES.tracer;
+  const p = lines.plastic;
+  const tr = lines.tracer;
   group.add(
     mesh(
       merge([
-        pipeAlongX(p.x0, PIPE_END, p.y, 0, p.radius, 40),
+        pipeAlongX(p.x0, block.x1, p.y, 0, p.radius, 40),
         new SphereGeometry(p.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2)
           .rotateZ(Math.PI / 2)
           .translate(p.x0, p.y, 0),
@@ -280,7 +281,7 @@ export function buildSetup(setup: SetupId): Group {
       MATERIALS.plasticMain(),
     ),
   );
-  group.add(mesh(pipeAlongX(tr.x0, PIPE_END, tr.y, 0, tr.radius, 12), MATERIALS.tracer()));
+  group.add(mesh(pipeAlongX(tr.x0, block.x1, tr.y, 0, tr.radius, 12), MATERIALS.tracer()));
   // Tracer-wire test box, flush with the grass; the wire comes up the cut face to it.
   group.add(
     mesh(
@@ -291,7 +292,7 @@ export function buildSetup(setup: SetupId): Group {
       new CylinderGeometry(0.37, 0.37, 0.05, 32).translate(a.x, 0.2, a.z),
       MATERIALS.yellowPost(),
     ),
-    cable(RISERS.plastic, tr.radius, MATERIALS.tracer()),
+    cable(risers.plastic, tr.radius, MATERIALS.tracer()),
   );
   return group;
 }

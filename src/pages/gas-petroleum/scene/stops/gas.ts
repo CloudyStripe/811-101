@@ -32,7 +32,7 @@ function start() {
   return { finishes, parts: new Parts(finishes) };
 }
 
-/** A roof with its ridge along z, `w` across and `h` high, over (x, y, z), `l` long. */
+/** A roof with its ridge along z, `w` across and `h` high, over (x, y, z), `l` long: matte, as roofs are. */
 function roof(
   parts: Parts,
   w: number,
@@ -51,11 +51,11 @@ function roof(
   ];
   if (ridgeAlongX) {
     parts.group(x - l / 2, y, z, () => {
-      parts.extrude(tri, l, hex, 0, { ry: Math.PI / 2 });
+      parts.extrude(tri, l, hex, 0, { ry: Math.PI / 2, finish: 'matte' });
     });
   } else {
     parts.group(x, y, z, () => {
-      parts.extrude(tri, l, hex, -l / 2);
+      parts.extrude(tri, l, hex, -l / 2, { finish: 'matte' });
     });
   }
 }
@@ -93,11 +93,11 @@ export function gasPlant(): StopModel {
   for (const x of [-11.2, -8.6]) parts.box(0.3, 0.4, 2.2, C.machineDark, x, 0, -11.9);
   // The pipe rack.
   for (const x of [-17, -14.5, -12, -9.5]) parts.box(0.18, 1.7, 0.18, C.steel, x, 0, -10.1);
-  parts.rod([-17.2, 1.7, -10.1], [-8.6, 1.7, -10.1], 0.12, C.steel, { metal: true });
+  parts.rod([-17.2, 1.7, -10.1], [-8.6, 1.7, -10.1], 0.12, C.steel, { finish: 'metal' });
   parts.rod([-17.2, 1.45, -10.1], [-8.6, 1.45, -10.1], 0.1, GAS_LINE);
   // The control building and the cooler.
   parts.box(3, 1.8, 2.2, C.wall, -15.3, 0, -6.4);
-  parts.box(3.2, 0.2, 2.4, C.roof, -15.3, 1.8, -6.4);
+  parts.box(3.2, 0.2, 2.4, C.roof, -15.3, 1.8, -6.4, { finish: 'matte' });
   parts.box(2.6, 1.2, 1.8, C.machine, -11.2, 0, -6.4);
   const blades = fans(
     parts,
@@ -108,7 +108,7 @@ export function gasPlant(): StopModel {
     2,
   );
   // The flare stack, which burns off gas safely.
-  parts.cyl(0.18, 0.26, 8, C.steel, -19.6, 0, -12.6, { metal: true, segments: 8 });
+  parts.cyl(0.18, 0.26, 8, C.steel, -19.6, 0, -12.6, { finish: 'metal', segments: 8 });
   const root = parts.finish();
   const fire = flame(root, finishes, [-19.6, 8, -12.6]);
   return {
@@ -143,9 +143,9 @@ export function pipeline(): StopModel {
   pad(parts, 6.6, 5.4, cx, -11.9);
   // The compressor station.
   parts.box(4.4, 2.4, 3, C.wall, cx, 0, cz);
-  parts.box(4.6, 0.25, 3.2, C.roof, cx, 2.4, cz);
+  parts.box(4.6, 0.25, 3.2, C.roof, cx, 2.4, cz, { finish: 'matte' });
   for (const x of [cx - 1.1, cx + 1.1])
-    parts.cyl(0.55, 0.55, 0.2, C.steel, x, 2.65, cz, { metal: true, segments: 16 });
+    parts.cyl(0.55, 0.55, 0.2, C.steel, x, 2.65, cz, { finish: 'metal', segments: 16 });
   const blades = fans(
     parts,
     [
@@ -154,7 +154,7 @@ export function pipeline(): StopModel {
     ],
     3,
   );
-  parts.cyl(0.2, 0.2, 2.2, C.steel, cx + 1.9, 2.4, cz - 1.1, { metal: true, segments: 8 });
+  parts.cyl(0.2, 0.2, 2.2, C.steel, cx + 1.9, 2.4, cz - 1.1, { finish: 'metal', segments: 8 });
   // The station's piping rises out of the buried line and into the compressors.
   const lz = SITE.gasMain.z - 0.2;
   const mz = SITE.gasMain.z + 0.85;
@@ -195,11 +195,11 @@ export function storageLng(): StopModel {
   // Underground storage: a well down into porous rock near the back of the block.
   const { x: wx, z: wz } = SITE.storage;
   pad(parts, 3.2, 2.6, wx, wz);
-  parts.cyl(0.3, 0.34, 0.5, C.steel, wx, 0, wz, { metal: true });
-  parts.box(0.28, 1.1, 0.28, C.steel, wx, 0.5, wz, { metal: true });
+  parts.cyl(0.3, 0.34, 0.5, C.steel, wx, 0, wz, { finish: 'metal' });
+  parts.box(0.28, 1.1, 0.28, C.steel, wx, 0.5, wz, { finish: 'metal' });
   parts.torus(0.16, 0.05, C.graphite, wx, 1.35, wz + 0.25, { segments: 12 });
   parts.box(1.8, 1.2, 1.4, C.wall, wx + 1.6, 0, wz + 0.2);
-  parts.box(1.9, 0.14, 1.5, C.roof, wx + 1.6, 1.2, wz + 0.2);
+  parts.box(1.9, 0.14, 1.5, C.roof, wx + 1.6, 1.2, wz + 0.2, { finish: 'matte' });
   // The well on the back face, and the gas held in the rock, which swells and shrinks with the
   // seasons.
   parts.box(0.55, 7.6, 0.06, C.concrete, wx, -7.75, BACK, { cast: false });
@@ -219,8 +219,8 @@ export function storageLng(): StopModel {
   parts.box(1.1, 0.18, 6.6, C.brick, 25.2, -0.05, -26.0);
   for (const z of [-23.6, -25.8, -28.0])
     parts.cyl(0.12, 0.12, 3.2, C.machineDark, 25.2, -3.2, z, { segments: 6 });
-  parts.rod([25.2, 0.2, -28.6], [25.8, 1.6, -29.4], 0.07, C.steel, { metal: true });
-  parts.rod([25.8, 1.6, -29.4], [26.2, 0.6, -30.6], 0.07, C.steel, { metal: true });
+  parts.rod([25.2, 0.2, -28.6], [25.8, 1.6, -29.4], 0.07, C.steel, { finish: 'metal' });
+  parts.rod([25.8, 1.6, -29.4], [26.2, 0.6, -30.6], 0.07, C.steel, { finish: 'metal' });
   // The LNG ship, riding gently at the jetty.
   const ship = parts.moving(27.6, HARBOR.water, -32.6, () => {
     parts.box(11.5, 1.45, 2.8, C.graphite, 0, -0.85, 0);
@@ -299,11 +299,11 @@ export function cityGate(): StopModel {
   // The odorant tank, and the small line that adds the smell.
   parts.bullet(1.1, 0.34, C.tank, cx + 0.2, 0.6, cz + 1.5);
   parts.rod([cx + 0.6, 0.6, cz + 1.3], [cx + 0.6, 1.0, cz + 0.15], 0.04, C.steel, {
-    metal: true,
+    finish: 'metal',
     segments: 5,
   });
   parts.box(1.2, 1.2, 1.1, C.wall, cx + 0.9, 0, cz - 1.5);
-  parts.box(1.3, 0.12, 1.2, C.roof, cx + 0.9, 1.2, cz - 1.5);
+  parts.box(1.3, 0.12, 1.2, C.roof, cx + 0.9, 1.2, cz - 1.5, { finish: 'matte' });
   const root = parts.finish();
   const smell = new Puffs(root, finishes, 7, C.fossil, [cx + 0.6, 1.1, cz + 0.2], {
     rise: 2.2,
@@ -367,7 +367,7 @@ export function gasUses(): StopModel {
   });
   // The power plant.
   parts.box(5, 3, 4, C.wall, 35.6, 0, -16.8);
-  parts.box(5.1, 0.3, 4.1, C.roof, 35.6, 3, -16.8);
+  parts.box(5.1, 0.3, 4.1, C.roof, 35.6, 3, -16.8, { finish: 'matte' });
   parts.box(1.6, 3.8, 2.4, C.machine, 38.8, 0, -16.6);
   parts.cyl(0.45, 0.55, 8.6, C.tank, 39.4, 0, -18.4, { segments: 12 });
   for (const [x, z] of [
@@ -410,8 +410,9 @@ export function gasUses(): StopModel {
     parts.cone(0.6, 0.6, C.machine, x, 3.5, z, { segments: 16 });
   }
   const root = parts.finish();
-  // Windows that light up warmly while the homes are open to see.
+  // Windows that light up warmly at night, and while the homes are open to see.
   const glow = finishes.track(glowing(WORLD_COLORS.windowLit, 0));
+  let night = 0;
   const panes = new Mesh(
     mergeGeometries(
       windows.map(([x, y, z]) => new BoxGeometry(0.55, 0.45, 0.06).translate(x, y, z)),
@@ -452,7 +453,11 @@ export function gasUses(): StopModel {
       const on = open > 0.05;
       steam.update(time, on);
       smoke.update(time + 1, on);
-      glow.emissiveIntensity = WINDOW_GLOW * open * (0.8 + 0.2 * Math.sin(time * 2.2));
+      const lit = Math.max(open, night);
+      glow.emissiveIntensity = WINDOW_GLOW * lit * (0.8 + 0.2 * Math.sin(time * 2.2));
+    },
+    setLamps(level) {
+      night = level;
     },
   };
 }

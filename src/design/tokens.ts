@@ -10,11 +10,11 @@ import { APWA, type ApwaCode } from './apwa.ts';
 export type ThemeName = 'light' | 'dark';
 
 /**
- * Interface colors. Day is ink on warm paper; night is chalk on cool graphite. Each theme keeps
- * one temperature, so panels and the scene behind them never clash.
+ * Interface colors: white and a cool near-black. Neutral and a little cool in both themes, so the
+ * sunlit scene is the warmest, most colorful thing on screen.
  */
 export interface ChromeTokens {
-  /** The page, and the paper the 3D section is drawn on. */
+  /** The page. */
   bg: string;
   surface: string;
   surface2: string;
@@ -30,8 +30,8 @@ export interface ChromeTokens {
   /** Behind a modal dialog. */
   scrim: string;
   /**
-   * Three levels of lift, as CSS shadows: resting chrome, raised cards and popovers, modals. By
-   * day a soft shadow under a hairline; by night almost none, since dark surfaces lift by tone.
+   * Three levels of lift, as CSS shadows: resting chrome, raised cards and popovers, modals. Each
+   * is a crisp step under a soft, deep shadow, like a toy standing on a table.
    */
   elevation: readonly [string, string, string];
 }
@@ -47,41 +47,36 @@ export interface DirectionalTokens {
 }
 
 /**
- * The 3D scene's sky, light and atmosphere. Material albedos stay the same in both themes; the
- * sky, fog and lights change, and night lifts its light so the scene still reads.
+ * The 3D scene's sky and light. Material colors stay the same in both themes; the sky and the
+ * lights change, and night lifts its light so the scene still reads.
  */
 export interface SceneTokens {
-  /** Sky straight overhead. */
+  /** The sky at the top of the view. */
   skyZenith: string;
-  /** Sky at the horizon; the fog fades into this. */
+  /** The sky across the middle of the view, behind the model. */
   skyHorizon: string;
-  /**
-   * Below the horizon, in front of the section: the paper it's drawn on. The page's own color,
-   * so the scene sits on the page with no seam.
-   */
-  paper: string;
-  /** A soft glow in the sky behind the scene, where the rim light comes from. */
-  glow: string;
-  /**
-   * How much fog lies over the farthest point the lesson needs, from 0 to 1. The density follows
-   * from the camera's distance, so the far end reads the same at every size.
-   */
-  fogAtFar: number;
+  /** The bottom of the view, under the model: the sky carries on, so the model floats in it. */
+  skyBelow: string;
   /** The key light (sun or moon), the only one that casts shadows. */
   key: DirectionalTokens;
-  /** Sky and ground fill. */
+  /** Sky and ground fill. The ground's color also lights the environment's lower half. */
   hemisphere: { sky: string; ground: string; intensity: number };
-  /** A light from behind that rims edges and separates forms from the background. */
+  /** A light from behind that rims edges and separates forms from the sky. */
   rim: DirectionalTokens;
   envIntensity: number;
+  /**
+   * The environment's soft panel on the key light's side, as a multiple of the key's color: the
+   * broad highlight along pipes, tanks and rounded edges.
+   */
+  softbox: number;
   /** Scales every light at once. */
   exposure: number;
   /** A faint glow of each buried line's own tint, so its color still reads in dim light. */
   lineGlow: number;
   /** Street lamps and lit windows: off by day, on at night. */
   lamps: number;
-  /** The ink line drawn along the section's layer boundaries. */
-  edge: string;
+  /** What stops off the chosen path fade toward: a quiet gray, never the sky's blue. */
+  fade: string;
 }
 
 export interface Theme {
@@ -89,182 +84,196 @@ export interface Theme {
   scene: SceneTokens;
 }
 
-/** The page in each theme: the chrome's background, and the paper the 3D section stands on. */
-const PAGE = { light: '#f2efe9', dark: '#111315' } as const;
-
 export const THEMES: Record<ThemeName, Theme> = {
   light: {
     chrome: {
-      bg: PAGE.light,
-      surface: '#fbfaf7',
-      surface2: '#ece8e0',
-      ink: '#1b1a17',
-      ink2: '#57534b',
-      ink3: '#6b665d',
-      line: '#d9d3c8',
-      focus: '#1b1a17',
-      accent: '#1b1a17',
-      accentInk: '#fbfaf7',
-      scrim: 'rgb(27 26 23 / 0.45)',
+      bg: '#f2f5f9',
+      surface: '#ffffff',
+      surface2: '#eef2f6',
+      ink: '#121720',
+      ink2: '#454e5c',
+      ink3: '#59626f',
+      line: '#d8dfe7',
+      focus: '#121720',
+      accent: '#121720',
+      accentInk: '#ffffff',
+      scrim: 'rgb(12 18 28 / 0.45)',
       elevation: [
-        '0 1px 2px rgb(27 26 23 / 0.06), 0 4px 14px rgb(27 26 23 / 0.07)',
-        '0 1px 2px rgb(27 26 23 / 0.06), 0 10px 28px rgb(27 26 23 / 0.11)',
-        '0 2px 6px rgb(27 26 23 / 0.08), 0 24px 64px rgb(27 26 23 / 0.2)',
+        '0 2px 0 rgb(12 18 28 / 0.05), 0 8px 22px rgb(12 18 28 / 0.12)',
+        '0 2px 0 rgb(12 18 28 / 0.05), 0 14px 34px rgb(12 18 28 / 0.16)',
+        '0 4px 10px rgb(12 18 28 / 0.1), 0 28px 70px rgb(12 18 28 / 0.24)',
       ],
     },
     scene: {
-      skyZenith: '#c4d4de',
-      skyHorizon: '#ece8df',
-      paper: PAGE.light,
-      glow: '#fff3da',
-      fogAtFar: 0.14,
-      key: { color: '#fff0d8', intensity: 3.0, azimuth: -40, elevation: 40 },
-      hemisphere: { sky: '#dfe8ee', ground: '#b9a88e', intensity: 0.45 },
-      rim: { color: '#fff8ec', intensity: 0.7, azimuth: 150, elevation: 24 },
-      envIntensity: 0.62,
+      skyZenith: '#3d8fe0',
+      skyHorizon: '#cfe6fb',
+      skyBelow: '#e1effc',
+      // A low, warm afternoon sun from the west, for long shadows.
+      key: { color: '#ffe4bd', intensity: 3.0, azimuth: -68, elevation: 32 },
+      // Fill low enough that shade stays well under sunlight, so the long shadows read.
+      hemisphere: { sky: '#bcdcff', ground: '#b9a993', intensity: 0.35 },
+      rim: { color: '#ffffff', intensity: 0.45, azimuth: 150, elevation: 30 },
+      envIntensity: 0.4,
+      softbox: 1.6,
       exposure: 1,
       lineGlow: 0,
       lamps: 0,
-      edge: '#2a2621',
+      fade: '#d9dde3',
     },
   },
   dark: {
     chrome: {
-      bg: PAGE.dark,
-      surface: '#181b1e',
-      surface2: '#20242a',
-      ink: '#ece9e2',
-      ink2: '#a9a49a',
-      ink3: '#949086',
-      line: '#2d3238',
-      focus: '#ece9e2',
-      accent: '#ece9e2',
-      accentInk: '#111315',
+      bg: '#0b0f15',
+      surface: '#141a22',
+      surface2: '#1c232d',
+      ink: '#eef2f7',
+      ink2: '#adb6c3',
+      ink3: '#97a1ae',
+      line: '#29323e',
+      focus: '#eef2f7',
+      accent: '#eef2f7',
+      accentInk: '#0b0f15',
       scrim: 'rgb(0 0 0 / 0.6)',
       elevation: [
-        '0 1px 2px rgb(0 0 0 / 0.28)',
-        '0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.32)',
-        '0 2px 6px rgb(0 0 0 / 0.4), 0 24px 64px rgb(0 0 0 / 0.55)',
+        '0 2px 0 rgb(0 0 0 / 0.25), 0 8px 22px rgb(0 0 0 / 0.35)',
+        '0 2px 0 rgb(0 0 0 / 0.3), 0 14px 34px rgb(0 0 0 / 0.42)',
+        '0 4px 10px rgb(0 0 0 / 0.4), 0 28px 70px rgb(0 0 0 / 0.6)',
       ],
     },
     scene: {
-      skyZenith: '#0a0f14',
-      skyHorizon: '#1c2630',
-      paper: PAGE.dark,
-      glow: '#8fa8c8',
-      fogAtFar: 0.18,
-      key: { color: '#b9cbe8', intensity: 1.7, azimuth: 30, elevation: 52 },
-      hemisphere: { sky: '#3a4d63', ground: '#3a332c', intensity: 0.85 },
-      rim: { color: '#8db0dc', intensity: 1.1, azimuth: 160, elevation: 22 },
-      envIntensity: 0.5,
-      exposure: 1.4,
+      skyZenith: '#14306a',
+      skyHorizon: '#3d62a8',
+      // Darker under the model, so the moonlit model stands clear of the sky around it.
+      skyBelow: '#0e1c3a',
+      key: { color: '#c3d4ff', intensity: 1.25, azimuth: -30, elevation: 50 },
+      hemisphere: { sky: '#3a5a9a', ground: '#2a3b2a', intensity: 0.75 },
+      rim: { color: '#ffd9a0', intensity: 0.6, azimuth: 150, elevation: 24 },
+      envIntensity: 0.45,
+      softbox: 1.6,
+      exposure: 1.3,
       lineGlow: 0.22,
       lamps: 1,
-      edge: '#9c968b',
+      fade: '#3a4250',
     },
   },
 };
 
 /**
- * Material albedos for the street block (sRGB). Earthy and muted, so the APWA tints and the signal
- * stay the most saturated things on screen (checked in tokens.test.ts).
+ * The lab's sky and light. The lab looks square at its cut face, so by day its sun swings a little
+ * toward the front, and the face stays in sunlight.
+ */
+export function labSceneTokens(theme: ThemeName): SceneTokens {
+  const scene = THEMES[theme].scene;
+  return theme === 'light' ? { ...scene, key: { ...scene.key, azimuth: -60 } } : scene;
+}
+
+/**
+ * Material albedos for the street block (sRGB): rich soils, crisp concrete and fresh grass, like
+ * a painted model. Lit, none of them reads as a color of the code (checked in tokens.test.ts).
  */
 export const MATERIAL_COLORS = {
-  topsoil: '#5f4532',
-  subsoil: '#86684b',
-  // A cool, dusty clay: well clear of the telecom cable's orange, one layer up.
-  clay: '#9a8069',
-  gravel: '#8f897e',
-  rock: '#686460',
-  backfill: '#ab9677',
-  grass: '#8c9870',
-  // Tufts on the verge: a little lighter than it, so they read as texture, not as spots.
-  grassLight: '#99a47c',
-  concrete: '#cdc8be',
-  concreteNew: '#e2ddd3',
-  curb: '#c2bcb1',
-  asphalt: '#3b3d40',
-  asphaltSeal: '#25272a',
-  coatedSteel: '#3c3d3f',
-  steel: '#8a8d90',
-  graphite: '#2b2d30',
-  casing: '#d8d3ca',
+  topsoil: '#5c3a22',
+  subsoil: '#8f5f38',
+  // A dusty clay: warm, but well clear of the telecom cable's orange, one layer up.
+  clay: '#9c7058',
+  gravel: '#9b8b78',
+  rock: '#4f4239',
+  // The trench's fill: a gray sand, so the yellow gas main in it stands out by value as well as hue.
+  backfill: '#a89880',
+  grass: '#56a733',
+  // Tufts: a little lighter than the grass, so they read as texture, not as spots.
+  grassLight: '#6dbb3f',
+  /** Big, soft patches across a lawn, so it never looks mown flat like a golf course. */
+  grassPatch: '#7cb53f',
+  /** A worn band along kerbs, paths and edges, where feet and mowers wear the grass thin. */
+  grassWorn: '#a29d5c',
+  concrete: '#dfe3e8',
+  concreteNew: '#eef1f4',
+  curb: '#d0d6dd',
+  asphalt: '#3b414a',
+  asphaltSeal: '#262a31',
+  coatedSteel: '#3d4148',
+  steel: '#a6adb6',
+  graphite: '#2b2f36',
+  casing: '#e9ecef',
 } as const;
 
-/** The world around the block: homes, trees and street lights, all as muted as the block. */
+/** The world around the block: homes, trees, shrubs and street lights, in fresh, sunny colors. */
 export const WORLD_COLORS = {
-  lawn: '#88946f',
-  foliage: '#717e5c',
-  foliageDark: '#58664a',
-  trunk: '#6e5a48',
-  walls: ['#cfc8bb', '#c3bbad', '#d4cdc1', '#bdb5a8'],
-  roofs: ['#64605b', '#716760', '#585b60'],
-  trim: '#f3f0ea',
-  window: '#5a6066',
-  windowLit: '#ffd9a0',
-  pole: '#7b7f84',
-  lamp: '#fff1d6',
-  lampHousing: '#3f4246',
+  lawn: MATERIAL_COLORS.grass,
+  foliage: '#3f9a3c',
+  foliageDark: '#2c7a33',
+  shrub: '#33873a',
+  trunk: '#7a5236',
+  walls: ['#ffffff', '#ffe8d4', '#e2f0ff', '#e4f5df'],
+  roofs: ['#d0623f', '#4f7396', '#6b4c3b'],
+  trim: '#ffffff',
+  window: '#36475c',
+  windowLit: '#ffcf70',
+  pole: '#8a929c',
+  lamp: '#fff1cf',
+  lampHousing: '#3a3f47',
 } as const;
 
 /**
  * The Gas & Petroleum diorama's albedos (sRGB): the layers its block cuts through, what flows in
- * them and in its routes, and its machines. As muted as the lab's, so the APWA yellow of the two
- * fuel paths stays the most saturated color in the model. Water is never APWA blue, which means
- * drinking water, and produced water is a murky brown-gray, never APWA green, which means sewer.
+ * them and in its routes, and its machines. Water is never APWA blue, which means drinking water,
+ * but for the open sea, a natural blue well apart from it; produced water is a murky brown-gray,
+ * never APWA green, which means sewer.
  */
 export const DIORAMA_COLORS = {
   // The layers, top to bottom.
-  soil: '#5f4532',
-  /** Sand holding fresh groundwater: a cool, pale sand. */
-  aquifer: '#a8a395',
-  overburden: '#9a8069',
+  soil: '#6b4428',
+  /** Sand holding fresh groundwater: a pale sand, never blue. */
+  aquifer: '#c8bea2',
+  overburden: '#a06b48',
   /** The tight cap rock that seals oil and gas in: a dark slate. */
-  capRock: '#5c5a5f',
-  shale: '#837d73',
+  capRock: '#5a514a',
+  shale: '#958775',
   /** Dark, rich source rock, where oil and gas form. */
-  sourceRock: '#3e3a37',
-  basement: '#6c645b',
+  sourceRock: '#40342c',
+  basement: '#7c7067',
   // What fills the reservoir rock, by weight: gas on top, then oil, then salty water.
-  gasZone: '#d8d1c2',
-  oilZone: '#3b2c22',
-  waterZone: '#786f60',
+  gasZone: '#efe7d6',
+  oilZone: '#2c1f17',
+  waterZone: '#8c7b65',
   // What flows along the routes.
-  oil: '#2e231b',
+  oil: '#1f1712',
   /** Natural gas: a pale, warm neutral. */
-  gas: '#e8e2d4',
+  gas: '#f4f0e8',
   /** Salty water from the well: murky brown-gray. */
-  producedWater: '#857b69',
-  /** Finished fuel: a muted tan-gold, well apart from the paths' APWA yellow, even in shade. */
-  fuel: '#a69174',
+  producedWater: '#7c6a55',
+  /** Finished fuel: a deep amber, well apart from the paths' APWA yellow, even in shade. */
+  fuel: '#8f7650',
   // The harbor.
-  sea: '#5b6a70',
-  seabed: '#a39577',
+  sea: '#2f8fd2',
+  seabed: '#dcc99d',
   // The refinery tower's fuels, heavy to light: a ramp of values. Gasoline's band is its path's.
   asphalt: '#2f2a26',
-  heavyOil: '#544a41',
-  diesel: '#7b7064',
-  jetFuel: '#a2988b',
-  lightGases: '#d8d3ca',
-  // Machines and buildings: neutral, told apart by value, not hue.
-  machine: '#c9c5bd',
-  machineDark: '#5d6064',
-  tank: '#e4e0d8',
-  shell: '#d6d7d3',
-  steel: '#8a8d90',
-  graphite: '#2b2d30',
-  concrete: '#cdc8be',
-  pad: '#bdb7ab',
-  brick: '#7a6a60',
-  roof: '#64605b',
-  wall: '#d4cdc1',
-  truck: '#a9aaa6',
+  heavyOil: '#5b4b3d',
+  diesel: '#8c7762',
+  jetFuel: '#b9a78c',
+  lightGases: '#e8dfcf',
+  // Machines and buildings: white tanks and light machines, told apart by value, not hue.
+  machine: '#e3e7ec',
+  machineDark: '#4a525e',
+  tank: '#f6f8fb',
+  shell: '#dfe7ee',
+  steel: '#a9b1ba',
+  graphite: '#2b2f36',
+  concrete: '#dfe3e8',
+  pad: '#cfd6dd',
+  /** Brick and stonework: a neutral, so the jetty never reads as a color of the code. */
+  brick: '#a39d95',
+  roof: '#c4563f',
+  wall: '#f5f3ef',
+  truck: '#eef2f6',
   // Small things: fossils in the source rock, sand grains, sea life, glass.
-  fossil: '#e3d9c4',
-  sand: '#c9b795',
-  sandDark: '#a99572',
-  plankton: '#c7cfb1',
-  glass: '#d3dad8',
+  fossil: '#efe5d0',
+  sand: '#dbc89b',
+  sandDark: '#bea478',
+  plankton: '#d2e3ba',
+  glass: '#dfe9ef',
   // Fire, and the glow of what burns: emitters, the only things bright enough to bloom.
   flame: '#ffb35c',
   flameCore: '#ffe3a6',
@@ -283,8 +292,24 @@ export const DEVICE = { lcd: '#22231f', lcdInk: '#e9e6dd' } as const;
  */
 export const SIGNAL_COLOR = '#4fe3ff';
 
-/** How far a line's tint is pulled toward the material color, so tints read as a teaching aid. */
-export const FACILITY_TINT_STRENGTH = 0.78;
+/**
+ * How far a buried line's color goes toward its APWA color from its material's: almost all the
+ * way, so each line reads as its code at a glance. Still a teaching aid: real pipe and cable
+ * color underground is unreliable.
+ */
+export const FACILITY_TINT_STRENGTH = 0.96;
+
+/**
+ * How surfaces are finished, like a painted model: glossy paint with a clear coat on built
+ * things; matte on what grows or lies on the ground (soil, grass, foliage, roofs, roads); and
+ * metal on steel. Boxes in the diorama are rounded up to `bevel`, in its units.
+ */
+export const FINISH = {
+  paint: { roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 },
+  matte: { roughness: 0.92 },
+  metal: { roughness: 0.34, metalness: 0.55 },
+  bevel: 0.2,
+} as const;
 
 export const TYPE = {
   display: '"Archivo Variable", "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif',
@@ -402,7 +427,7 @@ export function tokensCss(): string {
     // The ground's layers, top down, for drawings in the page (the 404, the portal).
     `--strata-1: ${MATERIAL_COLORS.topsoil}; --strata-2: ${MATERIAL_COLORS.subsoil}; --strata-3: ${MATERIAL_COLORS.clay};`,
     space,
-    `--radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-pill: 999px;`,
+    `--radius-sm: 10px; --radius-md: 16px; --radius-lg: 24px; --radius-pill: 999px;`,
     durations(true),
     `--ease: ${MOTION.ease}; --ease-in-out: ${MOTION.easeInOut};`,
     layers,

@@ -13,7 +13,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 export interface Label {
   readonly id: string;
   readonly element: HTMLElement;
-  /** Where the label sits: just above this point. */
+  /** Where the label sits: just above this point, or just below it with `below`. */
   anchor: Vector3;
   /** Where its leader line points, on the thing it names. Left out, it's the anchor. */
   point?: Vector3;
@@ -26,6 +26,8 @@ export interface Label {
   highlight?: boolean;
   /** Shown only while focused: out of sight otherwise, however much room, but in the tab order. */
   quiet?: boolean;
+  /** Hangs below its anchor instead of above it, e.g. to keep clear of a line just above. */
+  below?: boolean;
 }
 
 interface Rect {
@@ -213,10 +215,16 @@ export class LabelLayer {
     for (const it of items) {
       it.label.element.classList.toggle('lit', it.label.highlight === true && !it.label.hidden);
       const size = this.sizes.get(it.label.id) ?? { w: 120, h: 28 };
-      // Labels sit a little above their point, with room for the leader line between.
-      const full = { x: it.x - size.w / 2, y: it.y - size.h - 14, w: size.w, h: size.h };
+      // Labels sit a little above their point (or below it), with room for the leader between.
+      const below = it.label.below === true;
+      const full = {
+        x: it.x - size.w / 2,
+        y: below ? it.y + 14 : it.y - size.h - 14,
+        w: size.w,
+        h: size.h,
+      };
       const slid = slide(full);
-      const compact = { x: it.x - 15, y: it.y - 42, w: 30, h: 30 };
+      const compact = { x: it.x - 15, y: below ? it.y + 12 : it.y - 42, w: 30, h: 30 };
       // A leader only when its point is in view: a label pulled in from off screen has none.
       const point = it.visible ? it.point : null;
       if (it.focused) {

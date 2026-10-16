@@ -17,9 +17,10 @@ import { DIORAMA_COLORS as C, WORLD_COLORS } from '../../../design/tokens.ts';
 import type { Finishes, Parts, Point } from './build.ts';
 import { FACE } from './layout.ts';
 
-/** A concrete pad on the ground. */
+/** A concrete pad on the ground: matte, like the ground it lies on. */
 export function pad(parts: Parts, w: number, d: number, x: number, z: number, hex: string = C.pad) {
-  parts.box(w, 0.08, d, hex, x, 0, z, { cast: false });
+  parts.box(w, 0.08, d, hex, x, 0, z, { cast: false, finish: 'matte' });
+  parts.pads.push({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 });
 }
 
 /** A vertical strip drawn on the cut face, from y0 down to y1, `dz` proud of it. */
@@ -35,7 +36,7 @@ export function faceStrip(
   parts.box(w, y0 - y1, 0.06, hex, x, y1, FACE + dz, { cast: false });
 }
 
-/** A tree: a trunk and a soft, round crown, like the lab's. */
+/** A tree: a trunk and a soft, round crown, like the lab's, matte as leaves are. */
 export function tree(
   parts: Parts,
   x: number,
@@ -43,9 +44,10 @@ export function tree(
   s = 1,
   foliage: string = WORLD_COLORS.foliage,
 ) {
-  parts.cyl(0.1 * s, 0.14 * s, 0.9 * s, WORLD_COLORS.trunk, x, 0, z, { segments: 6 });
-  parts.ball(0.85 * s, foliage, x, 1.55 * s, z, { segments: 10 });
-  parts.ball(0.6 * s, foliage, x + 0.25 * s, 2.15 * s, z - 0.1 * s, { segments: 8 });
+  const matte = { finish: 'matte' } as const;
+  parts.cyl(0.1 * s, 0.14 * s, 0.9 * s, WORLD_COLORS.trunk, x, 0, z, { ...matte, segments: 6 });
+  parts.ball(0.85 * s, foliage, x, 1.55 * s, z, { ...matte, segments: 16 });
+  parts.ball(0.6 * s, foliage, x + 0.25 * s, 2.15 * s, z - 0.1 * s, { ...matte, segments: 12 });
 }
 
 /** A material that glows: fire, a furnace window, a lit screen. Only these bloom. */
@@ -60,7 +62,7 @@ export function glowing(hex: string, intensity: number): MeshStandardMaterial {
 }
 
 /** How brightly fire glows: above the bloom threshold, so it's the one thing besides lights that blooms. */
-export const FLAME_GLOW = 3.2;
+export const FLAME_GLOW = 5;
 
 /**
  * A flame: a soft outer tongue and a pale core, which fade with their stop. It flickers by its

@@ -2,9 +2,15 @@
  * The Frequency Lab's 3D scene: the street block, both setups, the signal effects and the
  * labels, behind a small API the UI drives.
  */
-import { Box3, FogExp2, PerspectiveCamera, Scene, Vector3 } from 'three';
+import { Box3, PerspectiveCamera, Scene, Vector3 } from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
-import { LABEL_LIMITS, MOTION, THEMES, easeInOut, type ThemeName } from '../../../design/tokens.ts';
+import {
+  LABEL_LIMITS,
+  MOTION,
+  easeInOut,
+  labSceneTokens,
+  type ThemeName,
+} from '../../../design/tokens.ts';
 import {
   LabCamera,
   areaBetween,
@@ -21,13 +27,13 @@ import { SceneRuntime } from '../../../kit3d/runtime.ts';
 import { createDepthUniforms } from '../../../kit3d/signal-pass.ts';
 import { labState, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
-import { LABEL_SPECS, type LabelId } from './labels.ts';
+import { LABEL_SPECS, labelPlaces, type LabelId } from './labels.ts';
 import { buildContactShadows } from './contact.ts';
-import { BLOCK, MUST_SEE, WORLD_EDGE, viewFor } from './layout.ts';
+import { labLayout, viewFor, type LabLayout } from './layout.ts';
 import { TransmitterScreen, buildSetup, buildShared, setLineGlow } from './lines.ts';
 import { SignalEffects } from './signal.ts';
 import { buildStreet } from './street.ts';
-import { buildNeighborhood } from './world.ts';
+import { buildScenery } from './world.ts';
 
 export interface Rect {
   x: number;
@@ -84,18 +90,31 @@ const READINGS = FREQUENCIES.map(frequencyLabel);
 const maxLabels = (width: number) =>
   width < LABEL_LIMITS.narrowBelow ? LABEL_LIMITS.narrow : LABEL_LIMITS.wide;
 
-function labelsFor(elements: Map<LabelId, HTMLElement>, setup: SetupId): Label[] {
+/**
+ * How many times deeper than true the ground is drawn, so the cut face reads as a band: the view
+ * is marked not to scale.
+ */
+const DEPTH = 3;
+
+function labelsFor(
+  layout: LabLayout,
+  elements: Map<LabelId, HTMLElement>,
+  setup: SetupId,
+): Label[] {
+  const places = labelPlaces(layout);
   return LABEL_SPECS.flatMap((spec) => {
     const element = elements.get(spec.id);
     if (!element) return [];
+    const place = places[spec.id];
     return [
       {
         id: spec.id,
         element,
-        anchor: new Vector3(...spec.anchor[setup]),
-        ...(spec.point ? { point: new Vector3(...spec.point[setup]) } : {}),
+        anchor: new Vector3(...place.anchor[setup]),
+        ...(place.point ? { point: new Vector3(...place.point[setup]) } : {}),
         priority: spec.priority,
         hidden: spec.text[setup] === null,
+        ...(spec.below ? { below: true } : {}),
         ...(spec.onFace ? { facing: FACE_NORMAL } : {}),
       },
     ];
@@ -121,8 +140,8 @@ async function buildLabScene(
 ): Promise<LabScene> {
   const scene = new Scene();
   const fxScene = new Scene();
-  // Far enough that the fog, not the far plane, is what hides the distance.
   const camera = new PerspectiveCamera(34, 1, 0.5, 2400);
+  const layout = labLayout({ depth: DEPTH });
   const depthUniforms = createDepthUniforms();
 
   let labelsDirty = true;
@@ -196,7 +215,7 @@ async function buildLabScene(
       },
       contextRestored() {
         // The sky and its lighting were rendered into a texture the lost context took with it.
-        lighting.restore(THEMES[theme].scene);
+        lighting.restore(labSceneTokens(theme));
         labelsDirty = true;
         o.onContextRestored?.();
       },
@@ -205,35 +224,34 @@ async function buildLabScene(
   onRuntime(runtime);
   const { stage, renderer } = runtime;
 
+  // Everything that casts a shadow: the slab, and the trees and lamps on it.
+  const { block } = layout;
   const bounds = new Box3(
-    new Vector3(BLOCK.x0, BLOCK.bottom, BLOCK.z0),
-    new Vector3(BLOCK.x1, 4, BLOCK.z1),
+    new Vector3(block.x0, block.bottom, block.z0),
+    new Vector3(block.x1, 15, block.z1),
   );
   const settings = () => runtime.settings;
   // The ambient-occlusion chunk downloads while the scene is built and compiled.
   preloadPost(settings());
-  const lighting = createLighting(renderer, scene, bounds, THEMES[o.theme].scene, {
+  const lighting = createLighting(renderer, scene, bounds, labSceneTokens(o.theme), {
     shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius },
-    // Well inside the camera's far plane from anywhere the camera goes.
-    skyRadius: 700,
   });
-  const street = buildStreet();
+  const street = buildStreet(layout);
   street.setDetail(settings().detail);
-  street.setEdge(THEMES[o.theme].scene.edge);
-  const neighborhood = buildNeighborhood();
-  neighborhood.setTheme(THEMES[o.theme].scene);
-  const shared = buildShared(READINGS);
+  const scenery = buildScenery(layout);
+  scenery.setTheme(labSceneTokens(o.theme));
+  const shared = buildShared(layout, READINGS);
   const screenFonts = Promise.all(TransmitterScreen.FONTS.map((f) => document.fonts.load(f))).then(
     () => true,
     () => false,
   );
-  const setups = { steel: buildSetup('steel'), plastic: buildSetup('plastic') };
+  const setups = { steel: buildSetup(layout, 'steel'), plastic: buildSetup(layout, 'plastic') };
   // Baked contact shadows stand in for ambient occlusion on the tier without it.
-  const contact = buildContactShadows();
+  const contact = buildContactShadows(layout);
   contact.visible = !settings().ao;
-  scene.add(street.group, neighborhood.group, shared.group, setups.steel, setups.plastic, contact);
-  setLineGlow(scene, THEMES[o.theme].scene.lineGlow);
-  const fx = new SignalEffects(depthUniforms);
+  scene.add(street.group, scenery.group, shared.group, setups.steel, setups.plastic, contact);
+  setLineGlow(scene, labSceneTokens(o.theme).lineGlow);
+  const fx = new SignalEffects(depthUniforms, layout);
   fx.setTime(animTime);
   fxScene.add(fx.group);
 
@@ -244,13 +262,10 @@ async function buildLabScene(
     const v = o.visibleArea();
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
-  const mustSee = MUST_SEE.map((p) => new Vector3(...p));
-  const worldEdge = new Vector3(...WORLD_EDGE);
   /** Frames the view for a free area of the canvas, with the view that suits it unless given. */
-  function frameArea(area: VisibleArea, view = viewFor(area, stage)) {
+  function frameArea(area: VisibleArea, view = viewFor(layout, area)) {
     cam.setLayout(stage.width, stage.height, area);
     cam.frame(view);
-    framed();
     shownArea = area;
     labelsDirty = true;
   }
@@ -261,19 +276,8 @@ async function buildLabScene(
     const area = areaBetween(glide.from, glide.to, e);
     cam.setLayout(stage.width, stage.height, area);
     cam.setPose(lerpPose(glide.fromPose, glide.toPose, e));
-    framed();
     shownArea = area;
     labelsDirty = true;
-  }
-
-  /**
-   * After the camera moves: the sky follows it, and the fog is set by how far the lesson reaches,
-   * and so the world's far edge stays hidden.
-   */
-  function framed() {
-    const far = Math.max(...mustSee.map((p) => p.distanceTo(camera.position)));
-    lighting.setViewpoint(camera.position, far, worldEdge.distanceTo(camera.position));
-    if (scene.fog instanceof FogExp2) fx.setFogDensity(scene.fog.density);
   }
 
   let shadowsFor: SetupId | null = null;
@@ -287,7 +291,7 @@ async function buildLabScene(
     // Label text only changes with the setup, so a frequency change needn't re-measure them.
     if (labelsFor_ !== setup) {
       labelsFor_ = setup;
-      current = labelsFor(o.labelElements, setup);
+      current = labelsFor(layout, o.labelElements, setup);
       labels.setLabels(current);
     }
     // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
@@ -346,13 +350,10 @@ async function buildLabScene(
     },
     setTheme(next) {
       theme = next;
-      const tokens = THEMES[theme].scene;
+      const tokens = labSceneTokens(theme);
       lighting.setTheme(tokens);
-      // Each theme has its own share of fog; the signal fades with it.
-      framed();
       setLineGlow(scene, tokens.lineGlow);
-      street.setEdge(tokens.edge);
-      neighborhood.setTheme(tokens);
+      scenery.setTheme(tokens);
       stage.requestFrame();
     },
     setReducedMotion(reduced) {
@@ -382,7 +383,7 @@ async function buildLabScene(
       if (ease && !reducedMotion && !o.capture && shownArea) {
         // Where it lands: the pose that frames the new area, fitted without moving the camera.
         cam.setLayout(stage.width, stage.height, area);
-        const toPose = cam.poseFor(viewFor(area, stage));
+        const toPose = cam.poseFor(viewFor(layout, area));
         cam.setLayout(stage.width, stage.height, shownArea);
         glide = {
           from: shownArea,

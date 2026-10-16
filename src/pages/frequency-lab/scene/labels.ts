@@ -3,7 +3,7 @@
  * label buttons without pulling the 3D bundle into the first load.
  */
 import type { SetupId } from '../../../signal/model.ts';
-import { HOOKUP, LINES } from './layout.ts';
+import type { LabLayout } from './layout.ts';
 
 export type LabelId =
   'transmitter' | 'stake' | 'access' | 'target' | 'tracer' | 'telecom' | 'water';
@@ -17,12 +17,17 @@ export interface LabelSpec {
   icon: 'transmitter' | 'stake' | 'access' | 'gas' | 'wire' | 'telecom' | 'water';
   /** APWA color code for line labels; equipment labels stay neutral. */
   color?: 'yellow' | 'orange' | 'blue';
-  anchor: Record<SetupId, Point3>;
-  /** Where the leader line points, on the thing itself, when the label sits above it. */
-  point?: Record<SetupId, Point3>;
   priority: number;
   /** Labels on the cut face only show from in front of it. */
   onFace: boolean;
+  /** Hangs below its point, clear of the line above it. */
+  below?: boolean;
+}
+
+/** Where a label sits: its anchor, and where its leader points on the thing itself, per setup. */
+export interface LabelPlace {
+  anchor: Record<SetupId, Point3>;
+  point?: Record<SetupId, Point3>;
 }
 
 const same = (p: Point3): Record<SetupId, Point3> => ({ steel: p, plastic: p });
@@ -35,8 +40,6 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     id: 'transmitter',
     text: { steel: 'Transmitter', plastic: 'Transmitter' },
     icon: 'transmitter',
-    anchor: same([HOOKUP.transmitter.x, 1.5, HOOKUP.transmitter.z]),
-    point: same([HOOKUP.transmitter.x, 1.05, HOOKUP.transmitter.z]),
     priority: 5,
     onFace: false,
   },
@@ -44,8 +47,6 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     id: 'stake',
     text: { steel: 'Ground stake', plastic: 'Ground stake' },
     icon: 'stake',
-    anchor: same([HOOKUP.stake.x, HOOKUP.stake.top + 0.4, HOOKUP.stake.z]),
-    point: same([HOOKUP.stake.x, HOOKUP.stake.top, HOOKUP.stake.z]),
     priority: 5,
     onFace: false,
   },
@@ -53,14 +54,6 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     id: 'access',
     text: { steel: 'Test station', plastic: 'Tracer test box' },
     icon: 'access',
-    anchor: {
-      steel: [HOOKUP.access.x, 3.5, HOOKUP.access.z],
-      plastic: [HOOKUP.access.x, 0.6, HOOKUP.access.z],
-    },
-    point: {
-      steel: [HOOKUP.access.x, 3.0, HOOKUP.access.z],
-      plastic: [HOOKUP.access.x, 0.22, HOOKUP.access.z],
-    },
     priority: 4,
     onFace: false,
   },
@@ -69,25 +62,24 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     text: { steel: 'Steel gas main', plastic: 'Plastic gas main' },
     icon: 'gas',
     color: 'yellow',
-    anchor: same([30, LINES.steel.y - 0.25, 0.5]),
     priority: 6,
     onFace: true,
+    below: true,
   },
   {
     id: 'tracer',
     text: { steel: null, plastic: 'Tracer wire' },
     icon: 'wire',
     color: 'yellow',
-    anchor: same([58, LINES.tracer.y + 0.2, 0.25]),
     priority: 7,
     onFace: true,
+    below: true,
   },
   {
     id: 'telecom',
     text: { steel: 'Telecom cable', plastic: 'Telecom cable' },
     icon: 'telecom',
     color: 'orange',
-    anchor: same([44, LINES.telecom.y + 0.35, 0.3]),
     priority: 6,
     onFace: true,
   },
@@ -96,8 +88,46 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     text: { steel: 'Water main', plastic: 'Water main' },
     icon: 'water',
     color: 'blue',
-    anchor: same([LINES.water.x, LINES.water.y - 0.2, 0.6]),
     priority: 3,
     onFace: true,
+    below: true,
   },
 ];
+
+/**
+ * Where each label sits in the block's layout. Labels on the lines hang under or over them, just
+ * in front of the cut face.
+ */
+export function labelPlaces(layout: LabLayout): Record<LabelId, LabelPlace> {
+  const { hookup, lines } = layout;
+  const { transmitter: tx, stake, access } = hookup;
+  return {
+    transmitter: {
+      anchor: same([tx.x, 1.5, tx.z]),
+      point: same([tx.x, 1.05, tx.z]),
+    },
+    stake: {
+      anchor: same([stake.x, stake.top + 0.4, stake.z]),
+      point: same([stake.x, stake.top, stake.z]),
+    },
+    access: {
+      anchor: { steel: [access.x, 3.5, access.z], plastic: [access.x, 0.6, access.z] },
+      point: { steel: [access.x, 3.0, access.z], plastic: [access.x, 0.22, access.z] },
+    },
+    target: {
+      anchor: {
+        steel: [30, lines.steel.y - lines.steel.radius, lines.steel.radius],
+        plastic: [30, lines.plastic.y - lines.plastic.radius, lines.plastic.radius],
+      },
+    },
+    tracer: {
+      anchor: same([58, lines.tracer.y - lines.tracer.radius, lines.plastic.radius]),
+    },
+    telecom: {
+      anchor: same([44, lines.telecom.y + lines.telecom.radius, lines.telecom.radius]),
+    },
+    water: {
+      anchor: same([lines.water.x, lines.water.y - lines.water.radius, lines.water.z1]),
+    },
+  };
+}

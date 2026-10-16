@@ -38,6 +38,8 @@ interface RouteSpec {
 /** Lines drawn just in front of the cut face, and just above the ground. */
 const RZ = FACE + 0.12;
 const RY = 0.3;
+/** How thick the routes are drawn: bold, so each path reads from across the model. */
+const ROUTE_RADIUS = 0.2;
 
 const ROUTES: readonly RouteSpec[] = (() => {
   const {
@@ -193,6 +195,7 @@ function routeMaterial(path: PathId, length: number) {
     shader.uniforms.gpLength = { value: length };
     shader.uniforms.gpDim = dim;
     shader.uniforms.gpDimColor = dimColor;
+    shader.uniforms.gpGap = { value: new Color(C.gas) };
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
@@ -202,14 +205,15 @@ function routeMaterial(path: PathId, length: number) {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying float gpAlong;\nuniform float gpPattern;\nuniform float gpDim;\nuniform vec3 gpDimColor;',
+        '#include <common>\nvarying float gpAlong;\nuniform float gpPattern;\nuniform float gpDim;\nuniform vec3 gpDimColor;\nuniform vec3 gpGap;',
       )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-// Natural gas: dashes. Gasoline: dark bands across a solid line. A unit is about a line's width.
+// Natural gas: dashes, with pale gaps painted between them, so the tube stays whole. Gasoline:
+// dark bands across a solid line. A unit is about two and a half of a line's widths.
 float gpStep = fract(gpAlong / 1.1);
-if (gpPattern > 0.5 && gpPattern < 1.5 && gpStep > 0.62) discard;
+if (gpPattern > 0.5 && gpPattern < 1.5 && gpStep > 0.62) diffuseColor.rgb = gpGap;
 if (gpPattern > 1.5 && gpStep > 0.74) diffuseColor.rgb *= 0.28;
 diffuseColor.rgb = mix(diffuseColor.rgb, gpDimColor, gpDim * 0.8);`,
       );
@@ -243,7 +247,13 @@ export function buildRoutes(): Routes {
   const lines = ROUTES.map((spec) => {
     const curve = rounded(spec.points);
     const length = curve.getLength();
-    const tube = new TubeGeometry(curve, Math.max(8, Math.ceil(length * 3)), 0.15, 8, false);
+    const tube = new TubeGeometry(
+      curve,
+      Math.max(8, Math.ceil(length * 3)),
+      ROUTE_RADIUS,
+      8,
+      false,
+    );
     // How far along the line each vertex is, in model units, for the pattern.
     const uv = tube.getAttribute('uv');
     const along = new Float32Array(uv.count);
@@ -269,7 +279,7 @@ export function buildRoutes(): Routes {
   // The beads, every route's in one instanced mesh.
   const total = lines.reduce((n, l) => n + l.count, 0);
   const beads = new InstancedMesh(
-    new IcosahedronGeometry(0.14, 1),
+    new IcosahedronGeometry(ROUTE_RADIUS * 0.85, 1),
     new MeshStandardMaterial({ roughness: 0.45 }),
     total,
   );
@@ -293,7 +303,11 @@ export function buildRoutes(): Routes {
         const a = line.samples[k] ?? line.samples[0];
         const b = line.samples[Math.min(k + 1, S)] ?? a;
         if (!a || !b) return;
-        v.set(a.x + (b.x - a.x) * w, a.y + (b.y - a.y) * w + 0.12, a.z + (b.z - a.z) * w);
+        v.set(
+          a.x + (b.x - a.x) * w,
+          a.y + (b.y - a.y) * w + ROUTE_RADIUS * 0.8,
+          a.z + (b.z - a.z) * w,
+        );
         // A faded route's beads shrink away.
         s.setScalar(Math.max(0.001, 1 - line.dim));
         beads.setMatrixAt(index, m.compose(v, q, s));

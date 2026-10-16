@@ -1,9 +1,9 @@
 /**
  * Building a stop's parts: boxes, cylinders, balls, rods and shapes, placed in the model's units.
- * Everything that holds still merges into one mesh per finish (matte clay, or metal), colored per
- * vertex, and each moving part (a group the stop animates) merges into a mesh of its own, so a
- * whole stop costs a few draw calls. Every part of a stop shares the stop's two materials, so the
- * stop can fade back as one when the path filter dims it.
+ * Everything that holds still merges into one mesh per finish (glossy paint, matte or metal),
+ * colored per vertex, and each moving part (a group the stop animates) merges into meshes of its
+ * own, so a whole stop costs a few draw calls. Every part of a stop shares the stop's materials,
+ * so the stop can fade back as one when the path filter dims it.
  */
 import {
   BoxGeometry,
@@ -17,6 +17,7 @@ import {
   Group,
   Matrix4,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   Object3D,
   Quaternion,
@@ -29,6 +30,8 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { FINISH } from '../../../design/tokens.ts';
+import type { Finish, GroundRect } from '../../../kit3d/materials.ts';
 
 export type Point = readonly [number, number, number];
 
@@ -37,8 +40,11 @@ export interface PartOptions {
   rx?: number;
   ry?: number;
   rz?: number;
-  /** Steel: a metal finish instead of matte clay. */
-  metal?: boolean;
+  /**
+   * How the part is finished: glossy paint (the default, for built things), matte (for what grows
+   * or lies on the ground, and roofs), or metal (steel).
+   */
+  finish?: Finish;
   /** Casts a shadow (default true). Flat things on the ground and on the cut face don't. */
   cast?: boolean;
   /** Radial segments for round parts. */
@@ -46,11 +52,12 @@ export interface PartOptions {
 }
 
 /**
- * A stop's two finishes, and any other material it uses, which fade back together when the path
+ * A stop's finishes, and any other material it uses, which fade back together when the path
  * filter dims the stop.
  */
 export interface Finishes {
-  clay: MeshStandardMaterial;
+  paint: MeshStandardMaterial;
+  matte: MeshStandardMaterial;
   metal: MeshStandardMaterial;
   /** Fades a material of the stop's own (glass, a glow, puffs) along with its finishes. */
   track<M extends MeshStandardMaterial | MeshBasicMaterial>(material: M): M;
@@ -61,12 +68,12 @@ export interface Finishes {
 /** Shared by every faded material, so dimming never compiles a new program. */
 const DIM = { color: { value: new Color() } };
 
-/** The color dimmed stops fade toward, for the theme: the haze at the horizon. */
+/** The color dimmed stops fade toward, for the theme: a quiet gray. */
 export function setDimColor(hex: string): void {
   DIM.color.value.set(hex);
 }
 
-/** Makes a material fade toward the haze by `dim`: its color, and any glow it gives off. */
+/** Makes a material fade toward the dim color by `dim`: its color, and any glow it gives off. */
 function fade(material: MeshStandardMaterial | MeshBasicMaterial, dim: { value: number }): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.gpDim = dim;
@@ -92,12 +99,13 @@ function fade(material: MeshStandardMaterial | MeshBasicMaterial, dim: { value: 
 export function createFinishes(): Finishes {
   // One amount for everything the stop is made of.
   const dim = { value: 0 };
-  const clay = new MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
-  const metal = new MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.55 });
-  fade(clay, dim);
-  fade(metal, dim);
+  const paint = new MeshPhysicalMaterial({ vertexColors: true, metalness: 0, ...FINISH.paint });
+  const matte = new MeshStandardMaterial({ vertexColors: true, metalness: 0, ...FINISH.matte });
+  const metal = new MeshStandardMaterial({ vertexColors: true, ...FINISH.metal });
+  for (const material of [paint, matte, metal]) fade(material, dim);
   return {
-    clay,
+    paint,
+    matte,
     metal,
     track(material) {
       fade(material, dim);
@@ -109,11 +117,8 @@ export function createFinishes(): Finishes {
   };
 }
 
-interface Bucket {
-  clay: BufferGeometry[];
-  clayFlat: BufferGeometry[];
-  metal: BufferGeometry[];
-}
+/** Still parts by finish, and whether they cast a shadow. */
+type Bucket = Record<`${Finish}${'' | 'Flat'}`, BufferGeometry[]>;
 
 const UP = new Vector3(0, 1, 0);
 const color = new Color();
@@ -135,8 +140,14 @@ export function fixNormals(geometry: BufferGeometry): BufferGeometry {
   return geometry;
 }
 
+/** The pads a stop laid on the lawn, kept on its root when its parts were finished. */
+export function padsOn(root: Object3D): readonly GroundRect[] {
+  const pads: unknown = root.userData.pads;
+  return Array.isArray(pads) ? (pads as GroundRect[]) : [];
+}
+
 /** Gives a geometry one flat color per vertex, in the working (linear) color space. */
-function paint(geometry: BufferGeometry, hex: string): BufferGeometry {
+function colorize(geometry: BufferGeometry, hex: string): BufferGeometry {
   // Merging needs every part to carry the same attributes.
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
   g.deleteAttribute('uv');
@@ -150,6 +161,8 @@ function paint(geometry: BufferGeometry, hex: string): BufferGeometry {
 
 export class Parts {
   readonly root = new Group();
+  /** Pads laid on the lawn, which the grass wears thin around (see `padsOn`). */
+  readonly pads: GroundRect[] = [];
   private readonly finishes: Finishes;
   private readonly buckets = new Map<Object3D, Bucket>();
   /** The transform parts are placed in: the stop's, or a group's within it. */
@@ -173,9 +186,11 @@ export class Parts {
     z: number,
     o: PartOptions = {},
   ) {
-    // Soft edges where a part is big enough to show them.
-    const r = Math.min(w, h, d) > 0.3 ? Math.min(0.06, Math.min(w, h, d) * 0.12) : 0;
-    const g = r > 0 ? new RoundedBoxGeometry(w, h, d, 2, r) : new BoxGeometry(w, h, d);
+    // Soft, toy-like edges where a part is big enough to show them.
+    const least = Math.min(w, h, d);
+    const r = least > 0.3 ? Math.min(FINISH.bevel, least * 0.2) : 0;
+    const g =
+      r > 0 ? new RoundedBoxGeometry(w, h, d, r > 0.1 ? 3 : 2, r) : new BoxGeometry(w, h, d);
     this.add(g, hex, [x, y + h / 2, z], o);
   }
 
@@ -284,10 +299,9 @@ export class Parts {
     );
     geometry.applyMatrix4(m).applyMatrix4(this.frame);
     const bucket = this.bucket(this.target);
-    const painted = paint(fixNormals(geometry), hex);
-    if (o.metal) bucket.metal.push(painted);
-    else if (o.cast === false) bucket.clayFlat.push(painted);
-    else bucket.clay.push(painted);
+    const colored = colorize(fixNormals(geometry), hex);
+    const finish = o.finish ?? 'paint';
+    bucket[o.cast === false ? (`${finish}Flat` as const) : finish].push(colored);
   }
 
   /** Parts placed inside `fn` sit in a group at (x, y, z), turned `ry` about y; still ones merge. */
@@ -322,11 +336,12 @@ export class Parts {
   /** Merges what was built into meshes, and returns the stop's root. */
   finish(): Group {
     for (const [object, bucket] of this.buckets) {
-      const groups: [BufferGeometry[], Material, boolean][] = [
-        [bucket.clay, this.finishes.clay, true],
-        [bucket.clayFlat, this.finishes.clay, false],
-        [bucket.metal, this.finishes.metal, true],
-      ];
+      const groups: [BufferGeometry[], Material, boolean][] = (
+        ['paint', 'matte', 'metal'] as const
+      ).flatMap((finish) => [
+        [bucket[finish], this.finishes[finish], true],
+        [bucket[`${finish}Flat`], this.finishes[finish], false],
+      ]);
       for (const [list, material, cast] of groups) {
         if (list.length === 0) continue;
         const merged = mergeGeometries(list, false);
@@ -339,13 +354,14 @@ export class Parts {
       }
     }
     this.buckets.clear();
+    this.root.userData.pads = [...this.pads];
     return this.root;
   }
 
   private bucket(object: Object3D): Bucket {
     let b = this.buckets.get(object);
     if (!b) {
-      b = { clay: [], clayFlat: [], metal: [] };
+      b = { paint: [], paintFlat: [], matte: [], matteFlat: [], metal: [], metalFlat: [] };
       this.buckets.set(object, b);
     }
     return b;

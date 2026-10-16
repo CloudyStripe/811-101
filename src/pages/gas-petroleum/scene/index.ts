@@ -25,7 +25,7 @@ import { createPost, preloadPost } from '../../../kit3d/post.ts';
 import type { Tier } from '../../../kit3d/quality.ts';
 import { SceneRuntime } from '../../../kit3d/runtime.ts';
 import { clockText } from '../summary.ts';
-import { setDimColor } from './build.ts';
+import { padsOn, setDimColor } from './build.ts';
 import { DetailLayer, type Rect } from './details.ts';
 import { buildGround } from './ground.ts';
 import { MODEL_BOX } from './layout.ts';
@@ -119,7 +119,6 @@ async function buildDiorama(
   onRuntime: (runtime: SceneRuntime) => void,
 ): Promise<DioramaScene> {
   const scene = new Scene();
-  // Far enough that the haze, not the far plane, is what hides the distance.
   const camera = new PerspectiveCamera(34, 1, 0.5, 3000);
   let theme = o.theme;
   let reducedMotion = o.reducedMotion;
@@ -193,13 +192,11 @@ async function buildDiorama(
   preloadPost(runtime.settings);
   const lighting = createLighting(renderer, scene, bounds, THEMES[o.theme].scene, {
     shadow: { mapSize: runtime.settings.shadowMapSize, radius: runtime.settings.shadowRadius },
-    skyRadius: 1400,
   });
-  const ground = buildGround();
-  ground.setEdge(THEMES[o.theme].scene.edge);
-  ground.setFloor(THEMES[o.theme].scene.paper);
-  const routes = buildRoutes();
   const models = buildStops(timeLapse);
+  const ground = buildGround(models.flatMap((m) => padsOn(m.root)));
+  const routes = buildRoutes();
+  for (const m of models) m.setLamps?.(THEMES[o.theme].scene.lamps);
   const stops = models.map((model) => ({
     id: model.id,
     model,
@@ -298,7 +295,6 @@ async function buildDiorama(
       const pose = lerpPose(flight.from, flight.to, e);
       pose.position.y += Math.sin(Math.PI * e) * flight.lift;
       cam.setPose(pose);
-      framed();
       if (t >= 1) flight = null;
       labelsDirty = true;
     }
@@ -345,16 +341,14 @@ async function buildDiorama(
     return { shared: 0.35, gas: path === 'gas' ? 1 : 0.3, gasoline: path === 'gasoline' ? 1 : 0.3 };
   }
 
-  /** The haze faded stops and routes lean toward, for the theme. */
+  /** The quiet gray faded stops and routes lean toward, for the theme. */
   function applyHaze() {
     const tokens = THEMES[theme].scene;
-    setDimColor(tokens.skyHorizon);
-    routes.setDimColor(tokens.skyHorizon);
+    setDimColor(tokens.fade);
+    routes.setDimColor(tokens.fade);
   }
 
   const overviewMustSee = overviewPoints(models);
-  /** The same points, for measuring how far the model reaches from the camera. */
-  const modelReach = overviewMustSee.map((p) => new Vector3(...p));
   const currentView = () => {
     const model = shown ? models.find((m) => m.id === shown) : undefined;
     return model ? stopView(model) : overviewView(overviewMustSee, yaw);
@@ -372,7 +366,6 @@ async function buildDiorama(
     const { area, pose } = target();
     shownArea = area;
     cam.setPose(pose);
-    framed();
     labelsDirty = true;
   }
 
@@ -393,7 +386,6 @@ async function buildDiorama(
       flight = null;
       shownArea = area;
       cam.setPose(to);
-      framed();
       labelsDirty = true;
       redraw();
       return;
@@ -416,13 +408,6 @@ async function buildDiorama(
   function flightTime(distance: number): number {
     const [short, long] = MOTION.flight;
     return short + (long - short) * Math.min(1, distance / 140);
-  }
-
-  /** After the camera moves: the sky follows it, and the haze is set by how far the model reaches. */
-  function framed() {
-    let far = 0;
-    for (const p of modelReach) far = Math.max(far, camera.position.distanceTo(p));
-    lighting.setViewpoint(camera.position, far * 1.05, Infinity);
   }
 
   /** The time-lapse's clock shows while it plays, and while it's held at a step before today. */
@@ -495,10 +480,8 @@ async function buildDiorama(
       theme = next;
       const tokens = THEMES[theme].scene;
       lighting.setTheme(tokens);
-      ground.setEdge(tokens.edge);
-      ground.setFloor(tokens.paper);
+      for (const m of models) m.setLamps?.(tokens.lamps);
       applyHaze();
-      framed();
       renderer.shadowMap.needsUpdate = true;
       redraw();
     },
@@ -569,7 +552,6 @@ async function buildDiorama(
         fov: to.fov,
       };
       cam.setPose(from);
-      framed();
       flight = {
         from,
         to,
