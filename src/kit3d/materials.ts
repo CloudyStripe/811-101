@@ -15,7 +15,7 @@ import { FINISH } from '../design/tokens.ts';
 /**
  * The brightest a lit surface may be, in the scene's linear light, before tone mapping: well
  * under bloom's threshold (post.ts), so a glint of sun on glossy paint or metal never blooms.
- * Only lights (fire, lamps, the signal) glow. Tone mapping already shows anything this bright as
+ * Only fire and the signal bloom. Tone mapping already shows anything this bright as
  * near white, so the cap changes nothing else on screen.
  */
 export const GLINT_CAP = 2.2;
@@ -102,7 +102,7 @@ const LAWN_GLSL = /* glsl */ `
 float labPn = lab_noise(labWorldPos * labPatchScale + 31.0) * 0.7 + lab_noise(labWorldPos * labPatchScale * 2.3 + 5.0) * 0.3;
 // Lighter patches where the noise is high, deeper green where it is low.
 diffuseColor.rgb = mix(diffuseColor.rgb, labPatchColor, smoothstep(0.52, 0.78, labPn) * labPatchShare);
-diffuseColor.rgb *= 1.0 - 0.16 * smoothstep(0.48, 0.22, labPn) * labPatchShare;
+diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - smoothstep(0.22, 0.48, labPn)) * labPatchShare;
 float labNearest = 1e5;
 for (int i = 0; i < ${String(WORN_MAX)}; i++) {
   if (i >= labWornCount) break;

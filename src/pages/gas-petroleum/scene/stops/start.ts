@@ -41,11 +41,17 @@ export function formation(timelapse: { current: TimeLapse | null }): StopModel {
     [-34.9, -13.2],
   ];
   specks.forEach(([x, y], i) => {
-    if (i % 2) parts.torus(0.2, 0.07, C.fossil, x, y, FACE + 0.04, { cast: false, segments: 10 });
+    if (i % 2)
+      parts.torus(0.2, 0.07, C.fossil, x, y, FACE + 0.04, {
+        cast: false,
+        finish: 'matte',
+        segments: 10,
+      });
     else
       parts.cyl(0.22, 0.22, 0.04, C.fossil, x, y, FACE + 0.01, {
         rx: Math.PI / 2,
         cast: false,
+        finish: 'matte',
         segments: 8,
       });
   });
@@ -91,6 +97,7 @@ export function reservoir(): StopModel {
       0.2,
       {
         cast: false,
+        finish: 'matte',
         segments: 6,
       },
     );
@@ -188,8 +195,8 @@ export function drilling(): StopModel {
 
   // The well on the cut face: cement, then steel casing, then the open hole, turning to run
   // along the rock, where the cracks are held open by sand.
-  faceStrip(parts, rx, -0.15, -4.4, 0.62, C.concrete);
-  faceStrip(parts, rx, -0.15, -4.4, 0.38, C.steel, 0.02);
+  faceStrip(parts, rx, -0.15, -4.4, 0.62, C.concrete, 0, 'matte');
+  faceStrip(parts, rx, -0.15, -4.4, 0.38, C.steel, 0.02, 'metal');
   faceStrip(parts, rx, -0.15, -11.2, 0.16, C.graphite, 0.04);
   const yH = -12.85;
   const bend = [

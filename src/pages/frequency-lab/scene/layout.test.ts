@@ -6,7 +6,7 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
-import { labLayout, tallView, viewFor, wideView, type LabLayout } from './layout.ts';
+import { SURFACE, labLayout, tallView, viewFor, wideView, type LabLayout } from './layout.ts';
 
 const DEPTHS = [1, 3, 5] as const;
 
@@ -64,6 +64,13 @@ describe.each(DEPTHS)('the layout at %i× depth', (depth) => {
     expect(layout.hookup.transmitter).toEqual(real.hookup.transmitter);
     expect(layout.leads).toEqual(real.leads);
     expect(layout.trees).toEqual(real.trees);
+  });
+
+  it('sets every shrub whole on the far lawn, none hanging off the slab', () => {
+    for (const shrub of layout.shrubs) {
+      expect(shrub.z - shrub.size / 2).toBeGreaterThan(block.z0);
+      expect(shrub.z + shrub.size / 2).toBeLessThan(SURFACE.sidewalkBack);
+    }
   });
 
   it('keeps the scenery small: trees well under the cut face, on the far lawn', () => {

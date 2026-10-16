@@ -14,6 +14,7 @@ import {
   Vector3,
 } from 'three';
 import { DIORAMA_COLORS as C, WORLD_COLORS } from '../../../design/tokens.ts';
+import type { Finish } from '../../../kit3d/materials.ts';
 import type { Finishes, Parts, Point } from './build.ts';
 import { FACE } from './layout.ts';
 
@@ -23,7 +24,7 @@ export function pad(parts: Parts, w: number, d: number, x: number, z: number, he
   parts.pads.push({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 });
 }
 
-/** A vertical strip drawn on the cut face, from y0 down to y1, `dz` proud of it. */
+/** A vertical strip drawn on the cut face, from y0 down to y1, `dz` proud of it, in a finish. */
 export function faceStrip(
   parts: Parts,
   x: number,
@@ -32,8 +33,9 @@ export function faceStrip(
   w: number,
   hex: string,
   dz = 0,
+  finish: Finish = 'paint',
 ) {
-  parts.box(w, y0 - y1, 0.06, hex, x, y1, FACE + dz, { cast: false });
+  parts.box(w, y0 - y1, 0.06, hex, x, y1, FACE + dz, { cast: false, finish });
 }
 
 /** A tree: a trunk and a soft, round crown, like the lab's, matte as leaves are. */
@@ -61,7 +63,7 @@ export function glowing(hex: string, intensity: number): MeshStandardMaterial {
   });
 }
 
-/** How brightly fire glows: above the bloom threshold, so it's the one thing besides lights that blooms. */
+/** How brightly fire glows: above the bloom threshold, so it blooms, as the signal does. */
 export const FLAME_GLOW = 5;
 
 /**

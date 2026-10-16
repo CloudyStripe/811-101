@@ -110,11 +110,12 @@ export const THEMES: Record<ThemeName, Theme> = {
       skyBelow: '#e1effc',
       // A low, warm afternoon sun from the west, for long shadows.
       key: { color: '#ffe4bd', intensity: 3.0, azimuth: -68, elevation: 32 },
-      // Fill low enough that shade stays well under sunlight, so the long shadows read.
-      hemisphere: { sky: '#bcdcff', ground: '#b9a993', intensity: 0.35 },
-      rim: { color: '#ffffff', intensity: 0.45, azimuth: 150, elevation: 30 },
-      envIntensity: 0.4,
-      softbox: 1.6,
+      // Fill low enough that shade stays well under sunlight, so the long shadows read. The rim
+      // comes low from behind, to edge forms against the sky without filling the shade.
+      hemisphere: { sky: '#bcdcff', ground: '#b9a993', intensity: 0.3 },
+      rim: { color: '#ffffff', intensity: 0.35, azimuth: 150, elevation: 15 },
+      envIntensity: 0.35,
+      softbox: 1.5,
       exposure: 1,
       lineGlow: 0,
       lamps: 0,

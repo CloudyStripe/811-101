@@ -1,7 +1,7 @@
 /**
  * How the diorama draws its routes. The shared start is a neutral stone. Both fuel paths are APWA
  * yellow, since natural gas and petroleum share one code, so they're told apart by pattern and
- * icon, never by color: natural gas dashed, with a flame; gasoline banded, with a fuel can.
+ * icon, never by color: natural gas dashed, with a flame; gasoline banded, with a gas pump.
  */
 import { APWA } from './apwa.ts';
 import type { IconName } from './icons.tsx';

@@ -86,7 +86,7 @@ export interface WorldPalette {
 
 export interface Scenery {
   readonly group: Group;
-  /** Lamps and windows: 0 off (day) to 1 fully on (night). */
+  /** Lamps: 0 off (day) to 1 fully on (night). */
   setLamps(level: number): void;
 }
 

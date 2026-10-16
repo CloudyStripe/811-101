@@ -274,7 +274,11 @@ export function delivery(): StopModel {
     parts.bullet(2.4, 0.55, C.tank, -0.55, 1.1, 0);
     for (const a of [-1.5, -0.6, 1.6]) {
       for (const b of [-0.52, 0.52])
-        parts.cyl(0.27, 0.27, 0.2, C.graphite, a, 0.18, b, { rx: Math.PI / 2, segments: 10 });
+        parts.cyl(0.27, 0.27, 0.2, C.graphite, a, 0.18, b, {
+          rx: Math.PI / 2,
+          finish: 'matte',
+          segments: 10,
+        });
     }
   });
   const root = parts.finish();
@@ -341,7 +345,11 @@ export function pump(): StopModel {
     parts.box(1.85, 0.42, 1.45, C.graphite, -0.25, 1.08, 0);
     for (const a of [-1.15, 1.15]) {
       for (const b of [-0.78, 0.78])
-        parts.cyl(0.34, 0.34, 0.26, C.graphite, a, 0.21, b, { rx: Math.PI / 2, segments: 10 });
+        parts.cyl(0.34, 0.34, 0.26, C.graphite, a, 0.21, b, {
+          rx: Math.PI / 2,
+          finish: 'matte',
+          segments: 10,
+        });
     }
   });
   // The station's shop.

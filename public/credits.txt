@@ -60,7 +60,7 @@ the following restrictions:
 ------------------------------------------------------------------------
 n8ao 2.0.1
 Ambient occlusion
-License: ISC
+License: CC0-1.0
 https://github.com/N8python/n8ao
 
 Creative Commons Legal Code

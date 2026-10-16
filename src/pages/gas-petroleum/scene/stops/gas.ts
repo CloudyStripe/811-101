@@ -92,7 +92,8 @@ export function gasPlant(): StopModel {
   parts.bullet(3.2, 0.55, C.tank, -9.9, 0.85, -12.6);
   for (const x of [-11.2, -8.6]) parts.box(0.3, 0.4, 2.2, C.machineDark, x, 0, -11.9);
   // The pipe rack.
-  for (const x of [-17, -14.5, -12, -9.5]) parts.box(0.18, 1.7, 0.18, C.steel, x, 0, -10.1);
+  for (const x of [-17, -14.5, -12, -9.5])
+    parts.box(0.18, 1.7, 0.18, C.steel, x, 0, -10.1, { finish: 'metal' });
   parts.rod([-17.2, 1.7, -10.1], [-8.6, 1.7, -10.1], 0.12, C.steel, { finish: 'metal' });
   parts.rod([-17.2, 1.45, -10.1], [-8.6, 1.45, -10.1], 0.1, GAS_LINE);
   // The control building and the cooler.
@@ -284,10 +285,13 @@ export function cityGate(): StopModel {
     [-2.2, 2.2],
   ] as const;
   corners.forEach(([a, b], i) => {
-    parts.box(0.1, 1.2, 0.1, C.steel, cx + a, 0, cz + b);
+    parts.box(0.1, 1.2, 0.1, C.steel, cx + a, 0, cz + b, { finish: 'metal' });
     const [c, d] = corners[(i + 1) % 4] ?? [a, b];
     for (const y of [0.55, 1.1])
-      parts.rod([cx + a, y, cz + b], [cx + c, y, cz + d], 0.03, C.steel, { segments: 4 });
+      parts.rod([cx + a, y, cz + b], [cx + c, y, cz + d], 0.03, C.steel, {
+        finish: 'metal',
+        segments: 4,
+      });
   });
   // The gas comes up out of the pipeline, through the regulator that lowers its pressure.
   parts.rod([cx - 1.5, 0, cz], [cx - 1.5, 1.0, cz], 0.2, GAS_LINE);
@@ -359,7 +363,7 @@ export function gasUses(): StopModel {
     parts.box(0.5, 0.95, 0.06, WORLD_COLORS.trunk, x - 0.5, 0, z + 1.11 * f);
     windows.push([x + 0.45, 0.95, z + 1.11 * f]);
     // The gas meter, and the service line from the street.
-    parts.box(0.22, 0.3, 0.16, C.steel, x + 1.25, 0.1, z + 0.5 * f);
+    parts.box(0.22, 0.3, 0.16, C.steel, x + 1.25, 0.1, z + 0.5 * f, { finish: 'metal' });
     parts.rod([x + 1.25, 0.12, z + 0.5 * f], [x + 1.25, 0.12, SITE.street.z], 0.04, GAS_LINE, {
       cast: false,
       segments: 4,

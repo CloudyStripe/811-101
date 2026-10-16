@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FLAME_GLOW } from '../pages/gas-petroleum/scene/kit.ts';
-import { BACKDROP_STOPS, backdropAt } from '../kit3d/backdrop.ts';
+import { DataUtils } from 'three';
+import { BACKDROP_STOPS, backdropAt, backdropTexture } from '../kit3d/backdrop.ts';
 import { GLINT_CAP, tint } from '../kit3d/materials.ts';
 import { BLOOM_THRESHOLD } from '../kit3d/post.ts';
 import { inversePbrNeutral, pbrNeutral } from '../kit3d/tonemap.ts';
@@ -144,7 +145,7 @@ describe('a sunlit, colorful scene', () => {
     });
   });
 
-  it('has white tanks: neutral, and the lightest thing on the ground', () => {
+  it('has white tanks: neutral, and bright', () => {
     const tank = hexToOklch(DIORAMA_COLORS.tank);
     expect(tank.l).toBeGreaterThan(0.95);
     expect(tank.c).toBeLessThan(0.01);
@@ -310,22 +311,33 @@ describe('the sky behind the model', () => {
     }
   });
 
-  it.each(themes)('%s: runs from the zenith through the horizon to the band below', (name) => {
+  it.each(themes)('%s: is drawn upright: the band below the model at the bottom', (name) => {
     const s = THEMES[name].scene;
-    const at = (t: number) => {
-      const [r, g, b] = backdropAt(s, t);
-      return linearRgbToOklch({ r: srgbToLinear(r), g: srgbToLinear(g), b: srgbToLinear(b) });
+    const texture = backdropTexture(s);
+    const data = texture.image.data as Uint16Array;
+    const rows = data.length / 4;
+    /** A row as the screen shows it: the texture's color, through the tone mapping. */
+    const shownRow = (row: number) => {
+      const [r = 0, g = 0, b = 0] = [0, 1, 2].map((i) =>
+        DataUtils.fromHalfFloat(data[row * 4 + i] ?? 0),
+      );
+      const [tr, tg, tb] = pbrNeutral([r, g, b]);
+      return linearRgbToOklch({ r: tr, g: tg, b: tb }).l;
     };
-    expect(at(BACKDROP_STOPS.zenith).l).toBeCloseTo(hexToOklch(s.skyZenith).l, 3);
-    expect(at(BACKDROP_STOPS.horizon).l).toBeCloseTo(hexToOklch(s.skyHorizon).l, 3);
-    expect(at(BACKDROP_STOPS.below).l).toBeCloseTo(hexToOklch(s.skyBelow).l, 3);
+    // Row 0 is the bottom of the screen; the last row is its top.
+    expect(shownRow(0)).toBeCloseTo(hexToOklch(s.skyBelow).l, 2);
+    expect(shownRow(rows - 1)).toBeCloseTo(hexToOklch(s.skyZenith).l, 2);
+    const horizonRow = Math.round((1 - BACKDROP_STOPS.horizon) * (rows - 1));
+    expect(shownRow(horizonRow)).toBeCloseTo(hexToOklch(s.skyHorizon).l, 2);
+    texture.dispose();
   });
 });
 
 /**
  * How brightly a surface facing up is lit, as a multiple of its albedo, before tone mapping: the
- * key light, the sky fill, and the environment (its sky gradient and the soft panel on the sun's
- * side), as three's physical lights sum them (lighting.ts). `inShadow` leaves out the key light.
+ * key light, the sky fill, the rim light from behind (which casts no shadow, so it lights the shade
+ * too), and the environment (its sky gradient and the soft panel on the sun's side), as three's
+ * physical lights sum them (lighting.ts). `inShadow` leaves out the key light.
  */
 function lightOnTop(s: SceneTokens, inShadow = false): number {
   const sin = (deg: number) => Math.sin((deg * Math.PI) / 180);
@@ -333,6 +345,8 @@ function lightOnTop(s: SceneTokens, inShadow = false): number {
     ? 0
     : (luminance(s.key.color) * s.key.intensity * sin(s.key.elevation)) / Math.PI;
   const hemisphere = (luminance(s.hemisphere.sky) * s.hemisphere.intensity) / Math.PI;
+  const rim =
+    (luminance(s.rim.color) * s.rim.intensity * Math.max(0, sin(s.rim.elevation))) / Math.PI;
   // The environment's sky, from the horizon up, averaged as a surface facing up sees it.
   let sky = 0;
   let weight = 0;
@@ -351,7 +365,7 @@ function lightOnTop(s: SceneTokens, inShadow = false): number {
       sin(Math.max(s.key.elevation, 35))) /
     Math.PI;
   const environment = (sky / weight + panel) * s.envIntensity;
-  return (key + hemisphere + environment) * s.exposure;
+  return (key + hemisphere + rim + environment) * s.exposure;
 }
 
 describe('light and shadow', () => {
@@ -375,6 +389,18 @@ describe('only emitters bloom', () => {
     expect(GLINT_CAP).toBeLessThan(BLOOM_THRESHOLD * 0.95);
   });
 
+  it.each(themes)('%s: keeps the sky under it, however pale', (name) => {
+    // A pale sky is drawn from values well above 1, so the screen shows it as authored; near white
+    // the curve is steep, and a little paler would make the whole band bloom over the model.
+    const s = THEMES[name].scene;
+    for (let i = 0; i <= 64; i++) {
+      const [r, g, b] = backdropAt(s, i / 64);
+      const [lr, lg, lb] = inversePbrNeutral([srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)]);
+      const source = 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+      expect(source, `row ${String(i)} of 64`).toBeLessThan(BLOOM_THRESHOLD * 0.95);
+    }
+  });
+
   it.each(themes)('%s: the lightest surface in full sun stays under the cap', (name) => {
     // So the cap only ever trims glints; plain lit surfaces keep their shading.
     expect(lightest * lightOnTop(THEMES[name].scene) * 1.4).toBeLessThan(GLINT_CAP);
@@ -383,10 +409,12 @@ describe('only emitters bloom', () => {
   it.each(themes)('%s: lamps and lit windows glow, lit as well, but stay under it', (name) => {
     const s = THEMES[name].scene;
     const lit = lightOnTop(s) * 1.4;
+    // A lamp head: a dark housing, glowing. A lit window: the warm glass itself, glowing, as the
+    // town's homes draw it (`glowing` in the diorama's kit), at full night.
     const lamp = LAMP_GLOW * s.lamps * luminance(WORLD_COLORS.lamp);
     const pane = WINDOW_GLOW * s.lamps * luminance(WORLD_COLORS.windowLit);
     expect(lamp + luminance(WORLD_COLORS.lampHousing) * lit).toBeLessThan(BLOOM_THRESHOLD);
-    expect(pane + luminance(WORLD_COLORS.window) * lit).toBeLessThan(BLOOM_THRESHOLD);
+    expect(pane + luminance(WORLD_COLORS.windowLit) * lit).toBeLessThan(BLOOM_THRESHOLD);
   });
 
   it('lets fire bloom', () => {

@@ -108,7 +108,7 @@ In the field, the color is the code.
 - **Lines wear their code:** buried lines are drawn close to their full APWA color (`FACILITY_TINT_STRENGTH`), with an icon and label. It's a teaching aid: real pipe and cable color underground is unreliable, so say so where it matters.
 - **The ground stays ground:** soils, rock and fill never read as a code color the lesson uses (tested lit and tone mapped). The lab's trench fill is a gray sand, so the gas main stands out by value too.
 - **The signal's color:** the locate signal uses `SIGNAL_COLOR` (`src/design/tokens.ts`), which tests keep away from every APWA hue. Strength is brightness, not color.
-- **Two yellow paths:** natural gas and petroleum share APWA yellow, so the diorama tells its fuel paths apart by pattern and icon (`src/design/paths.ts`): natural gas dashed with a flame, gasoline banded with a fuel can. The shared start is a neutral stone.
+- **Two yellow paths:** natural gas and petroleum share APWA yellow, so the diorama tells its fuel paths apart by pattern and icon (`src/design/paths.ts`): natural gas dashed with a flame, gasoline banded with a gas pump. The shared start is a neutral stone.
 - **Water underground isn't blue:** in the diorama, groundwater and salty produced water are sands and browns, never APWA blue (drinking water); produced water is a murky brown-gray, never green (sewer). The open sea is a natural blue, lighter and greener than APWA blue (tested). Machines are white and gray, and quiz answers are marked in ink, icons and words, not green and red.
 
 ## Tokens and design
@@ -142,7 +142,7 @@ In the field, the color is the code.
 - **N8AO:** keep its debug mode and neural denoise off.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
 - **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
-- **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire, lamps and the signal glow. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
+- **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire and the signal bloom; lamps and lit windows glow under it. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
 - **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
 
 ## The diorama's story

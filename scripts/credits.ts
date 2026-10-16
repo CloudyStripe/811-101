@@ -6,17 +6,21 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-/** What the site ships from each package. */
-export const CREDITED = [
+/**
+ * What the site ships from each package. A package whose own license file disagrees with its
+ * package.json names the license that file grants.
+ */
+export const CREDITED: readonly { name: string; ships: string; license?: string }[] = [
   { name: 'three', ships: '3D rendering' },
   { name: 'postprocessing', ships: 'Bloom, tone mapping and antialiasing' },
-  { name: 'n8ao', ships: 'Ambient occlusion' },
+  // Its package.json says ISC, but the license file it ships is CC0 1.0.
+  { name: 'n8ao', ships: 'Ambient occlusion', license: 'CC0-1.0' },
   { name: 'preact', ships: 'The interface' },
   { name: '@phosphor-icons/core', ships: 'Icons (Phosphor, bold weight)' },
   { name: '@fontsource-variable/archivo', ships: 'The Archivo typeface' },
   { name: '@fontsource/atkinson-hyperlegible', ships: 'The Atkinson Hyperlegible typeface' },
   { name: '@fontsource/ibm-plex-mono', ships: 'The IBM Plex Mono typeface' },
-] as const;
+];
 
 const ROOT = new URL('../', import.meta.url);
 
@@ -50,13 +54,13 @@ function homepage(m: Manifest): string {
 /** The text of public/credits.txt. */
 export function creditsText(): string {
   const rule = '-'.repeat(72);
-  const sections = CREDITED.map(({ name, ships }) => {
+  const sections = CREDITED.map(({ name, ships, license }) => {
     const m = manifest(name);
     return [
       rule,
       `${name} ${m.version}`,
       ships,
-      `License: ${m.license ?? 'see below'}`,
+      `License: ${license ?? m.license ?? 'see below'}`,
       homepage(m),
       '',
       licenseText(name),

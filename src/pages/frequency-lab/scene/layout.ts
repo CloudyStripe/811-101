@@ -173,10 +173,11 @@ export function labLayout({ depth }: LabLayoutOptions): LabLayout {
     ] as const
   ).map(([x, height]) => ({ x, z: LAWN_Z, height }));
   const lamps = [36, 118].map((x) => ({ x, z: (SURFACE.farCurbBack + SURFACE.sidewalkBack) / 2 }));
+  // Shrubs sit whole on the far lawn, between the sidewalk and the slab's back edge.
   const shrubs = [-26, -19, 6, 33, 44, 52, 79, 95, 101, 121, 142].map((x, i) => ({
     x,
-    z: LAWN_Z + (i % 3) - 1.4,
-    size: 3 + (i % 4) * 0.6,
+    z: LAWN_Z + ((i % 3) - 1) * 0.5,
+    size: 2.6 + (i % 4) * 0.4,
   }));
   const steppingStones = [0, 1, 2, 3].map((i) => {
     const x = 86 + (i % 2) * 0.6;
