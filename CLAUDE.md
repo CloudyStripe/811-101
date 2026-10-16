@@ -146,7 +146,7 @@ In the field, the color is the code.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
 - **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
 - **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire and the signal bloom; lamps and lit windows glow under it. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
-- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
+- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
 
 ## The diorama's story
 

@@ -4,7 +4,7 @@
  * the chrome leaves, then projected to CSS pixels. What the lesson needs must land in it, the cut
  * face must lead, and the hookup must be big enough to see.
  */
-import { PerspectiveCamera, Vector3 } from 'three';
+import { CatmullRomCurve3, Object3D, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
 import {
@@ -115,18 +115,37 @@ describe.each(['wide', 'tall'] as const)("the %s view's layout", (kind) => {
     expect(leads.ground.at(-1)).toEqual(terminals.stake);
   });
 
-  it('lays the leads in the grass between their ends, never under it', () => {
+  it('lays the leads in the grass all along, never sunk into the ground', () => {
+    // Sampled along the curve the scene draws through the points, not just at the points.
     for (const lead of [leads.signal.steel, leads.signal.plastic, leads.ground]) {
-      for (const [, y] of lead.slice(1, -1))
-        expect(y).toBeGreaterThanOrEqual(0.12 + leadRadius - 1e-9);
+      const curve = new CatmullRomCurve3(lead.map(([x, y, z]) => new Vector3(x, y, z)));
+      for (let i = 0; i <= 400; i++) {
+        // At most a third of its thickness down among the grass, which tops out at 0.12 ft.
+        expect(curve.getPoint(i / 400).y).toBeGreaterThanOrEqual(0.12 + leadRadius / 3);
+      }
     }
   });
 
-  it('puts the signal terminal toward the access point and the ground terminal toward the stake', () => {
+  it('puts the terminals where the transmitter, as the scene turns and sizes it, has them', () => {
+    // The transmitter's frame as lines.ts builds it: on the grass, turned, at the equipment's size.
+    const tx = hookup.transmitter;
+    const unit = new Object3D();
+    unit.position.set(tx.x, 0.12, tx.z);
+    unit.rotation.y = tx.turn;
+    unit.scale.setScalar(k);
+    unit.updateMatrixWorld();
+    const at = (x: number, y: number, z: number) =>
+      new Vector3(x, y, z).applyMatrix4(unit.matrixWorld);
+    for (const [terminal, local] of [
+      [terminals.signal, at(0.45, 0.22, 0.64)],
+      [terminals.ground, at(-0.45, 0.22, 0.64)],
+    ] as const) {
+      terminal.forEach((v, i) => {
+        expect(v).toBeCloseTo(local.getComponent(i), 6);
+      });
+    }
+    // The signal terminal faces the access point, the ground terminal the stake.
     expect(terminals.signal[0]).toBeGreaterThan(terminals.ground[0]);
-    // Both on the transmitter's front, toward the cut face.
-    expect(terminals.signal[2]).toBeGreaterThan(hookup.transmitter.z);
-    expect(terminals.ground[2]).toBeGreaterThan(hookup.transmitter.z);
   });
 
   it('stands the transmitter on the verge, clear of the access point, the stake and the pedestal', () => {
@@ -243,6 +262,19 @@ describe('views', () => {
     expect(
       viewFor(layout, { x: 0, y: 0, width: 400, height: 900, portrait: true }, desktop),
     ).toEqual(tall);
+  });
+
+  it('keeps the view it has while the screen is near the line between them', () => {
+    // A square screen: not tall enough to turn a wide view tall, nor short enough to turn a tall
+    // view wide, so a window dragged across the line doesn't rebuild the block back and forth.
+    const square = { width: 1000, height: 1000 };
+    const area = { x: 0, y: 0, ...square };
+    expect(viewKind(area, square)).toBe('wide');
+    expect(viewKind(area, square, 'wide')).toBe('wide');
+    expect(viewKind(area, square, 'tall')).toBe('tall');
+    // Clearly wide, it turns.
+    const wide = { width: 1000, height: 900 };
+    expect(viewKind({ ...area, ...wide }, wide, 'tall')).toBe('wide');
   });
 
   it('shows the whole slab, the trees on it, and the hookup in every view', () => {

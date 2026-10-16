@@ -1,4 +1,4 @@
-/** The generic transmitter's frequency dial. A typical spread from low to high. */
+/** The generic transmitter's frequencies, one button each. A typical spread from low to high. */
 export const FREQUENCIES = [512, 8_000, 33_000, 83_000] as const;
 
 export type Frequency = (typeof FREQUENCIES)[number];

@@ -1,7 +1,8 @@
 /**
  * The lab's console, under the view: what the view shows now, in one line that stays on screen;
- * the setup; the transmitter's frequency, as four large buttons; a button that pauses the signal's
- * motion; and the buttons that open the guide or the key between the view and the console.
+ * the setup; a button that pauses the signal's motion; the transmitter's frequency, as four large
+ * buttons; and the buttons that open the guide or the key between the view and the console. They
+ * read in that order in every layout.
  */
 import {
   FREQUENCIES,
@@ -68,18 +69,6 @@ export function Console(props: ConsoleProps) {
           class="console-setup"
         />
       </div>
-      <div class="console-group console-frequency-group">
-        <span class="console-caption" aria-hidden="true">
-          Frequency
-        </span>
-        <Segmented
-          label="Frequency"
-          value={frequency}
-          options={FREQUENCY_OPTIONS}
-          onChange={props.onFrequency}
-          class="console-frequency"
-        />
-      </div>
       <button
         type="button"
         class="icon-button console-pause"
@@ -93,6 +82,18 @@ export function Console(props: ConsoleProps) {
       >
         <Icon name={props.paused ? 'play' : 'pause'} />
       </button>
+      <div class="console-group console-frequency-group">
+        <span class="console-caption" aria-hidden="true">
+          Frequency
+        </span>
+        <Segmented
+          label="Frequency"
+          value={frequency}
+          options={FREQUENCY_OPTIONS}
+          onChange={props.onFrequency}
+          class="console-frequency"
+        />
+      </div>
       <div class="console-drawers">
         {DRAWERS.map((d) => (
           <button

@@ -21,10 +21,14 @@ export interface DrawerProps {
 export function Drawer(props: DrawerProps) {
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const open = props.title !== null;
 
+  // Each opening starts at the top: the guide and the key share the drawer, not where it was read to.
   useEffect(() => {
-    if (open) heading.current?.focus();
+    if (!open) return;
+    if (body.current) body.current.scrollTop = 0;
+    heading.current?.focus();
   }, [props.title]);
 
   return (
@@ -55,7 +59,9 @@ export function Drawer(props: DrawerProps) {
           <Icon name="close" />
         </button>
       </div>
-      <div class="drawer-body">{props.children}</div>
+      <div class="drawer-body" ref={body}>
+        {props.children}
+      </div>
     </section>
   );
 }

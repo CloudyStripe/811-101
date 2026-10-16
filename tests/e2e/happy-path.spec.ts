@@ -193,6 +193,23 @@ test.describe('on a phone', () => {
     await toggle(page, 'Guide').tap();
     await expect(drawer(page)).toBeHidden();
   });
+
+  test('each drawer opens at its top, wherever the other was read to', async ({ page }) => {
+    await open(page);
+    const body = drawer(page).locator('.drawer-body');
+    const scrolled = () => body.evaluate((el) => el.scrollTop);
+    await toggle(page, 'Guide').tap();
+    await body.evaluate((el) => {
+      el.scrollTop = 240;
+    });
+    expect(await scrolled()).toBeGreaterThan(0);
+    await toggle(page, 'Key').tap();
+    await expect(page.getByRole('heading', { name: 'Key' })).toBeVisible();
+    expect(await scrolled()).toBe(0);
+    await toggle(page, 'Guide').tap();
+    await expect(page.getByRole('heading', { name: "What's happening" })).toBeInViewport();
+    expect(await scrolled()).toBe(0);
+  });
 });
 
 test('only one definition shows at a time, and Escape closes it from anywhere', async ({
@@ -223,4 +240,25 @@ test('only one definition shows at a time, and Escape closes it from anywhere', 
   await expect(visibleTips).toHaveCount(0);
   await expect(terms.nth(0)).toBeFocused();
   await expect(drawer(page)).toBeVisible();
+});
+
+test.describe('on a phone held sideways', () => {
+  test.use({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
+
+  test('the guide opens beside the view, and the frequency buttons stay usable', async ({
+    page,
+  }) => {
+    await open(page);
+    await toggle(page, 'Guide').tap();
+    await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
+    // The setup steps aside for the guide; the frequency, which the guide asks you to try, stays.
+    const top = page.getByRole('radio', { name: '83 kilohertz' });
+    await expect(top).toBeInViewport();
+    await top.tap();
+    await expectState(page, 'steel', 83_000);
+    await expect(page.locator('#lab-status')).toBeInViewport();
+    // Closing the guide brings the setup back.
+    await page.getByRole('button', { name: 'Close the lab guide' }).tap();
+    await expect(page.getByRole('radio', { name: 'Plastic main' })).toBeInViewport();
+  });
 });

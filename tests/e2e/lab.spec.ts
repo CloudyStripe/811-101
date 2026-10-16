@@ -348,6 +348,12 @@ test.describe('losing the graphics context', () => {
       });
       await expect(message).toBeHidden();
       await expect(page.locator('[data-label="transmitter"]')).not.toHaveClass(/\boff\b/);
+
+      // Turned after the context came back, the block is built for the new view, cleanly: the old
+      // build's objects went with the lost context, and nothing asks to delete them.
+      await page.setViewportSize({ width: size.height, height: size.width });
+      await expect(page.locator('.stage')).toHaveAttribute('data-view', 'tall');
+      await expect(page.locator('[data-label="transmitter"]')).not.toHaveClass(/\boff\b/);
     });
   }
 });

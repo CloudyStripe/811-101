@@ -136,7 +136,7 @@ body {
   grid-area: console;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto auto;
-  grid-template-areas: 'summary setup frequency pause drawers';
+  grid-template-areas: 'summary setup pause frequency drawers';
   align-items: end;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-3) var(--space-4);
@@ -292,7 +292,8 @@ body {
 /* The guide: its sections side by side where there's room, one under another where there isn't. */
 .guide {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  /* Never wider than the drawer, however narrow the screen or large the text. */
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
   gap: var(--space-4) var(--space-6);
 }
 
@@ -346,7 +347,7 @@ body {
 /* The key: the lines in one column, the signal's marks in the other, the note on colors under both. */
 .lab-drawer .legend {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
   column-gap: var(--space-6);
 }
 
@@ -434,22 +435,52 @@ body {
   }
 }
 
-/* Medium widths: the summary and the drawers' buttons over the setup, frequency and pause. */
-@media (max-width: 1179px) {
+/*
+ * Medium widths: the summary over the setup, pause, frequency, and the guide's and key's buttons.
+ * The console's widths are in em, so they follow the reader's default text size: larger text gets
+ * the roomier layout sooner.
+ */
+@media (max-width: 73.6875em) {
   .lab-console {
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: auto auto auto minmax(0, 1fr);
     grid-template-areas:
-      'summary summary summary drawers'
-      'setup frequency pause .';
+      'summary summary summary summary'
+      'setup pause frequency drawers';
     align-items: end;
   }
 
   .console-drawers {
-    align-self: center;
+    justify-self: end;
+  }
+
+  .console-frequency .segmented-option {
+    min-width: 4.75rem;
+  }
+}
+
+/* Narrower, as on a tablet held upright: the setup and pause, then the frequency and the drawers. */
+@media (min-width: 761px) and (max-width: 54.9375em) {
+  .lab-console {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'summary summary'
+      'setup pause'
+      'frequency drawers';
   }
 
   .console-pause {
-    justify-self: start;
+    justify-self: end;
+  }
+
+  /* The setup and the frequency fill their rows, each button an equal share. */
+  .console-setup,
+  .console-frequency {
+    display: flex;
+  }
+
+  .console-setup .segmented-option,
+  .console-frequency .segmented-option {
+    flex: 1;
   }
 }
 
@@ -584,18 +615,23 @@ body {
   }
 
   /*
-   * With a drawer open, the setup and the frequency step aside, so the drawer has room to read;
-   * the summary, pause, and the guide's and key's buttons stay. Closing the drawer brings them back.
+   * With a drawer open, the setup steps aside, so the drawer has room to read; the frequency, which
+   * the guide asks you to try, stays, with pause beside the summary and the guide's and key's
+   * buttons. Closing the drawer brings the setup back.
    */
-  .lab-grid[data-drawer] .console-setup-group,
-  .lab-grid[data-drawer] .console-frequency-group {
+  .lab-grid[data-drawer] .console-setup-group {
     display: none;
   }
 
   .lab-grid[data-drawer] .lab-console {
     grid-template-areas:
-      'summary summary'
-      'drawers pause';
+      'summary pause'
+      'frequency frequency'
+      'drawers drawers';
+  }
+
+  .lab-grid[data-drawer] .console-pause {
+    align-self: start;
   }
 }
 

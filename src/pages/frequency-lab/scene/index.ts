@@ -60,7 +60,7 @@ export interface LabSceneOptions {
   /** Deterministic frames for screenshots: fixed time and tier, no governor, one frame then stop. */
   capture: boolean;
   perf: boolean;
-  /** The part of the canvas the panel and controls leave free, in CSS pixels. */
+  /** The part of the canvas the console, the drawer and the header leave free, in CSS pixels. */
   visibleArea: () => VisibleArea;
   /** Rectangles labels must avoid, in the canvas's CSS pixels. */
   noGo: () => Rect[];
@@ -79,13 +79,13 @@ export interface LabScene {
   setTier(tier: Tier | 'auto'): Promise<void>;
   readonly tier: Tier;
   /**
-   * Re-measures labels and frames the view for the room it has, e.g. after fonts load or the panel
+   * Re-measures labels and frames the view for the room it has, e.g. after fonts load or the drawer
    * changes. With `ease`, the view glides to its new framing (at once when motion is reduced).
    */
   relayout(ease?: boolean): void;
   /** Shows one label however crowded the view, while the key points at its line; null for none. */
   highlight(id: LabelId | null): void;
-  /** Places labels again, now, without touching the camera: when a label gains focus or a sheet opens. */
+  /** Places labels again, now, without touching the camera: when a label gains focus. */
   refreshLabels(): void;
   dispose(): void;
 }
@@ -109,6 +109,16 @@ interface Built {
   setups: Record<SetupId, Group>;
   contact: Group;
   fx: SignalEffects;
+  /** Built before the graphics context was lost: its GPU resources went with it. */
+  lost: boolean;
+}
+
+/** What casts shadows in a build: the slab, and the trees and lamps standing on it. */
+function boundsOf({ block }: LabLayout): Box3 {
+  return new Box3(
+    new Vector3(block.x0, block.bottom, block.z0),
+    new Vector3(block.x1, 15, block.z1),
+  );
 }
 
 /** Everything a build puts in the main scene. */
@@ -245,6 +255,10 @@ async function buildLabScene(
       contextRestored() {
         // The sky and its lighting were rendered into a texture the lost context took with it.
         lighting.restore(labSceneTokens(theme));
+        // So was everything the block had uploaded: it's built afresh, and the old build goes
+        // without disposing, since its GPU objects now belong to no context.
+        for (const b of [built, ...stale]) b.lost = true;
+        rebuild(built.kind);
         labelsDirty = true;
         o.onContextRestored?.();
       },
@@ -253,19 +267,22 @@ async function buildLabScene(
   onRuntime(runtime);
   const { stage, renderer } = runtime;
 
-  // Everything that casts a shadow, in either view: the slab at its deepest, and the trees and
-  // lamps on it.
-  const deepest = layoutFor('tall').block;
-  const bounds = new Box3(
-    new Vector3(deepest.x0, deepest.bottom, deepest.z0),
-    new Vector3(deepest.x1, 15, deepest.z1),
-  );
   const settings = () => runtime.settings;
   // The ambient-occlusion chunk downloads while the scene is built and compiled.
   preloadPost(settings());
-  const lighting = createLighting(renderer, scene, bounds, labSceneTokens(o.theme), {
-    shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius },
+  // The stage has no size until the runtime starts, so the first view is chosen by the canvas's own.
+  const firstKind = viewKind(o.visibleArea(), {
+    width: o.canvas.clientWidth,
+    height: o.canvas.clientHeight,
   });
+  // The sun's shadow fits the block built first, and fits again whenever it's built for another view.
+  const lighting = createLighting(
+    renderer,
+    scene,
+    boundsOf(layoutFor(firstKind)),
+    labSceneTokens(o.theme),
+    { shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius } },
+  );
   const screenFonts = Promise.all(TransmitterScreen.FONTS.map((f) => document.fonts.load(f))).then(
     () => true,
     () => false,
@@ -288,6 +305,7 @@ async function buildLabScene(
       // Baked contact shadows stand in for ambient occlusion on the tier without it.
       contact: buildContactShadows(layout),
       fx: new SignalEffects(depthUniforms, layout),
+      lost: false,
     };
     b.contact.visible = !settings().ao;
     b.fx.setTime(animTime);
@@ -301,11 +319,14 @@ async function buildLabScene(
   function release(b: Built) {
     scene.remove(...sceneParts(b));
     fxScene.remove(b.fx.group);
+    // A build from before a lost context has nothing left to free: asking the new context to
+    // delete objects it never had only warns.
+    if (b.lost) return;
     b.shared.screen.dispose();
     for (const part of [...sceneParts(b), b.fx.group]) disposeObject(part);
   }
 
-  let built = build(viewKind(o.visibleArea(), stage));
+  let built = build(firstKind);
   o.onView?.(built.kind);
 
   /**
@@ -319,6 +340,7 @@ async function buildLabScene(
     stale.push(old);
     staleFrames = 2;
     built = build(kind);
+    lighting.setBounds(boundsOf(built.layout));
     o.onView?.(kind);
     labelsFor_ = null;
     shadowsFor = null;
@@ -327,14 +349,14 @@ async function buildLabScene(
 
   const cam = new LabCamera(camera);
   const labels = new LabelLayer(camera, o.noGo);
-  /** The part of the view the panel or sheet leaves free, as the label layer wants it. */
+  /** The part of the view the console and the drawer leave free, as the label layer wants it. */
   const freeArea = () => {
     const v = o.visibleArea();
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
   /** Frames the view for a free area of the canvas, with the block built for the view that suits it. */
   function frameArea(area: VisibleArea) {
-    const kind = viewKind(area, stage);
+    const kind = viewKind(area, stage, built.kind);
     if (kind !== built.kind) rebuild(kind);
     cam.setLayout(stage.width, stage.height, area);
     cam.frame(viewOf(built.layout, kind));
@@ -363,7 +385,10 @@ async function buildLabScene(
     // Label text only changes with the setup, so a frequency change needn't re-measure them.
     if (labelsFor_ !== setup) {
       labelsFor_ = setup;
+      // A line the key points at stays lit through a new build or setup.
+      const lit = current.find((label) => label.highlight)?.id;
       current = labelsFor(built.layout, o.labelElements, setup);
+      for (const label of current) label.highlight = label.id === lit;
       labels.setLabels(current);
     }
     // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
@@ -453,7 +478,7 @@ async function buildLabScene(
       const area = o.visibleArea();
       // A glide from the framing shown now, unless motion is reduced, there's nothing to glide
       // from, or the new room asks for the other view, whose block is built anew.
-      const kind = viewKind(area, stage);
+      const kind = viewKind(area, stage, built.kind);
       if (ease && !reducedMotion && !o.capture && shownArea && kind === built.kind) {
         // Where it lands: the pose that frames the new area, fitted without moving the camera.
         cam.setLayout(stage.width, stage.height, area);

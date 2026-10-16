@@ -54,12 +54,9 @@ interface Shot {
   crop: { x: number; y: number; width: number };
 }
 
-/** Opens the lab in capture mode and closes its guide, so the 3D view has the whole width. */
+/** Opens the lab in capture mode; its guide and key start closed, so the view has its whole room. */
 async function labReady(page: Page): Promise<void> {
   await page.waitForFunction(() => document.documentElement.dataset.sceneReady === 'true');
-  // Narrower than 1280 px, the guide starts closed already.
-  const close = page.getByRole('button', { name: 'Close the lab guide' });
-  if (await close.isVisible()) await close.click();
 }
 
 /** The diorama in capture mode, its guide closed, so the overview has the whole width. */

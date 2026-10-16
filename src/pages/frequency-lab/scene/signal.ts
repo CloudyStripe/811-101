@@ -302,12 +302,12 @@ export class SignalEffects {
     });
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.
-    // The leads' sleeves are as much wider than the leads as the risers' are than a thin wire.
-    const sleeve = this.layout.leadRadius * (0.075 / 0.045);
+    // Each wire's glow is a sleeve a little wider than the wire, so it shows around it.
+    const sleeve = (radius: number) => Math.max(0.075, radius * 1.67);
     const wires = [
-      this.wireGlow(leads.signal[setup], 1, sleeve),
-      this.wireGlow(risers[setup], -1),
-      this.wireGlow(leads.ground, -1, sleeve),
+      this.wireGlow(leads.signal[setup], 1, sleeve(this.layout.leadRadius)),
+      this.wireGlow(risers[setup], -1, sleeve(this.layout.riserRadius[setup])),
+      this.wireGlow(leads.ground, -1, sleeve(this.layout.leadRadius)),
     ];
     group.add(targetSleeve, telecomSleeve, ...wires);
 

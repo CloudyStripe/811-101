@@ -117,6 +117,8 @@ export interface LabLayout {
   leads: { signal: Record<SetupId, readonly Point[]>; ground: readonly Point[] };
   /** The wire up the cut face from the line to its access point, from the line upward. */
   risers: Record<SetupId, readonly Point[]>;
+  /** How thick each riser is: a test lead, or the tracer wire itself. */
+  riserRadius: Record<SetupId, number>;
   /** Where the earth-return flow lines converge: the stake's tip, on the cut face. */
   stakeTip: Point;
   /** Trees on the far lawn and street lights on the far sidewalk: small, so the cut face leads. */
@@ -191,13 +193,20 @@ export function labLayout({ depth, equipment = 1 }: LabLayoutOptions): LabLayout
   const lie = 0.12 + leadRadius;
   const out = terminals.signal;
   const back = terminals.ground;
+  // A lead's last stretch: lying in the grass, then climbing to its clip, gently at first, so the
+  // curve drawn through these points never dips into the ground on the way. `dir` is the way the
+  // lead runs along x.
+  const toClip = (clip: Point, dir: 1 | -1): Point[] => [
+    [clip[0] - dir * 0.9 * k, lie, clip[2] - 0.12 * k],
+    [clip[0] - dir * 0.45 * k, lie + 0.02 * k, clip[2] - 0.05 * k],
+    [clip[0] - dir * 0.18 * k, lie + 0.45 * (clip[1] - lie), clip[2] - 0.01],
+    clip,
+  ];
   const signalLead = (clip: Point): Point[] => [
     out,
     [out[0] + 0.25 * k, lie + 0.1 * k, out[2] + 0.2 * k],
     [out[0] + 0.7 * k, lie, out[2] + 0.35 * k],
-    [clip[0] - 0.7 * k, lie, clip[2] - 0.15 * k],
-    [clip[0] - 0.25 * k, (lie + clip[1]) / 2, clip[2]],
-    clip,
+    ...toClip(clip, 1),
   ];
   const leads = {
     signal: {
@@ -209,9 +218,7 @@ export function labLayout({ depth, equipment = 1 }: LabLayoutOptions): LabLayout
       [back[0] - 0.25 * k, lie + 0.1 * k, back[2] + 0.15 * k],
       [back[0] - 0.8 * k, lie, back[2] + 0.4 * k],
       [stake.x + 6, lie, -1.4],
-      [stake.x + 0.25 * k, lie, -0.25 * k],
-      [stake.x + 0.1 * k, (lie + terminals.stake[1]) / 2, -0.05],
-      terminals.stake,
+      ...toClip(terminals.stake, -1),
     ],
   } satisfies LabLayout['leads'];
   const risers: Record<SetupId, readonly Point[]> = {
@@ -290,6 +297,7 @@ export function labLayout({ depth, equipment = 1 }: LabLayoutOptions): LabLayout
     terminals,
     leadRadius,
     leads,
+    riserRadius: { steel: 0.035, plastic: lines.tracer.radius },
     risers,
     stakeTip: [stake.x, stake.tip, 0.12],
     trees,
@@ -347,18 +355,28 @@ export function tallView(layout: LabLayout): View {
   return slabView(layout, -58, 24, { margin: 0.03, labelRoom: 18, fov: 50 });
 }
 
-/** A screen or free area this much taller than wide gets the tall view. */
+/** A screen or free area this much taller than wide gets the tall view... */
 const TALL = 1.05;
+/**
+ * ...and keeps it until it's no longer this tall: a window dragged across the line doesn't rebuild
+ * the block back and forth.
+ */
+const STILL_TALL = 0.95;
 
 /**
  * Which view suits the screen: the tall view on a screen held upright, whatever strip of it the
  * controls leave free, or in a free area taller than wide, as beside the controls on a phone held
- * sideways; the wide view otherwise. A free area can also ask for one or the other.
+ * sideways; the wide view otherwise. A free area can also ask for one or the other. Given the view
+ * shown `now`, a screen near the line keeps it.
  */
-export function viewKind(area: VisibleArea, canvas: { width: number; height: number }): ViewKind {
-  const tall =
-    area.portrait ?? (canvas.height > canvas.width * TALL || area.height > area.width * TALL);
-  return tall ? 'tall' : 'wide';
+export function viewKind(
+  area: VisibleArea,
+  canvas: { width: number; height: number },
+  now?: ViewKind,
+): ViewKind {
+  if (area.portrait !== undefined) return area.portrait ? 'tall' : 'wide';
+  const k = now === 'tall' ? STILL_TALL : TALL;
+  return canvas.height > canvas.width * k || area.height > area.width * k ? 'tall' : 'wide';
 }
 
 /** A view of the layout: from in front, or at three-quarters. */

@@ -273,7 +273,7 @@ export function buildSetup(layout: LabLayout, setup: SetupId): Group {
         ),
         MATERIALS.graphite(),
       ),
-      cable(risers.steel, 0.035, MATERIALS.graphite()),
+      cable(risers.steel, layout.riserRadius.steel, MATERIALS.graphite()),
     );
     return group;
   }
@@ -303,7 +303,7 @@ export function buildSetup(layout: LabLayout, setup: SetupId): Group {
       new CylinderGeometry(0.37 * k, 0.37 * k, 0.05 * k, 32).translate(a.x, 0.2 * k, a.z),
       MATERIALS.yellowPost(),
     ),
-    cable(risers.plastic, tr.radius, MATERIALS.tracer()),
+    cable(risers.plastic, layout.riserRadius.plastic, MATERIALS.tracer()),
   );
   return group;
 }
