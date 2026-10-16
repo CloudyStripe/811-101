@@ -10,7 +10,8 @@ export default defineConfig({
   retries: 0,
   // CI runners render with software WebGL on fewer cores, so give each test more room there.
   timeout: process.env.CI ? 180_000 : 90_000,
-  expect: { timeout: 15_000 },
+  // And give each check more time there, for the same reason.
+  expect: { timeout: process.env.CI ? 30_000 : 15_000 },
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
     baseURL: `http://localhost:${port}/811-101/`,

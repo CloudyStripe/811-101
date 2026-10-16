@@ -19,7 +19,7 @@ import {
   stopById,
 } from '../../content/utilities/gas-petroleum.ts';
 import { stopName, stopSummary } from '../../src/pages/gas-petroleum/summary.ts';
-import { countFrames, expect, isMoving, test, waitReady } from './fixtures.ts';
+import { MOTION_WAIT, countFrames, expect, isMoving, test, waitReady } from './fixtures.ts';
 
 async function open(page: Page, query = '') {
   await page.goto(`utilities/gas-petroleum/?tier=low${query}`);
@@ -216,6 +216,8 @@ test('the fork offers both paths, and the keys follow the path chosen', async ({
 test('the overview turns within its bounds, by buttons and keys, and sets straight', async ({
   page,
 }) => {
+  // A dozen camera moves, each drawn in software.
+  test.slow();
   await open(page);
   const left = dock(page).getByRole('button', { name: 'Turn left' });
   const right = dock(page).getByRole('button', { name: 'Turn right' });
@@ -244,6 +246,8 @@ test('the overview turns within its bounds, by buttons and keys, and sets straig
 });
 
 test('a definition shows on hover, and the time-lapse plays on request', async ({ page }) => {
+  // Two loads of the diorama, and a time-lapse played through, in software.
+  test.slow();
   await open(page);
   const term = guide(page)
     .locator('.term-wrap')
@@ -283,7 +287,9 @@ test.describe('with motion', () => {
   test('the overview stays alive, and the pause stills it', async ({ page }) => {
     const frames = await countFrames(page);
     await open(page);
-    await expect.poll(() => isMoving(page, frames), { message: 'the overview moves' }).toBe(true);
+    await expect
+      .poll(() => isMoving(page, frames), { message: 'the overview moves', timeout: MOTION_WAIT })
+      .toBe(true);
     await dock(page).getByRole('button', { name: 'Pause the motion' }).click();
     // Still once two whole seconds pass without a frame (one asked for may land late), and then
     // it stays still.
@@ -303,7 +309,10 @@ test.describe('with motion', () => {
     expect(await isMoving(page, frames), 'and stays still').toBe(false);
     await dock(page).getByRole('button', { name: 'Play the motion' }).click();
     await expect
-      .poll(() => isMoving(page, frames), { message: 'playing, it moves again' })
+      .poll(() => isMoving(page, frames), {
+        message: 'playing, it moves again',
+        timeout: MOTION_WAIT,
+      })
       .toBe(true);
   });
 });

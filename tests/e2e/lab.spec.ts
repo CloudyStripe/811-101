@@ -4,7 +4,7 @@
  * plays; the knob steps on a click; and the key finds each line in the view.
  */
 import type { Locator, Page } from '@playwright/test';
-import { countFrames, expect, isMoving, test } from './fixtures.ts';
+import { MOTION_WAIT, countFrames, expect, isMoving, test } from './fixtures.ts';
 
 type Watched = Window & { labelProblems?: string[] };
 
@@ -87,7 +87,9 @@ test.describe('with motion', () => {
   test('pausing holds the signal still, and playing starts it again', async ({ page }) => {
     const frames = await countFrames(page);
     await open(page);
-    await expect.poll(() => isMoving(page, frames), { message: 'the signal moves' }).toBe(true);
+    await expect
+      .poll(() => isMoving(page, frames), { message: 'the signal moves', timeout: MOTION_WAIT })
+      .toBe(true);
 
     // Named for what it does next.
     await page.getByRole('button', { name: 'Pause the signal' }).click();
@@ -113,7 +115,10 @@ test.describe('with motion', () => {
     await play.click();
     await expect(page.getByRole('button', { name: 'Pause the signal' })).toBeVisible();
     await expect
-      .poll(() => isMoving(page, frames), { message: 'playing, the signal moves again' })
+      .poll(() => isMoving(page, frames), {
+        message: 'playing, the signal moves again',
+        timeout: MOTION_WAIT,
+      })
       .toBe(true);
   });
 });
@@ -127,6 +132,8 @@ test.describe('with reduced motion', () => {
     const png = await page.locator('canvas').screenshot({
       // Everything over the canvas is hidden, so only the 3D view itself is measured.
       style: '.labels, [data-chrome] { visibility: hidden !important; }',
+      // The first frame after a change can take a while in software WebGL.
+      timeout: 60_000,
     });
     return page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -152,6 +159,8 @@ test.describe('with reduced motion', () => {
   }
 
   test('the view keeps drawing through changes', async ({ page }) => {
+    // Four changes, each with a screenshot drawn in software.
+    test.slow();
     await open(page);
     await exercise(page, async (step) => {
       expect(await canvasSpread(page), `${step} draws`).toBeGreaterThan(8);

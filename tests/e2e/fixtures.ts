@@ -46,17 +46,25 @@ export async function countFrames(page: Page): Promise<() => Promise<number>> {
 
 /**
  * Whether a view is moving: drawing frame after frame over the given time. A single frame isn't
- * motion: one asked for before a pause can land late when software WebGL is busy.
+ * motion: one asked for before a pause can land late when software WebGL is busy. The window is
+ * long enough for two frames even when software WebGL, starved by other tests, draws under one a
+ * second.
  */
 export async function isMoving(
   page: Page,
   frames: () => Promise<number>,
-  ms = 1500,
+  ms = 3000,
 ): Promise<boolean> {
   const before = await frames();
   await page.waitForTimeout(ms);
   return (await frames()) - before >= 2;
 }
+
+/**
+ * How long to wait for a view to show motion it should have: software WebGL, sharing the machine
+ * with other tests, can take many seconds to draw again after a change.
+ */
+export const MOTION_WAIT = 45_000;
 
 /**
  * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
