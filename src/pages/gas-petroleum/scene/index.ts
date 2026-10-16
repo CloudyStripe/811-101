@@ -21,6 +21,7 @@ import {
 import { disposeObject } from '../../../kit3d/dispose.ts';
 import { LabelLayer, type Label } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
+import { setGroundGrade } from '../../../kit3d/materials.ts';
 import { createPost, preloadPost } from '../../../kit3d/post.ts';
 import type { Tier } from '../../../kit3d/quality.ts';
 import { SceneRuntime } from '../../../kit3d/runtime.ts';
@@ -30,7 +31,14 @@ import { DetailLayer, type Rect } from './details.ts';
 import { buildGround } from './ground.ts';
 import { MODEL_BOX } from './layout.ts';
 import { buildRoutes } from './routes.ts';
-import { TURN_LIMIT, clampYaw, overviewPoints, overviewView, stopView } from './shots.ts';
+import {
+  TURN_LIMIT,
+  clampYaw,
+  nightGradeAt,
+  overviewPoints,
+  overviewView,
+  stopView,
+} from './shots.ts';
 import { buildStops } from './stops/index.ts';
 import { CLOCK_AT, type TimeLapse, type TimeLapseState } from './timelapse.ts';
 
@@ -196,7 +204,6 @@ async function buildDiorama(
   const models = buildStops(timeLapse);
   const ground = buildGround(models.flatMap((m) => padsOn(m.root)));
   const routes = buildRoutes();
-  for (const m of models) m.setLamps?.(THEMES[o.theme].scene.lamps);
   const stops = models.map((model) => ({
     id: model.id,
     model,
@@ -211,7 +218,6 @@ async function buildDiorama(
   const pathDims: Record<'gas' | 'gasoline', number> = { gas: 0, gasoline: 0 };
   scene.add(ground.group, routes.group, ...models.map((m) => m.root));
   for (const m of models) for (const pop of m.pops) pop.visible = false;
-  applyFade();
   timeLapse.current?.onChange((state) => {
     details.setClock(clockShown() ? clockText(state.ma) : null);
     labelsDirty = true;
@@ -298,6 +304,7 @@ async function buildDiorama(
       if (t >= 1) flight = null;
       labelsDirty = true;
     }
+    gradeGround();
     const following = moving && stops.some((s) => s.id === shown && s.follows);
     if (labelsDirty || lapsing || following) {
       placeLabels();
@@ -341,14 +348,22 @@ async function buildDiorama(
     return { shared: 0.35, gas: path === 'gas' ? 1 : 0.3, gasoline: path === 'gasoline' ? 1 : 0.3 };
   }
 
-  /** The quiet gray faded stops and routes lean toward, for the theme. */
-  function applyFade() {
+  /**
+   * What the theme sets besides the light: the quiet gray faded stops and routes lean toward, the
+   * ground's night grade, and the lamps and lit windows.
+   */
+  function applyTheme() {
     const tokens = THEMES[theme].scene;
     setDimColor(tokens.fade);
     routes.setDimColor(tokens.fade);
+    gradeGround();
+    ground.setLamps(tokens.lamps);
+    for (const m of models) m.setLamps?.(tokens.lamps);
   }
 
   const overviewMustSee = overviewPoints(models);
+  /** How far the overview's camera stands from what it looks at, in the room the view has now. */
+  let overviewReach = Infinity;
   const currentView = () => {
     const model = shown ? models.find((m) => m.id === shown) : undefined;
     return model ? stopView(model) : overviewView(overviewMustSee, yaw);
@@ -358,7 +373,16 @@ async function buildDiorama(
   function target(): { area: VisibleArea; pose: CameraPose } {
     const area = o.visibleArea();
     cam.setLayout(runtime.stage.width, runtime.stage.height, area);
+    const overview = cam.poseFor(overviewView(overviewMustSee, 0));
+    overviewReach = overview.position.distanceTo(overview.target);
     return { area, pose: cam.poseFor(currentView()) };
+  }
+
+  /** The ground's night grade, by how near the camera is (`nightGradeAt`). By day there's none. */
+  function gradeGround() {
+    const pose = cam.pose();
+    const share = pose.position.distanceTo(pose.target) / overviewReach;
+    setGroundGrade(THEMES[theme].scene.ground, nightGradeAt(share));
   }
 
   /** Frames the current view at once. */
@@ -442,6 +466,7 @@ async function buildDiorama(
   // Built: the first framing, compiled, then the loop.
   await runtime.init();
   frameNow();
+  applyTheme();
   document.documentElement.dataset.sceneStage = 'compile';
   for (const m of models) for (const pop of m.pops) pop.visible = true;
   await runtime.compile([scene]);
@@ -480,8 +505,7 @@ async function buildDiorama(
       theme = next;
       const tokens = THEMES[theme].scene;
       lighting.setTheme(tokens);
-      for (const m of models) m.setLamps?.(tokens.lamps);
-      applyFade();
+      applyTheme();
       renderer.shadowMap.needsUpdate = true;
       redraw();
     },

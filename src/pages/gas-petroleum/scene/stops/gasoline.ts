@@ -320,7 +320,7 @@ export function delivery(): StopModel {
 
 export function pump(): StopModel {
   const { finishes, parts } = start();
-  parts.box(11.5, 0.06, 11.4, C.concrete, 23.4, 0, 17.9, { cast: false, finish: 'matte' });
+  parts.box(11.5, 0.06, 11.4, C.concrete, 23.4, 0, 17.9, { cast: false, finish: 'ground' });
   // The canopy over the pumps.
   parts.box(6.4, 0.45, 4.4, C.tank, 23.5, 3.6, 18);
   parts.box(6.46, 0.16, 4.46, C.machineDark, 23.5, 3.72, 18);

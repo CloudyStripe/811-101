@@ -47,6 +47,20 @@ export interface DirectionalTokens {
 }
 
 /**
+ * How the ground's cover is drawn: lawns, plants, paths, roads and pads. By day as it is; at night
+ * dimmer, grayer and cooler, so a close view reads as night and lamps' pools show warm on it. Built
+ * things and the cut face keep their colors.
+ */
+export interface GroundGrade {
+  /** How much darker, from 0 to 1. */
+  dim: number;
+  /** How far toward gray, from 0 to 1. */
+  gray: number;
+  /** The hue it leans toward. Only the hue counts: the tint never changes how bright it is. */
+  tint: string;
+}
+
+/**
  * The 3D scene's sky and light. Material colors stay the same in both themes; the sky and the
  * lights change, and night lifts its light so the scene still reads.
  */
@@ -77,6 +91,7 @@ export interface SceneTokens {
   lamps: number;
   /** What stops off the chosen path fade toward: a quiet gray, never the sky's blue. */
   fade: string;
+  ground: GroundGrade;
 }
 
 export interface Theme {
@@ -120,6 +135,7 @@ export const THEMES: Record<ThemeName, Theme> = {
       lineGlow: 0,
       lamps: 0,
       fade: '#d9dde3',
+      ground: { dim: 0, gray: 0, tint: '#ffffff' },
     },
   },
   dark: {
@@ -156,6 +172,8 @@ export const THEMES: Record<ThemeName, Theme> = {
       lineGlow: 0.22,
       lamps: 1,
       fade: '#3a4250',
+      // Moonlit grass: darker and grayer, cooled by the moon, still grass. Lamps' pools show on it.
+      ground: { dim: 0.4, gray: 0.45, tint: '#eef2f8' },
     },
   },
 };

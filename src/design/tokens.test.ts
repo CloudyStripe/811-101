@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FLAME_GLOW } from '../pages/gas-petroleum/scene/kit.ts';
 import { DataUtils } from 'three';
 import { BACKDROP_STOPS, backdropAt, backdropTexture } from '../kit3d/backdrop.ts';
-import { GLINT_CAP, tint } from '../kit3d/materials.ts';
+import { GLINT_CAP, groundGrade, tint } from '../kit3d/materials.ts';
 import { BLOOM_THRESHOLD } from '../kit3d/post.ts';
 import { inversePbrNeutral, pbrNeutral } from '../kit3d/tonemap.ts';
 import { LAMP_GLOW, WINDOW_GLOW } from '../kit3d/world.ts';
@@ -295,6 +295,69 @@ describe('the ground stays ground', () => {
         }
       }
     }
+  });
+});
+
+describe('the ground at night', () => {
+  // The ground's cover as the screen shows it, lit by the key light and tone mapped: by day as it
+  // is, and by moonlight dimmer and grayer, so a close view reads as night, yet still grass.
+  const linear = (hex: string): [number, number, number] => {
+    const { r, g, b } = hexToRgb(hex);
+    return [srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)];
+  };
+  /** A color in linear light as the screen shows it, lit to `k` times by the theme's key light. */
+  const lit = (rgb: readonly number[], name: ThemeName, k: number) => {
+    const key = linear(THEMES[name].scene.key.color);
+    const [r, g, b] = pbrNeutral([
+      (rgb[0] ?? 0) * key[0] * k,
+      (rgb[1] ?? 0) * key[1] * k,
+      (rgb[2] ?? 0) * key[2] * k,
+    ]);
+    return linearRgbToOklch({ r, g, b });
+  };
+  const plants = {
+    grass: MATERIAL_COLORS.grass,
+    patch: MATERIAL_COLORS.grassPatch,
+    shrub: WORLD_COLORS.shrub,
+    foliage: WORLD_COLORS.foliage,
+  };
+
+  it('leaves the ground as it is by day', () => {
+    const day = THEMES.light.scene.ground;
+    for (const hex of [...Object.values(plants), MATERIAL_COLORS.concrete]) {
+      groundGrade(linear(hex), day).forEach((c, i) => {
+        expect(c, hex).toBeCloseTo(linear(hex)[i] ?? 0, 6);
+      });
+    }
+  });
+
+  it.each(Object.entries(plants))('draws %s dimmer and grayer by moonlight', (_name, hex) => {
+    const night = THEMES.dark.scene.ground;
+    for (const k of [0.35, 1]) {
+      const plain = lit(linear(hex), 'dark', k);
+      const graded = lit(groundGrade(linear(hex), night), 'dark', k);
+      expect(plain.l - graded.l, `at ${String(k)}x`).toBeGreaterThanOrEqual(0.07);
+      expect(graded.c, `at ${String(k)}x`).toBeLessThanOrEqual(plain.c * 0.6);
+    }
+  });
+
+  it.each(Object.entries(plants))(
+    'keeps %s green by moonlight, far from the blue of drinking water',
+    (_name, hex) => {
+      const night = THEMES.dark.scene.ground;
+      const water = lit(linear(APWA.blue.fill), 'dark', 1);
+      const graded = lit(groundGrade(linear(hex), night), 'dark', 1);
+      expect(graded.h).toBeGreaterThan(130);
+      expect(graded.h).toBeLessThan(185);
+      expect(hueDistance(graded.h, water.h)).toBeGreaterThanOrEqual(75);
+    },
+  );
+
+  it('tints the hue only, never the brightness', () => {
+    const tinted = { dim: 0, gray: 1, tint: THEMES.dark.scene.ground.tint };
+    const [r, g, b] = groundGrade(linear('#808080'), tinted);
+    const [gr] = linear('#808080');
+    expect(0.2126 * r + 0.7152 * g + 0.0722 * b).toBeCloseTo(gr, 6);
   });
 });
 

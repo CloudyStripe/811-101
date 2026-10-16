@@ -1,9 +1,9 @@
 /**
  * Building a stop's parts: boxes, cylinders, balls, rods and shapes, placed in the model's units.
- * Everything that holds still merges into one mesh per finish (glossy paint, matte or metal),
- * colored per vertex, and each moving part (a group the stop animates) merges into meshes of its
- * own, so a whole stop costs a few draw calls. Every part of a stop shares the stop's materials,
- * so the stop can fade back as one when the path filter dims it.
+ * Everything that holds still merges into one mesh per finish (glossy paint, matte, metal, or the
+ * ground's cover), colored per vertex, and each moving part (a group the stop animates) merges
+ * into meshes of its own, so a whole stop costs a few draw calls. Every part of a stop shares the
+ * stop's materials, so the stop can fade back as one when the path filter dims it.
  */
 import {
   BoxGeometry,
@@ -31,9 +31,15 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { FINISH } from '../../../design/tokens.ts';
-import type { Finish, GroundRect } from '../../../kit3d/materials.ts';
+import { gradeAsGround, type Finish, type GroundRect } from '../../../kit3d/materials.ts';
 
 export type Point = readonly [number, number, number];
+
+/**
+ * A part's finish: glossy paint, matte or metal, or `ground` for the ground's cover, what lies on
+ * the lawn or grows from it (pads, roads, paths, plants): matte, and graded at night with the lawn.
+ */
+export type PartFinish = Finish | 'ground';
 
 export interface PartOptions {
   /** Rotations about x, y and z, in radians, applied in that order. */
@@ -41,10 +47,10 @@ export interface PartOptions {
   ry?: number;
   rz?: number;
   /**
-   * How the part is finished: glossy paint (the default, for built things), matte (for what grows
-   * or lies on the ground, and roofs), or metal (steel).
+   * How the part is finished: glossy paint (the default, for built things), matte (roofs, and
+   * natural things), metal (steel), or ground (pads, roads, paths and plants).
    */
-  finish?: Finish;
+  finish?: PartFinish;
   /** Casts a shadow (default true). Flat things on the ground and on the cut face don't. */
   cast?: boolean;
   /** Radial segments for round parts. */
@@ -59,6 +65,8 @@ export interface Finishes {
   paint: MeshStandardMaterial;
   matte: MeshStandardMaterial;
   metal: MeshStandardMaterial;
+  /** Matte, and graded at night with the lawn. */
+  ground: MeshStandardMaterial;
   /** Fades a material of the stop's own (glass, a glow, puffs) along with its finishes. */
   track<M extends MeshStandardMaterial | MeshBasicMaterial>(material: M): M;
   /** How far the stop is faded back, 0 to 1. */
@@ -102,11 +110,14 @@ export function createFinishes(): Finishes {
   const paint = new MeshPhysicalMaterial({ vertexColors: true, metalness: 0, ...FINISH.paint });
   const matte = new MeshStandardMaterial({ vertexColors: true, metalness: 0, ...FINISH.matte });
   const metal = new MeshStandardMaterial({ vertexColors: true, ...FINISH.metal });
-  for (const material of [paint, matte, metal]) fade(material, dim);
+  const ground = new MeshStandardMaterial({ vertexColors: true, metalness: 0, ...FINISH.matte });
+  for (const material of [paint, matte, metal, ground]) fade(material, dim);
+  gradeAsGround(ground);
   return {
     paint,
     matte,
     metal,
+    ground,
     track(material) {
       fade(material, dim);
       return material;
@@ -118,7 +129,7 @@ export function createFinishes(): Finishes {
 }
 
 /** Still parts by finish, and whether they cast a shadow. */
-type Bucket = Record<`${Finish}${'' | 'Flat'}`, BufferGeometry[]>;
+type Bucket = Record<`${PartFinish}${'' | 'Flat'}`, BufferGeometry[]>;
 
 const UP = new Vector3(0, 1, 0);
 const color = new Color();
@@ -337,7 +348,7 @@ export class Parts {
   finish(): Group {
     for (const [object, bucket] of this.buckets) {
       const groups: [BufferGeometry[], Material, boolean][] = (
-        ['paint', 'matte', 'metal'] as const
+        ['paint', 'matte', 'metal', 'ground'] as const
       ).flatMap((finish) => [
         [bucket[finish], this.finishes[finish], true],
         [bucket[`${finish}Flat`], this.finishes[finish], false],
@@ -361,7 +372,16 @@ export class Parts {
   private bucket(object: Object3D): Bucket {
     let b = this.buckets.get(object);
     if (!b) {
-      b = { paint: [], paintFlat: [], matte: [], matteFlat: [], metal: [], metalFlat: [] };
+      b = {
+        paint: [],
+        paintFlat: [],
+        matte: [],
+        matteFlat: [],
+        metal: [],
+        metalFlat: [],
+        ground: [],
+        groundFlat: [],
+      };
       this.buckets.set(object, b);
     }
     return b;

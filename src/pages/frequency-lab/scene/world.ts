@@ -23,7 +23,7 @@ export function buildScenery(layout: LabLayout): Scenery {
     layout.lamps.map((l) => ({ ...l, facing: Math.PI })),
     WORLD_COLORS,
     // Low, like the trees, so the cut face stays the biggest thing in view.
-    { height: 14, reach: 3, pool: { y: 0.1, radius: 5 } },
+    { height: 14, reach: 3, pool: { y: 0.1, radius: 5, strength: 0.26 } },
   );
   group.add(
     foot.mesh,

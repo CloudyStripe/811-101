@@ -1,7 +1,8 @@
 /**
  * Scenery around a model: a soft contact shadow, and instanced low-poly trees, shrubs and street
- * lights. Everything here is scenery: no APWA hues, few draw calls. At night the lamps light up
- * (`setLamps`), with pools of light on the street.
+ * lights. Everything here is scenery: no APWA hues, few draw calls. Trees and shrubs are the
+ * ground's cover, graded at night with the lawn; at night the lamps light up (`setLamps`), with
+ * pools of light on the street.
  */
 import {
   AdditiveBlending,
@@ -116,12 +117,12 @@ export function buildTrees(spots: readonly TreeSpot[], palette: WorldPalette, se
   group.name = 'trees';
   const trunks = new InstancedMesh(
     new CylinderGeometry(0.28, 0.4, 1, 7).translate(0, 0.5, 0),
-    surface(palette.trunk, { finish: 'matte' }),
+    surface(palette.trunk, { finish: 'matte', ground: true }),
     spots.length,
   );
   const canopies = new InstancedMesh(
     crown(),
-    surface('#ffffff', { finish: 'matte' }),
+    surface('#ffffff', { finish: 'matte', ground: true }),
     spots.length,
   );
   const holder = new Object3D();
@@ -160,7 +161,11 @@ export interface ShrubSpot {
 /** Shrubs: low, round bushes sitting on the lawn, one draw call for the lot. */
 export function buildShrubs(spots: readonly ShrubSpot[], palette: WorldPalette, seed = 11): Mesh {
   const rand = mulberry32(seed);
-  const shrubs = new InstancedMesh(crown(), surface('#ffffff', { finish: 'matte' }), spots.length);
+  const shrubs = new InstancedMesh(
+    crown(),
+    surface('#ffffff', { finish: 'matte', ground: true }),
+    spots.length,
+  );
   shrubs.name = 'shrubs';
   const holder = new Object3D();
   const base = new Color(palette.shrub);
@@ -209,17 +214,19 @@ export interface LampSpot {
 
 /**
  * Street lights: poles, arms and lamp heads, with pools of light on the street at night. The
- * pools lie on the roadway, out past the lamp head, where a street light throws its light.
+ * pools lie on the roadway, out past the lamp head, where a street light throws its light. `size`
+ * scales the poles' girth and the heads, for a model smaller than life; a pool's `strength` is how
+ * much light it adds at its middle, at full night.
  */
 export function buildStreetLights(
   spots: readonly LampSpot[],
   palette: WorldPalette,
-  { height = 21, reach = 5, pool = { y: 0.1, radius: 7 } } = {},
+  { height = 21, reach = 5, size = 1, pool = { y: 0.1, radius: 7, strength: 0.26 } } = {},
 ): Scenery {
   const group = new Group();
   group.name = 'street-lights';
   const poles = new InstancedMesh(
-    new CylinderGeometry(0.2, 0.28, height, 8).translate(0, height / 2, 0),
+    new CylinderGeometry(0.2 * size, 0.28 * size, height, 8).translate(0, height / 2, 0),
     surface(palette.pole, { finish: 'metal' }),
     spots.length * 2,
   );
@@ -230,7 +237,11 @@ export function buildStreetLights(
     emissiveIntensity: 0,
     roughness: 0.4,
   });
-  const heads = new InstancedMesh(roundedBox(2.2, 0.45, 0.9, 0.12), lampMaterial, spots.length);
+  const heads = new InstancedMesh(
+    roundedBox(2.2 * size, 0.45 * size, 0.9 * size, 0.12 * size),
+    lampMaterial,
+    spots.length,
+  );
   // Pools take the warm color of lamplight, as lit windows do, so they read as light on the street.
   const poolMaterial = new MeshBasicMaterial({
     map: poolTexture(),
@@ -257,14 +268,14 @@ export function buildStreetLights(
     holder.updateMatrix();
     poles.setMatrixAt(i * 2, holder.matrix);
     // The arm: the same pole, thinner and shorter, reaching out from the top toward the street.
-    holder.position.set(s.x, height - 0.4, s.z);
+    holder.position.set(s.x, height - 0.4 * size, s.z);
     holder.quaternion.setFromUnitVectors(up, out.set(dx, 0, dz).normalize());
     holder.scale.set(0.45, reach / height, 0.45);
     holder.updateMatrix();
     poles.setMatrixAt(i * 2 + 1, holder.matrix);
     holder.quaternion.identity();
     holder.rotation.set(0, s.facing, 0);
-    holder.position.set(s.x + dx, height - 0.75, s.z + dz);
+    holder.position.set(s.x + dx, height - 0.75 * size, s.z + dz);
     holder.scale.set(1, 1, 1);
     holder.updateMatrix();
     heads.setMatrixAt(i, holder.matrix);
@@ -283,7 +294,7 @@ export function buildStreetLights(
     group,
     setLamps(level) {
       lampMaterial.emissiveIntensity = level * LAMP_GLOW;
-      poolMaterial.opacity = level * 0.26;
+      poolMaterial.opacity = level * pool.strength;
       pools.visible = level > 0;
     },
   };

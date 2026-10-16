@@ -1,6 +1,7 @@
 /**
  * Material presets: physically based, no photo textures. Surfaces that need richness get a
- * seeded procedural noise in world space instead, and lawns get patches and worn edges.
+ * seeded procedural noise in world space instead, lawns get patches and worn edges, and the
+ * ground's cover is graded for night.
  */
 import {
   Color,
@@ -8,9 +9,10 @@ import {
   MeshStandardMaterial,
   ShaderChunk,
   Vector4,
+  type Material,
   type MeshStandardMaterialParameters,
 } from 'three';
-import { FINISH } from '../design/tokens.ts';
+import { FINISH, type GroundGrade } from '../design/tokens.ts';
 
 /**
  * The brightest a lit surface may be, in the scene's linear light, before tone mapping: well
@@ -179,6 +181,86 @@ ${lawn ? LAWN_GLSL : ''}`,
 }
 
 /**
+ * The ground grade (SceneTokens.ground), shared by every material graded as ground, so a change of
+ * theme compiles nothing.
+ */
+const GRADE = {
+  labGradeDim: { value: 0 },
+  labGradeGray: { value: 0 },
+  labGradeTint: { value: new Color(1, 1, 1) },
+};
+
+const GRADE_UNIFORMS = `uniform float labGradeDim;
+uniform float labGradeGray;
+uniform vec3 labGradeTint;
+`;
+
+/** The grade, as `groundGrade` does it, after everything else the material does to its color. */
+const GRADE_GLSL = /* glsl */ `
+{
+  float labGradeL = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(labGradeL), labGradeGray) * labGradeTint * (1.0 - labGradeDim);
+}
+`;
+
+const WHITE = new Color(1, 1, 1);
+
+/**
+ * A grade's tint in linear light, scaled to a luminance of 1 so it shifts hue, not brightness, and
+ * eased toward white by `strength`.
+ */
+function gradeTint(hex: string, strength: number, target = new Color()): Color {
+  target.set(hex);
+  const l = 0.2126 * target.r + 0.7152 * target.g + 0.0722 * target.b;
+  return target.multiplyScalar(1 / Math.max(l, 1e-4)).lerp(WHITE, 1 - strength);
+}
+
+/**
+ * Sets the ground grade, at a `strength` from 0 (none) to 1 (all of it): every material graded as
+ * ground follows it.
+ */
+export function setGroundGrade(grade: GroundGrade, strength = 1): void {
+  GRADE.labGradeDim.value = grade.dim * strength;
+  GRADE.labGradeGray.value = grade.gray * strength;
+  gradeTint(grade.tint, strength, GRADE.labGradeTint.value);
+}
+
+/** A color in linear light as the grade draws it, as the shader does. */
+export function groundGrade(
+  [r, g, b]: readonly [number, number, number],
+  grade: GroundGrade,
+  strength = 1,
+): [number, number, number] {
+  const tint = gradeTint(grade.tint, strength);
+  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const gray = grade.gray * strength;
+  const k = 1 - grade.dim * strength;
+  return [
+    (r + (l - r) * gray) * tint.r * k,
+    (g + (l - g) * gray) * tint.g * k,
+    (b + (l - b) * gray) * tint.b * k,
+  ];
+}
+
+/**
+ * Grades a material as the ground's cover: at night the ground grade dims, grays and cools its
+ * color, after whatever else the material does to it (noise, a lawn's patches, a fade).
+ */
+export function gradeAsGround<M extends Material>(material: M): M {
+  const before = material.onBeforeCompile.bind(material);
+  const key = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    before(shader, renderer);
+    Object.assign(shader.uniforms, GRADE);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${GRADE_UNIFORMS}`)
+      .replace('#include <alphamap_fragment>', `${GRADE_GLSL}#include <alphamap_fragment>`);
+  };
+  material.customProgramCacheKey = () => `${key()}+ground`;
+  return material;
+}
+
+/**
  * How a surface is finished (FINISH in tokens.ts): glossy paint with a clear coat, matte, or
  * metal. Without one, a surface is a plain, fairly rough material.
  */
@@ -187,15 +269,18 @@ export type Finish = 'paint' | 'matte' | 'metal';
 export interface SurfaceOptions extends MeshStandardMaterialParameters {
   finish?: Finish;
   noise?: NoiseOptions;
+  /** The ground's cover (lawn, plants, paving): graded at night, see `gradeAsGround`. */
+  ground?: boolean;
 }
 
 /**
  * A physically based material from an sRGB hex color, in a finish, optionally with procedural
- * variation. Roughness or metalness given here win over the finish's.
+ * variation, and graded at night if it's the ground's cover. Roughness or metalness given here win
+ * over the finish's.
  */
 export function surface(
   hex: string,
-  { finish, noise, ...params }: SurfaceOptions = {},
+  { finish, noise, ground, ...params }: SurfaceOptions = {},
 ): MeshStandardMaterial {
   const color = new Color(hex);
   const material =
@@ -209,6 +294,7 @@ export function surface(
           ...params,
         });
   if (noise) withNoise(material, noise);
+  if (ground) gradeAsGround(material);
   return material;
 }
 

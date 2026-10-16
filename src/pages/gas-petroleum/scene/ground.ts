@@ -1,8 +1,9 @@
 /**
  * The ground: the block of rock layers the model is cut from, floating in the sky with its shadow
- * under it; the lawn, roads, paths, shrubs and trees on its top; and the harbor behind it. The
- * layers show on every face of the block, each with its own grain. The lawn has patches and wears
- * thin around pads, roads and paths, so it never looks mown flat.
+ * under it; the lawn, roads, paths, shrubs, trees and street lights on its top; and the harbor
+ * behind it. The layers show on every face of the block, each with its own grain. The lawn has
+ * patches and wears thin around pads, roads and paths, so it never looks mown flat. At night the
+ * ground's cover is graded dimmer and cooler, and the lamps throw warm pools of light on it.
  */
 import {
   BufferGeometry,
@@ -17,13 +18,20 @@ import {
 import { DIORAMA_COLORS as C, MATERIAL_COLORS, WORLD_COLORS } from '../../../design/tokens.ts';
 import { surface, type GroundRect, type NoiseOptions } from '../../../kit3d/materials.ts';
 import { mulberry32 } from '../../../kit3d/rng.ts';
-import { buildShrubs, type ShrubSpot } from '../../../kit3d/world.ts';
+import {
+  buildShrubs,
+  buildStreetLights,
+  type LampSpot,
+  type ShrubSpot,
+} from '../../../kit3d/world.ts';
 import { Parts, createFinishes, fixNormals } from './build.ts';
 import { tree } from './kit.ts';
 import { BLOCK, BOUNDARIES, GAS_OIL, HARBOR, OIL_WATER, SITE } from './layout.ts';
 
 export interface Ground {
   group: Group;
+  /** Lamps: 0 off (day) to 1 fully on (night). */
+  setLamps(level: number): void;
 }
 
 /** x values from a to b, about `step` apart. */
@@ -129,6 +137,22 @@ const PATHS = [
   },
 ] as const;
 
+/**
+ * Street lights, lit at night: on both sides of the town's street, between the homes, and along
+ * the walk toward the city gate, and one by the gate itself. Each arm reaches over the ground its
+ * lamp lights.
+ */
+const LAMPS: readonly LampSpot[] = [
+  { x: 24, z: SITE.street.z - 1.2, facing: Math.PI },
+  { x: 32, z: SITE.street.z - 1.2, facing: Math.PI },
+  { x: 40, z: SITE.street.z - 1.2, facing: Math.PI },
+  { x: 30, z: SITE.street.z + 1.2, facing: 0 },
+  { x: 38, z: SITE.street.z + 1.2, facing: 0 },
+  { x: 23.7, z: -5.4, facing: Math.PI / 2 },
+  { x: 23.7, z: -8.4, facing: Math.PI / 2 },
+  { x: SITE.cityGate.x + 2.9, z: SITE.cityGate.z + 2.6, facing: 0.84 },
+];
+
 /** The roads and walks on the lawn, as rectangles: the grass wears thin along them. */
 const ROADS: readonly GroundRect[] = [
   { x0: 14.4, x1: 42, z0: 9.8, z1: 12.2 },
@@ -212,12 +236,17 @@ export function buildGround(pads: readonly GroundRect[] = []): Ground {
   ];
   add(
     new PlaneGeometry(X1 - X0, BLOCK.z1 - BLOCK.z0).rotateX(-Math.PI / 2).translate(0, 0.001, 0),
-    layer(MATERIAL_COLORS.grass, {
-      scale: 2.6,
-      amount: 0.12,
-      lawn: {
-        patch: { hex: MATERIAL_COLORS.grassPatch, scale: 4.5, share: 0.8 },
-        worn: { hex: MATERIAL_COLORS.grassWorn, width: 0.7, around: worn },
+    surface(MATERIAL_COLORS.grass, {
+      finish: 'matte',
+      roughness: 1,
+      ground: true,
+      noise: {
+        scale: 2.6,
+        amount: 0.12,
+        lawn: {
+          patch: { hex: MATERIAL_COLORS.grassPatch, scale: 4.5, share: 0.8 },
+          worn: { hex: MATERIAL_COLORS.grassWorn, width: 0.7, around: worn },
+        },
       },
     }),
   );
@@ -249,9 +278,9 @@ export function buildGround(pads: readonly GroundRect[] = []): Ground {
   );
   group.add(sea);
 
-  // The scenery on top: roads, paths, gentle mounds, trees and shrubs, all matte.
+  // The scenery on top: roads, paths, gentle mounds, trees and shrubs, all the ground's cover.
   const parts = new Parts(createFinishes());
-  const flat = { cast: false, finish: 'matte' } as const;
+  const flat = { cast: false, finish: 'ground' } as const;
   parts.box(27.6, 0.05, 2.4, MATERIAL_COLORS.asphalt, 28.2, 0, 11, flat);
   for (let x = 15.5; x < 41.5; x += 2.1)
     parts.box(1.0, 0.02, 0.12, WORLD_COLORS.trim, x, 0.05, 11, flat);
@@ -338,7 +367,22 @@ export function buildGround(pads: readonly GroundRect[] = []): Ground {
   );
   group.add(buildShrubs(shrubs, WORLD_COLORS));
 
-  return { group };
+  // Street lights at the scale of the homes, their pools as wide as the street, and bright enough
+  // to show warm on the moonlit ground.
+  const lamps = buildStreetLights(LAMPS, WORLD_COLORS, {
+    height: 2.2,
+    reach: 0.45,
+    size: 0.11,
+    pool: { y: 0.09, radius: 1.6, strength: 0.6 },
+  });
+  group.add(lamps.group);
+
+  return {
+    group,
+    setLamps(level) {
+      lamps.setLamps(level);
+    },
+  };
 }
 
 /** A box w by h by d whose base sits at y, centered on x and z. */
