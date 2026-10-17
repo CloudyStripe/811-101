@@ -483,10 +483,35 @@ async function buildDiorama(
     return shownArea ? overviewReach(shownArea) : 1;
   }
 
-  /** The camera's limits in a room: it zooms out to a little past the overview there. */
+  /**
+   * How far the camera must stand to show the whole model in a room from whichever side it's
+   * turned to: on a tall screen, the long side needs much more room than the overview's end-on view.
+   * Kept per room, like the overview.
+   */
+  const allRound = new Map<string, number>();
+  function allRoundReach(area: VisibleArea): number {
+    const { width, height } = runtime.stage;
+    const key = JSON.stringify([width, height, area.x, area.y, area.width, area.height]);
+    const kept = allRound.get(key);
+    if (kept !== undefined) return kept;
+    const reach = Math.max(
+      overviewReach(area),
+      ...[1, 2, 3].map((quarter) => {
+        const view = overviewView(overviewMustSee, tallArea(area), (quarter * Math.PI) / 2);
+        const pose = fitIn(area, { ...view, slide: false });
+        return pose.position.distanceTo(pose.target);
+      }),
+    );
+    allRound.set(key, reach);
+    const oldest = allRound.keys().next().value;
+    if (allRound.size > 8 && oldest !== undefined) allRound.delete(oldest);
+    return reach;
+  }
+
+  /** The camera's limits in a room: it zooms out a little past where the whole model shows. */
   const limitsIn = (area: VisibleArea) => ({
     polar: ORBIT.polar,
-    distance: [ORBIT.near, overviewReach(area) * ORBIT.far] as const,
+    distance: [ORBIT.near, allRoundReach(area) * ORBIT.far] as const,
     bounds: orbitBounds(),
   });
 

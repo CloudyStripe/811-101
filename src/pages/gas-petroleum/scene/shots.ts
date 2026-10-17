@@ -18,6 +18,8 @@ import type { Point } from './build.ts';
 import { BLOCK, HARBOR, MODEL_BOX } from './layout.ts';
 import { focusPoints, type StopModel } from './stop.ts';
 
+const UP = new Vector3(0, 1, 0);
+
 /**
  * The overview, at the middle of the model: from the south and above, or from the east, a little
  * to the south so the cut face shows, and higher, so the model's length rises up the tall screen.
@@ -31,8 +33,9 @@ const OVERVIEW = {
 /**
  * How the reader may move the camera. `polar`: how far it tilts, in radians from straight
  * overhead, from nearly overhead to 12° above level. `near`: the nearest it comes to what it looks
- * at, in model units. `far`: the farthest, as a share of the overview's distance. `floor`: the
- * lowest it looks, in model units, so it always stands above the grass.
+ * at, in model units. `far`: the farthest, as a share of the distance the whole model shows from
+ * any side (on a tall screen, its long side needs more than the overview's). `floor`: the lowest
+ * it looks, in model units, so it always stands above the grass.
  */
 export const ORBIT = {
   polar: [MathUtils.degToRad(3), MathUtils.degToRad(78)] as const,
@@ -77,11 +80,13 @@ export function overviewPoints(models: readonly StopModel[]): Point[] {
 
 /**
  * The overview, from the south on a wide screen or from the east on a tall one, where the model
- * fills the width: names near its sides slide in to fit, rather than keep it narrower.
+ * fills the width: names near its sides slide in to fit, rather than keep it narrower. `turn`
+ * looks from further round, in radians to the right, as the reader may.
  */
-export function overviewView(points: readonly Point[], tall = false): View {
+export function overviewView(points: readonly Point[], tall = false, turn = 0): View {
   const p = (tall ? OVERVIEW.tall : OVERVIEW.wide)
     .clone()
+    .applyAxisAngle(UP, turn)
     .multiplyScalar(100)
     .add(new Vector3(...OVERVIEW.target));
   return {
