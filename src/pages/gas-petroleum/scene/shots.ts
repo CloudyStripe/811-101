@@ -126,6 +126,7 @@ export function overviewView(points: readonly Point[], tall = false, turn = 0): 
     // Controls over a corner (the closed guide's title): the model slides clear, not shrinks.
     slide: true,
     floor: ORBIT.floor,
+    nearestAt,
   };
 }
 
@@ -170,6 +171,7 @@ export function stopShot(model: StopModel): View {
     labelRoom: 60,
     minDistance: ORBIT.near,
     floor: ORBIT.floor,
+    nearestAt,
   };
 }
 

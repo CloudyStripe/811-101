@@ -170,7 +170,7 @@ async function buildDiorama(
   let filter: Filter = 'both';
   /** The free area the view is framed for now. */
   let shownArea: VisibleArea | null = null;
-  /** How far the picture slides off that area's middle, to keep clear of the camera's buttons. */
+  /** How far the picture slides off that area's middle, clear of controls over a corner of it. */
   let shift: Shift = CENTERED;
   /**
    * A glide under way to new room, or a new slide, over `MOTION.panel`: the picture moves along
@@ -445,7 +445,7 @@ async function buildDiorama(
     return pose.position.distanceTo(pose.target);
   };
 
-  /** The open view's framing in a room: the overview, or the stop's shot with what fits round it. */
+  /** The open view's framing in a room: the overview, or the open stop's shot. */
   function poseIn(area: VisibleArea): CameraPose {
     const model = modelOf(shown);
     if (!model) return overviewPoseIn(area);

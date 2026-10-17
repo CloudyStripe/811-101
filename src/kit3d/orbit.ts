@@ -66,6 +66,9 @@ export interface OrbitHooks {
 /** How near a limit counts as at it, in radians or as a share of the distance. */
 const AT = 1e-3;
 
+/** How far inside its nearest the camera may stand before it steps back, in scene units. */
+const NEAR_SLACK = 1e-6;
+
 /**
  * How near its end a move counts as at rest, in radians and scene units: about a pixel at the
  * model's edge. camera-controls would ease on to within a hundred-thousandth, over frames no one
@@ -85,8 +88,6 @@ export class OrbitRig {
   private readonly reach: [number, number] = [0, 0];
   private readonly bounds = new Box3();
   private nearestAt: ((height: number) => number) | null = null;
-  /** How high what the view is headed to look at was, when its nearest was last set. */
-  private nearFor = Number.NaN;
   /** Moves are cuts: with motion reduced, and in capture mode. */
   private instant = false;
   /** camera-controls said the move under way is at rest, so it lands. */
@@ -217,7 +218,6 @@ export class OrbitRig {
     [c.minPolarAngle, c.maxPolarAngle] = polar;
     [c.minDistance, c.maxDistance] = distance;
     c.setBoundary(bounds);
-    this.nearFor = Number.NaN;
     this.keepNear();
     const end = c.getSpherical(this.spherical, true);
     if (end.radius < c.minDistance || end.radius > c.maxDistance) {
@@ -366,6 +366,7 @@ export class OrbitRig {
       this.toEnd();
       moved = this.controls.update(0) || moved;
     }
+    if (this.holdNear()) moved = this.controls.update(0) || moved;
     if (moved) this.camera.updateMatrixWorld();
     return moved;
   }
@@ -392,22 +393,38 @@ export class OrbitRig {
     );
   }
 
+  /** The nearest the camera may stand to what it looks at, that high. */
+  private nearestFor(height: number): number {
+    return Math.max(this.reach[0], this.nearestAt?.(height) ?? 0);
+  }
+
   /**
-   * Holds the camera no nearer than what it's headed to look at allows (`nearestAt`), stepping
-   * back if it's headed nearer.
+   * Holds a move no nearer than what it's headed to look at allows (`nearestAt`): one headed
+   * nearer, as a shot fitted close or a zoom, steps back.
    */
   private keepNear(): void {
     const c = this.controls;
-    const height = c.getTarget(this.target, true).y;
-    if (height === this.nearFor) return;
-    this.nearFor = height;
-    const near = Math.max(this.reach[0], this.nearestAt?.(height) ?? 0);
-    if (near === c.minDistance) return;
+    const near = this.nearestFor(c.getTarget(this.target, true).y);
     c.minDistance = near;
-    if (c.getSpherical(this.spherical, true).radius < near) {
+    if (c.getSpherical(this.spherical, true).radius < near - NEAR_SLACK) {
       void c.dollyTo(near, !this.instant);
       this.hooks.wake();
     }
+  }
+
+  /**
+   * Holds the camera, now, no nearer than what it looks at now allows: a quick pan lowers what it
+   * looks at faster than the distance eases out, and for those frames it would dip under the
+   * ground. Whether it stepped back.
+   */
+  private holdNear(): boolean {
+    const c = this.controls;
+    const near = this.nearestFor(c.getTarget(this.target, false).y);
+    if (c.distance >= near - NEAR_SLACK) return false;
+    const headed = c.getSpherical(this.spherical, true).radius;
+    c.distance = near;
+    if (headed > near) void c.dollyTo(headed, !this.instant);
+    return true;
   }
 
   /** Puts the camera where the move under way is headed. */

@@ -145,6 +145,24 @@ describe('fitShot', () => {
     expect(e.pose.position.distanceTo(free.pose.position)).toBeLessThan(1e-6);
   });
 
+  it('looks no lower than its floor: along the same line, from the same place, the same picture', () => {
+    const free = extent(SHOT, WIDE);
+    const floor = free.pose.target.y + 1;
+    const e = extent({ ...SHOT, floor }, WIDE);
+    expect(e.pose.target.y).toBeCloseTo(floor, 6);
+    expect(e.pose.position.distanceTo(free.pose.position)).toBeLessThan(1e-6);
+    const look = (x: typeof e) => x.pose.target.clone().sub(x.pose.position).normalize();
+    expect(look(e).dot(look(free))).toBeGreaterThan(0.999999);
+  });
+
+  it('stands no nearer than its nearest for how high it looks, stepping back along its line', () => {
+    const free = extent(SHOT, WIDE);
+    const near = free.pose.position.distanceTo(free.pose.target) * 1.5;
+    const e = extent({ ...SHOT, nearestAt: () => near }, WIDE);
+    expect(e.pose.position.distanceTo(e.pose.target)).toBeCloseTo(near, 6);
+    expect(e.pose.target.distanceTo(free.pose.target)).toBeLessThan(1e-6);
+  });
+
   it('gives a finite pose for a single point', () => {
     const { pose } = extent({ ...SHOT, mustSee: [[5, 1, 0]] }, WIDE);
     for (const n of [...pose.position.toArray(), ...pose.target.toArray()]) {

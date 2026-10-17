@@ -27,6 +27,8 @@ export interface View {
   slide?: boolean;
   /** The lowest the camera may look at: fitted lower, it looks along the same line, higher up. */
   floor?: number;
+  /** The nearest the camera may stand to what it looks at, by how high that is. */
+  nearestAt?: (height: number) => number;
   /**
    * The vertical field of view across the whole canvas, in degrees, if not the camera's own. A
    * wider one brings the camera in closer, so the near field looms larger against the far.
@@ -123,6 +125,7 @@ export class LabCamera {
         keepOut: (v.keepOut ?? []).map((box) => toFitRect(box, v)),
         slide: view.slide,
         floor: view.floor,
+        nearestAt: view.nearestAt,
       },
       fov,
       { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },

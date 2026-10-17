@@ -50,6 +50,11 @@ export interface Shot {
    * to meet it: the same picture, from the same place.
    */
   floor?: number;
+  /**
+   * The nearest the camera may stand to what it looks at, by how high that is. Fitted nearer, it
+   * steps back along its line of sight: the same view, a little smaller.
+   */
+  nearestAt?: (height: number) => number;
 }
 
 /**
@@ -220,7 +225,10 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
         (floor - cam.position.y) / (target.y - cam.position.y),
       );
     }
-    return { position: cam.position.clone(), target: looked, shift };
+    const from = cam.position.clone();
+    const near = shot.nearestAt?.(looked.y) ?? 0;
+    if (from.distanceTo(looked) < near) from.copy(looked).addScaledVector(dir, near);
+    return { position: from, target: looked, shift };
   };
   if (centered <= unhindered / SLIDE_GAIN) return pose(centered, CENTERED);
 

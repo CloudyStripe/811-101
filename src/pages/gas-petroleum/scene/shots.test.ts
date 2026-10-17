@@ -33,20 +33,20 @@ const models = buildStops({ current: null });
  */
 const LAYOUTS: { name: string; canvas: { width: number; height: number }; area: VisibleArea }[] = [
   {
-    // Left of the guide, above the camera's buttons (and the dock below them).
+    // Left of the guide, above the row of the dock and the camera's buttons.
     name: 'desktop, guide open',
     canvas: { width: 1440, height: 900 },
-    area: { x: 0, y: 58, width: 1032, height: 572 },
+    area: { x: 0, y: 58, width: 1032, height: 692 },
   },
   {
-    // The whole width, above the buttons, clear of the closed guide's title bar.
+    // The whole width, above that row, clear of the closed guide's title bar.
     name: 'desktop, guide closed',
     canvas: { width: 1440, height: 900 },
     area: {
       x: 0,
       y: 58,
       width: 1440,
-      height: 572,
+      height: 692,
       keepOut: [{ x: 997, y: 66, width: 427, height: 54 }],
     },
   },
@@ -57,10 +57,11 @@ const LAYOUTS: { name: string; canvas: { width: number; height: number }; area: 
     area: { x: 0, y: 58, width: 390, height: 546 },
   },
   {
-    // Held sideways: the column beside the guide and the dock, above the buttons.
+    // Held sideways: the column beside the guide and the dock, below the header and above the
+    // buttons.
     name: 'phone held sideways',
     canvas: { width: 667, height: 375 },
-    area: { x: 356, y: 0, width: 311, height: 317 },
+    area: { x: 356, y: 58, width: 311, height: 259 },
   },
   {
     // Between the header and the buttons over the open sheet.
@@ -71,6 +72,28 @@ const LAYOUTS: { name: string; canvas: { width: number; height: number }; area: 
 ];
 
 const tall = (area: VisibleArea) => area.height > area.width * 1.05;
+
+/** More screens, their rooms worked out as the page does, roughly: for the camera's limits. */
+const SWEEP = [
+  ...[
+    [1280, 720],
+    [1920, 1080],
+    [2560, 1440],
+  ].map(([width = 0, height = 0]) => ({
+    name: `${String(width)} x ${String(height)}`,
+    canvas: { width, height },
+    area: { x: 0, y: 58, width: width - 408, height: height - 208 },
+  })),
+  ...[
+    [844, 390],
+    [932, 430],
+    [1280, 560],
+  ].map(([width = 0, height = 0]) => ({
+    name: `${String(width)} x ${String(height)}, short`,
+    canvas: { width, height },
+    area: { x: 356, y: 58, width: width - 356, height: height - 116 },
+  })),
+];
 
 /** The camera, framed for this view in this room. */
 function framedFor(view: View, layout: (typeof LAYOUTS)[number]) {
@@ -131,7 +154,7 @@ function shotIn(model: StopModel, layout: (typeof LAYOUTS)[number]) {
 describe('stop shots', () => {
   for (const layout of LAYOUTS) {
     it.each(models.map((m) => [m.id, m] as const))(
-      `${layout.name}: %s shows all it must, at the middle of the room, as the biggest thing in it`,
+      `${layout.name}: %s shows all it must, centered in the room and filling it`,
       (_id, model) => {
         const { shot } = shotIn(model, layout);
         expectFramed(shot, layout);
@@ -155,7 +178,8 @@ describe('stop shots', () => {
           shot.margin,
         );
         const fills = Math.max((x1 - x0) / (2 * limit.x), (y1 - y0) / (2 * limit.y));
-        const nearest = distanceFor(shot, layout) <= ORBIT.near * 1.01;
+        const { pose } = framedFor(shot, layout);
+        const nearest = pose.position.distanceTo(pose.target) <= nearestAt(pose.target.y) * 1.01;
         expect(fills >= 0.98 || nearest, `fills ${fills.toFixed(2)}`).toBe(true);
       },
     );
@@ -171,12 +195,18 @@ describe('stop shots', () => {
     }
   });
 
-  it('stands no nearer to any stop than the camera may come to what it looks at, in every room', () => {
-    for (const layout of LAYOUTS) {
-      for (const m of models) {
-        const { pose } = framedFor(stopShot(m), layout);
-        const distance = pose.position.distanceTo(pose.target);
-        expect(distance, `${layout.name}: ${m.id}`).toBeGreaterThanOrEqual(
+  it('looks, at every stop and the overview, at a point within the pan bounds, from no nearer than it may come, on screens of every shape', () => {
+    const bounds = orbitBounds().expandByScalar(1e-6);
+    for (const layout of [...LAYOUTS, ...SWEEP]) {
+      const overview = overviewView(overviewPoints(models), tall(layout.area));
+      for (const [id, view] of [
+        ['overview', overview] as const,
+        ...models.map((m) => [m.id, stopShot(m)] as const),
+      ]) {
+        const { pose } = framedFor(view, layout);
+        const at = `${layout.name}: ${id}`;
+        expect(bounds.containsPoint(pose.target), at).toBe(true);
+        expect(pose.position.distanceTo(pose.target), at).toBeGreaterThanOrEqual(
           nearestAt(pose.target.y) - 1e-6,
         );
       }
@@ -224,25 +254,6 @@ describe('the overview', () => {
 });
 
 describe("the camera's limits", () => {
-  it('looks, framed, at a point within the bounds the reader pans in: the overview and every stop, in every room', () => {
-    const bounds = orbitBounds().expandByScalar(1e-6);
-    for (const layout of LAYOUTS) {
-      const overview = overviewView(overviewPoints(models), tall(layout.area));
-      const views = [
-        { id: 'overview', view: overview },
-        ...models.map((m) => ({ id: m.id, view: shotIn(m, layout).shot })),
-      ];
-      for (const { id, view } of views) {
-        const { target } = framedFor(view, layout).pose;
-        const at = target
-          .toArray()
-          .map((n) => n.toFixed(1))
-          .join(',');
-        expect(bounds.containsPoint(target), `${layout.name}: ${id} at ${at}`).toBe(true);
-      }
-    }
-  });
-
   it('goes all the way round in 18 turns of a button or key', () => {
     expect(ORBIT_STEP.turn * 18).toBeCloseTo(Math.PI * 2);
   });
