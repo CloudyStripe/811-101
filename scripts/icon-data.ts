@@ -42,6 +42,10 @@ export const ICONS = {
   check: 'check',
   'turn-left': 'arrow-counter-clockwise',
   'turn-right': 'arrow-clockwise',
+  // The diorama's camera buttons, as on a map: zoom, and setting the view back, a compass.
+  'zoom-in': 'plus',
+  'zoom-out': 'minus',
+  compass: 'compass',
   // The lab's guide, and its key to the colors and marks in the view.
   guide: 'book-open-text',
   key: 'swatches',

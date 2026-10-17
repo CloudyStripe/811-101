@@ -1,12 +1,12 @@
 /**
- * Camera framing: a fixed view of the scene, fitted to the part of the canvas the panel or sheet
- * leaves free. The view doesn't move with the pointer; it's framed so the lesson needs no turning
- * or zooming. Each view names the points that must be in it, and the fit (fit.ts) places the
- * camera so they all sit inside the free area, centered, at any size, and out from under any
- * controls that sit over it.
+ * Camera framing: a view of the scene, fitted to the part of the canvas the panel or sheet leaves
+ * free. Each view names the points that must be in it, and the fit (fit.ts) places the camera so
+ * they all sit inside the free area, centered, at any size, and out from under any controls that
+ * sit over it. The lab's view holds still, framed so the lesson needs no turning or zooming; the
+ * diorama's camera rig (orbit.ts) starts from a framed view and moves on from there.
  */
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
-import { fitShot, type FitRect, type Point3 } from './fit.ts';
+import { CENTERED, fitShot, type FitRect, type Point3, type Shift } from './fit.ts';
 
 export interface View {
   /** Where the camera looks from and at; only the direction between them counts. */
@@ -20,6 +20,15 @@ export interface View {
   minDistance?: number;
   /** CSS pixels kept clear at the free area's sides for labels on points near them. */
   labelRoom?: number;
+  /**
+   * The picture may slide off center to clear controls over the free area, where that lets the
+   * camera stand nearer than pulling back would (`CameraPose.shift`).
+   */
+  slide?: boolean;
+  /** The lowest the camera may look at: fitted lower, it looks along the same line, higher up. */
+  floor?: number;
+  /** The nearest the camera may stand to what it looks at, by how high that is. */
+  nearestAt?: (height: number) => number;
   /**
    * The vertical field of view across the whole canvas, in degrees, if not the camera's own. A
    * wider one brings the camera in closer, so the near field looms larger against the far.
@@ -48,6 +57,11 @@ export interface CameraPose {
   position: Vector3;
   target: Vector3;
   fov: number;
+  /**
+   * How far the picture slides off the free area's middle, for a view that may slide: the free
+   * area's layout applies it (`setLayout`). Left out, none.
+   */
+  shift?: Shift;
 }
 
 /** A pose part way from one to another. */
@@ -109,6 +123,9 @@ export class LabCamera {
         minDistance: view.minDistance,
         labelRoom: view.labelRoom,
         keepOut: (v.keepOut ?? []).map((box) => toFitRect(box, v)),
+        slide: view.slide,
+        floor: view.floor,
+        nearestAt: view.nearestAt,
       },
       fov,
       { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },
@@ -137,12 +154,20 @@ export class LabCamera {
     this.camera.updateMatrixWorld();
   }
 
-  /** Updates the visible area and shifts the projection so the target sits at its center. */
-  setLayout(canvasWidth: number, canvasHeight: number, visible: VisibleArea): void {
+  /**
+   * Updates the visible area and shifts the projection so the target sits at its center, or slid
+   * from it by `shift` (in the area's -1 to 1 units, y up).
+   */
+  setLayout(
+    canvasWidth: number,
+    canvasHeight: number,
+    visible: VisibleArea,
+    shift: Shift = CENTERED,
+  ): void {
     this.canvasSize = { width: canvasWidth, height: canvasHeight };
     this.visible = visible;
-    const offsetX = canvasWidth / 2 - (visible.x + visible.width / 2);
-    const offsetY = canvasHeight / 2 - (visible.y + visible.height / 2);
+    const offsetX = canvasWidth / 2 - (visible.x + (visible.width / 2) * (1 + shift.x));
+    const offsetY = canvasHeight / 2 - (visible.y + (visible.height / 2) * (1 - shift.y));
     if (Math.abs(offsetX) < 0.5 && Math.abs(offsetY) < 0.5) this.camera.clearViewOffset();
     else
       this.camera.setViewOffset(

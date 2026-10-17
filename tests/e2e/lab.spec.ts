@@ -5,7 +5,7 @@
  * a phone with the guide open, the labels show as icons that show their names on a tap.
  */
 import type { Locator, Page } from '@playwright/test';
-import { MOTION_WAIT, countFrames, expect, isMoving, test } from './fixtures.ts';
+import { MOTION_WAIT, countFrames, expect, isMoving, test, waitStill } from './fixtures.ts';
 
 type Watched = Window & { labelProblems?: string[] };
 
@@ -98,21 +98,9 @@ test.describe('with motion', () => {
     await page.getByRole('button', { name: 'Pause the signal' }).click();
     const play = page.getByRole('button', { name: 'Play the signal' });
     await expect(play).toBeVisible();
-    // The frame already asked for still lands, late when software WebGL is busy, so the view is
-    // still once two whole seconds pass without a frame. Then it stays still.
-    let last = -1;
-    let quiet = 0;
-    await expect
-      .poll(
-        async () => {
-          const now = await frames();
-          quiet = now === last ? quiet + 1 : 0;
-          last = now;
-          return quiet;
-        },
-        { message: 'paused, the view holds still', intervals: [1000] },
-      )
-      .toBeGreaterThanOrEqual(2);
+    // The frame already asked for still lands, late when software WebGL is busy; then it stays
+    // still.
+    await waitStill(page, 'paused, the view holds still');
     expect(await isMoving(page, frames), 'and stays still').toBe(false);
 
     await play.click();

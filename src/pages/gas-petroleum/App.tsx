@@ -8,13 +8,14 @@ import {
 } from '../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../design/icons.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
+import { TAP_SLOP } from '../../kit3d/input.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
 import { darkQuery, resolvedTheme } from '../../site/theme.ts';
 import { useSettings } from '../../site/useSettings.ts';
-import type { DioramaScene, Filter, Rect } from './scene/index.ts';
+import type { AtLimits, DioramaScene, Filter, Rect } from './scene/index.ts';
 import {
   FORK,
   PATHS,
@@ -42,6 +43,7 @@ import {
   neighbors,
 } from './ui/Panels.tsx';
 import { StopLabel } from './ui/StopLabel.tsx';
+import { ViewControls } from './ui/ViewControls.tsx';
 
 const PAGE = pageById('gas-petroleum');
 
@@ -70,14 +72,19 @@ const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
 const sheetLayout = () => phoneQuery.matches || shortQuery.matches;
 /** Phones tall enough that the open sheet leaves the top of the view showing. */
 const tallPhoneQuery = matchMedia('(max-width: 760px) and (min-height: 681px)');
-/** Layouts where an open sheet covers the whole view. */
-const sheetCovers = () => sheetLayout() && !tallPhoneQuery.matches;
+/**
+ * Layouts where an open sheet covers the whole view: a small phone held upright. Held sideways, the
+ * sheet takes the view's column, and the view moves to the column it leaves, above the dock.
+ */
+const sheetCovers = () => phoneQuery.matches && !shortQuery.matches && !tallPhoneQuery.matches;
 /** Wide enough for the guide to start open beside the view. */
 const roomyQuery = matchMedia('(min-width: 1280px)');
-/** One step of a turn from the dock or the keys, in radians. */
-const TURN_STEP = (12 * Math.PI) / 180;
-/** Which end of its bounds the overview is turned to, if either: -1 left, 1 right, else 0. */
-const edgeOf = (turned: number): -1 | 0 | 1 => (turned <= -0.999 ? -1 : turned >= 0.999 ? 1 : 0);
+/** A screen worked by touch: the hint says to pinch, not scroll. */
+const touchQuery = matchMedia('(pointer: coarse)');
+/** Two taps this close in time (ms) and place (px) on open ground center the view there. */
+const DOUBLE_TAP = { ms: 350, px: 24 };
+/** No limits reached: where the camera starts, as far as the buttons know. */
+const FREE: AtLimits = { tiltUp: false, tiltDown: false, zoomIn: false, zoomOut: false };
 
 const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 
@@ -140,11 +147,17 @@ export function App() {
     ma: 0,
     caption: 5,
   });
-  /** Which end of its bounds the overview is turned to, if either, so a turn button can stop. */
-  const [turned, setTurned] = useState<-1 | 0 | 1>(0);
+  /** The limits the camera stands at, so a camera button says when its move goes no further. */
+  const [limits, setLimits] = useState<AtLimits>(FREE);
+  /** The 3D view is built, and shows. */
+  const [ready, setReady] = useState(false);
+  /** The reader has moved the camera this visit: the first-move hint is done with. */
+  const [moved, setMoved] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [settings] = useSettings();
   const sheet = useSheetLayout();
+  /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
+  const covered = sheet && sheetOpen && sheetCovers();
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
@@ -189,19 +202,47 @@ export function App() {
       return area;
     };
     const freeArea = (box: DOMRect): VisibleArea => {
-      if (shortQuery.matches) {
-        // Short screens: right of the column of controls.
-        const left = (rectOf('.gp-dock')?.right ?? box.left) - box.left + 8;
-        return { x: left, y: 0, width: Math.max(160, box.width - left), height: box.height };
-      }
+      // The camera's buttons sit in the view's lower right corner on every layout: the view is
+      // framed above them, as it is beside the guide, so nothing it frames sits under them.
+      const buttons = rectOf('.gp-camera');
+      const above = (bottom: number) =>
+        buttons ? Math.min(bottom, buttons.top - box.top - 8) : bottom;
       const top = (rectOf('.site-header')?.bottom ?? 0) - box.top;
-      if (phoneQuery.matches) {
-        // Phones: between the header and the sheet below the view.
-        const bottom = (rectOf('.gp-panel')?.top ?? box.bottom) - box.top;
-        return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
+      if (shortQuery.matches) {
+        const dock = rectOf('.gp-dock');
+        if (live.current.sheetOpen) {
+          // Short screens, the sheet open in the view's column: the column it left, above the dock.
+          const x = (dock?.left ?? box.left) - box.left;
+          const bottom = (dock?.top ?? box.bottom) - box.top - 8;
+          return {
+            x,
+            y: top,
+            width: Math.max(160, dock?.width ?? box.width / 2),
+            height: Math.max(120, bottom - top),
+          };
+        }
+        // Short screens: right of the column of controls, below the header and above the
+        // camera's buttons.
+        const left = (dock?.right ?? box.left) - box.left + 8;
+        return {
+          x: left,
+          y: top,
+          width: Math.max(160, box.width - left),
+          height: Math.max(120, above(box.height) - top),
+        };
       }
-      // Wider screens: left of the open panel, the full height, with the dock kept clear, and the
-      // closed panel's title bar too.
+      if (phoneQuery.matches) {
+        // Phones: between the header and the camera's buttons, over the sheet.
+        const bottom = (rectOf('.gp-panel')?.top ?? box.bottom) - box.top;
+        return {
+          x: 0,
+          y: top,
+          width: box.width,
+          height: Math.max(120, above(bottom) - top),
+        };
+      }
+      // Wider screens: left of the open panel, above the camera's buttons and the dock beside or
+      // below them, clear of the closed panel's title bar.
       const panel = rectOf('.gp-panel');
       const open = live.current.panelOpen;
       const right = Math.max(160, panel && open ? panel.left - box.left - 8 : box.width);
@@ -209,8 +250,8 @@ export function App() {
         x: 0,
         y: top,
         width: right,
-        height: Math.max(120, box.height - top),
-        keepOut: controlsOver(box, open ? ['.gp-dock'] : ['.gp-dock', '.gp-panel']),
+        height: Math.max(120, above(box.height) - top),
+        keepOut: open ? [] : controlsOver(box, ['.gp-panel']),
       };
     };
 
@@ -238,6 +279,10 @@ export function App() {
           visibleArea,
           noGo,
           onTimeLapse: setTimeLapse,
+          onLimits: setLimits,
+          onMoved: () => {
+            setMoved(true);
+          },
           onContextLost: () => {
             setFailed(
               "The 3D view paused because the graphics context was lost. It usually comes back on its own; if it doesn't, reload the page.",
@@ -258,6 +303,8 @@ export function App() {
         scene.setPaused(now.paused);
         scene.setFilter(now.filter);
         scene.nameLabels(now.named);
+        setLimits(scene.limits);
+        setReady(true);
         if (now.stop) scene.show(now.stop, { fly: false });
         else {
           // Arriving: the view comes in from farther out, unless motion is reduced; any input
@@ -312,12 +359,7 @@ export function App() {
       firstStop.current = false;
       return;
     }
-    const scene = sceneRef.current;
-    if (scene) {
-      scene.show(stop);
-      // A stop sets the overview straight again, for when it's back.
-      setTurned(edgeOf(scene.turned));
-    }
+    sceneRef.current?.show(stop);
     const url = new URL(location.href);
     if (stop) url.searchParams.set('stop', stop);
     else url.searchParams.delete('stop');
@@ -472,87 +514,131 @@ export function App() {
   }, [viewKey]);
 
   // ← and → step through the stops (or a journey's steps), unless focus is in something that uses
-  // them: a radio group, a quiz, a field, or the view while it's on the overview, which they turn.
+  // them: a radio group, a quiz, a field, or the view, which they turn. The page listens once, and
+  // a key acts on the page as last drawn: listening again after each change, as an effect does a
+  // frame later, let a key pressed in between act on the page as it was before.
+  const onArrow = useRef<(event: KeyboardEvent) => void>(() => undefined);
+  onArrow.current = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
+    if (target?.closest('canvas')) return;
+    const forward = event.key === 'ArrowRight';
+    if (journey) {
+      if (journey.quiz) return;
+      event.preventDefault();
+      if (forward) journeyNext();
+      else journeyBack();
+      return;
+    }
+    if (!stop) return;
+    const { prev, next } = neighbors(stop, lean);
+    const to = forward ? (lean === 'gasoline' && next.length > 1 ? next[1] : next[0]) : prev;
+    if (to) {
+      event.preventDefault();
+      open(to);
+    }
+  };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
-      if (!stop && target?.closest('canvas')) return;
-      const forward = event.key === 'ArrowRight';
-      if (journey) {
-        if (journey.quiz) return;
-        event.preventDefault();
-        if (forward) journeyNext();
-        else journeyBack();
-        return;
-      }
-      if (!stop) return;
-      const { prev, next } = neighbors(stop, lean);
-      const to = forward ? (lean === 'gasoline' && next.length > 1 ? next[1] : next[0]) : prev;
-      if (to) {
-        event.preventDefault();
-        open(to);
-      }
+      onArrow.current(event);
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
     };
-  });
-
-  /** Turns the overview, and notes whether that reached either end of its bounds. */
-  function turnBy(by: number, ease: boolean) {
-    const scene = sceneRef.current;
-    if (!scene) return;
-    scene.turn(by, { ease });
-    setTurned(edgeOf(scene.turned));
-  }
+  }, []);
 
   /**
-   * The canvas: a tap or click opens what's under it; in the overview, a drag across turns the
-   * model, as the turn buttons and the arrow keys do. One finger or the main button only.
+   * The canvas: a tap or click opens what's under it, and twice on open ground centers the view
+   * there. Drags, the wheel and pinches move the camera (the scene's own); a press that wanders,
+   * or that another finger joins, is one of those, not a tap.
    */
-  const drag = useRef<{ x: number; y: number; moved: boolean; id: number } | null>(null);
+  const press = useRef<{ x: number; y: number; id: number; joined: boolean } | null>(null);
+  const lastTap = useRef<{ x: number; y: number; at: number } | null>(null);
   function onPointerDown(event: PointerEvent) {
+    if (press.current) press.current.joined = true;
     if (!event.isPrimary || event.button !== 0) return;
-    drag.current = { x: event.clientX, y: event.clientY, moved: false, id: event.pointerId };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }
-  function onPointerMove(event: PointerEvent) {
-    const d = drag.current;
-    if (d?.id !== event.pointerId) return;
-    const dx = event.clientX - d.x;
-    // A press that wanders is a drag, not a tap, whichever way it goes.
-    if (!d.moved && Math.hypot(dx, event.clientY - d.y) < 6) return;
-    d.moved = true;
-    d.x = event.clientX;
-    d.y = event.clientY;
-    if (!live.current.stop) turnBy(-dx * 0.006, false);
+    press.current = { x: event.clientX, y: event.clientY, id: event.pointerId, joined: false };
   }
   function onPointerUp(event: PointerEvent) {
-    const d = drag.current;
-    if (d?.id !== event.pointerId) return;
-    drag.current = null;
-    if (d.moved) return;
+    const p = press.current;
+    if (p?.id !== event.pointerId) return;
+    press.current = null;
+    if (p.joined || Math.hypot(event.clientX - p.x, event.clientY - p.y) >= TAP_SLOP) return;
     const canvas = canvasRef.current;
     const scene = sceneRef.current;
     if (!canvas || !scene) return;
     const r = canvas.getBoundingClientRect();
-    const id = scene.pick(event.clientX - r.left, event.clientY - r.top);
-    if (id) open(id);
-  }
-  function onCanvasKey(event: KeyboardEvent) {
-    if (!sceneRef.current || stop) return;
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      event.preventDefault();
-      turnBy(event.key === 'ArrowLeft' ? -TURN_STEP : TURN_STEP, true);
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      sceneRef.current.resetTurn();
-      setTurned(0);
+    const x = event.clientX - r.left;
+    const y = event.clientY - r.top;
+    const id = scene.pick(x, y);
+    if (id) {
+      lastTap.current = null;
+      open(id);
+      return;
     }
+    const last = lastTap.current;
+    const now = performance.now();
+    if (
+      last &&
+      now - last.at < DOUBLE_TAP.ms &&
+      Math.hypot(x - last.x, y - last.y) < DOUBLE_TAP.px
+    ) {
+      lastTap.current = null;
+      scene.centerAt(x, y);
+      setMoved(true);
+    } else {
+      lastTap.current = { x, y, at: now };
+    }
+  }
+  /**
+   * With the view focused: the arrows turn and tilt it, + and − zoom, Shift and the arrows pan,
+   * and Home sets it back.
+   */
+  function onCanvasKey(event: KeyboardEvent) {
+    const scene = sceneRef.current;
+    if (!scene || event.altKey || event.ctrlKey || event.metaKey) return;
+    const pan = event.shiftKey;
+    const moves: Record<string, (() => void) | undefined> = {
+      ArrowLeft: () => {
+        if (pan) scene.pan(-1, 0);
+        else scene.turn(-1);
+      },
+      ArrowRight: () => {
+        if (pan) scene.pan(1, 0);
+        else scene.turn(1);
+      },
+      ArrowUp: () => {
+        if (pan) scene.pan(0, 1);
+        else scene.tilt(1);
+      },
+      ArrowDown: () => {
+        if (pan) scene.pan(0, -1);
+        else scene.tilt(-1);
+      },
+      '+': () => {
+        scene.zoom(1);
+      },
+      '=': () => {
+        scene.zoom(1);
+      },
+      '-': () => {
+        scene.zoom(-1);
+      },
+      _: () => {
+        scene.zoom(-1);
+      },
+      Home: () => {
+        scene.resetView();
+      },
+    };
+    const move = moves[event.key];
+    if (!move) return;
+    event.preventDefault();
+    move();
+    setMoved(true);
   }
 
   function refreshLabels() {
@@ -700,16 +786,16 @@ export function App() {
       onOverview={() => {
         open(null);
       }}
-      onTurn={(direction) => {
-        turnBy(direction * TURN_STEP, true);
-      }}
-      onReset={() => {
-        sceneRef.current?.resetTurn();
-        setTurned(0);
-      }}
-      turned={turned}
     />
   );
+
+  /** Any camera button: the camera moves, and the hint is done with. */
+  const moveBy = (move: (scene: DioramaScene) => void) => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    move(scene);
+    setMoved(true);
+  };
 
   return (
     <div
@@ -717,19 +803,18 @@ export function App() {
       data-sheet={sheetOpen ? 'open' : 'closed'}
       data-panel={panelOpen ? 'open' : 'closed'}
     >
-      <main class="stage" ref={stageRef} inert={sheet && sheetOpen && sheetCovers()}>
+      <main class="stage" ref={stageRef} inert={covered}>
         <canvas
           ref={canvasRef}
           class="gp-canvas"
           role="img"
           tabIndex={0}
-          aria-label="3D model of how natural gas and gasoline are made, moved and used. In the overview, the arrow keys turn it and Home sets it straight."
+          aria-label="3D model of how natural gas and gasoline are made, moved and used. Drag to turn it, scroll or pinch to zoom, and right-drag or use two fingers to move it. With it focused, the arrow keys turn and tilt it, plus and minus zoom, Shift and the arrows move it, and Home sets it back."
           aria-describedby="gp-status"
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={() => {
-            drag.current = null;
+            press.current = null;
           }}
           onKeyDown={onCanvasKey}
         />
@@ -759,6 +844,51 @@ export function App() {
           ))}
         </div>
       </main>
+
+      {/*
+        Until the first move: how to move the view, which labels keep clear of. It never takes the
+        pointer, and holds its place out of sight until the view is built.
+      */}
+      {failed === null && (
+        <p
+          class="gp-hint"
+          aria-hidden="true"
+          data-ready={ready ? '' : undefined}
+          data-covered={covered ? '' : undefined}
+          data-gone={moved ? '' : undefined}
+          data-chrome={moved ? undefined : ''}
+        >
+          {touchQuery.matches ? 'Drag to turn · Pinch to zoom' : 'Drag to turn · Scroll to zoom'}
+        </p>
+      )}
+
+      {failed === null && (
+        <ViewControls
+          ready={ready}
+          covered={covered}
+          limits={limits}
+          onZoom={(direction) => {
+            moveBy((scene) => {
+              scene.zoom(direction);
+            });
+          }}
+          onTurn={(direction) => {
+            moveBy((scene) => {
+              scene.turn(direction);
+            });
+          }}
+          onTilt={(direction) => {
+            moveBy((scene) => {
+              scene.tilt(direction);
+            });
+          }}
+          onReset={() => {
+            moveBy((scene) => {
+              scene.resetView();
+            });
+          }}
+        />
+      )}
 
       {failed && (
         <p class="stage-message" role="status">

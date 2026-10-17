@@ -372,8 +372,11 @@ export const MOTION = {
   micro: 120,
   ui: 200,
   panel: 320,
-  /** Camera flights, scaled by distance between these. */
-  flight: [900, 1600],
+  /**
+   * About how long a camera move takes to settle: to a place (a stop, a step, back to the view's
+   * own framing), and the view following a drag.
+   */
+  settle: { move: 350, drag: 120 },
   /** The establishing move on arrival, at most; any input skips it. */
   establish: 2500,
   ease: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
