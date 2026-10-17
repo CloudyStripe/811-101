@@ -89,11 +89,15 @@ export function OverviewPanel(props: {
       </div>
       <ul class="howto">
         <li>Open any labeled place, or a stop on the map, to learn about it.</li>
-        <li>Drag the model, or use the turn buttons, to look around it.</li>
+        <li>
+          Drag the model to turn it, scroll or pinch to zoom, and right-drag or use two fingers to
+          move it; double-click or double-tap to center it on a spot. The buttons in its corner
+          turn, tilt and zoom it too.
+        </li>
         <li>Underlined words have short definitions. Hover or tap them.</li>
         <li>
-          Keyboard: ← and → step through the stops. With the model focused, the arrow keys turn it
-          and Home sets it straight.
+          Keyboard: ← and → step through the stops. With the model focused, the arrow keys turn and
+          tilt it, + and − zoom, Shift and the arrows move it, and Home sets it back.
         </li>
       </ul>
     </>

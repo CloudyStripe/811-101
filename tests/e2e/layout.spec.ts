@@ -358,7 +358,8 @@ for (const size of SIZES.filter((s) =>
         () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
       );
       expect(overflow, 'page taller than the screen').toBeLessThanOrEqual(1);
-      const controls = '.gp-dock button, .gp-dock [role="radio"], .gp-panel .sheet-toggle';
+      const controls =
+        '.gp-dock button, .gp-dock [role="radio"], .gp-camera button, .gp-panel .sheet-toggle';
       const count = await page.locator(controls).count();
       for (let i = 0; i < count; i++) {
         if (!(await page.locator(controls).nth(i).isVisible())) continue;
