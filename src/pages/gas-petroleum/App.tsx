@@ -15,7 +15,7 @@ import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
 import { darkQuery, resolvedTheme } from '../../site/theme.ts';
 import { useSettings } from '../../site/useSettings.ts';
-import type { AtLimits, DioramaScene, Filter, Rect, StopContext } from './scene/index.ts';
+import type { AtLimits, DioramaScene, Filter, Rect } from './scene/index.ts';
 import {
   FORK,
   PATHS,
@@ -304,10 +304,8 @@ export function App() {
         scene.nameLabels(now.named);
         setLimits(scene.limits);
         setReady(true);
-        if (now.stop) {
-          const n = neighbors(now.stop, 'gas');
-          scene.show(now.stop, { fly: false, context: { prev: n.prev, next: n.next[0] ?? null } });
-        } else {
+        if (now.stop) scene.show(now.stop, { fly: false });
+        else {
           // Arriving: the view comes in from farther out, unless motion is reduced; any input
           // lands it at once.
           scene.establish();
@@ -360,7 +358,7 @@ export function App() {
       firstStop.current = false;
       return;
     }
-    sceneRef.current?.show(stop, { context: stop ? contextOf(stop) : {} });
+    sceneRef.current?.show(stop);
     const url = new URL(location.href);
     if (stop) url.searchParams.set('stop', stop);
     else url.searchParams.delete('stop');
@@ -454,21 +452,6 @@ export function App() {
 
   /** At the fork, with the path still to choose. */
   const waitsAtFork = (j: Journey | null) => j !== null && j.path === null && stopAt(j) === FORK;
-
-  /**
-   * The stops either side of one, which its shot shows where they fit: the journey's steps either
-   * side, or, roaming, the stop's own neighbors, leaning the way the reader leans.
-   */
-  function contextOf(id: StopId): StopContext {
-    if (journey) {
-      const b = back(journey);
-      const f = forward(journey);
-      return { prev: b ? stopAt(b) : null, next: f && !f.quiz ? stopAt(f) : null };
-    }
-    const n = neighbors(id, lean);
-    const next = lean === 'gasoline' && n.next.length > 1 ? n.next[1] : n.next[0];
-    return { prev: n.prev, next: next ?? null };
-  }
 
   /** Asked for from the dock: the guide, and focus on the fork's first way on. */
   const focusChoice = useRef(false);

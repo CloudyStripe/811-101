@@ -37,6 +37,7 @@ import { buildRoutes } from './routes.ts';
 import {
   ORBIT,
   ORBIT_STEP,
+  nearestAt,
   nightGradeAt,
   orbitBounds,
   overviewPoints,
@@ -49,12 +50,6 @@ import { CLOCK_AT, type TimeLapse, type TimeLapseState } from './timelapse.ts';
 export type { Rect };
 export type { AtLimits };
 export type Filter = PathId | 'both';
-
-/** The stops either side of an open one, which its shot shows where they fit. */
-export interface StopContext {
-  prev?: StopId | null;
-  next?: StopId | null;
-}
 
 export interface DioramaSceneOptions {
   canvas: HTMLCanvasElement;
@@ -82,11 +77,8 @@ export interface DioramaSceneOptions {
 }
 
 export interface DioramaScene {
-  /**
-   * Opens a stop, or the overview for null, with the stops either side to show where they fit.
-   * The view flies there, unless `fly` is false.
-   */
-  show(stop: StopId | null, options?: { fly?: boolean; context?: StopContext }): void;
+  /** Opens a stop, or the overview for null. The view flies there, unless `fly` is false. */
+  show(stop: StopId | null, options?: { fly?: boolean }): void;
   /** Fades back the path not chosen; 'both' shows both. The open stop never fades. */
   setFilter(filter: Filter): void;
   setTheme(theme: ThemeName): void;
@@ -173,8 +165,6 @@ async function buildDiorama(
   /** Seconds of motion so far: the clock every machine and bead runs on. */
   let time = 3;
   let shown: StopId | null = null;
-  /** The stops either side of the open one, which its shot shows where they fit. */
-  let context: StopContext = {};
   /** The stops whose labels the story names, besides the open one's. */
   let named: ReadonlySet<string> = new Set();
   let filter: Filter = 'both';
@@ -459,15 +449,7 @@ async function buildDiorama(
   function poseIn(area: VisibleArea): CameraPose {
     const model = modelOf(shown);
     if (!model) return overviewPoseIn(area);
-    const view = stopShot(
-      model,
-      { prev: modelOf(context.prev), next: modelOf(context.next) },
-      overviewReach(area),
-      (v) => {
-        const pose = fitIn(area, v);
-        return pose.position.distanceTo(pose.target);
-      },
-    );
+    const view = stopShot(model);
     return fitIn(area, view);
   }
 
@@ -513,12 +495,13 @@ async function buildDiorama(
     polar: ORBIT.polar,
     distance: [ORBIT.near, allRoundReach(area) * ORBIT.far] as const,
     bounds: orbitBounds(),
+    nearestAt,
   });
 
   const rig = new OrbitRig(
     camera,
     o.canvas,
-    { polar: ORBIT.polar, distance: [ORBIT.near, 1000], bounds: orbitBounds() },
+    { polar: ORBIT.polar, distance: [ORBIT.near, 1000], bounds: orbitBounds(), nearestAt },
     {
       wake() {
         redraw();
@@ -688,7 +671,6 @@ async function buildDiorama(
         lapse.reset();
       }
       shown = stop;
-      context = options.context ?? {};
       labelsDirty = true;
       reframe(options.fly !== false, { refit: true });
     },

@@ -45,6 +45,11 @@ export interface Shot {
    * nearer than pulling back would. Otherwise the points stay centered.
    */
   slide?: boolean;
+  /**
+   * The lowest the camera may look at. Fitted lower, what it looks at moves up its line of sight
+   * to meet it: the same picture, from the same place.
+   */
+  floor?: number;
 }
 
 /**
@@ -206,7 +211,16 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
       : centered;
   const pose = (distance: number, shift: Shift): Pose => {
     place(distance);
-    return { position: cam.position.clone(), target: target.clone(), shift };
+    const looked = target.clone();
+    const { floor } = shot;
+    if (floor !== undefined && looked.y < floor && cam.position.y > floor) {
+      looked.lerpVectors(
+        cam.position,
+        target,
+        (floor - cam.position.y) / (target.y - cam.position.y),
+      );
+    }
+    return { position: cam.position.clone(), target: looked, shift };
   };
   if (centered <= unhindered / SLIDE_GAIN) return pose(centered, CENTERED);
 

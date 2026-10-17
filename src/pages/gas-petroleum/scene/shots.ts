@@ -1,16 +1,17 @@
 /**
  * The camera's shots and its limits. The overview looks from the south and above on wide screens,
  * and from the east on tall ones, where the model's length then runs into the view and its width
- * fills the screen. Each stop's shot frames its subject with the stops either side where they fit,
- * from no nearer than `STOP_SHOT.near` of the overview's distance and, where it can, no farther
- * than `STOP_SHOT.far`. A shot gives a direction and what must be in view; the fit sets the
- * distance, so it frames the same things in whatever room the guide and the dock leave. How near
- * the camera stands sets how much of the ground's night grade it gets.
+ * fills the screen. Each stop's shot centers its subject and makes it the biggest thing in view;
+ * the stops either side may show at its edges, or just beyond. A shot gives a direction and what
+ * must be in view; the fit sets the distance, so it frames the same things in whatever room the
+ * guide, the dock and the camera's buttons leave. How near the camera stands sets how much of the
+ * ground's night grade it gets.
  *
- * The reader turns the camera all the way round, tilts it within `ORBIT.polar`, zooms within
- * `ORBIT.near` and `ORBIT.far` of the overview's distance, and pans what it looks at within
- * `orbitBounds`. Together these keep it above the grass: what it looks at is never lower than
- * `ORBIT.floor`, and from no nearer than `ORBIT.near`, at its flattest tilt, it stands above it.
+ * The reader turns the camera all the way round, tilts it within `ORBIT.polar`, zooms from
+ * `nearestAt` out to `ORBIT.far` of the distance the whole model shows from, and pans what it
+ * looks at within `orbitBounds`. Together these keep it above the grass: what it looks at is never
+ * lower than `ORBIT.floor`, and the lower it is, the further back the camera stands, so at its
+ * flattest tilt it still clears the grass.
  */
 import { Box3, MathUtils, Vector3 } from 'three';
 import type { View } from '../../../kit3d/camera.ts';
@@ -33,27 +34,54 @@ const OVERVIEW = {
 /**
  * How the reader may move the camera. `polar`: how far it tilts, in radians from straight
  * overhead, from nearly overhead to 12° above level. `near`: the nearest it comes to what it looks
- * at, in model units. `far`: the farthest, as a share of the distance the whole model shows from
- * any side (on a tall screen, its long side needs more than the overview's). `floor`: the lowest
- * it looks, in model units, so it always stands above the grass.
+ * at, in model units, near the grass (lower down, `nearestAt` holds it further back). `far`: the
+ * farthest, as a share of the distance the whole model shows from any side (on a tall screen, its
+ * long side needs more than the overview's). `floor`: the lowest it looks, in model units.
  */
 export const ORBIT = {
   polar: [MathUtils.degToRad(3), MathUtils.degToRad(78)] as const,
-  near: 40,
+  near: 15,
   far: 1.35,
   floor: -8,
 } as const;
 
-/** Where the camera may look as the reader pans: anywhere over the model, the harbor included. */
+/** How high above the grass (y = 0) the camera always stands, at least, in model units. */
+export const CLEARANCE = 1;
+
+/**
+ * The nearest the camera may stand to what it looks at, by how high that is: tilted as flat as it
+ * goes, it stands `distance × cos(polar)` above it, which must clear the grass by `CLEARANCE`.
+ * Near the grass, `ORBIT.near`; at the floor, about 43.
+ */
+export function nearestAt(height: number): number {
+  return Math.max(ORBIT.near, (CLEARANCE - height) / Math.cos(ORBIT.polar[1]));
+}
+
+/** How far in front of the cut face the camera may look, where its underground stops are framed. */
+const FORE = 4;
+
+/**
+ * Where the camera may look as the reader pans: anywhere over the model, the harbor included, and
+ * just in front of the cut face.
+ */
 export function orbitBounds(): Box3 {
   return new Box3(
     new Vector3(BLOCK.x0, ORBIT.floor, HARBOR.z0),
-    new Vector3(BLOCK.x1, MODEL_BOX.max[1], BLOCK.z1),
+    new Vector3(BLOCK.x1, MODEL_BOX.max[1], BLOCK.z1 + FORE),
   );
 }
 
-/** A stop's shot stands this far from what it looks at, as shares of the overview's distance. */
-export const STOP_SHOT = { near: 0.4, far: 0.8 } as const;
+/**
+ * How a stop's shot frames its subject: the room kept round it, as a share of the free area each
+ * way, so it fills the rest, centered, and is the biggest thing in view.
+ */
+export const STOP_SHOT = { margin: 0.3 } as const;
+
+/**
+ * Where the ground's night grade fades, as shares of the overview's distance: all of it from
+ * `full` in, none from `none` out.
+ */
+export const NIGHT_GRADE = { full: 0.8, none: 0.95 } as const;
 
 /** The lowest a stop is looked at from, so its shot shows where it sits on the model. */
 const STOP_ELEVATION = MathUtils.degToRad(18);
@@ -65,7 +93,7 @@ const STOP_ELEVATION = MathUtils.degToRad(18);
  * dark sky reads as night already. Between, as the reader zooms, it fades.
  */
 export function nightGradeAt(share: number): number {
-  return 1 - MathUtils.smoothstep(share, STOP_SHOT.far, 0.95);
+  return 1 - MathUtils.smoothstep(share, NIGHT_GRADE.full, NIGHT_GRADE.none);
 }
 
 /** What the overview must show: the model's corners, and room above every stop's label. */
@@ -95,8 +123,9 @@ export function overviewView(points: readonly Point[], tall = false, turn = 0): 
     mustSee: points,
     margin: tall ? 0.04 : 0.05,
     labelRoom: tall ? 8 : 48,
-    // The camera's buttons sit over a corner: the model slides clear rather than shrinks.
+    // Controls over a corner (the closed guide's title): the model slides clear, not shrinks.
     slide: true,
+    floor: ORBIT.floor,
   };
 }
 
@@ -126,44 +155,22 @@ export function stopAim(model: StopModel): { from: Point; to: Point } {
   return { from: [from.x, from.y, from.z], to: [to.x, to.y, to.z] };
 }
 
-/** A stop's shot, with what else must show: the markers of the stops either side, say. */
-export function stopView(model: StopModel, context: readonly StopModel[] = []): View {
+/**
+ * A stop's shot: its subject (its parts, their details and its label) centered in the room the
+ * view has and the biggest thing in it, from no nearer than the camera comes. The camera's buttons
+ * and the guide leave that room, so nothing slides it off center.
+ */
+export function stopShot(model: StopModel): View {
   const { from, to } = stopAim(model);
   return {
     position: from,
     target: to,
-    mustSee: [...focusPoints(model), ...context.flatMap(markerPoints)],
-    margin: 0.16,
+    mustSee: focusPoints(model),
+    margin: STOP_SHOT.margin,
     labelRoom: 60,
-    slide: true,
+    minDistance: ORBIT.near,
+    floor: ORBIT.floor,
   };
-}
-
-/**
- * A stop's shot in the room the view has: its subject with the stops before and after it, where
- * the camera need stand no farther than `STOP_SHOT.far` of the overview's distance to show them
- * (both, else the next, else the one before, else neither), and never nearer than
- * `STOP_SHOT.near` of it. `distanceOf` fits a view in the room and says how far it stands.
- */
-export function stopShot(
-  model: StopModel,
-  neighbors: { prev?: StopModel; next?: StopModel },
-  overview: number,
-  distanceOf: (view: View) => number,
-): View {
-  const { prev, next } = neighbors;
-  const only = prev ?? next;
-  const tries = prev && next ? [[prev, next], [next], [prev]] : only ? [[only]] : [];
-  const near = overview * STOP_SHOT.near;
-  const shot = (context: readonly StopModel[]): View => ({
-    ...stopView(model, context),
-    minDistance: near,
-  });
-  for (const context of tries) {
-    const view = shot(context);
-    if (distanceOf(view) <= overview * STOP_SHOT.far) return view;
-  }
-  return shot([]);
 }
 
 /**

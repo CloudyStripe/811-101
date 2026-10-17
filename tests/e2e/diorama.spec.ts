@@ -288,13 +288,13 @@ test('the camera turns all the way round by its buttons and keys, in the overvie
   await camera.getByRole('button', { name: 'Reset view' }).click();
   await expect(up).not.toHaveAttribute('aria-disabled', 'true');
   await expect(view(page)).toHaveAttribute('data-zoom', '1.00');
-  // At a stop, from no nearer than 0.4 of the overview's distance, eighteen of ← with the view
-  // focused go all the way round too, and Home goes back to the stop's own view.
+  // At a stop, framed nearer than the overview, eighteen of ← with the view focused go all the
+  // way round too, and Home goes back to the stop's own view.
   await guide(page)
     .getByRole('button', { name: stopName('city-gate') })
     .click();
   await expect(status(page)).toHaveText(stopSummary('city-gate'));
-  await expect(view(page)).toHaveAttribute('data-zoom', /^0\.[4-8]\d$/);
+  await expect(view(page)).toHaveAttribute('data-zoom', /^0\.\d\d$/);
   const atStop = (await view(page).getAttribute('data-heading')) ?? '';
   const zoom = (await view(page).getAttribute('data-zoom')) ?? '';
   await view(page).focus();

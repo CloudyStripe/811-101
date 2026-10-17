@@ -37,6 +37,11 @@ export interface OrbitLimits {
   distance: readonly [number, number];
   /** Where what it looks at may go as it pans. */
   bounds: Box3;
+  /**
+   * The nearest it may stand to what it looks at, by how high that is, where that's further than
+   * `distance` allows: looking at something low, it stands further back to stay above the ground.
+   */
+  nearestAt?: (height: number) => number;
 }
 
 /** The limits the camera stands at, so a button can say its move goes no further. */
@@ -79,6 +84,9 @@ export class OrbitRig {
   private readonly polar: [number, number] = [0, 0];
   private readonly reach: [number, number] = [0, 0];
   private readonly bounds = new Box3();
+  private nearestAt: ((height: number) => number) | null = null;
+  /** How high what the view is headed to look at was, when its nearest was last set. */
+  private nearFor = Number.NaN;
   /** Moves are cuts: with motion reduced, and in capture mode. */
   private instant = false;
   /** camera-controls said the move under way is at rest, so it lands. */
@@ -194,19 +202,23 @@ export class OrbitRig {
    * stands and how far it tilts. The same limits again change nothing, so the view isn't drawn
    * again for them (camera-controls redraws for any boundary).
    */
-  setLimits({ polar, distance, bounds }: OrbitLimits): void {
+  setLimits({ polar, distance, bounds, nearestAt }: OrbitLimits): void {
     const same =
       polar.every((v, i) => v === this.polar[i]) &&
       distance.every((v, i) => v === this.reach[i]) &&
-      bounds.equals(this.bounds);
+      bounds.equals(this.bounds) &&
+      (nearestAt ?? null) === this.nearestAt;
     if (same) return;
     [this.polar[0], this.polar[1]] = polar;
     [this.reach[0], this.reach[1]] = distance;
     this.bounds.copy(bounds);
+    this.nearestAt = nearestAt ?? null;
     const c = this.controls;
     [c.minPolarAngle, c.maxPolarAngle] = polar;
     [c.minDistance, c.maxDistance] = distance;
     c.setBoundary(bounds);
+    this.nearFor = Number.NaN;
+    this.keepNear();
     const end = c.getSpherical(this.spherical, true);
     if (end.radius < c.minDistance || end.radius > c.maxDistance) {
       void c.dollyTo(end.radius, !this.instant);
@@ -345,6 +357,8 @@ export class OrbitRig {
    * matrix follows at once, so what's placed by it this frame (labels) lands where it's drawn.
    */
   update(seconds: number): boolean {
+    // A drag, the wheel or a pinch may have moved what it looks at, and so how near it may come.
+    this.keepNear();
     let moved = this.controls.update(seconds);
     if (this.rested) {
       // At rest within a hair of its end: there at once, so the next frame finds nothing to do.
@@ -376,6 +390,24 @@ export class OrbitRig {
       near(c.getPosition(this.position, false), pose.position) &&
       near(c.getTarget(this.target, false), pose.target)
     );
+  }
+
+  /**
+   * Holds the camera no nearer than what it's headed to look at allows (`nearestAt`), stepping
+   * back if it's headed nearer.
+   */
+  private keepNear(): void {
+    const c = this.controls;
+    const height = c.getTarget(this.target, true).y;
+    if (height === this.nearFor) return;
+    this.nearFor = height;
+    const near = Math.max(this.reach[0], this.nearestAt?.(height) ?? 0);
+    if (near === c.minDistance) return;
+    c.minDistance = near;
+    if (c.getSpherical(this.spherical, true).radius < near) {
+      void c.dollyTo(near, !this.instant);
+      this.hooks.wake();
+    }
   }
 
   /** Puts the camera where the move under way is headed. */
