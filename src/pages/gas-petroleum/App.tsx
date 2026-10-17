@@ -514,35 +514,41 @@ export function App() {
   }, [viewKey]);
 
   // ← and → step through the stops (or a journey's steps), unless focus is in something that uses
-  // them: a radio group, a quiz, a field, or the view, which they turn.
+  // them: a radio group, a quiz, a field, or the view, which they turn. The page listens once, and
+  // a key acts on the page as last drawn: listening again after each change, as an effect does a
+  // frame later, let a key pressed in between act on the page as it was before.
+  const onArrow = useRef<(event: KeyboardEvent) => void>(() => undefined);
+  onArrow.current = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
+    if (target?.closest('canvas')) return;
+    const forward = event.key === 'ArrowRight';
+    if (journey) {
+      if (journey.quiz) return;
+      event.preventDefault();
+      if (forward) journeyNext();
+      else journeyBack();
+      return;
+    }
+    if (!stop) return;
+    const { prev, next } = neighbors(stop, lean);
+    const to = forward ? (lean === 'gasoline' && next.length > 1 ? next[1] : next[0]) : prev;
+    if (to) {
+      event.preventDefault();
+      open(to);
+    }
+  };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
-      if (target?.closest('canvas')) return;
-      const forward = event.key === 'ArrowRight';
-      if (journey) {
-        if (journey.quiz) return;
-        event.preventDefault();
-        if (forward) journeyNext();
-        else journeyBack();
-        return;
-      }
-      if (!stop) return;
-      const { prev, next } = neighbors(stop, lean);
-      const to = forward ? (lean === 'gasoline' && next.length > 1 ? next[1] : next[0]) : prev;
-      if (to) {
-        event.preventDefault();
-        open(to);
-      }
+      onArrow.current(event);
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
     };
-  });
+  }, []);
 
   /**
    * The canvas: a tap or click opens what's under it, and twice on open ground centers the view
