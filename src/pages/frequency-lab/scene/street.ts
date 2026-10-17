@@ -96,7 +96,10 @@ function mesh(geometry: BufferGeometry, material: Material, cast = false): Mesh 
   return m;
 }
 
-/** How each layer looks in section: its grain, and the stones in it, scaled with the drawn depth. */
+/**
+ * How each layer looks in section: its grain, and the stones in it, scaled with how many times
+ * deeper than true the layer is drawn.
+ */
 function stratumLook(name: StratumName, depth: number): NoiseOptions {
   const k = Math.sqrt(depth);
   const look: Record<StratumName, NoiseOptions> = {
@@ -154,7 +157,8 @@ export function buildStreet(layout: LabLayout): Street {
       surface(C[s.name], {
         finish: 'matte',
         roughness: 1,
-        noise: stratumLook(s.name, layout.depth),
+        // The layers under the trench may be drawn flatter than the rest, and grained to match.
+        noise: stratumLook(s.name, s.bottom >= trench.bottom ? layout.depth : layout.under),
       }),
       true,
     );

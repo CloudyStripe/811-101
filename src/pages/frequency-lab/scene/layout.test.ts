@@ -11,6 +11,7 @@ import {
   EQUIPMENT_SIZE,
   SURFACE,
   VIEW_DEPTH,
+  VIEW_UNDER,
   labLayout,
   layoutFor,
   tallView,
@@ -102,6 +103,7 @@ describe.each(['wide', 'tall'] as const)("the %s view's layout", (kind) => {
 
   it('draws the ground as deep as the view asks, and the equipment larger than true', () => {
     expect(layout.depth).toBe(VIEW_DEPTH[kind]);
+    expect(layout.under).toBe(VIEW_UNDER[kind]);
     expect(layout.equipment).toBe(k);
     expect(VIEW_DEPTH.tall).toBeGreaterThan(VIEW_DEPTH.wide);
   });
@@ -232,6 +234,34 @@ const CASES = [
     area: { x: 300, y: 0, width: 544, height: 390 },
   },
 ] as const;
+
+describe("the tall view's ground", () => {
+  const layout = layoutFor('tall');
+  const { strata, lines, trench, block, depth, under } = layout;
+  const real = labLayout({ depth: 1 });
+
+  it('draws the layers under the trench flatter than the ones the lines lie in', () => {
+    expect(under).toBeLessThan(depth);
+    expect(trench.bottom).toBeCloseTo(real.trench.bottom * depth);
+    strata.forEach((s, i) => {
+      const r = real.strata[i];
+      if (!r) throw new Error(`no true stratum ${String(i)}`);
+      const scale = (s.top - s.bottom) / (r.top - r.bottom);
+      expect(scale, s.name).toBeCloseTo(s.bottom >= trench.bottom ? depth : under);
+    });
+    expect(layout.drawn(-10)).toBeCloseTo(block.bottom);
+  });
+
+  it('lets the lines lead the cut face, with well under half of it below the gas main', () => {
+    const below = lines.steel.y - lines.steel.radius - block.bottom;
+    expect(below / -block.bottom).toBeLessThan(0.4);
+  });
+
+  it('keeps the water main under the trench and in the slab', () => {
+    expect(lines.water.y + lines.water.radius).toBeLessThan(trench.bottom);
+    expect(lines.water.y - lines.water.radius).toBeGreaterThan(block.bottom);
+  });
+});
 
 describe('views', () => {
   const layout = layoutFor('wide');
@@ -421,6 +451,16 @@ describe('framing at the sizes the lab is designed for', () => {
       const face = Math.abs(px(t.x, layout.block.bottom, 0).y - px(t.x, 0, 0).y);
       expect(tree, `the tree at ${String(t.x)} ft`).toBeLessThanOrEqual(face / 2);
     }
+  });
+
+  it('phone: the lines are drawn large, the gas main at least 16 px thick by the hookup', () => {
+    const room = ROOMS.find((r) => r.name === 'phone');
+    if (!room) throw new Error('no phone room');
+    const { layout, px } = framed(room.canvas, room.area);
+    const main = layout.lines.steel;
+    const top = px(0, main.y + main.radius, 0);
+    const bottom = px(0, main.y - main.radius, 0);
+    expect(Math.hypot(top.x - bottom.x, top.y - bottom.y)).toBeGreaterThanOrEqual(16);
   });
 
   it('desktop: the transmitter is at least 24 px across', () => {

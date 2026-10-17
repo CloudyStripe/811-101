@@ -282,7 +282,7 @@ export class SignalEffects {
   }
 
   private buildSetup(setup: SetupId): SetupFx {
-    const { lines, hookup, leads, risers, block, depth } = this.layout;
+    const { lines, hookup, leads, risers, block, drawn } = this.layout;
     const group = new Group();
     // The conductor that carries the signal: the steel main, or the plastic main's tracer wire.
     const line = setup === 'steel' ? lines.steel : lines.tracer;
@@ -322,15 +322,15 @@ export class SignalEffects {
     const bins = 7;
     for (let i = 0; i < bins; i++) {
       const x = 10 + i * 20;
-      const depthY = (-5.2 - 3.2 * (i / (bins - 1))) * depth;
+      const depthY = drawn(-5.2 - 3.2 * (i / (bins - 1)));
       flows.push(this.flow(start(x), depthY, { kind: 'leak', from: x - 10, to: x + 10 }, group));
     }
     // Current still on the target at the end of the block returns from beyond it.
-    flows.push(this.flow(start(BLOCK_FT - 2), -8.6 * depth, { kind: 'beyond' }, group));
+    flows.push(this.flow(start(BLOCK_FT - 2), drawn(-8.6), { kind: 'beyond' }, group));
     flows.push(
       this.flow(
         new Vector3(t.x0, t.y - t.radius - 0.1, 0.12),
-        -3.6 * depth,
+        drawn(-3.6),
         { kind: 'telecom' },
         group,
       ),
