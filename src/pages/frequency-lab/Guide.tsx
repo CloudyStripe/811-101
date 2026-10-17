@@ -33,7 +33,7 @@ export function Guide(props: { setup: SetupId; frequency: Frequency; onAbout: ()
         <h3 id={ids.happening}>What's happening</h3>
         <p>
           <strong>{stateLead(setup, frequency)}:</strong>{' '}
-          <Rich text={stateNote(frequency)} define={define} />
+          <Rich text={stateNote(setup, frequency)} define={define} />
         </p>
         <p>
           <Rich text={SETUP_TEXT[setup].note.text} define={define} />

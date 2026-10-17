@@ -18,10 +18,11 @@ Every factual claim in the lessons, for locator sign-off.
 | `fl.intro.frequency` | The signal's frequency matters: it changes how far the signal travels and how much of it spreads to other lines. | No | `ef0f7e86d9` | Not reviewed |
 | `fl.setup.steel` | A steel gas main carries the signal itself, so the transmitter connects right to it. | No | `9cfc04587a` | Not reviewed |
 | `fl.setup.plastic` | Plastic can't carry a signal, so a tracer wire is buried along the pipe, and the transmitter connects to that. | No | `039c5c4d94` | Not reviewed |
+| `fl.setup.plastic.carries` | The tracer wire carries the signal. | No | `c2b22adcc3` | Not reviewed |
 | `fl.freq.512` | The signal reaches the end of the block, and almost none of it bleeds onto the telecom cable. | No | `1266d7596f` | Not reviewed |
 | `fl.freq.8k` | The signal still reaches the end of the block, and a little of it bleeds onto the telecom cable. | No | `cafaf30a1a` | Not reviewed |
 | `fl.freq.33k` | The signal is weaker by the end of the block, and more of it bleeds onto the telecom cable. | No | `a592cc6ba7` | Not reviewed |
-| `fl.freq.83k` | The signal fades out before the end of the block, and even more of it bleeds onto the telecom cable. | No | `22766abcc9` | Not reviewed |
+| `fl.freq.83k` | The signal fades out before the end of the block, and much more of it bleeds onto the telecom cable. | No | `0aaa90a54b` | Not reviewed |
 | `fl.try.steel` | Step from 512 Hz up to 83 kHz. Watch the glow on the gas main end sooner, and more of the orange telecom cable light up. | No | `f7c256b1df` | Not reviewed |
 | `fl.try.plastic.wire` | Find the tracer wire on top of the plastic pipe: it carries the signal. | No | `a190e5a2ef` | Not reviewed |
 | `fl.try.plastic.reach` | Step up to 83 kHz and watch the signal fade out before the end of the block. | No | `2d53c7e75e` | Not reviewed |

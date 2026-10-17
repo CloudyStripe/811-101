@@ -60,6 +60,8 @@ export const SETUP_TEXT: PerSetup<{
   /** The line carrying the signal, as named in the key. */
   carrier: string;
   note: Claim;
+  /** What carries the signal, where it isn't the line itself: said first in the summary. */
+  carries?: Claim;
 }> = {
   steel: {
     name: 'Steel main',
@@ -76,6 +78,7 @@ export const SETUP_TEXT: PerSetup<{
       'fl.setup.plastic',
       "Plastic can't carry a signal, so a [[tracer wire]] is buried along the pipe, and the transmitter connects to that.",
     ),
+    carries: claim('fl.setup.plastic.carries', 'The [[tracer wire]] carries the signal.'),
   },
 };
 
@@ -98,7 +101,7 @@ export const FREQUENCY_NOTES: Readonly<Record<Frequency, Claim>> = {
   ),
   83000: claim(
     'fl.freq.83k',
-    'The signal fades out before the end of the block, and even more of it [[bleeds|bleed-over]] onto the telecom cable.',
+    'The signal fades out before the end of the block, and much more of it [[bleeds|bleed-over]] onto the telecom cable.',
   ),
 };
 
