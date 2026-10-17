@@ -8,10 +8,10 @@ import {
 import { plainText } from '../../content-kit/terms.ts';
 import type { PathKey } from './journey.ts';
 
-/** A stop's place and title, e.g. "Natural gas path, stage 8: Into town: lower pressure, added smell". */
+/** A stop's place and title, e.g. "Natural gas path, step 8: Into town: lower pressure, added smell". */
 export function stopSummary(id: StopId): string {
   const stop = stopById(id);
-  return `${PATH_NAMES[stop.path]}, stage ${String(stop.step)}: ${plainText(stop.title.text)}`;
+  return `${PATH_NAMES[stop.path]}, step ${String(stop.step)}: ${plainText(stop.title.text)}`;
 }
 
 /** The quiz's heading, which its panel and the live status share. */
@@ -29,8 +29,8 @@ export function clockText(ma: number): string {
   return ma > 0 ? `≈ ${String(ma)} million years ago` : 'Today';
 }
 
-/** A stop's place and short name, for buttons that open it: its label, a dot on the map. */
+/** A stop's place and short name, for buttons that open it: its marker, a stop on the map. */
 export function stopName(id: StopId): string {
   const stop = stopById(id);
-  return `${PATH_NAMES[stop.path]}, stage ${String(stop.step)}: ${stop.label}`;
+  return `${PATH_NAMES[stop.path]}, step ${String(stop.step)}: ${stop.label}`;
 }

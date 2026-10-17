@@ -83,7 +83,7 @@ body {
   text-align: center;
 }
 
-/* The dock: the path switch and the pause, then the ways to move around. */
+/* The dock: the path switch and the pause. */
 .gp-dock {
   grid-area: dock;
   align-self: end;
@@ -122,23 +122,6 @@ body {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-ink);
-}
-
-.dock-moves .icon-button {
-  border: 1px solid var(--line);
-  border-radius: 50%;
-}
-
-.dock-moves .icon-button[aria-disabled='true'] {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.dock-where {
-  margin-left: var(--space-1);
-  color: var(--ink-2);
-  font-size: var(--text-small);
-  font-weight: 700;
 }
 
 /*
@@ -377,9 +360,10 @@ body {
   height: 16px;
 }
 
-.stop-step {
-  margin-left: auto;
-  color: var(--ink-3);
+/* The stop's marker, as on the model. */
+.stop-path .stop-mark {
+  width: 26px;
+  height: 26px;
 }
 
 .gp-panel .note,
@@ -494,22 +478,14 @@ body {
   border: 2px solid var(--ink);
 }
 
-.fork-mark {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--path);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
-  /* The path's yellow is light in both themes, so its icon stays dark, as on the labels' chips. */
-  color: var(--chip-ink, #1b1a17);
+.fork-way .fork-mark {
+  width: 34px;
+  height: 34px;
 }
 
-.fork-mark .icon {
-  width: 18px;
-  height: 18px;
+.fork-mark .pshape-in .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .fork-text {
@@ -539,34 +515,7 @@ body {
   }
 }
 
-.stop-nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-}
-
-.stop-nav-next {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-/* The overview: one way in, the map, a tour of each path, and how to use the model. */
-.start {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-4);
-}
-
-.start-note {
-  margin: 0;
-  color: var(--ink-3);
-  font-size: var(--text-small);
-}
-
+/* The overview: the map, a tour of each path, and how to use the model. */
 .tour-title {
   margin: var(--space-4) 0 var(--space-2);
 }
@@ -616,7 +565,7 @@ body {
   font-size: var(--text-small);
 }
 
-/* The route map: lines drawn as in the view, stops as numbered buttons over them. */
+/* The route map: lines drawn as in the view, stops over them as buttons in their paths' shapes. */
 .rmap {
   position: relative;
   aspect-ratio: 344 / 152;
@@ -693,20 +642,21 @@ body {
 .rmap-stop {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
   padding: 0;
-  border: 2px solid var(--ink);
+  border: 0;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--ink);
-  font: 700 0.75rem/1 var(--font-mono);
+  background: none;
   cursor: pointer;
 }
 
+.rmap-stop .pshape {
+  width: 28px;
+  height: 28px;
+}
+
 @media (hover: hover) {
-  .rmap-stop:hover {
-    background: var(--surface-2);
+  .rmap-stop:hover .pshape-fill {
+    fill: var(--surface-2);
   }
 }
 
@@ -797,68 +747,96 @@ body {
   margin-top: var(--space-3);
 }
 
-/* A tour's bar: back, how far along, and on. */
-.tourbar {
+/*
+ * The step bar: the overview and back, where the journey is over its strip, and on; or in the
+ * overview, the way in. At the foot of the guide beside the view, under its bar on phones.
+ */
+.stepbar {
   display: flex;
+  flex: none;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--line);
 }
 
-.tourbar-progress {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  font-size: var(--text-small);
-  font-weight: 700;
+.stepbar .button {
+  padding: 0 var(--space-3);
+  gap: 6px;
 }
 
-/*
- * A journey's strip: the shared start's stops, then its path's in the path's color, or the fork
- * ahead. Done stops fill, and the one it's at is the largest, in ink.
- */
-.jstrip {
+.stepbar-overview,
+.stepbar-back {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.stepbar .icon-button[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.stepbar-where {
+  display: grid;
+  flex: 1;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--text-small);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The way in, and what it walks. */
+.stepbar-start {
+  flex-wrap: wrap;
+}
+
+.stepbar-note {
+  flex: 1 1 9rem;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-small);
+}
+
+/* Its stops in their paths' shapes: those passed filled, the one it's at larger, in ink. */
+.stepbar-strip {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.jstrip li {
-  width: 8px;
-  height: 8px;
-  border: 1.5px solid var(--ink-3);
-  border-radius: 50%;
+.stepbar-strip li {
+  display: grid;
 }
 
-.jstrip li[style] {
-  background: var(--path);
-}
-
-.jstrip li[data-state='done'] {
-  border-color: var(--ink-3);
-  background: var(--ink-3);
-}
-
-.jstrip li[data-state='current'] {
+.stepbar-strip .pshape {
   width: 11px;
   height: 11px;
-  border-color: var(--ink);
-  background: var(--ink);
 }
 
-.jstrip li.jstrip-fork {
-  width: 14px;
-  height: 10px;
-  border: 0;
-  border-radius: 0;
+.stepbar-strip .pshape svg {
+  filter: none;
 }
 
-.jstrip-fork svg {
+.stepbar-strip .pshape-ring,
+.stepbar-strip .pshape-bands {
+  stroke-width: 5;
+}
+
+.stepbar-strip li[data-state='done'] .pshape-fill {
+  fill: var(--ink-3);
+}
+
+.stepbar-strip li[data-state='current'] .pshape {
+  width: 15px;
+  height: 15px;
+}
+
+.stepbar-fork svg {
   display: block;
   width: 14px;
   height: 10px;
@@ -869,15 +847,187 @@ body {
   stroke-linejoin: round;
 }
 
-/* A stop's label: its path's icon on the path's own color. */
-.lbl-icon-path {
-  background: var(--chip);
-  color: var(--chip-ink, #1b1a17);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
+/*
+ * A path's mark: its stops' shape, white with a dark number and ringed as its route is drawn, with
+ * a dark hairline that holds it on grass and sky; the stop the view is at, in ink.
+ */
+.pshape {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
 }
 
-.lbl[data-path='shared'] .lbl-icon-path {
+.pshape svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 0.6px rgb(0 0 0 / 0.8));
+}
+
+.pshape-fill {
+  fill: var(--surface);
+}
+
+.pshape[data-current] .pshape-fill {
+  fill: var(--ink);
+}
+
+.pshape-ring {
+  fill: none;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+/* Natural gas's gaps, pale, and gasoline's bands, dark, in both themes, as on their routes. */
+.pshape-gaps {
+  fill: none;
+  stroke: #f3f1ec;
+  stroke-width: 3;
+}
+
+.pshape-bands {
+  fill: none;
+  stroke: #1b1a17;
+  stroke-width: 3;
+}
+
+.pshape-in {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font: 700 0.8rem/1 var(--font-mono);
+}
+
+.pshape[data-current] .pshape-in {
+  color: var(--surface);
+}
+
+/*
+ * A stop's marker on the model: its numbered badge, a tab with its path's icon, and its name beside
+ * them, on the right, or with .left, the left. Without its name (.compact), the badge shows alone,
+ * and hovered, shows its name over the others. The label layer places it (.lbl, components.css).
+ */
+.mk-btn {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mk.left .mk-btn {
+  flex-direction: row-reverse;
+}
+
+.mk-badge {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+
+.mk-badge .pshape {
+  width: 26px;
+  height: 26px;
+}
+
+.mk-badge .pshape-in {
+  font-size: 0.75rem;
+}
+
+/* Its path's icon, on a tab at the badge's top corner, away from its name. */
+.mk-tab {
+  position: absolute;
+  top: -5px;
+  left: -6px;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--chip);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.55);
+  /* The paths' yellow is light in both themes, so its icon stays dark; the stone's is white. */
+  color: #1b1a17;
+}
+
+.mk.left .mk-tab {
+  right: -6px;
+  left: auto;
+}
+
+.mk[data-path='shared'] .mk-tab {
   color: #fff;
+}
+
+.mk-tab .icon {
+  width: 9px;
+  height: 9px;
+}
+
+.mk .lbl-text {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  margin-left: -12px;
+  padding: 0 9px 0 17px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.mk.left .lbl-text {
+  margin-right: -12px;
+  margin-left: 0;
+  padding: 0 17px 0 9px;
+}
+
+/* The stop the view is at: its name in ink, as its badge is. */
+.mk[data-tier='current'] .lbl-text {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+}
+
+/* On a path the view has faded back, as its stops are: by number alone, but whole when focused. */
+.mk[data-faded]:not(.off, :focus-within) {
+  opacity: 0.55;
+}
+
+@media (hover: hover) {
+  .mk-btn:hover .lbl-text {
+    border-color: var(--ink-3);
+  }
+
+  /* A marker shown without its name, for want of room, shows it while hovered, over the others. */
+  .mk.compact:hover {
+    z-index: 3;
+    opacity: 1;
+  }
+
+  .mk.compact:hover .lbl-text {
+    position: static;
+    width: auto;
+    height: 22px;
+    overflow: visible;
+    clip-path: none;
+  }
 }
 
 /* The small labels on an open stop's parts, and the time-lapse's clock. */
@@ -946,12 +1096,15 @@ body {
 
   .gp-panel[data-collapsed] .panel-head {
     gap: var(--space-3);
-    border-bottom: 0;
   }
 
-  .gp-panel[data-collapsed] .panel-body,
-  .gp-panel[data-collapsed] .tourbar {
+  .gp-panel[data-collapsed] .panel-body {
     display: none;
+  }
+
+  /* Closed, the guide is its title over the step bar. */
+  .gp-panel[data-collapsed] .stepbar {
+    border-top: 0;
   }
 }
 
@@ -1000,7 +1153,7 @@ body {
     padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   }
 
-  /* The view in words, and a journey's strip under it: where the reader is, at a peek. */
+  /* The view in words: where the reader is, at a peek. */
   .gp-panel .sheet-where {
     display: grid;
     flex: 1;
@@ -1012,11 +1165,6 @@ body {
     margin: 0;
     font-size: 0.82rem;
     line-height: 1.35;
-  }
-
-  /* Open, the sheet's own bar steps through the journey, strip and all. */
-  .gp-panel[data-open] .sheet-where .jstrip {
-    display: none;
   }
 
   .gp-panel .sheet-toggle {
@@ -1034,8 +1182,17 @@ body {
     cursor: pointer;
   }
 
-  .gp-panel:not([data-open]) .panel-body,
-  .gp-panel:not([data-open]) .tourbar {
+  .gp-panel:not([data-open]) .panel-body {
+    display: none;
+  }
+
+  /* Under the sheet's bar, open or closed; the way in, without its note, which the guide's
+     overview says in full. */
+  .gp-panel .stepbar {
+    padding: var(--space-2);
+  }
+
+  .gp-panel .stepbar-note {
     display: none;
   }
 

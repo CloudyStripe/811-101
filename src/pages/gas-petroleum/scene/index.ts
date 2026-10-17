@@ -1,8 +1,8 @@
 /**
  * The Gas & Petroleum diorama's 3D scene: the block and its thirteen stops, the routes and what
- * flows along them, the formation time-lapse, the labels, and a camera the reader turns all the
- * way round, tilts, zooms and pans, framing the overview or a stop in the room the panel leaves,
- * behind a small API the UI drives.
+ * flows along them, the formation time-lapse, the stops' markers, and a camera the reader turns
+ * all the way round, tilts, zooms and pans, framing the overview or a stop in the room the panel
+ * leaves, behind a small API the UI drives.
  *
  * The overview stays alive while motion is on: beads flow along the routes and the machines run.
  * At a stop, its path's flow and its own machines lead, and the rest calm down. Pausing motion, or
@@ -22,6 +22,7 @@ import {
 import { disposeObject } from '../../../kit3d/dispose.ts';
 import { CENTERED, type Shift } from '../../../kit3d/fit.ts';
 import { LabelLayer, type Label } from '../../../kit3d/labels.ts';
+import { placeMarkers } from '../../../kit3d/placement.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
 import { setGroundGrade } from '../../../kit3d/materials.ts';
 import { OrbitRig, type AtLimits } from '../../../kit3d/orbit.ts';
@@ -105,8 +106,6 @@ export interface DioramaScene {
   readonly limits: AtLimits;
   /** The stop under a point of the canvas, in CSS pixels, or null. */
   pick(x: number, y: number): StopId | null;
-  /** The stops whose labels show, besides the open one's; the rest show while focused. */
-  nameLabels(stops: readonly StopId[]): void;
   /**
    * On arrival, the establishing move: in from farther out to the overview, unless motion is
    * reduced. Any input lands it (see `land`).
@@ -126,9 +125,6 @@ export interface DioramaScene {
   refreshLabels(): void;
   dispose(): void;
 }
-
-const maxLabels = (width: number) =>
-  width < LABEL_LIMITS.narrowBelow ? LABEL_LIMITS.narrow : LABEL_LIMITS.wide;
 
 /** A free area this much taller than wide gets the overview from the east. */
 const TALL = 1.05;
@@ -165,8 +161,6 @@ async function buildDiorama(
   /** Seconds of motion so far: the clock every machine and bead runs on. */
   let time = 3;
   let shown: StopId | null = null;
-  /** The stops whose labels the story names, besides the open one's. */
-  let named: ReadonlySet<string> = new Set();
   let filter: Filter = 'both';
   /** The free area the view is framed for now. */
   let shownArea: VisibleArea | null = null;
@@ -239,6 +233,8 @@ async function buildDiorama(
     id: model.id,
     model,
     path: STOPS.find((s) => s.id === model.id)?.path ?? 'shared',
+    /** Its place in its path's story, counting the shared start. */
+    step: STOPS.find((s) => s.id === model.id)?.step ?? 0,
     animate: model.animate?.bind(model),
     pops: model.pops,
     /** Its small labels ride on moving parts, so they're placed every frame it's open. */
@@ -256,7 +252,7 @@ async function buildDiorama(
   });
 
   const cam = new LabCamera(camera);
-  const labels = new LabelLayer(camera, o.noGo);
+  const labels = new LabelLayer(camera, o.noGo, placeMarkers);
   const details = new DetailLayer(o.detailLayer, models, CLOCK_AT);
   const labelList: Label[] = models.flatMap((m) => {
     const element = o.labelElements.get(m.id);
@@ -612,16 +608,28 @@ async function buildDiorama(
   function placeLabels() {
     const area = shownArea ?? o.visibleArea();
     const free = { x: area.x, y: area.y, w: area.width, h: area.height };
-    // The open stop's label, then those the story names (where it goes next, or in the overview,
-    // its landmarks), but not on a path faded back; the rest are quiet, shown only while focused.
+    // Every stop's marker shows. The open stop's is named however crowded; the rest are named in
+    // the story's order where there's room, step by step, the path the view shows first after the
+    // fork; a path faded back shows by number alone, and comes last.
+    const first = filter === 'gasoline' ? 'gasoline' : 'gas';
     for (const label of labelList) {
       const stop = stops.find((s) => s.id === label.id);
-      const faded = stop !== undefined && dimmed(stop.path) && label.id !== shown;
-      label.priority = label.id === shown ? 10 : 5;
+      if (!stop) continue;
+      const faded = dimmed(stop.path) && label.id !== shown;
+      const rank = stop.step * 2 + (stop.path === 'shared' || stop.path === first ? 0 : 1);
+      label.priority = -rank - (faded ? 100 : 0);
       label.highlight = label.id === shown;
-      label.quiet = label.id !== shown && (faded || !named.has(label.id));
+      // Faded back, by its badge alone, unless it's focused.
+      label.badgeOnly = faded;
     }
-    labels.update(runtime.stage.width, runtime.stage.height, free, maxLabels(area.width));
+    // A small view shows them by number alone, but for the open stop and a focused one.
+    labels.update(
+      runtime.stage.width,
+      runtime.stage.height,
+      free,
+      Infinity,
+      area.width < LABEL_LIMITS.narrowBelow,
+    );
     // The small labels on the open stop's parts keep clear of the controls and the stops' labels.
     details.update(
       camera,
@@ -750,11 +758,6 @@ async function buildDiorama(
         }
       }
       return best;
-    },
-    nameLabels(next) {
-      named = new Set(next);
-      labelsDirty = true;
-      redraw();
     },
     establish() {
       if (instantMoves() || shown !== null || !shownArea) return;

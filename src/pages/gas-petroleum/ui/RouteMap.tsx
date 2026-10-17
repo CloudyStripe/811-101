@@ -1,7 +1,7 @@
 /**
  * A map of every stop: the shared start, forking into the natural gas and gasoline paths. The
  * lines are drawn as the routes are in the view (stone; yellow dashed; yellow banded), and each
- * stop is a button, numbered as its stage, that opens it.
+ * stop is a button that opens it, numbered in its path's shape as its marker on the model is.
  */
 import {
   PATH_NAMES,
@@ -12,6 +12,7 @@ import {
 import { Icon } from '../../../design/icons.tsx';
 import { PATH_STYLE } from '../../../design/paths.ts';
 import { stopName } from '../summary.ts';
+import { PathShape } from './PathShape.tsx';
 
 const W = 344;
 const H = 152;
@@ -76,7 +77,7 @@ export function RouteMap({ onOpen }: { onOpen: (id: StopId) => void }) {
                   onOpen(n.id);
                 }}
               >
-                {stop.step}
+                <PathShape path={stop.path}>{stop.step}</PathShape>
               </button>
             </li>
           );

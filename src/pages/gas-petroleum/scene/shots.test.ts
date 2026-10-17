@@ -22,6 +22,7 @@ import {
   stopAim,
   stopShot,
 } from './shots.ts';
+import { SHARED } from '../journey.ts';
 import type { StopModel } from './stop.ts';
 import { buildStops } from './stops/index.ts';
 
@@ -109,15 +110,15 @@ const distanceFor = (view: View, layout: (typeof LAYOUTS)[number]) => {
   return pose.position.distanceTo(pose.target);
 };
 
-/** The view's must-see points in canvas pixels, with the camera framed for this room. */
-function onCanvas(view: View, layout: (typeof LAYOUTS)[number]) {
+/** The view's must-see points (or others) in canvas pixels, with the camera framed for this room. */
+function onCanvas(view: View, layout: (typeof LAYOUTS)[number], points = view.mustSee) {
   const { camera, pose } = framedFor(view, layout);
   camera.position.copy(pose.position);
   camera.lookAt(pose.target);
   camera.updateMatrixWorld();
   const lab = new LabCamera(camera);
   lab.setLayout(layout.canvas.width, layout.canvas.height, layout.area, pose.shift);
-  return view.mustSee.map((p) => {
+  return points.map((p) => {
     const v = new Vector3(...p).project(camera);
     return {
       p,
@@ -250,6 +251,39 @@ describe('the overview', () => {
     if (!layout) throw new Error('no phone layout');
     const xs = onCanvas(overviewView(points, true), layout).map((q) => q.x);
     expect((Math.max(...xs) - Math.min(...xs)) / layout.area.width).toBeGreaterThanOrEqual(0.92);
+  });
+
+  it("shows every stop's marker from every side: none hangs on a face that turns away", () => {
+    for (const m of models) expect(m.label.facing, m.id).toBeUndefined();
+  });
+
+  it("tall phones: the shared start's four markers point at spots on the model, at least 36 px apart", () => {
+    const start = SHARED.map((id) => {
+      const model = models.find((m) => m.id === id);
+      if (!model) throw new Error(`no stop ${id}`);
+      return model.label.at;
+    });
+    for (const [width, height, room] of [
+      [360, 780, 450],
+      [390, 844, 509],
+      [430, 932, 590],
+    ] as const) {
+      const layout = {
+        name: `${String(width)} x ${String(height)}`,
+        canvas: { width, height },
+        area: { x: 0, y: 58, width, height: room },
+      };
+      const at = onCanvas(overviewView(points, true), layout, start);
+      for (const [i, a] of at.entries()) {
+        expect(a.inFront && a.x > 0 && a.x < width, layout.name).toBe(true);
+        for (const b of at.slice(i + 1)) {
+          const gap = Math.hypot(a.x - b.x, a.y - b.y);
+          expect(gap, `${layout.name}: ${String(a.p)} to ${String(b.p)}`).toBeGreaterThanOrEqual(
+            36,
+          );
+        }
+      }
+    }
   });
 });
 

@@ -13,6 +13,9 @@
  * always shows in full where it was shown before, pulled into the free part of the view and out
  * from under the controls (WCAG 2.4.11). In a small view it shows in full over the others, keeping
  * only its icon's room, so they stay where they are.
+ *
+ * Markers (placeMarkers) are labels that never give way to each other: every one in view shows, as
+ * a numbered badge, with its name beside it where there's room.
  */
 
 export interface Point {
@@ -55,14 +58,14 @@ export interface Candidate {
   visible: boolean;
   /** Shown in full however crowded: focused, pointed at from elsewhere, or named while pinned. */
   focused: boolean;
-  /** Shown only while focused. */
-  quiet: boolean;
   /** Hangs below its anchor instead of above it. */
   below: boolean;
   /** Names a line: steps further off it before to either side. */
   offLine: boolean;
   /** Its definition, open beside it, against the middle of the label's top edge; null when closed. */
   tip: Rect | null;
+  /** A marker shown by its badge alone unless it's focused, as on a path faded back. */
+  badgeOnly?: boolean;
 }
 
 /** Where a label was shown: by which of its places (0 for its anchor), against it, and how. */
@@ -99,6 +102,8 @@ export interface Placement {
   point: Point | null;
   /** Where it was shown, to keep it there should it be focused. */
   shownAt: ShownAt | null;
+  /** A marker's name, shown on the left of its badge rather than the right. */
+  side?: 'left';
 }
 
 /** A label shown as its icon. */
@@ -264,6 +269,33 @@ function over(at: Point, size: { w: number; h: number }, below: boolean): Rect {
   };
 }
 
+/**
+ * Where a label this size may sit by a place of its, nearest first, in a view this wide. Near an
+ * edge, it may slide inward along its row, up to a little over half its width, so it stays
+ * readable and still sits by its place.
+ */
+function spotsBy(
+  at: Point,
+  size: { w: number; h: number },
+  c: Pick<Candidate, 'below' | 'offLine'>,
+  width: number,
+): Rect[] {
+  const first = over(at, size, c.below);
+  const dx = size.w / 2 + 10;
+  const dy = (size.h + 8) * (c.below ? 1 : -1);
+  const level = at.y - size.h / 2;
+  return (c.offLine ? OFF_LINE_SPOTS : SPOTS).flatMap((spot) => {
+    const r =
+      spot === 'left'
+        ? { ...first, x: at.x - size.w - 10, y: level }
+        : spot === 'right'
+          ? { ...first, x: at.x + 10, y: level }
+          : { ...first, x: first.x + spot[0] * dx, y: first.y + spot[1] * dy };
+    const x = Math.min(Math.max(r.x, MARGIN), width - MARGIN - r.w);
+    return Math.abs(x - r.x) <= r.w * 0.6 ? [{ ...r, x }] : [];
+  });
+}
+
 /** Decides which labels show and where, given where they were shown last. */
 export function placeLabels(
   candidates: readonly Candidate[],
@@ -301,29 +333,8 @@ export function placeLabels(
     const own = leaderOf(r, point);
     if (own) bands.push(own);
   };
-  // Near an edge, a label may slide inward along its row, up to a little over half its width,
-  // so it stays readable and still sits by its anchor.
-  const slide = (r: Rect): Rect | null => {
-    const x = Math.min(Math.max(r.x, MARGIN), width - MARGIN - r.w);
-    return Math.abs(x - r.x) <= r.w * 0.6 ? { ...r, x } : null;
-  };
-  /** Where a label this size may sit by a place of its, nearest first. */
-  const spots = (at: Point, size: { w: number; h: number }, c: Candidate): Rect[] => {
-    const first = over(at, size, c.below);
-    const dx = size.w / 2 + 10;
-    const dy = (size.h + 8) * (c.below ? 1 : -1);
-    const level = at.y - size.h / 2;
-    return (c.offLine ? OFF_LINE_SPOTS : SPOTS).flatMap((spot) => {
-      const r =
-        spot === 'left'
-          ? { ...first, x: at.x - size.w - 10, y: level }
-          : spot === 'right'
-            ? { ...first, x: at.x + 10, y: level }
-            : { ...first, x: first.x + spot[0] * dx, y: first.y + spot[1] * dy };
-      const s = slide(r);
-      return s ? [s] : [];
-    });
-  };
+  const spots = (at: Point, size: { w: number; h: number }, c: Candidate): Rect[] =>
+    spotsBy(at, size, c, width);
 
   const out: Placement[] = [];
   const hide = (c: Candidate, state: 'off' | 'capped') => {
@@ -339,8 +350,8 @@ export function placeLabels(
   for (const c of byRank) {
     if (c.focused) shown.push(c);
     else if (!c.visible) hide(c, 'off');
-    // Quiet, or over the cap: out of sight, but still in the tab order, so focusing it shows it.
-    else if (c.quiet || shown.length >= room.maxVisible) hide(c, 'capped');
+    // Over the cap: out of sight, but still in the tab order, so focusing it shows it.
+    else if (shown.length >= room.maxVisible) hide(c, 'capped');
     else shown.push(c);
   }
   // Placed in turn: focused labels, then those tied to one point, then those with other places.
@@ -434,6 +445,138 @@ export function placeLabels(
         dy: found.r.y - found.p.y,
         icon: !full,
       },
+    });
+  }
+  return out;
+}
+
+/** A marker's badge: what shows of it without its name. */
+export const MARKER = { w: 26, h: 26 };
+
+/**
+ * Where markers go: numbered badges that, unlike labels, never give way to each other, so every
+ * one in view shows. In turn (focused first, then by priority, the nearer first), each badge takes
+ * the first free spot by its point, on a leader: over it, a little to either side, beside it, or a
+ * row or two further up, clear of the controls, the badges placed and their leaders, and off the
+ * other markers' points, which their leaders must reach. With no such spot, it takes the first
+ * that's at least clear of the controls and the other badges, and failing that, sits over its
+ * point all the same, so none is dropped for want of room. Then, in the same order, each shows its
+ * name beside its badge, on the right or else the left, wherever that's clear of the controls, the
+ * other badges and points, the names shown and the others' leaders; where neither side is, its
+ * badge shows alone. A focused marker always shows its name; in a small view, or shown by its
+ * badge alone (badgeOnly), only then. A marker whose point is out of view or under a control steps
+ * out of sight; focused, it's pulled into the free part of the view instead, without a leader.
+ */
+export function placeMarkers(
+  candidates: readonly Candidate[],
+  room: Room,
+  last: ReadonlyMap<string, ShownAt>,
+): Placement[] {
+  const { width, height, bounds, noGo } = room;
+  const inside = (r: Rect) =>
+    r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= width - MARGIN && r.y + r.h <= height - MARGIN;
+  const within = (r: Rect, b: Rect): Rect => ({
+    ...r,
+    x: Math.min(Math.max(r.x, b.x + MARGIN), b.x + b.w - MARGIN - r.w),
+    y: Math.min(Math.max(r.y, b.y + MARGIN), b.y + b.h - MARGIN - r.h),
+  });
+  const inSight = (c: Candidate) =>
+    c.visible &&
+    c.at.x >= 0 &&
+    c.at.x <= width &&
+    c.at.y >= 0 &&
+    c.at.y <= height &&
+    !noGo.some((q) => c.at.x >= q.x && c.at.x <= q.x + q.w && c.at.y >= q.y && c.at.y <= q.y + q.h);
+
+  const badges: Rect[] = [];
+  const leaders = new Map<string, Band>();
+  const bands: Band[] = [...room.keepClear];
+  const order = [...candidates].sort(
+    (a, b) => Number(b.focused) - Number(a.focused) || b.priority - a.priority || a.depth - b.depth,
+  );
+  /** The points of the markers in sight, where their leaders end. */
+  const points = order.filter(inSight).map((c) => c.at);
+  const onPoint = (r: Rect, own: Point) =>
+    points.some((p) => p !== own && p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h);
+  /** Inside the view, clear of the controls and the badges. */
+  const roomy = (r: Rect) => inside(r) && !overlaps(r, noGo) && !overlaps(r, badges);
+  /** Roomy, off the other points, clear of the leaders, and its own leader crossing no badge. */
+  const free = (c: Candidate, point: Point | null) => (r: Rect) => {
+    if (!roomy(r) || onPoint(r, c.at) || bands.some((band) => covers(band, r))) return false;
+    const own = leaderOf(r, point);
+    return !own || !badges.some((q) => crosses(own, q));
+  };
+
+  const out: Placement[] = [];
+  const placed: { c: Candidate; badge: Rect; point: Point | null }[] = [];
+  for (const c of order) {
+    const seen = inSight(c);
+    if (!seen && !c.focused) {
+      out.push({ id: c.id, state: 'off', rect: null, point: null, shownAt: null });
+      continue;
+    }
+    const point = seen ? c.point : null;
+    const was = last.get(c.id);
+    const spots = seen ? spotsBy(c.at, MARKER, c, width) : [];
+    const badge = !seen
+      ? within(over(c.at, MARKER, c.below), bounds)
+      : c.focused && was?.at === 0
+        ? // Focused, it stays where it was, so the reader's eye and pointer find it there.
+          { x: c.at.x + was.dx, y: c.at.y + was.dy, ...MARKER }
+        : (spots.find(free(c, point)) ??
+          spots.find(roomy) ??
+          clearOf(
+            within(over(c.at, MARKER, c.below), { x: 0, y: 0, w: width, h: height }),
+            noGo,
+            width,
+            height,
+          ));
+    badges.push(badge);
+    const own = leaderOf(badge, point);
+    if (own) {
+      bands.push(own);
+      leaders.set(c.id, own);
+    }
+    placed.push({ c, badge, point });
+  }
+
+  const names: Rect[] = [];
+  for (const { c, badge, point } of placed) {
+    const right = { x: badge.x, y: badge.y + (MARKER.h - c.size.h) / 2, w: c.size.w, h: c.size.h };
+    const left = { ...right, x: badge.x + MARKER.w - c.size.w };
+    const own = leaders.get(c.id);
+    const fits = (r: Rect) =>
+      inside(r) &&
+      !overlaps(r, noGo) &&
+      !overlaps(
+        r,
+        badges.filter((b) => b !== badge),
+      ) &&
+      !overlaps(r, names) &&
+      !onPoint(r, c.at) &&
+      !bands.some((band) => band !== own && covers(band, r));
+    const side: 'right' | 'left' | null =
+      c.focused || !(room.icons || c.badgeOnly)
+        ? fits(right)
+          ? 'right'
+          : fits(left)
+            ? 'left'
+            : c.focused
+              ? // No room either side: over the others, on the side that stays in view.
+                right.x + right.w <= width - MARGIN
+                ? 'right'
+                : 'left'
+              : null
+        : null;
+    const rect = side === 'left' ? left : side === 'right' ? right : badge;
+    if (side) names.push(rect);
+    out.push({
+      id: c.id,
+      state: side ? '' : 'compact',
+      rect,
+      point,
+      shownAt: { at: 0, dx: badge.x - c.at.x, dy: badge.y - c.at.y, icon: side === null },
+      ...(side === 'left' ? { side } : {}),
     });
   }
   return out;
