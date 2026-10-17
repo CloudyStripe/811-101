@@ -376,3 +376,26 @@
   color: var(--ink-2);
   font-size: var(--text-small);
 }
+
+/* On a short screen held sideways, each setting's name sits beside its choices, so the menu fits
+   under its button without scrolling. Only while open: the popover's own rule hides it closed. */
+.settings.settings-wide:popover-open {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.settings-wide h2,
+.settings-wide .settings-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.settings-wide .settings-row {
+  display: contents;
+}
+
+.settings-wide .settings-label {
+  margin: 0;
+}

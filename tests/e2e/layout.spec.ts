@@ -3,7 +3,8 @@
  * browser toolbars showing, small and zoomed laptop windows, and a 1280×1024 screen zoomed to 400%
  * (320×256, WCAG 1.4.10). Every control must be reachable and on top where it's clicked, the
  * frequency buttons on screen without scrolling, the hookup framed clear of the controls, the
- * guide never over the lines, and no chrome overlapping.
+ * guide never over the lines, and no chrome overlapping. On phones held sideways, the settings
+ * menu fits under its button.
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
@@ -303,6 +304,36 @@ test.describe('rotating a phone', () => {
     }
   });
 });
+
+/** The settings menu on phones held sideways: all of it under its button, nothing to scroll to. */
+for (const size of SIZES.filter((s) =>
+  ['phone-landscape', 'small-phone-landscape', 'tiny-phone-landscape'].includes(s.name),
+)) {
+  test.describe(`settings ${size.name}`, () => {
+    test.use({
+      viewport: { width: size.width, height: size.height },
+      hasTouch: true,
+      isMobile: true,
+    });
+
+    test('the settings menu shows every line, with nothing to scroll', async ({ page }) => {
+      await page.goto('./');
+      await page.getByRole('button', { name: 'Settings' }).tap();
+      const menu = page.getByRole('dialog', { name: 'Settings' });
+      await expect(menu).toBeVisible();
+      const fit = await menu.evaluate((m) => ({
+        hidden: m.scrollHeight - m.clientHeight,
+        bottom: m.getBoundingClientRect().bottom,
+      }));
+      expect(fit.hidden, 'left to scroll to').toBeLessThanOrEqual(1);
+      expect(fit.bottom).toBeLessThanOrEqual(size.height);
+      await expect(menu.getByText('Saved in this browser')).toBeInViewport({ ratio: 1 });
+      for (const name of ['Dark', 'Reduced', 'High']) {
+        await expect(menu.getByRole('radio', { name })).toBeInViewport({ ratio: 1 });
+      }
+    });
+  });
+}
 
 /** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
 for (const size of SIZES.filter((s) =>
