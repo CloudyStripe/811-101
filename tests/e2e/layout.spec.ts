@@ -335,11 +335,36 @@ for (const size of SIZES.filter((s) =>
   });
 }
 
+/** Every piece of the diorama's chrome that shows sits clear of every other. */
+async function expectChromeApart(page: Page) {
+  const chrome = await page.$$eval('[data-chrome]', (els) =>
+    els.flatMap((e) => {
+      const r = e.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0 || !e.checkVisibility({ visibilityProperty: true })) {
+        return [];
+      }
+      return [{ id: e.getAttribute('class') ?? '', x: r.x, y: r.y, w: r.width, h: r.height }];
+    }),
+  );
+  chrome.forEach((a, i) => {
+    for (const b of chrome.slice(i + 1)) {
+      const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+    }
+  });
+}
+
 /** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
 for (const size of SIZES.filter((s) =>
-  ['tablet-portrait', 'small-laptop', 'small-window', 'small-phone', 'phone-landscape'].includes(
-    s.name,
-  ),
+  [
+    'tablet-portrait',
+    'small-laptop',
+    'small-window',
+    'small-phone',
+    'phone-landscape',
+    'small-phone-landscape',
+    'tiny-phone-landscape',
+  ].includes(s.name),
 )) {
   test.describe(`diorama ${size.name}`, () => {
     test.use({
@@ -358,25 +383,26 @@ for (const size of SIZES.filter((s) =>
         () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
       );
       expect(overflow, 'page taller than the screen').toBeLessThanOrEqual(1);
-      const controls = '.gp-dock button, .gp-dock [role="radio"], .gp-panel .sheet-toggle';
+      const controls =
+        '.gp-dock button, .gp-dock [role="radio"], .gp-camera button, .gp-panel .sheet-toggle';
       const count = await page.locator(controls).count();
       for (let i = 0; i < count; i++) {
         if (!(await page.locator(controls).nth(i).isVisible())) continue;
         expect(await onTop(page, controls, i), `control #${String(i)} is covered`).toBe(true);
       }
-      const chrome = await page.$$eval('[data-chrome]', (els) =>
-        els.flatMap((e) => {
-          const r = e.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) return [];
-          return [{ id: e.getAttribute('class') ?? '', x: r.x, y: r.y, w: r.width, h: r.height }];
-        }),
-      );
-      chrome.forEach((a, i) => {
-        for (const b of chrome.slice(i + 1)) {
-          const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-          expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+      await expectChromeApart(page);
+      // With the sheet open: where it covers the view, the camera's buttons go out of sight and
+      // reach with it; wherever it opens, nothing that shows sits over anything else.
+      const toggle = page.locator('.gp-panel .sheet-toggle');
+      if (await toggle.isVisible()) {
+        await toggle.click();
+        await expect(page.locator('.gp-grid')).toHaveAttribute('data-sheet', 'open');
+        if ((await page.locator('main.stage').getAttribute('inert')) !== null) {
+          await expect(page.locator('.gp-camera')).toBeHidden();
+          await expect(page.locator('.gp-camera')).toHaveAttribute('inert', '');
         }
-      });
+        await expectChromeApart(page);
+      }
     });
   });
 }

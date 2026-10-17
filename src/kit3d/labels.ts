@@ -83,6 +83,8 @@ export class LabelLayer {
   private keep: readonly KeepClear[] = [];
   private readonly sizes = new Map<string, { w: number; h: number }>();
   private readonly lastKey = new Map<string, string>();
+  /** Where the labels shown at the last update sit, for what else must keep clear of them. */
+  private shownRects: readonly Rect[] = [];
   /** Where each shown label was shown, so a label focused stays where it is. */
   private readonly shownAt = new Map<string, ShownAt>();
   /**
@@ -268,6 +270,14 @@ export class LabelLayer {
       const label = byId.get(placement.id);
       if (label) this.place(label, placement);
     }
+    this.shownRects = placements.flatMap((p) =>
+      p.rect && (p.state === '' || p.state === 'compact') ? [p.rect] : [],
+    );
+  }
+
+  /** Where the labels shown sit, as of the last update. */
+  get shown(): readonly Rect[] {
+    return this.shownRects;
   }
 
   private place(label: Label, { rect: r, state, point, shownAt }: Placement): void {

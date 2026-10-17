@@ -5,14 +5,20 @@ import { areaCamera, fitShot, type FitArea, type Point3, type Shot } from './fit
 
 const FOV = 34;
 
-/** The must-see points' extent in the free area (-1 to 1 each way), seen from the fitted pose. */
+/**
+ * The must-see points' extent in the free area (-1 to 1 each way), seen from the fitted pose with
+ * the picture slid as it says.
+ */
 function extent(shot: Shot, area: FitArea, margin?: number) {
   const pose = fitShot(shot, FOV, area, margin);
   const camera = areaCamera(FOV, area);
   camera.position.copy(pose.position);
   camera.lookAt(pose.target);
   camera.updateMatrixWorld();
-  const projected = shot.mustSee.map((p) => new Vector3(...p).project(camera));
+  const projected = shot.mustSee.map((p) => {
+    const v = new Vector3(...p).project(camera);
+    return v.set(v.x + pose.shift.x, v.y + pose.shift.y, v.z);
+  });
   const xs = projected.map((v) => v.x);
   const ys = projected.map((v) => v.y);
   return {
@@ -83,18 +89,53 @@ describe('fitShot', () => {
     expect(fitted.dot(given)).toBeGreaterThan(0.9999);
   });
 
-  it('keeps every point out from under a card over a corner, pulling back only as it must', () => {
+  /** A card over the right-hand edge, where the rightmost point lands without one, this tall. */
+  function cardOverRightEdge(y0: (right: Vector3) => number, y1: (right: Vector3) => number) {
     const free = extent(SHOT, WIDE);
-    // A card over the right-hand edge, where the rightmost point lands without it.
     const right = free.projected.reduce((m, v) => (v.x > m.x ? v : m));
-    const card = { x0: right.x - 0.2, y0: right.y - 0.2, x1: 1, y1: right.y + 0.2 };
+    const card = { x0: right.x - 0.2, y0: y0(right), x1: 1, y1: y1(right) };
     const under = (v: Vector3) => v.x > card.x0 && v.x < card.x1 && v.y > card.y0 && v.y < card.y1;
     expect(free.projected.some(under)).toBe(true);
+    return { free, card, under };
+  }
+  const reach = (e: ReturnType<typeof extent>) => e.pose.position.distanceTo(e.pose.target);
+
+  it('slides the points out from under a card over a corner, where there is room, rather than pulling back', () => {
+    const { free, card, under } = cardOverRightEdge(
+      (r) => r.y - 0.1,
+      () => 1,
+    );
+    const e = extent({ ...SHOT, keepOut: [card], slide: true }, WIDE);
+    expect(e.projected.some(under)).toBe(false);
+    expect(reach(e)).toBeLessThan(reach(free) * 1.03);
+    // Off center, then: the picture slid down, out of the card's way, and still inside the margin,
+    // while the camera looks the same way at much the same place.
+    expect(e.pose.shift.y).toBeLessThan(0);
+    expect((e.y0 + e.y1) / 2).toBeLessThan(-0.05);
+    expect(e.y0).toBeGreaterThanOrEqual(-0.92 - 1e-3);
+    const look = (x: typeof e) => x.pose.target.clone().sub(x.pose.position).normalize();
+    expect(look(e).dot(look(free))).toBeGreaterThan(0.9999);
+  });
+
+  it('pulls back from a card down a whole side, which no slide gets every point out from under', () => {
+    const { free, card, under } = cardOverRightEdge(
+      () => -1,
+      () => 1,
+    );
+    const e = extent({ ...SHOT, keepOut: [card], slide: true }, WIDE);
+    expect(e.projected.some(under)).toBe(false);
+    expect(reach(e)).toBeGreaterThan(reach(free) * 1.03);
+  });
+
+  it('keeps the points centered, pulling back instead, unless the shot lets them slide', () => {
+    const { free, card, under } = cardOverRightEdge(
+      (r) => r.y - 0.1,
+      () => 1,
+    );
     const e = extent({ ...SHOT, keepOut: [card] }, WIDE);
     expect(e.projected.some(under)).toBe(false);
-    expect(e.pose.position.distanceTo(e.pose.target)).toBeGreaterThan(
-      free.pose.position.distanceTo(free.pose.target),
-    );
+    expect(Math.abs((e.y0 + e.y1) / 2)).toBeLessThan(0.01);
+    expect(reach(e)).toBeGreaterThan(reach(free) * 1.03);
   });
 
   it('ignores a card it cannot get the points out from under', () => {
@@ -102,6 +143,24 @@ describe('fitShot', () => {
     const everywhere = { x0: -1, y0: -1, x1: 1, y1: 1 };
     const e = extent({ ...SHOT, keepOut: [everywhere] }, WIDE);
     expect(e.pose.position.distanceTo(free.pose.position)).toBeLessThan(1e-6);
+  });
+
+  it('looks no lower than its floor: along the same line, from the same place, the same picture', () => {
+    const free = extent(SHOT, WIDE);
+    const floor = free.pose.target.y + 1;
+    const e = extent({ ...SHOT, floor }, WIDE);
+    expect(e.pose.target.y).toBeCloseTo(floor, 6);
+    expect(e.pose.position.distanceTo(free.pose.position)).toBeLessThan(1e-6);
+    const look = (x: typeof e) => x.pose.target.clone().sub(x.pose.position).normalize();
+    expect(look(e).dot(look(free))).toBeGreaterThan(0.999999);
+  });
+
+  it('stands no nearer than its nearest for how high it looks, stepping back along its line', () => {
+    const free = extent(SHOT, WIDE);
+    const near = free.pose.position.distanceTo(free.pose.target) * 1.5;
+    const e = extent({ ...SHOT, nearestAt: () => near }, WIDE);
+    expect(e.pose.position.distanceTo(e.pose.target)).toBeCloseTo(near, 6);
+    expect(e.pose.target.distanceTo(free.pose.target)).toBeLessThan(1e-6);
   });
 
   it('gives a finite pose for a single point', () => {

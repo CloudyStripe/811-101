@@ -161,8 +161,10 @@ In the field, the color is the code.
 ## The diorama's story
 
 - **The journey** (`src/pages/gas-petroleum/journey.ts`) is a pure state machine with its own tests: Start walks the shared stops to the fork, where the reader chooses a path; that path's stops follow, then its quiz; the end offers the other path from the fork.
-- **Labels the story names:** the open stop and where it goes next, or in the overview its landmarks; the others are quiet (`quiet` in `src/kit3d/labels.ts`), shown only while focused.
-- **Motion in tests:** e2e tests count frames (`countFrames`, `isMoving` in `tests/e2e/fixtures.ts`), never screenshots of a moving canvas; one late frame after a pause isn't motion.
+- **The camera** (`src/kit3d/orbit.ts`, wrapping camera-controls): a drag turns the model all the way round, a right-drag or two fingers pan, the wheel or a pinch zooms toward the pointer, and a double-click or double-tap centers the view on that spot. It tilts between 3° and 78° from overhead, pans within the model (and just in front of its cut face), comes no nearer than what it looks at allows (nearer the higher that is, so tilted flat it still clears the grass: `nearestAt`, held by the rig every frame), and zooms out to a little past where the whole model shows from any side (`ORBIT` in `shots.ts`). On the focused model the arrows turn and tilt, + and − zoom, Shift and the arrows pan, and Home sets it back; elsewhere on the page ← and → step through the stops. The cluster in the view's lower right corner (`ui/ViewControls.tsx`) does the same by buttons, which say when they're at a limit and, held, go on moving; on wide screens they sit in the dock's row, and on phones and short screens they're smaller, in one row where the view is wide enough. The view is framed above them, as beside the guide, so nothing it frames sits under them (where controls still sit over a corner, the overview slides the picture clear: `slide` on a view, in `src/kit3d/fit.ts`); under the open sheet the buttons are hidden and inert, as the view is, and on a phone held sideways the open sheet takes the view's column while the view moves to the column it leaves. The view draws only while something moves; the arrival settles in, and any input lands it. The canvas carries where the camera stands (`data-heading`, `data-tilt`, `data-zoom`, `data-at`) for tests.
+- **Stop shots** (`stopShot` in `shots.ts`): each stop's subject (its parts, their details and its label) sits at the middle of the view as the biggest thing in it (`STOP_SHOT.margin`), seen from at least 15° above level; the stops either side may sit at its edges or just outside. Tall screens see the overview from the east.
+- **Labels the story names:** the open stop and where it goes next, or in the overview its landmarks; the others are quiet (`quiet` in `src/kit3d/labels.ts`), shown only while focused. The small labels on an open stop's parts (`scene/details.ts`) hang beside the points they name, on leaders, so the parts show.
+- **Motion in tests:** e2e tests count frames (`countFrames`, `isMoving`, `waitStill` in `tests/e2e/fixtures.ts`), never screenshots of a moving canvas; one late frame after a pause isn't motion, and stillness waits out the longest of the last few gaps between frames, as one slow software frame isn't stillness.
 
 ## Performance and accessibility
 
@@ -170,7 +172,7 @@ In the field, the color is the code.
 - **GPU resources:** disposed on exit. Quality tiers have a manual override.
 - **WCAG 2.2 AA:**
   - every control works by keyboard;
-  - nothing needs dragging: the lab's view is fixed, and the diorama's overview, which turns by dragging, also turns by buttons and keys;
+  - nothing needs dragging: the lab's view is fixed, and the diorama's view, which turns, tilts and zooms by dragging, the wheel or a pinch, does the same by its buttons and keys, and a double-click or double-tap centers it on a spot;
   - focus is never hidden under the panel or sheet, and both can be closed;
   - popovers can be hovered;
   - nothing pulses faster than 3 Hz, and the signal's motion has a pause button, whatever the

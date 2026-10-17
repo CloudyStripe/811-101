@@ -141,6 +141,188 @@ body {
   font-weight: 700;
 }
 
+/*
+ * The camera's buttons, as on a map, in the lower right corner of the view: zoom in and out,
+ * stacked, beside a round pad of turns and tilts about the compass, which sets the view back.
+ */
+.gp-camera {
+  position: relative;
+  z-index: 1;
+  grid-area: view;
+  align-self: end;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Until the view is built, the buttons hold their place out of sight, so it's framed clear of them. */
+.gp-camera:not([data-ready]) {
+  visibility: hidden;
+}
+
+/* Under the open sheet, as the view is: out of sight, and (inert) out of reach. */
+.gp-camera[data-covered],
+.gp-grid > .gp-hint[data-covered] {
+  visibility: hidden;
+}
+
+/*
+ * A short screen's open sheet takes the view's column, and the view the column it leaves: the
+ * buttons and the hint, in the view's column, step out of sight (and so out of the tab order) under
+ * it. Dragging, pinching and the keys still move the view.
+ */
+@media (max-height: 580px) and (min-width: 561px) {
+  .gp-grid[data-sheet='open'] .gp-camera,
+  .gp-grid[data-sheet='open'] > .gp-hint {
+    visibility: hidden;
+  }
+}
+
+/* With the guide closed to its title, the view, and so the buttons, reach the right edge. */
+.gp-grid[data-panel='closed'] .gp-camera {
+  grid-column: 1 / -1;
+}
+
+/*
+ * Wide screens: the buttons sit in the dock's row, at the right of the free part, rather than
+ * above it, so the view, framed above them, keeps the most room.
+ */
+@media (min-width: 1101px) and (min-height: 581px) {
+  .gp-camera {
+    grid-area: auto;
+    grid-row: 2;
+    grid-column: 2;
+  }
+
+  .gp-grid[data-panel='closed'] .gp-camera {
+    grid-column: 2 / -1;
+  }
+}
+
+.cam-zoom,
+.cam-pad {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.cam-zoom {
+  display: grid;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+}
+
+.cam-pad {
+  display: grid;
+  grid-template: repeat(3, 40px) / repeat(3, 40px);
+  padding: 2px;
+  border-radius: 50%;
+}
+
+.gp-camera .icon-button {
+  width: 40px;
+  height: 40px;
+  /* Held to keep moving: no callout or selection on a long press. */
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.gp-camera .icon-button[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cam-pad .cam-up {
+  grid-area: 1 / 2;
+}
+
+.cam-pad .cam-left {
+  grid-area: 2 / 1;
+}
+
+.cam-pad .cam-reset {
+  grid-area: 2 / 2;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.cam-pad .cam-right {
+  grid-area: 2 / 3;
+}
+
+.cam-pad .cam-down {
+  grid-area: 3 / 2;
+}
+
+/*
+ * Phones and short screens keep their room for the model: smaller buttons, in one row along the
+ * bottom of the view, which is framed above them. Held sideways, the view is the column beside
+ * the guide: the row sits there where it fits, and the buttons stay stacked where it doesn't.
+ */
+@media (max-width: 760px), (max-height: 580px) and (min-width: 561px) {
+  .gp-camera .icon-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .cam-pad {
+    grid-template: repeat(3, 36px) / repeat(3, 36px);
+  }
+}
+
+@media (max-width: 760px) and (min-height: 581px),
+  (max-width: 560px),
+  (max-height: 580px) and (min-width: 650px) {
+  .gp-camera {
+    gap: var(--space-1);
+  }
+
+  .cam-zoom,
+  .cam-pad {
+    display: flex;
+    border-radius: var(--radius-pill);
+  }
+
+  .cam-pad .cam-reset {
+    border-color: transparent;
+  }
+}
+
+/* How to move the view, until the first move: over the top of the view, never taking the pointer. */
+.gp-grid > .gp-hint {
+  position: relative;
+  z-index: 1;
+  grid-area: view;
+  align-self: start;
+  justify-self: center;
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: 700;
+  box-shadow: var(--shadow-1);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-slow) var(--ease),
+    visibility 0s;
+}
+
+.gp-grid > .gp-hint:not([data-ready]) {
+  visibility: hidden;
+}
+
+.gp-grid > .gp-hint[data-gone] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-slow) var(--ease),
+    visibility 0s var(--dur-slow);
+}
+
 /* The guide: a side panel on wide screens, a sheet on phones. */
 .gp-panel {
   grid-area: panel;

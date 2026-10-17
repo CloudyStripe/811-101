@@ -1,12 +1,28 @@
 /**
  * The small labels on an open stop's parts ("Gas", "Cap rock (the lid)", "LNG ship"), and the
  * time-lapse's clock. They repeat what the panel says, for the eye, so they're hidden from
- * assistive tech. Each follows its point on screen, and hides when its point is behind the
- * camera, on the far side of the face it's drawn on, or under the controls.
+ * assistive tech. Each sits beside its point, on a short leader to a dot on it, so no label covers
+ * a part that's named: above it where there's room, else beside or below it, clear of the controls,
+ * the stops' labels and each other. It hides when its point is behind the camera, on the far side
+ * of the face it's drawn on, or where there's no room. The clock sits on its own point.
  */
 import { Vector3, type PerspectiveCamera } from 'three';
 import { DETAILS, type StopId } from '../../../../content/utilities/gas-petroleum.ts';
+import { leaderStart } from '../../../kit3d/placement.ts';
 import type { DetailSpec, StopModel } from './stop.ts';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** How far a label stands off its point, in CSS pixels. */
+const GAP = 12;
+/** The room kept clear round every named point, in CSS pixels, so each part shows. */
+const POINT = 10;
+
+interface Leader {
+  group: SVGGElement;
+  line: SVGLineElement;
+  dot: SVGCircleElement;
+}
 
 interface Item {
   stop: StopId | null;
@@ -14,6 +30,8 @@ interface Item {
   element: HTMLElement;
   text: HTMLElement;
   key: string;
+  /** Its leader to its point; none for the clock. */
+  leader: Leader | null;
 }
 
 export interface Rect {
@@ -26,9 +44,24 @@ export interface Rect {
 const overlaps = (r: Rect, list: readonly Rect[]) =>
   list.some((q) => r.x < q.x + q.w && r.x + r.w > q.x && r.y < q.y + q.h && r.y + r.h > q.y);
 
+/** Where a label may sit by its point, in turn: above, above to either side, beside, below. */
+function spots(x: number, y: number, w: number, h: number): Rect[] {
+  const above = y - GAP - h;
+  return [
+    { x: x - w / 2, y: above, w, h },
+    { x: x + GAP / 2, y: above, w, h },
+    { x: x - GAP / 2 - w, y: above, w, h },
+    { x: x + GAP, y: y - h / 2, w, h },
+    { x: x - GAP - w, y: y - h / 2, w, h },
+    { x: x - w / 2, y: y + GAP, w, h },
+  ];
+}
+
 export class DetailLayer {
   private readonly items: Item[] = [];
   private readonly clock: Item;
+  /** The leaders, in an SVG under the labels. */
+  private readonly svg: SVGSVGElement;
   private readonly v = new Vector3();
   private readonly toCamera = new Vector3();
   private readonly facing = new Vector3();
@@ -38,6 +71,10 @@ export class DetailLayer {
     stops: readonly StopModel[],
     clockAt: readonly [number, number, number],
   ) {
+    this.svg = document.createElementNS(SVG_NS, 'svg');
+    this.svg.classList.add('lbl-leaders');
+    this.svg.setAttribute('aria-hidden', 'true');
+    container.prepend(this.svg);
     for (const stop of stops) {
       const texts = DETAILS[stop.id] as Readonly<Record<string, { text: string }>>;
       for (const spec of stop.details) {
@@ -48,6 +85,8 @@ export class DetailLayer {
     }
     this.clock = this.create(container, null, { key: 'clock', at: clockAt }, '');
     this.clock.element.classList.add('dlbl-clock');
+    this.clock.leader?.group.remove();
+    this.clock.leader = null;
   }
 
   private create(
@@ -69,7 +108,14 @@ export class DetailLayer {
     span.textContent = text;
     element.append(span);
     container.append(element);
-    return { stop, spec, element, text: span, key: '' };
+    const group = document.createElementNS(SVG_NS, 'g');
+    const line = document.createElementNS(SVG_NS, 'line');
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('r', '2.5');
+    group.classList.add('off');
+    group.append(line, dot);
+    this.svg.append(group);
+    return { stop, spec, element, text: span, key: '', leader: { group, line, dot } };
   }
 
   /** The clock's words while the time-lapse plays; null hides it. */
@@ -88,13 +134,11 @@ export class DetailLayer {
     noGo: readonly Rect[],
     clockShown: boolean,
   ) {
-    const placed: Rect[] = [...noGo];
+    // Where each wanted label's point lands, if it's in view and facing the camera.
+    const points = new Map<Item, { x: number; y: number }>();
     for (const item of [this.clock, ...this.items]) {
       const wanted = item === this.clock ? clockShown : item.stop === open && open !== null;
-      if (!wanted) {
-        this.set(item, 'off', 0, 0);
-        continue;
-      }
+      if (!wanted) continue;
       const { spec } = item;
       this.v.set(...spec.at);
       if (spec.follow) spec.follow.localToWorld(this.v);
@@ -105,32 +149,62 @@ export class DetailLayer {
           .sub(this.v)
           .dot(this.facing.set(...spec.facing)) > 0;
       this.v.project(camera);
-      const x = (this.v.x * 0.5 + 0.5) * width;
-      const y = (-this.v.y * 0.5 + 0.5) * height;
-      const inFront = this.v.z > -1 && this.v.z < 1;
+      if (!facingOk || this.v.z <= -1 || this.v.z >= 1) continue;
+      points.set(item, { x: (this.v.x * 0.5 + 0.5) * width, y: (-this.v.y * 0.5 + 0.5) * height });
+    }
+    // No label covers a named point, so every part named shows.
+    const named = [...points]
+      .filter(([item]) => item !== this.clock)
+      .map(([, p]) => ({ x: p.x - POINT / 2, y: p.y - POINT / 2, w: POINT, h: POINT }));
+    const placed: Rect[] = [...noGo];
+    const inside = (r: Rect) =>
+      r.x >= 2 && r.y >= 2 && r.x + r.w <= width - 2 && r.y + r.h <= height - 2;
+    for (const item of [this.clock, ...this.items]) {
+      const p = points.get(item);
+      if (!p) {
+        this.set(item, null, null);
+        continue;
+      }
       const w = item.element.offsetWidth || 80;
       const h = item.element.offsetHeight || 22;
-      const r = { x: x - w / 2, y: y - h / 2, w, h };
-      const inside = r.x >= 2 && r.y >= 2 && r.x + w <= width - 2 && r.y + h <= height - 2;
-      if (!facingOk || !inFront || !inside || overlaps(r, placed)) {
-        this.set(item, 'off', r.x, r.y);
+      const tries =
+        item === this.clock ? [{ x: p.x - w / 2, y: p.y - h / 2, w, h }] : spots(p.x, p.y, w, h);
+      const r = tries.find((t) => inside(t) && !overlaps(t, placed) && !overlaps(t, named));
+      if (!r) {
+        this.set(item, null, null);
         continue;
       }
       placed.push(r);
-      this.set(item, '', r.x, r.y);
+      this.set(item, r, p);
     }
   }
 
-  private set(item: Item, state: '' | 'off', x: number, y: number) {
-    const key = state === 'off' ? 'off' : `${String(Math.round(x))},${String(Math.round(y))}`;
+  /** Shows a label at `r`, its leader to its point `p`; with no room, it fades out where it is. */
+  private set(item: Item, r: Rect | null, p: { x: number; y: number } | null) {
+    const key = r && p ? [r.x, r.y, p.x, p.y].map((n) => Math.round(n)).join(',') : 'off';
     if (item.key === key) return;
     item.key = key;
-    item.element.classList.toggle('off', state === 'off');
-    if (state === '')
-      item.element.style.transform = `translate(${String(Math.round(x))}px, ${String(Math.round(y))}px)`;
+    item.element.classList.toggle('off', !r);
+    const { leader } = item;
+    const from = r && p ? leaderStart(r, p) : null;
+    if (leader) {
+      leader.group.classList.toggle('off', !from);
+      if (from && p) {
+        leader.line.setAttribute('x1', from.x.toFixed(1));
+        leader.line.setAttribute('y1', from.y.toFixed(1));
+        leader.line.setAttribute('x2', p.x.toFixed(1));
+        leader.line.setAttribute('y2', p.y.toFixed(1));
+        leader.dot.setAttribute('cx', p.x.toFixed(1));
+        leader.dot.setAttribute('cy', p.y.toFixed(1));
+      }
+    }
+    if (r) {
+      item.element.style.transform = `translate(${String(Math.round(r.x))}px, ${String(Math.round(r.y))}px)`;
+    }
   }
 
   dispose() {
     for (const item of [this.clock, ...this.items]) item.element.remove();
+    this.svg.remove();
   }
 }

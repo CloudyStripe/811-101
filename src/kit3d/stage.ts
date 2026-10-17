@@ -23,6 +23,8 @@ export class Stage {
   private readonly timer = new Timer();
   private raf = 0;
   private running = false;
+  /** The last frame asked for no more: the next is the first after a rest, timed afresh. */
+  private resting = true;
   private pageVisible = !document.hidden;
   private onScreen = true;
   private readonly resizeObserver: ResizeObserver;
@@ -98,6 +100,9 @@ export class Stage {
   /** Wakes the loop for at least one frame. */
   requestFrame(): void {
     if (this.running && !this.raf && this.pageVisible && this.onScreen) {
+      // Waking from a rest, the first frame's step is a frame's time, not the whole rest (capped),
+      // so a move asked for then starts as smoothly as one under way.
+      if (this.resting) this.timer.reset();
       this.raf = requestAnimationFrame(this.tick);
     }
   }
@@ -109,7 +114,8 @@ export class Stage {
     // The first rAF timestamp can predate the timer's start, so clamp at zero as well as at 0.1 s.
     const dt = Math.max(0, Math.min(0.1, this.timer.getDelta()));
     this.renderer.info.reset();
-    if (this.hooks.frame(dt, this.timer.getElapsed())) this.requestFrame();
+    this.resting = !this.hooks.frame(dt, this.timer.getElapsed());
+    if (!this.resting) this.requestFrame();
   };
 
   private readonly onVisibility = () => {
