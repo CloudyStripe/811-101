@@ -345,14 +345,19 @@ function badgeOf(p: Placement & { rect: Rect }): Rect {
 }
 
 describe('placeMarkers', () => {
-  it('shows every marker in view, however crowded: none gives way', () => {
+  it('shows every marker in a crowd, each in a place of its own: none gives way', () => {
     // Thirteen in a tight knot, as a far corner of a model can bunch its stops.
     const knot = Array.from({ length: 13 }, (_, i) =>
       marker(`m${String(i)}`, { x: 380 + (i % 4) * 12, y: 300 + Math.floor(i / 4) * 12 }),
     );
     const placed = shown(placeAll(knot));
     expect(placed).toHaveLength(13);
-    for (const p of placed) expect(p.state, p.id).not.toBe('capped');
+    for (const [i, a] of placed.entries()) {
+      expect(a.state, a.id).not.toBe('capped');
+      for (const b of placed.slice(i + 1)) {
+        expect(overlap(badgeOf(a), badgeOf(b)), `${a.id} over ${b.id}`).toBe(false);
+      }
+    }
   });
 
   it('names markers in order where the name fits, clear of every other badge and name', () => {
@@ -449,5 +454,60 @@ describe('placeMarkers', () => {
     ]);
     expect(placed.get('faded')?.state).toBe('compact');
     expect(placed.get('focused')?.state).toBe('');
+  });
+
+  it('keeps a focused marker where it was, but in the free part of the view, clear of the controls', () => {
+    const header = { x: 0, y: 0, w: 800, h: 64 };
+    const r = room({ noGo: [header], bounds: { x: 0, y: 64, w: 800, h: 536 } });
+    const was = placeAll([marker('a', { x: 400, y: 300 })], r).get('a');
+    if (!was?.shownAt) throw new Error('not shown');
+    // Its point rises to just under the header: kept where it was, it would sit under it.
+    const now = placeAll(
+      [marker('a', { x: 400, y: 70 }, { focused: true })],
+      r,
+      new Map([['a', was.shownAt]]),
+    ).get('a');
+    if (!now?.rect) throw new Error('not shown');
+    expect(overlap(now.rect, header)).toBe(false);
+    expect(now.rect.y).toBeGreaterThanOrEqual(64);
+  });
+
+  it('pulls a focused marker in from out of sight, and keeps where it was for its return', () => {
+    const panel = { x: 600, y: 0, w: 200, h: 600 };
+    const r = room({ noGo: [panel], bounds: { x: 0, y: 0, w: 600, h: 600 } });
+    const first = placeAll([marker('a', { x: 300, y: 300 })], r).get('a');
+    if (!first?.shownAt || !first.rect) throw new Error('not shown');
+    // Under the panel: pulled into the free part, with no leader.
+    const under = placeAll(
+      [marker('a', { x: 700, y: 300 }, { focused: true })],
+      r,
+      new Map([['a', first.shownAt]]),
+    ).get('a');
+    expect(under?.point).toBeNull();
+    expect((under?.rect?.x ?? 0) + (under?.rect?.w ?? 0)).toBeLessThanOrEqual(600);
+    if (!under?.shownAt) throw new Error('nothing kept');
+    // Back where it was: its badge where it was first, not where it was pulled to.
+    const back = placeAll(
+      [marker('a', { x: 300, y: 300 }, { focused: true })],
+      r,
+      new Map([['a', under.shownAt]]),
+    ).get('a');
+    if (!back?.rect) throw new Error('not shown');
+    expect(badgeOf({ ...back, rect: back.rect })).toEqual(badgeOf({ ...first, rect: first.rect }));
+  });
+
+  it('never names a marker over its own point, so its leader shows', () => {
+    // Over its point is taken, so its badge sits beside it, level with it, on its left: a name on
+    // the right would cover the point.
+    const above = { x: 330, y: 230, w: 140, h: 50 };
+    const at = { x: 400, y: 300 };
+    const p = placeAll([marker('a', at)], room({ noGo: [above] })).get('a');
+    if (!p?.rect || !p.point) throw new Error('not shown');
+    const holds = (r: Rect) => at.x > r.x && at.x < r.x + r.w && at.y > r.y && at.y < r.y + r.h;
+    expect(p.state).toBe('');
+    expect(holds(p.rect)).toBe(false);
+    // Its leader leaves its badge.
+    expect(p.from).toEqual(badgeOf({ ...p, rect: p.rect }));
+    expect(leaderStart(p.from ?? p.rect, p.point)).not.toBeNull();
   });
 });

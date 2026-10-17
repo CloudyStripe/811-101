@@ -20,6 +20,7 @@ import {
   TIMELAPSE,
   TOURS,
   stopById,
+  type StopId,
 } from '../../content/utilities/gas-petroleum.ts';
 import { PATH_STYLE } from '../../src/design/paths.ts';
 import { stopName, stopSummary } from '../../src/pages/gas-petroleum/summary.ts';
@@ -68,6 +69,15 @@ async function openSpot(page: Page): Promise<{ x: number; y: number }> {
   });
   if (!spot) throw new Error('nowhere over the view is clear of labels and controls');
   return spot;
+}
+
+/** Opens a stop from its marker by keyboard, once the marker shows: one out of view can't be focused. */
+async function openMarker(page: Page, id: StopId) {
+  const marker = page.locator(`[data-label="${id}"]`);
+  await expect(marker, `${id}'s marker shows`).not.toHaveClass(/\boff\b/);
+  await marker.locator('.mk-btn').focus();
+  await expect(marker.locator('.mk-btn')).toBeFocused();
+  await page.keyboard.press('Enter');
 }
 
 const filterChecked = (page: Page) =>
@@ -169,22 +179,19 @@ test('a stop opened from its marker steps along its own path; a shared one waits
 }) => {
   await open(page);
   // A stop of a path: its path's steps, counting the shared start, on to its quiz.
-  await page.locator('[data-label="distillation"] .mk-btn').focus();
-  await page.keyboard.press('Enter');
+  await openMarker(page, 'distillation');
   await expect(guide(page)).toContainText(`Step 6 of ${String(TOURS.gasoline.stops.length)}`);
   await guide(page).getByRole('button', { name: 'Next step' }).click();
   await expect(status(page)).toHaveText(stopSummary('delivery'));
   // A stop of the shared start, with both paths showing: the choice waits at the fork.
   await guide(page).getByRole('button', { name: 'Overview', exact: true }).click();
-  await page.locator('[data-label="drilling"] .mk-btn').focus();
-  await page.keyboard.press('Enter');
+  await openMarker(page, 'drilling');
   await expect(guide(page)).toContainText('Step 3 of 4');
   await guide(page).getByRole('button', { name: 'Next step' }).click();
   await guide(page).getByRole('button', { name: 'Choose a path' }).click();
   await expect(guide(page).getByRole('button', { name: /Natural gas path/ })).toBeFocused();
   // Opening the gas plant from its marker goes down the natural gas path, which the view shows.
-  await page.locator('[data-label="gas-plant"] .mk-btn').focus();
-  await page.keyboard.press('Enter');
+  await openMarker(page, 'gas-plant');
   await expect(guide(page)).toContainText(`Step 5 of ${String(TOURS.gas.stops.length)}`);
   await expect(filterChecked(page)).toHaveText('Natural gas');
 });
@@ -215,6 +222,8 @@ test('every stop opens from the map, and the status, address and focus follow', 
 test("every stop's marker shows on the model, named where there's room, and opens its stop", async ({
   page,
 }) => {
+  // Two pages and thirteen markers, under software rendering.
+  test.slow();
   await open(page);
   // All thirteen, each in its path's shape, and on a wide screen most of them by name, none over
   // another.
@@ -246,8 +255,7 @@ test("every stop's marker shows on the model, named where there's room, and open
     }
   }
   // A marker opens its stop, which it names while it's open, in ink.
-  await page.locator('[data-label="city-gate"] .mk-btn').focus();
-  await page.keyboard.press('Enter');
+  await openMarker(page, 'city-gate');
   await expect(guide(page).getByRole('heading', { level: 2 })).toHaveText(
     stopById('city-gate').title.text,
   );

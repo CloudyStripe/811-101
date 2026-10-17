@@ -77,7 +77,6 @@ export function StepBar(props: {
       ) : atFork ? (
         <button key="choose" type="button" class="button button-primary" onClick={props.onChoose}>
           Choose a path
-          <Icon name="forward" />
         </button>
       ) : (
         <button

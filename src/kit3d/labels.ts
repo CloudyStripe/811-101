@@ -295,7 +295,7 @@ export class LabelLayer {
     return this.shownRects;
   }
 
-  private place(label: Label, { rect: r, state, point, shownAt, side }: Placement): void {
+  private place(label: Label, { rect: r, state, point, shownAt, side, from }: Placement): void {
     if (shownAt) this.shownAt.set(label.id, shownAt);
     else this.shownAt.delete(label.id);
     const { classList, style } = label.element;
@@ -305,7 +305,8 @@ export class LabelLayer {
       : `${Math.round(r.x)},${Math.round(r.y)},${state},${side ?? ''},${point ? `${Math.round(point.x)},${Math.round(point.y)}` : '-'}`;
     if (this.lastKey.get(label.id) === key) return;
     this.lastKey.set(label.id, key);
-    this.drawLeader(label.id, r, point);
+    // From the whole label, or a named marker's badge.
+    this.drawLeader(label.id, from ?? r, point);
     classList.toggle('off', state === 'off');
     classList.toggle('capped', state === 'capped');
     if (!r) return;

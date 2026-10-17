@@ -649,9 +649,10 @@ body {
   cursor: pointer;
 }
 
+/* Big enough to tap, and apart from each other however narrow the guide. */
 .rmap-stop .pshape {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 @media (hover: hover) {
@@ -749,15 +750,21 @@ body {
 
 /*
  * The step bar: the overview and back, where the journey is over its strip, and on; or in the
- * overview, the way in. At the foot of the guide beside the view, under its bar on phones.
+ * overview, the way in. At the foot of the guide beside the view, under its bar on phones. Where
+ * the guide is too narrow for all of it in a row, its way on takes a row of its own, on the right.
  */
 .stepbar {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--line);
+}
+
+nav.stepbar > :last-child {
+  margin-left: auto;
 }
 
 .stepbar .button {
@@ -776,12 +783,12 @@ body {
   cursor: default;
 }
 
+/* As wide as its words and strip, and wider where there's room; never squeezed under the rest. */
 .stepbar-where {
   display: grid;
-  flex: 1;
+  flex: 1 0 auto;
   justify-items: center;
   gap: 4px;
-  min-width: 0;
   font-size: var(--text-small);
   font-weight: 700;
   white-space: nowrap;
@@ -803,7 +810,7 @@ body {
 .stepbar-strip {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -814,11 +821,11 @@ body {
 }
 
 .stepbar-strip .pshape {
-  width: 11px;
-  height: 11px;
+  width: 9px;
+  height: 9px;
 }
 
-.stepbar-strip .pshape svg {
+.stepbar-strip .pshape > svg {
   filter: none;
 }
 
@@ -832,8 +839,8 @@ body {
 }
 
 .stepbar-strip li[data-state='current'] .pshape {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
 }
 
 .stepbar-fork svg {
@@ -860,7 +867,7 @@ body {
   height: 30px;
 }
 
-.pshape svg {
+.pshape > svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1005,9 +1012,16 @@ body {
   color: var(--surface);
 }
 
-/* On a path the view has faded back, as its stops are: by number alone, but whole when focused. */
-.mk[data-faded]:not(.off, :focus-within) {
-  opacity: 0.55;
+/*
+ * On a path the view has faded back, as its stops are: by number alone (the placement's), its ring
+ * and tab faded, its number muted but still easy to read on its white. Focused or hovered, whole.
+ */
+.mk[data-faded]:not(:focus-within) :is(.pshape-ring, .pshape-gaps, .pshape-bands, .mk-tab) {
+  opacity: 0.4;
+}
+
+.mk[data-faded]:not(:focus-within) .pshape-in {
+  color: var(--ink-2);
 }
 
 @media (hover: hover) {
@@ -1018,7 +1032,14 @@ body {
   /* A marker shown without its name, for want of room, shows it while hovered, over the others. */
   .mk.compact:hover {
     z-index: 3;
+  }
+
+  .mk[data-faded]:hover :is(.pshape-ring, .pshape-gaps, .pshape-bands, .mk-tab) {
     opacity: 1;
+  }
+
+  .mk[data-faded]:hover .pshape-in {
+    color: var(--ink);
   }
 
   .mk.compact:hover .lbl-text {
@@ -1102,9 +1123,13 @@ body {
     display: none;
   }
 
-  /* Closed, the guide is its title over the step bar. */
+  /* Closed, the guide is its title over the step bar, the way in without its note. */
   .gp-panel[data-collapsed] .stepbar {
     border-top: 0;
+  }
+
+  .gp-panel[data-collapsed] .stepbar-note {
+    display: none;
   }
 }
 

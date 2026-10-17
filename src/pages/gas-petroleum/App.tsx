@@ -18,7 +18,6 @@ import { useSettings } from '../../site/useSettings.ts';
 import type { AtLimits, DioramaScene, Filter, Rect } from './scene/index.ts';
 import {
   FORK,
-  SHARED,
   back,
   begin,
   choose,
@@ -27,7 +26,6 @@ import {
   journeyAt,
   reach,
   stopAt,
-  stopsOf,
   type Journey,
   type PathKey,
 } from './journey.ts';
@@ -481,9 +479,9 @@ export function App() {
 
   /** At the fork: on along the path chosen, which the view then shows. */
   function choosePath(path: PathKey) {
+    if (!journey) return;
     setFilter(path);
-    if (journey) walk(choose(path));
-    else open(stopsOf(path)[SHARED.length] ?? FORK);
+    walk(choose(path));
   }
 
   // A control in the guide that changes the view is often gone with the old view: a stop on the
@@ -513,7 +511,9 @@ export function App() {
     const target = event.target as HTMLElement | null;
     if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
     if (target?.closest('canvas')) return;
-    if (!journey || journey.quiz) return;
+    if (!journey) return;
+    // In a quiz, ← goes back as the step bar's Back does, and → waits for Finish.
+    if (journey.quiz && event.key === 'ArrowRight') return;
     event.preventDefault();
     if (event.key === 'ArrowLeft') journeyBack();
     else if (waitsAtFork(journey)) toChoice();

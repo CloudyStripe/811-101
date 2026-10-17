@@ -23,7 +23,8 @@ function layout(): { id: StopId; x: number; y: number }[] {
   const gas = TOURS.gas.stops.slice(4);
   const gasoline = TOURS.gasoline.stops.slice(4);
   return [
-    ...shared.map((id, i) => ({ id, x: 16 + i * 29, y: 76 })),
+    // Far enough apart that their buttons stay apart however narrow the guide.
+    ...shared.map((id, i) => ({ id, x: 14 + i * 32, y: 76 })),
     ...gas.map((id, i) => ({ id, x: 150 + (i * 180) / (gas.length - 1), y: 34 })),
     ...gasoline.map((id, i) => ({ id, x: 150 + (i * 180) / (gasoline.length - 1), y: 118 })),
   ];
