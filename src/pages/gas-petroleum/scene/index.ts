@@ -614,12 +614,13 @@ async function buildDiorama(
       label.quiet = label.id !== shown && (faded || !named.has(label.id));
     }
     labels.update(runtime.stage.width, runtime.stage.height, free, maxLabels(area.width));
+    // The small labels on the open stop's parts keep clear of the controls and the stops' labels.
     details.update(
       camera,
       runtime.stage.width,
       runtime.stage.height,
       shown,
-      o.noGo(),
+      [...o.noGo(), ...labels.shown],
       clockShown(),
     );
   }
