@@ -2,8 +2,9 @@
  * Fitting a shot to the free part of the view. A shot gives a direction to look along and the
  * points that must be in view; the fit finds where to put the camera so they all sit inside the
  * area the panel or sheet leaves free, centered, with a margin, and out from under any controls
- * over the area. It's a pure function of the field of view and the area, so it's tested without a
- * renderer.
+ * over the area (slid off center, away from them, where the shot allows it and that lets the
+ * camera stand nearer than pulling back would). It's a pure function of the field of view and the
+ * area, so it's tested without a renderer.
  */
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 
@@ -39,7 +40,20 @@ export interface Shot {
    * Ignored where the camera can't get every point out from under them.
    */
   keepOut?: readonly FitRect[];
+  /**
+   * The points may slide off center to clear the controls, where that lets the camera stand
+   * nearer than pulling back would. Otherwise they stay centered.
+   */
+  slide?: boolean;
 }
+
+/**
+ * How far off center the points may slide to clear the controls, each way, in the free area's -1
+ * to 1 units. Every pair is tried; the least slide that does nearly as well as the best one wins.
+ */
+const SLIDES = [0, 0.08, -0.08, 0.16, -0.16, 0.24, -0.24, 0.32, -0.32];
+/** A slide is worth taking for a camera at least this much nearer than the centered fit's. */
+const SLIDE_GAIN = 0.98;
 
 /** How far out the must-see points may reach, each way, in the free area's -1 to 1 units. */
 export function fitLimits(shot: Shot, area: FitArea, margin = 0.08): { x: number; y: number } {
@@ -119,10 +133,14 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
       v.copy(p).project(cam);
       return keepOut.every((r) => v.x <= r.x0 || v.x >= r.x1 || v.y <= r.y0 || v.y >= r.y1);
     });
-  const inArea = (distance: number) => {
-    place(distance);
+  /** Whether every point, seen from where the camera is now, sits inside the area's limits. */
+  const inside = () => {
     const e = extent();
     return !e.behind && e.x0 >= -limit.x && e.x1 <= limit.x && e.y0 >= -limit.y && e.y1 <= limit.y;
+  };
+  const inArea = (distance: number) => {
+    place(distance);
+    return inside();
   };
   const fits = (distance: number) => inArea(distance) && clear();
   /** The nearest distance that passes the test (to a few hundredths of a unit), if any does. */
@@ -161,6 +179,48 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
       .addScaledVector(right, slide(e.x0, e.x1, e.depth.x0, e.depth.x1, tanH))
       .addScaledVector(up, slide(e.y0, e.y1, e.depth.y0, e.depth.y1, tanV));
   }
-  place(fitted());
+  const centered = fitted();
+  // No sliding asked for, or no controls, or none that cost the centered fit anything: it stands.
+  const unhindered =
+    shot.slide === true && keepOut.length > 0
+      ? Math.max(minDistance, nearestFor(inArea) ?? centered)
+      : centered;
+  place(centered);
+  if (centered <= unhindered / SLIDE_GAIN) {
+    return { position: cam.position.clone(), target: target.clone() };
+  }
+
+  // Controls over the area: rather than stand back until every point clears them, the points may
+  // slide off center, away from them. A slide is a share of the area's half-size, as seen at the
+  // target, so it moves the view the same at every distance.
+  right.setFromMatrixColumn(cam.matrixWorld, 0);
+  up.setFromMatrixColumn(cam.matrixWorld, 1);
+  const base = target.clone();
+  const slid = (sx: number, sy: number) => (distance: number) => {
+    target
+      .copy(base)
+      .addScaledVector(right, sx * tanH * distance)
+      .addScaledVector(up, sy * tanV * distance);
+    place(distance);
+    return inside() && clear();
+  };
+  const tries = SLIDES.flatMap((sx) =>
+    SLIDES.map((sy) => {
+      const distance = sx === 0 && sy === 0 ? centered : nearestFor(slid(sx, sy));
+      return { sx, sy, distance: Math.max(minDistance, distance ?? Infinity) };
+    }),
+  );
+  const nearestTry = Math.min(...tries.map((t) => t.distance));
+  // The least slide that does nearly as well as the best, and only if it beats centering.
+  const best =
+    tries
+      .filter((t) => t.distance <= nearestTry / SLIDE_GAIN)
+      .sort((a, b) => Math.hypot(a.sx, a.sy) - Math.hypot(b.sx, b.sy))[0] ?? tries[0];
+  if (!best || best.distance >= centered * SLIDE_GAIN) {
+    target.copy(base);
+    place(centered);
+  } else {
+    slid(best.sx, best.sy)(best.distance);
+  }
   return { position: cam.position.clone(), target: target.clone() };
 }

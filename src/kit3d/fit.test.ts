@@ -83,18 +83,49 @@ describe('fitShot', () => {
     expect(fitted.dot(given)).toBeGreaterThan(0.9999);
   });
 
-  it('keeps every point out from under a card over a corner, pulling back only as it must', () => {
+  /** A card over the right-hand edge, where the rightmost point lands without one, this tall. */
+  function cardOverRightEdge(y0: (right: Vector3) => number, y1: (right: Vector3) => number) {
     const free = extent(SHOT, WIDE);
-    // A card over the right-hand edge, where the rightmost point lands without it.
     const right = free.projected.reduce((m, v) => (v.x > m.x ? v : m));
-    const card = { x0: right.x - 0.2, y0: right.y - 0.2, x1: 1, y1: right.y + 0.2 };
+    const card = { x0: right.x - 0.2, y0: y0(right), x1: 1, y1: y1(right) };
     const under = (v: Vector3) => v.x > card.x0 && v.x < card.x1 && v.y > card.y0 && v.y < card.y1;
     expect(free.projected.some(under)).toBe(true);
+    return { free, card, under };
+  }
+  const reach = (e: ReturnType<typeof extent>) => e.pose.position.distanceTo(e.pose.target);
+
+  it('slides the points out from under a card over a corner, where there is room, rather than pulling back', () => {
+    const { free, card, under } = cardOverRightEdge(
+      (r) => r.y - 0.1,
+      () => 1,
+    );
+    const e = extent({ ...SHOT, keepOut: [card], slide: true }, WIDE);
+    expect(e.projected.some(under)).toBe(false);
+    expect(reach(e)).toBeLessThan(reach(free) * 1.03);
+    // Off center, then: down, out of the card's way, and still inside the margin.
+    expect((e.y0 + e.y1) / 2).toBeLessThan(-0.05);
+    expect(e.y0).toBeGreaterThanOrEqual(-0.92 - 1e-3);
+  });
+
+  it('pulls back from a card down a whole side, which no slide gets every point out from under', () => {
+    const { free, card, under } = cardOverRightEdge(
+      () => -1,
+      () => 1,
+    );
+    const e = extent({ ...SHOT, keepOut: [card], slide: true }, WIDE);
+    expect(e.projected.some(under)).toBe(false);
+    expect(reach(e)).toBeGreaterThan(reach(free) * 1.03);
+  });
+
+  it('keeps the points centered, pulling back instead, unless the shot lets them slide', () => {
+    const { free, card, under } = cardOverRightEdge(
+      (r) => r.y - 0.1,
+      () => 1,
+    );
     const e = extent({ ...SHOT, keepOut: [card] }, WIDE);
     expect(e.projected.some(under)).toBe(false);
-    expect(e.pose.position.distanceTo(e.pose.target)).toBeGreaterThan(
-      free.pose.position.distanceTo(free.pose.target),
-    );
+    expect(Math.abs((e.y0 + e.y1) / 2)).toBeLessThan(0.01);
+    expect(reach(e)).toBeGreaterThan(reach(free) * 1.03);
   });
 
   it('ignores a card it cannot get the points out from under', () => {

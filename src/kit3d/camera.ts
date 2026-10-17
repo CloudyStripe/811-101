@@ -1,9 +1,9 @@
 /**
- * Camera framing: a fixed view of the scene, fitted to the part of the canvas the panel or sheet
- * leaves free. The view doesn't move with the pointer; it's framed so the lesson needs no turning
- * or zooming. Each view names the points that must be in it, and the fit (fit.ts) places the
- * camera so they all sit inside the free area, centered, at any size, and out from under any
- * controls that sit over it.
+ * Camera framing: a view of the scene, fitted to the part of the canvas the panel or sheet leaves
+ * free. Each view names the points that must be in it, and the fit (fit.ts) places the camera so
+ * they all sit inside the free area, centered, at any size, and out from under any controls that
+ * sit over it. The lab's view holds still, framed so the lesson needs no turning or zooming; the
+ * diorama's camera rig (orbit.ts) starts from a framed view and moves on from there.
  */
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
 import { fitShot, type FitRect, type Point3 } from './fit.ts';
@@ -20,6 +20,11 @@ export interface View {
   minDistance?: number;
   /** CSS pixels kept clear at the free area's sides for labels on points near them. */
   labelRoom?: number;
+  /**
+   * The points may slide off center to clear controls over the free area, where that lets the
+   * camera stand nearer than pulling back would.
+   */
+  slide?: boolean;
   /**
    * The vertical field of view across the whole canvas, in degrees, if not the camera's own. A
    * wider one brings the camera in closer, so the near field looms larger against the far.
@@ -109,6 +114,7 @@ export class LabCamera {
         minDistance: view.minDistance,
         labelRoom: view.labelRoom,
         keepOut: (v.keepOut ?? []).map((box) => toFitRect(box, v)),
+        slide: view.slide,
       },
       fov,
       { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },
