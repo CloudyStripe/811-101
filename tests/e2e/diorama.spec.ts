@@ -271,10 +271,12 @@ test('the camera turns all the way round by its buttons and keys, in the overvie
   const right = camera.getByRole('button', { name: 'Turn right' });
   await expect(view(page)).toHaveAttribute('data-heading', /\d/);
   const start = (await view(page).getAttribute('data-heading')) ?? '';
-  // Eighteen turns of a button go all the way round.
-  await right.click();
+  // Eighteen presses of a button go all the way round. (Pressed by Enter: a click held too long
+  // by a busy software renderer would count as a press held, which goes on turning.)
+  await right.focus();
+  await page.keyboard.press('Enter');
   await expect(view(page)).not.toHaveAttribute('data-heading', start);
-  for (let i = 1; i < 18; i++) await right.click();
+  for (let i = 1; i < 18; i++) await page.keyboard.press('Enter');
   await expect(view(page)).toHaveAttribute('data-heading', start);
   // Tilting stops at its limit, and the button says so; zoomed in too, Reset view sets it back.
   const up = camera.getByRole('button', { name: 'Tilt up' });
@@ -306,6 +308,31 @@ test('the camera turns all the way round by its buttons and keys, in the overvie
   await page.keyboard.press('Home');
   await expect(view(page)).toHaveAttribute('data-zoom', zoom);
   await expect(status(page)).toHaveText(stopSummary('city-gate'));
+});
+
+test('a camera button held goes on turning, and a click turns a step', async ({ page }) => {
+  // A few camera moves, each drawn in software.
+  test.slow();
+  await open(page);
+  const right = page
+    .getByRole('group', { name: 'Camera' })
+    .getByRole('button', { name: 'Turn right' });
+  await expect(view(page)).toHaveAttribute('data-heading', /\d/);
+  const heading = async () => Number(await view(page).getAttribute('data-heading'));
+  /** How far round it turned, in whole degrees, from a heading to another. */
+  const turned = (from: number, to: number) => (to - from + 360) % 360;
+  const start = await heading();
+  await right.click();
+  await expect.poll(async () => turned(start, await heading())).toBe(20);
+  // Held for a while, it turns step after step.
+  const box = await right.boundingBox();
+  if (!box) throw new Error('no Turn right button');
+  const before = await heading();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(2000);
+  await page.mouse.up();
+  await expect.poll(async () => turned(before, await heading())).toBeGreaterThanOrEqual(40);
 });
 
 test('a drag turns the view, the wheel zooms, a right-drag pans, and the hint goes', async ({

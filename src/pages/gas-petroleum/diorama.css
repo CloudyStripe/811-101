@@ -223,6 +223,9 @@ body {
 .gp-camera .icon-button {
   width: 40px;
   height: 40px;
+  /* Held to keep moving: no callout or selection on a long press. */
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .gp-camera .icon-button[aria-disabled='true'] {
