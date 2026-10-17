@@ -337,9 +337,15 @@ for (const size of SIZES.filter((s) =>
 
 /** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
 for (const size of SIZES.filter((s) =>
-  ['tablet-portrait', 'small-laptop', 'small-window', 'small-phone', 'phone-landscape'].includes(
-    s.name,
-  ),
+  [
+    'tablet-portrait',
+    'small-laptop',
+    'small-window',
+    'small-phone',
+    'phone-landscape',
+    'small-phone-landscape',
+    'tiny-phone-landscape',
+  ].includes(s.name),
 )) {
   test.describe(`diorama ${size.name}`, () => {
     test.use({
@@ -378,6 +384,16 @@ for (const size of SIZES.filter((s) =>
           expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
         }
       });
+      // Where the open sheet covers the view, the camera's buttons go out of sight and reach too.
+      const toggle = page.locator('.gp-panel .sheet-toggle');
+      if (await toggle.isVisible()) {
+        await toggle.click();
+        await expect(page.locator('.gp-grid')).toHaveAttribute('data-sheet', 'open');
+        if ((await page.locator('main.stage').getAttribute('inert')) !== null) {
+          await expect(page.locator('.gp-camera')).toBeHidden();
+          await expect(page.locator('.gp-camera')).toHaveAttribute('inert', '');
+        }
+      }
     });
   });
 }

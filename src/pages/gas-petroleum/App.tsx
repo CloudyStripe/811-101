@@ -8,6 +8,7 @@ import {
 } from '../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../design/icons.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
+import { TAP_SLOP } from '../../kit3d/input.ts';
 import { parseTier } from '../../kit3d/quality.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
@@ -152,6 +153,8 @@ export function App() {
   const [failed, setFailed] = useState<string | null>(null);
   const [settings] = useSettings();
   const sheet = useSheetLayout();
+  /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
+  const covered = sheet && sheetOpen && sheetCovers();
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
@@ -557,7 +560,7 @@ export function App() {
     const p = press.current;
     if (p?.id !== event.pointerId) return;
     press.current = null;
-    if (p.joined || Math.hypot(event.clientX - p.x, event.clientY - p.y) >= 6) return;
+    if (p.joined || Math.hypot(event.clientX - p.x, event.clientY - p.y) >= TAP_SLOP) return;
     const canvas = canvasRef.current;
     const scene = sceneRef.current;
     if (!canvas || !scene) return;
@@ -794,7 +797,7 @@ export function App() {
       data-sheet={sheetOpen ? 'open' : 'closed'}
       data-panel={panelOpen ? 'open' : 'closed'}
     >
-      <main class="stage" ref={stageRef} inert={sheet && sheetOpen && sheetCovers()}>
+      <main class="stage" ref={stageRef} inert={covered}>
         <canvas
           ref={canvasRef}
           class="gp-canvas"
@@ -845,6 +848,7 @@ export function App() {
           class="gp-hint"
           aria-hidden="true"
           data-ready={ready ? '' : undefined}
+          data-covered={covered ? '' : undefined}
           data-gone={moved ? '' : undefined}
           data-chrome={moved ? undefined : ''}
         >
@@ -855,6 +859,7 @@ export function App() {
       {failed === null && (
         <ViewControls
           ready={ready}
+          covered={covered}
           limits={limits}
           onZoom={(direction) => {
             moveBy((scene) => {

@@ -33,6 +33,8 @@ function Move(props: {
 export function ViewControls(props: {
   /** The view is built: until then the buttons hold their place, out of sight, so it's framed clear of them. */
   ready: boolean;
+  /** The open sheet covers the view: the buttons are out of sight and out of reach, as the view is. */
+  covered: boolean;
   limits: AtLimits;
   onZoom: (direction: -1 | 1) => void;
   onTurn: (direction: -1 | 1) => void;
@@ -47,6 +49,8 @@ export function ViewControls(props: {
       aria-label="Camera"
       data-chrome
       data-ready={props.ready ? '' : undefined}
+      data-covered={props.covered ? '' : undefined}
+      inert={props.covered}
     >
       <div class="cam-zoom">
         <Move
