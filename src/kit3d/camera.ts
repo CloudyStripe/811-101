@@ -6,7 +6,7 @@
  * diorama's camera rig (orbit.ts) starts from a framed view and moves on from there.
  */
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
-import { fitShot, type FitRect, type Point3 } from './fit.ts';
+import { CENTERED, fitShot, type FitRect, type Point3, type Shift } from './fit.ts';
 
 export interface View {
   /** Where the camera looks from and at; only the direction between them counts. */
@@ -21,8 +21,8 @@ export interface View {
   /** CSS pixels kept clear at the free area's sides for labels on points near them. */
   labelRoom?: number;
   /**
-   * The points may slide off center to clear controls over the free area, where that lets the
-   * camera stand nearer than pulling back would.
+   * The picture may slide off center to clear controls over the free area, where that lets the
+   * camera stand nearer than pulling back would (`CameraPose.shift`).
    */
   slide?: boolean;
   /**
@@ -53,6 +53,11 @@ export interface CameraPose {
   position: Vector3;
   target: Vector3;
   fov: number;
+  /**
+   * How far the picture slides off the free area's middle, for a view that may slide: the free
+   * area's layout applies it (`setLayout`). Left out, none.
+   */
+  shift?: Shift;
 }
 
 /** A pose part way from one to another. */
@@ -143,12 +148,20 @@ export class LabCamera {
     this.camera.updateMatrixWorld();
   }
 
-  /** Updates the visible area and shifts the projection so the target sits at its center. */
-  setLayout(canvasWidth: number, canvasHeight: number, visible: VisibleArea): void {
+  /**
+   * Updates the visible area and shifts the projection so the target sits at its center, or slid
+   * from it by `shift` (in the area's -1 to 1 units, y up).
+   */
+  setLayout(
+    canvasWidth: number,
+    canvasHeight: number,
+    visible: VisibleArea,
+    shift: Shift = CENTERED,
+  ): void {
     this.canvasSize = { width: canvasWidth, height: canvasHeight };
     this.visible = visible;
-    const offsetX = canvasWidth / 2 - (visible.x + visible.width / 2);
-    const offsetY = canvasHeight / 2 - (visible.y + visible.height / 2);
+    const offsetX = canvasWidth / 2 - (visible.x + (visible.width / 2) * (1 + shift.x));
+    const offsetY = canvasHeight / 2 - (visible.y + (visible.height / 2) * (1 - shift.y));
     if (Math.abs(offsetX) < 0.5 && Math.abs(offsetY) < 0.5) this.camera.clearViewOffset();
     else
       this.camera.setViewOffset(

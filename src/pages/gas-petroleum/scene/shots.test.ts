@@ -64,6 +64,18 @@ const LAYOUTS: { name: string; canvas: { width: number; height: number }; area: 
     },
   },
   {
+    // Held sideways: the column beside the guide and the dock, clear of the stacked buttons.
+    name: 'phone held sideways',
+    canvas: { width: 667, height: 375 },
+    area: {
+      x: 356,
+      y: 0,
+      width: 311,
+      height: 375,
+      keepOut: [{ x: 475, y: 241, width: 180, height: 126 }],
+    },
+  },
+  {
     // Between the header and the open sheet.
     name: 'phone, sheet open',
     canvas: { width: 390, height: 844 },
@@ -94,7 +106,7 @@ function onCanvas(view: View, layout: (typeof LAYOUTS)[number]) {
   camera.lookAt(pose.target);
   camera.updateMatrixWorld();
   const lab = new LabCamera(camera);
-  lab.setLayout(layout.canvas.width, layout.canvas.height, layout.area);
+  lab.setLayout(layout.canvas.width, layout.canvas.height, layout.area, pose.shift);
   return view.mustSee.map((p) => {
     const v = new Vector3(...p).project(camera);
     return {
@@ -225,6 +237,25 @@ describe('the overview', () => {
 });
 
 describe("the camera's limits", () => {
+  it('looks, framed, at a point within the bounds the reader pans in: the overview and every stop, in every room', () => {
+    const bounds = orbitBounds().expandByScalar(1e-6);
+    for (const layout of LAYOUTS) {
+      const overview = overviewView(overviewPoints(models), tall(layout.area));
+      const views = [
+        { id: 'overview', view: overview },
+        ...models.map((m) => ({ id: m.id, view: shotIn(m, layout).shot })),
+      ];
+      for (const { id, view } of views) {
+        const { target } = framedFor(view, layout).pose;
+        const at = target
+          .toArray()
+          .map((n) => n.toFixed(1))
+          .join(',');
+        expect(bounds.containsPoint(target), `${layout.name}: ${id} at ${at}`).toBe(true);
+      }
+    }
+  });
+
   it('goes all the way round in 18 turns of a button or key', () => {
     expect(ORBIT_STEP.turn * 18).toBeCloseTo(Math.PI * 2);
   });

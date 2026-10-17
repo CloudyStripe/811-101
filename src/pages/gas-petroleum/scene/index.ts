@@ -20,6 +20,7 @@ import {
   type VisibleArea,
 } from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
+import { CENTERED, type Shift } from '../../../kit3d/fit.ts';
 import { LabelLayer, type Label } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
 import { setGroundGrade } from '../../../kit3d/materials.ts';
@@ -177,9 +178,22 @@ async function buildDiorama(
   /** The stops whose labels the story names, besides the open one's. */
   let named: ReadonlySet<string> = new Set();
   let filter: Filter = 'both';
-  /** The free area the view is framed for now, and a glide under way to new room. */
+  /** The free area the view is framed for now. */
   let shownArea: VisibleArea | null = null;
-  let glide: { from: VisibleArea; to: VisibleArea; start: number } | null = null;
+  /** How far the picture slides off that area's middle, to keep clear of the camera's buttons. */
+  let shift: Shift = CENTERED;
+  /**
+   * A glide under way to new room, or a new slide, over `MOTION.panel`: the picture moves along
+   * with the camera rather than jumping. `eased` is how far along it is, eased.
+   */
+  let glide: {
+    from: VisibleArea;
+    to: VisibleArea;
+    fromShift: Shift;
+    toShift: Shift;
+    start: number;
+    eased: number;
+  } | null = null;
   /** The reader has moved the camera since the view was last framed for them. */
   let movedByReader = false;
   /** The establishing move is under way: framed again meanwhile (the fonts in, say), it heads there. */
@@ -322,7 +336,13 @@ async function buildDiorama(
     }
     if (glide) {
       const t = Math.min(1, (performance.now() - glide.start) / MOTION.panel);
-      applyArea(areaBetween(glide.from, glide.to, easeInOut(t)));
+      const e = easeInOut(t);
+      glide.eased = e;
+      shift = {
+        x: MathUtils.lerp(glide.fromShift.x, glide.toShift.x, e),
+        y: MathUtils.lerp(glide.fromShift.y, glide.toShift.y, e),
+      };
+      applyArea(areaBetween(glide.from, glide.to, e));
       if (t >= 1) glide = null;
     }
     // The camera, settling into a move or following the reader's hand.
@@ -400,46 +420,67 @@ async function buildDiorama(
   function fitIn(area: VisibleArea, view: View): CameraPose {
     cam.setLayout(runtime.stage.width, runtime.stage.height, area);
     const pose = cam.poseFor(view);
-    if (shownArea) cam.setLayout(runtime.stage.width, runtime.stage.height, shownArea);
+    if (shownArea) cam.setLayout(runtime.stage.width, runtime.stage.height, shownArea, shift);
+    return pose;
+  }
+
+  /**
+   * The overview's framing in a room, kept for the last few rooms (by where they are and what's
+   * over them): fitting it can mean trying many slides clear of the camera's buttons.
+   */
+  const overviews = new Map<string, CameraPose>();
+  function overviewPoseIn(area: VisibleArea): CameraPose {
+    const { width, height } = runtime.stage;
+    const key = JSON.stringify([
+      width,
+      height,
+      area.x,
+      area.y,
+      area.width,
+      area.height,
+      area.keepOut,
+    ]);
+    const kept = overviews.get(key);
+    if (kept) return kept;
+    const pose = fitIn(area, overviewView(overviewMustSee, tallArea(area)));
+    overviews.set(key, pose);
+    const oldest = overviews.keys().next().value;
+    if (overviews.size > 8 && oldest !== undefined) overviews.delete(oldest);
     return pose;
   }
 
   /** How far the overview's camera stands from what it looks at, in a room. */
   const overviewReach = (area: VisibleArea) => {
-    const pose = fitIn(area, overviewView(overviewMustSee, tallArea(area)));
+    const pose = overviewPoseIn(area);
     return pose.position.distanceTo(pose.target);
   };
 
-  /** The open view in a room: the overview, or the open stop's shot with what fits around it. */
-  function viewIn(area: VisibleArea): View {
+  /** The open view's framing in a room: the overview, or the stop's shot with what fits round it. */
+  function poseIn(area: VisibleArea): CameraPose {
     const model = modelOf(shown);
-    if (!model) return overviewView(overviewMustSee, tallArea(area));
-    const reach = overviewReach(area);
-    return stopShot(
+    if (!model) return overviewPoseIn(area);
+    const view = stopShot(
       model,
       { prev: modelOf(context.prev), next: modelOf(context.next) },
-      reach,
-      (view) => {
-        const pose = fitIn(area, view);
+      overviewReach(area),
+      (v) => {
+        const pose = fitIn(area, v);
         return pose.position.distanceTo(pose.target);
       },
     );
+    return fitIn(area, view);
   }
 
   /**
-   * The overview's distance in the room the view is framed for (`shownArea`), measured again only
-   * when that room changes: for the ground's night grade and the camera's farthest zoom.
+   * The overview's distance in the room the view is framed for (`shownArea`), for the ground's
+   * night grade and the canvas's zoom: eased between the rooms while the view glides, so neither
+   * jumps.
    */
-  let reach: { area: VisibleArea | null | undefined; distance: number } = {
-    // Never measured yet: the first use measures, whatever room the view has.
-    area: undefined,
-    distance: 1,
-  };
   function overviewDistance(): number {
-    if (reach.area !== shownArea) {
-      reach = { area: shownArea, distance: shownArea ? overviewReach(shownArea) : 1 };
+    if (glide) {
+      return MathUtils.lerp(overviewReach(glide.from), overviewReach(glide.to), glide.eased);
     }
-    return reach.distance;
+    return shownArea ? overviewReach(shownArea) : 1;
   }
 
   /** The camera's limits in a room: it zooms out to a little past the overview there. */
@@ -466,11 +507,14 @@ async function buildDiorama(
   );
   rig.setInstant(reducedMotion || o.capture);
 
-  /** The free area the view is framed in, now: the camera's projection and its zoom both follow. */
+  /**
+   * The free area the view is framed in, now, with the picture slid by `shift`: the camera's
+   * projection and its zoom toward the pointer both follow.
+   */
   function applyArea(area: VisibleArea) {
     shownArea = area;
-    cam.setLayout(runtime.stage.width, runtime.stage.height, area);
-    rig.setArea(area, runtime.stage);
+    cam.setLayout(runtime.stage.width, runtime.stage.height, area, shift);
+    rig.setArea(area, runtime.stage, shift);
     labelsDirty = true;
   }
 
@@ -517,22 +561,32 @@ async function buildDiorama(
   const instantMoves = () => reducedMotion || o.capture;
 
   /**
-   * Frames the open view in the room the view has now: the area glides there with `ease`, and the
-   * camera moves to the view's framing in it (a cut, unless `move`). A view the reader has moved
-   * keeps its pose, centered in the new room, unless `refit`.
+   * Frames the open view in the room the view has now: the camera moves to the view's framing in
+   * it (a cut, unless `move`), and the area and the picture's slide glide there along with it
+   * (with `ease` or `move`). A view the reader has moved keeps its pose and slide, in the new
+   * room, unless `refit`.
    */
   function reframe(ease: boolean, { move = ease, refit = !movedByReader } = {}) {
     const area = o.visibleArea();
-    if (ease && !instantMoves() && shownArea) {
-      glide = { from: shownArea, to: area, start: performance.now() };
+    const pose = refit ? poseIn(area) : null;
+    const toShift = pose?.shift ?? shift;
+    if ((ease || move) && !instantMoves() && shownArea) {
+      glide = {
+        from: shownArea,
+        to: area,
+        fromShift: shift,
+        toShift,
+        start: performance.now(),
+        eased: 0,
+      };
     } else {
       glide = null;
+      shift = toShift;
       applyArea(area);
     }
     rig.setLimits(limitsIn(area));
-    if (refit) {
+    if (pose) {
       movedByReader = false;
-      const pose = fitIn(area, viewIn(area));
       if (arriving) rig.lookAt(pose, true, ESTABLISH_SETTLE);
       else rig.lookAt(pose, move);
     }
@@ -610,7 +664,7 @@ async function buildDiorama(
       shown = stop;
       context = options.context ?? {};
       labelsDirty = true;
-      reframe(false, { move: options.fly !== false, refit: true });
+      reframe(options.fly !== false, { refit: true });
     },
     setFilter(next) {
       filter = next;

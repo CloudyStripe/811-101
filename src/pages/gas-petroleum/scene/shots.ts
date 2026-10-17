@@ -147,9 +147,8 @@ export function stopShot(
   distanceOf: (view: View) => number,
 ): View {
   const { prev, next } = neighbors;
-  const tries = [[prev, next], [next], [prev]]
-    .map((c) => c.filter((m): m is StopModel => m !== undefined))
-    .filter((c) => c.length > 0);
+  const only = prev ?? next;
+  const tries = prev && next ? [[prev, next], [next], [prev]] : only ? [[only]] : [];
   const near = overview * STOP_SHOT.near;
   const shot = (context: readonly StopModel[]): View => ({
     ...stopView(model, context),

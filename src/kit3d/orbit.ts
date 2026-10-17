@@ -2,7 +2,8 @@
  * A camera rig that turns all the way round what it looks at, tilts within limits, zooms toward
  * the pointer and pans within bounds: by drag, wheel, pinch and two fingers, settling smoothly,
  * and by buttons and keys through the same moves. It wraps the camera-controls package. LabCamera
- * still centers the free area (its view offset) and fits shots; the rig owns the pose from there.
+ * still centers the free area (its view offset, slid where a shot asks) and fits shots; the rig
+ * owns the pose from there.
  */
 import CameraControls from 'camera-controls';
 import {
@@ -19,6 +20,8 @@ import {
 } from 'three';
 import { MOTION } from '../design/tokens.ts';
 import type { CameraPose, VisibleArea } from './camera.ts';
+import { CENTERED, type Shift } from './fit.ts';
+import { TAP_SLOP } from './input.ts';
 
 CameraControls.install({
   THREE: { Box3, Matrix4, Quaternion, Raycaster, Sphere, Spherical, Vector2, Vector3, Vector4 },
@@ -80,6 +83,8 @@ export class OrbitRig {
   private instant = false;
   /** camera-controls said the move under way is at rest, so it lands. */
   private rested = false;
+  /** The listeners the rig adds of its own, removed on dispose. */
+  private readonly unlisten: (() => void)[] = [];
 
   constructor(
     camera: PerspectiveCamera,
@@ -104,23 +109,90 @@ export class OrbitRig {
     c.smoothTime = SETTLE.move;
     c.draggingSmoothTime = SETTLE.drag;
     c.restThreshold = REST;
+    // The lens never zooms: a zoom is the camera coming nearer, within its limits.
+    c.minZoom = 1;
+    c.maxZoom = 1;
     c.addEventListener('rest', () => {
       this.rested = true;
     });
-    // A drag starting, and every wheel turn: the reader moving the view.
-    const onInput = () => {
+    // Any press or wheel turn may move the view: frames are wanted.
+    const wake = () => {
       hooks.wake();
-      hooks.moved();
     };
-    c.addEventListener('controlstart', onInput);
-    c.addEventListener('control', onInput);
+    c.addEventListener('controlstart', wake);
+    c.addEventListener('control', wake);
     this.controls = c;
+    this.listen(element);
     this.setLimits(limits);
   }
 
   /**
-   * Limits from now on; a view outside them is brought within. The same limits again change
-   * nothing, so the view isn't drawn again for them (camera-controls redraws for any boundary).
+   * The rig's own input: a trackpad's pinch, which comes as the wheel with Ctrl held (camera-controls
+   * would zoom the lens with it, without limits), zooms as the wheel does; and the reader has moved
+   * the view once a wheel turns or a press wanders past `TAP_SLOP`, so a tap that opens a stop isn't
+   * a move.
+   */
+  private listen(element: HTMLElement): void {
+    const doc = element.ownerDocument;
+    const pressed = new Map<number, { x: number; y: number }>();
+    let movedThisPress = false;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) {
+        this.hooks.moved();
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      element.dispatchEvent(
+        new WheelEvent('wheel', {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          screenX: event.screenX,
+          screenY: event.screenY,
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaZ: event.deltaZ,
+          deltaMode: event.deltaMode,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey,
+          metaKey: event.metaKey,
+        }),
+      );
+    };
+    const onDown = (event: PointerEvent) => {
+      if (pressed.size === 0) movedThisPress = false;
+      pressed.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    };
+    const onMove = (event: PointerEvent) => {
+      const from = pressed.get(event.pointerId);
+      if (!from || movedThisPress) return;
+      if (Math.hypot(event.clientX - from.x, event.clientY - from.y) < TAP_SLOP) return;
+      movedThisPress = true;
+      this.hooks.moved();
+    };
+    const onUp = (event: PointerEvent) => {
+      pressed.delete(event.pointerId);
+    };
+    element.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    element.addEventListener('pointerdown', onDown);
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointercancel', onUp);
+    this.unlisten.push(() => {
+      element.removeEventListener('wheel', onWheel, { capture: true });
+      element.removeEventListener('pointerdown', onDown);
+      doc.removeEventListener('pointermove', onMove);
+      doc.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointercancel', onUp);
+    });
+  }
+
+  /**
+   * Limits from now on; a view headed outside them is brought within: what it looks at, how far it
+   * stands and how far it tilts. The same limits again change nothing, so the view isn't drawn
+   * again for them (camera-controls redraws for any boundary).
    */
   setLimits({ polar, distance, bounds }: OrbitLimits): void {
     const same =
@@ -135,17 +207,29 @@ export class OrbitRig {
     [c.minPolarAngle, c.maxPolarAngle] = polar;
     [c.minDistance, c.maxDistance] = distance;
     c.setBoundary(bounds);
+    const end = c.getSpherical(this.spherical, true);
+    if (end.radius < c.minDistance || end.radius > c.maxDistance) {
+      void c.dollyTo(end.radius, !this.instant);
+    }
+    if (end.phi < c.minPolarAngle || end.phi > c.maxPolarAngle) {
+      void c.rotatePolarTo(end.phi, !this.instant);
+    }
     this.hooks.wake();
   }
 
   /**
-   * The free area of the canvas the view is framed in, in CSS pixels. What's looked at sits at its
-   * middle (LabCamera's view offset), so the wheel zooms toward the pointer measured from there.
+   * The free area of the canvas the view is framed in, in CSS pixels, and how far the picture
+   * slides off its middle. What's looked at sits there (LabCamera's view offset), so the wheel
+   * zooms toward the pointer measured from there.
    */
-  setArea(area: VisibleArea, canvas: { width: number; height: number }): void {
-    const cx = area.x + area.width / 2;
-    const cy = area.y + area.height / 2;
-    // A canvas-sized viewport centered on the free area; camera-controls counts y from the bottom.
+  setArea(
+    area: VisibleArea,
+    canvas: { width: number; height: number },
+    shift: Shift = CENTERED,
+  ): void {
+    const cx = area.x + (area.width / 2) * (1 + shift.x);
+    const cy = area.y + (area.height / 2) * (1 - shift.y);
+    // A canvas-sized viewport centered there; camera-controls counts y from the bottom.
     this.controls.setViewport(
       cx - canvas.width / 2,
       canvas.height / 2 - cy,
@@ -159,10 +243,6 @@ export class OrbitRig {
     this.instant = instant;
     this.settleIn(SETTLE.move);
     this.controls.draggingSmoothTime = instant ? 0 : SETTLE.drag;
-  }
-
-  set enabled(on: boolean) {
-    this.controls.enabled = on;
   }
 
   /**
@@ -277,6 +357,7 @@ export class OrbitRig {
   }
 
   dispose(): void {
+    for (const off of this.unlisten) off();
     this.controls.dispose();
   }
 

@@ -5,14 +5,20 @@ import { areaCamera, fitShot, type FitArea, type Point3, type Shot } from './fit
 
 const FOV = 34;
 
-/** The must-see points' extent in the free area (-1 to 1 each way), seen from the fitted pose. */
+/**
+ * The must-see points' extent in the free area (-1 to 1 each way), seen from the fitted pose with
+ * the picture slid as it says.
+ */
 function extent(shot: Shot, area: FitArea, margin?: number) {
   const pose = fitShot(shot, FOV, area, margin);
   const camera = areaCamera(FOV, area);
   camera.position.copy(pose.position);
   camera.lookAt(pose.target);
   camera.updateMatrixWorld();
-  const projected = shot.mustSee.map((p) => new Vector3(...p).project(camera));
+  const projected = shot.mustSee.map((p) => {
+    const v = new Vector3(...p).project(camera);
+    return v.set(v.x + pose.shift.x, v.y + pose.shift.y, v.z);
+  });
   const xs = projected.map((v) => v.x);
   const ys = projected.map((v) => v.y);
   return {
@@ -102,9 +108,13 @@ describe('fitShot', () => {
     const e = extent({ ...SHOT, keepOut: [card], slide: true }, WIDE);
     expect(e.projected.some(under)).toBe(false);
     expect(reach(e)).toBeLessThan(reach(free) * 1.03);
-    // Off center, then: down, out of the card's way, and still inside the margin.
+    // Off center, then: the picture slid down, out of the card's way, and still inside the margin,
+    // while the camera looks the same way at much the same place.
+    expect(e.pose.shift.y).toBeLessThan(0);
     expect((e.y0 + e.y1) / 2).toBeLessThan(-0.05);
     expect(e.y0).toBeGreaterThanOrEqual(-0.92 - 1e-3);
+    const look = (x: typeof e) => x.pose.target.clone().sub(x.pose.position).normalize();
+    expect(look(e).dot(look(free))).toBeGreaterThan(0.9999);
   });
 
   it('pulls back from a card down a whole side, which no slide gets every point out from under', () => {

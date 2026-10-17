@@ -276,11 +276,13 @@ test('the camera turns all the way round by its buttons and keys, in the overvie
   await expect(view(page)).not.toHaveAttribute('data-heading', start);
   for (let i = 1; i < 18; i++) await right.click();
   await expect(view(page)).toHaveAttribute('data-heading', start);
-  // Tilting stops at its limit, and the button says so; Reset view sets it back.
+  // Tilting stops at its limit, and the button says so; zoomed in too, Reset view sets it back.
   const up = camera.getByRole('button', { name: 'Tilt up' });
   await view(page).focus();
   for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp');
   await expect(up).toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('+');
+  await expect(view(page)).not.toHaveAttribute('data-zoom', '1.00');
   await camera.getByRole('button', { name: 'Reset view' }).click();
   await expect(up).not.toHaveAttribute('aria-disabled', 'true');
   await expect(view(page)).toHaveAttribute('data-zoom', '1.00');
@@ -318,7 +320,12 @@ test('a drag turns the view, the wheel zooms, a right-drag pans, and the hint go
   const where = () =>
     view(page).evaluate((c) => Object.fromEntries(Object.entries((c as HTMLElement).dataset)));
   const before = await where();
+  // A click, as on a stop, isn't a move: the hint stays.
   let at = await openSpot(page);
+  await page.mouse.click(at.x, at.y);
+  await page.waitForTimeout(500);
+  await expect(hint).not.toHaveAttribute('data-gone', '');
+  at = await openSpot(page);
   await page.mouse.move(at.x, at.y);
   await page.mouse.down();
   await page.mouse.move(at.x + 200, at.y, { steps: 6 });
@@ -331,6 +338,14 @@ test('a drag turns the view, the wheel zooms, a right-drag pans, and the hint go
   await expect
     .poll(async () => Number(await view(page).getAttribute('data-zoom')))
     .toBeLessThan(Number(before.zoom));
+  // A trackpad's pinch comes as the wheel with Ctrl held: it zooms the same way, within limits.
+  const wheeled = Number(await view(page).getAttribute('data-zoom'));
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -300);
+  await page.keyboard.up('Control');
+  await expect
+    .poll(async () => Number(await view(page).getAttribute('data-zoom')))
+    .toBeLessThan(wheeled);
   // A right-drag moves what the view looks at, and not its angle.
   const turned = await where();
   at = await openSpot(page);
