@@ -14,8 +14,9 @@ docs/BRIEF.md
 docs/PLAN.md
 docs/private/
 
-# Local tool settings
+# Local tool settings, and the worktrees the desktop app makes for other sessions
 .claude/settings.local.json
+.claude/worktrees/
 
 # OS and editor
 .DS_Store
