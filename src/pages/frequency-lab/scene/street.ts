@@ -96,7 +96,10 @@ function mesh(geometry: BufferGeometry, material: Material, cast = false): Mesh 
   return m;
 }
 
-/** How each layer looks in section: its grain, and the stones in it, scaled with the drawn depth. */
+/**
+ * How each layer looks in section: its grain, and the stones in it, scaled with how many times
+ * deeper than true the layer is drawn.
+ */
 function stratumLook(name: StratumName, depth: number): NoiseOptions {
   const k = Math.sqrt(depth);
   const look: Record<StratumName, NoiseOptions> = {
@@ -154,7 +157,8 @@ export function buildStreet(layout: LabLayout): Street {
       surface(C[s.name], {
         finish: 'matte',
         roughness: 1,
-        noise: stratumLook(s.name, layout.depth),
+        // The layers under the trench may be drawn flatter than the rest, and grained to match.
+        noise: stratumLook(s.name, s.bottom >= trench.bottom ? layout.depth : layout.under),
       }),
       true,
     );
@@ -295,10 +299,12 @@ export function buildStreet(layout: LabLayout): Street {
     tuft(0.14).scale(1, 0.48, 1).translate(-0.12, 0.03, -0.1),
   ]);
   const clumpMaterial = surface('#ffffff', { finish: 'matte', roughness: 1 });
+  // Clear of the equipment, at the size it's drawn.
+  const k = layout.equipment;
   const avoid = [
-    { ...hookup.transmitter, r: 1.5 },
-    { ...hookup.access, r: 0.9 },
-    { x: hookup.stake.x, z: hookup.stake.z, r: 0.7 },
+    { ...hookup.transmitter, r: 0.3 + 1.2 * k },
+    { ...hookup.access, r: 0.4 + 0.5 * k },
+    { x: hookup.stake.x, z: hookup.stake.z, r: 0.4 + 0.3 * k },
     { ...hookup.pedestal, r: 1.1 },
     { ...hydrant, r: 1.0 },
   ];

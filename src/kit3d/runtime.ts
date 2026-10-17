@@ -83,7 +83,21 @@ export class SceneRuntime {
           hooks.resize(width, height);
         },
         contextLost: () => hooks.contextLost?.(),
-        contextRestored: () => hooks.contextRestored?.(),
+        contextRestored: () => {
+          // The post chain's render targets went with the lost context. It's built afresh for the
+          // tier, and the old one let go without disposing: its GPU objects belong to no context
+          // now, and deleting them, as resizing them would, only warns. Nothing draws until then.
+          this.post = null;
+          void this.buildPost(this.currentTier).then((post) => {
+            if (this.disposed) {
+              post.dispose();
+              return;
+            }
+            this.post = post;
+            this.stage.requestFrame();
+          }, console.error);
+          hooks.contextRestored?.();
+        },
       },
       (w, h) => pixelRatioFor(this.currentTier, w, h, window.devicePixelRatio || 1),
     );

@@ -30,12 +30,25 @@ An interactive learning site about buried utilities and line locating.
 - **Every page starts with** `src/site/boot.ts`: tokens, fonts, `base.css`, `components.css`,
   `site.css`, and the header's settings menu. Settings live in one store (`src/site/settings.ts`,
   `useSettings`), shared by the menu and the page.
-- **Shared styles:** `src/design/components.css` holds buttons, the segmented control, the rotary
-  dial, folding sections, chips, terms, dialogs and 3D labels. Hover styles go inside
-  `@media (hover: hover)`.
-- **Shared controls:** `Segmented` and `RotaryDial` are radio groups built on `useRadioGroup`
-  (one tab stop, arrows, Home and End); `Disclosure` is a folding section: a heading whose button
-  opens and closes it.
+- **Shared styles:** `src/design/components.css` holds buttons, the segmented control, chips,
+  terms, dialogs and 3D labels. Hover styles go inside `@media (hover: hover)`.
+- **Shared controls:** `Segmented` is a radio group built on `useRadioGroup` (one tab stop,
+  arrows, Home and End): the lab's setup and its four frequency buttons, and the diorama's path
+  switch.
+- **The lab's layout:** the view, then a drawer (the guide or the key, one at a time, opened from
+  the console and closed by its button or Escape), then the console (the summary of what the view
+  shows, setup, frequency, pause, Guide and Key). The view is framed above whichever is open, so neither covers
+  the lines; on short screens the drawer and console are a column beside the view.
+- **The lab's two views** (`layout.ts`): from in front on wide screens, the ground drawn 3× deep;
+  at three-quarters on tall ones, 7× deep so the lines are drawn thick, with the layers under the
+  gas main's trench flattened to 2× (`VIEW_UNDER`) so the lines lead the cut face.
+- **3D labels** (`src/kit3d/labels.ts`; where they go is decided in `placement.ts`, a pure,
+  tested function): the highest-priority labels show, up to a cap. They keep off the buried lines
+  (`setKeepClear`) and each other's leaders, hanging further off a line, or further along it, on a
+  longer leader. In a short view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows
+  its name, over the others, while focused or its definition is pinned open by a tap.
+- **Settings menu:** on a short screen held sideways, each setting's name sits beside its choices
+  in a wider menu, so the whole menu fits under its button.
 - **The wordmark** is the site's name set in Archivo, heavy and wide: in the header and footer,
   and as the two-line "811 / 101" tile of the favicons and share previews (`scripts/wordmark.ts`).
   Never 811 or Common Ground Alliance artwork.
@@ -143,7 +156,7 @@ In the field, the color is the code.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
 - **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
 - **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire and the signal bloom; lamps and lit windows glow under it. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
-- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
+- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
 
 ## The diorama's story
 

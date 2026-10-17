@@ -12,15 +12,20 @@ export function stateLead(setup: SetupId, frequency: Frequency): string {
   return `${SETUP_TEXT[setup].name} at ${frequencyLabel(frequency)}`;
 }
 
-/** What the signal does at this frequency, to follow the lead (term markup kept). */
-export function stateNote(frequency: Frequency): string {
+/**
+ * What the signal does at this frequency, to follow the lead (term markup kept): on the plastic
+ * main, after what carries it.
+ */
+export function stateNote(setup: SetupId, frequency: Frequency): string {
+  const carries = SETUP_TEXT[setup].carries;
   const note = FREQUENCY_NOTES[frequency].text;
-  return note.charAt(0).toLowerCase() + note.slice(1);
+  const text = carries ? `${carries.text} ${note}` : note;
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
-/** What the 3D view shows, in one plain sentence. */
+/** What the 3D view shows, in plain words. */
 export function stateSummary(setup: SetupId, frequency: Frequency): string {
-  return `${stateLead(setup, frequency)}: ${plainText(stateNote(frequency))}`;
+  return `${stateLead(setup, frequency)}: ${plainText(stateNote(setup, frequency))}`;
 }
 
 /** The rule, applied to this setup. */

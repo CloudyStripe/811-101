@@ -1,14 +1,33 @@
 /**
- * HTML labels that follow points in the 3D scene. Ported from the diorama's layout: the focused
- * and highest-priority labels go first, nearer labels before farther ones; a crowded label shrinks
- * to its icon, then steps out of sight. The panel, sheet and toolbars are no-go zones. A label out
- * of sight for want of room stays in the tab order, and a focused label is always placed so it's
- * never hidden (WCAG 2.4.11). A thin leader line ties each shown label to the point it names, and
- * only so many show at once, so the scene stays the hero.
+ * HTML labels that follow points in the 3D scene. This layer projects each label's anchor, measures
+ * the labels, reads what has focus, and moves them; where each goes is decided apart, in
+ * placement.ts. The focused and highest-priority labels show, up to a cap; a crowded label shrinks
+ * to its icon, then steps out of sight. The panel, sheet and toolbars are no-go zones, and labels
+ * keep off whatever the scene asks them not to cover, such as buried lines: a label that would
+ * cover one hangs further out, on a longer leader, and no label sits on another's leader. In a
+ * small view every label shows as its icon, and a label shown as its icon shows its name again
+ * while it's focused or its definition is pinned open. A label out of sight for want of room stays
+ * in the tab order, and a focused label is always placed so it's never hidden (WCAG 2.4.11). A thin
+ * leader line ties each shown label to the point it names, and only so many show at once, so the
+ * scene stays the hero.
  */
 import { Vector3, type PerspectiveCamera } from 'three';
+import {
+  leaderStart,
+  placeLabels,
+  type Band,
+  type Candidate,
+  type Placement,
+  type Rect,
+  type ShownAt,
+} from './placement.ts';
+
+export type { Rect } from './placement.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Room kept between a label and anything it keeps off, in CSS pixels. */
+const CLEARANCE = 3;
 
 export interface Label {
   readonly id: string;
@@ -28,63 +47,52 @@ export interface Label {
   quiet?: boolean;
   /** Hangs below its anchor instead of above it, e.g. to keep clear of a line just above. */
   below?: boolean;
+  /**
+   * Names a line: where it can't sit by its point, it hangs further off the line before it moves
+   * to either side, so it never slides over another stretch of the line.
+   */
+  offLine?: boolean;
+  /**
+   * Other places on the thing it names where it may sit instead, in order, should there be no
+   * room by its anchor: further along a line, say. Its leader then points there.
+   */
+  along?: readonly Vector3[];
 }
 
-interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-const overlaps = (r: Rect, list: readonly Rect[]) =>
-  list.some((q) => r.x < q.x + q.w && r.x + r.w > q.x && r.y < q.y + q.h && r.y + r.h > q.y);
-
-/** A label's open definition, as a rectangle in the label layer, or null when it's closed. */
-function openTip(element: HTMLElement): Rect | null {
-  const tip = element.querySelector<HTMLElement>('[role="tooltip"]');
-  const layer = element.parentElement;
-  if (!tip || tip.hidden || !layer) return null;
-  const t = tip.getBoundingClientRect();
-  if (t.width === 0 || t.height === 0) return null;
-  const l = layer.getBoundingClientRect();
-  return { x: t.left - l.left, y: t.top - l.top, w: t.width, h: t.height };
+/** Something labels keep off, such as a buried line: a tube this thick through these points. */
+export interface KeepClear {
+  points: readonly Vector3[];
+  radius: number;
 }
 
 /**
- * Moves a rectangle out from under the given ones by as little as it can, within the view: a
- * focused label that would sit under a control shows beside it instead (WCAG 2.4.11).
+ * A label's open definition, against the middle of the label's top edge, or null when it's closed.
+ * The definition is centred on its label, so this holds as the label grows from its icon.
  */
-function clearOf(r: Rect, blocks: readonly Rect[], width: number, height: number, margin: number) {
-  if (!overlaps(r, blocks)) return r;
-  const within = (c: Rect) =>
-    c.x >= margin && c.y >= margin && c.x + c.w <= width - margin && c.y + c.h <= height - margin;
-  let best = r;
-  let bestMove = Infinity;
-  for (const q of blocks) {
-    if (!overlaps(r, [q])) continue;
-    for (const c of [
-      { ...r, y: q.y - r.h - margin },
-      { ...r, y: q.y + q.h + margin },
-      { ...r, x: q.x - r.w - margin },
-      { ...r, x: q.x + q.w + margin },
-    ]) {
-      const move = Math.abs(c.x - r.x) + Math.abs(c.y - r.y);
-      if (move < bestMove && within(c) && !overlaps(c, blocks)) {
-        best = c;
-        bestMove = move;
-      }
-    }
-  }
-  return best;
+function openTip(element: HTMLElement): Rect | null {
+  const tip = element.querySelector<HTMLElement>('[role="tooltip"]');
+  if (!tip || tip.hidden) return null;
+  const t = tip.getBoundingClientRect();
+  if (t.width === 0 || t.height === 0) return null;
+  const l = element.getBoundingClientRect();
+  return { x: t.left - (l.left + l.width / 2), y: t.top - l.top, w: t.width, h: t.height };
 }
 
 export class LabelLayer {
   private labels: Label[] = [];
+  private keep: readonly KeepClear[] = [];
   private readonly sizes = new Map<string, { w: number; h: number }>();
   private readonly lastKey = new Map<string, string>();
+  /** Where each shown label was shown, so a label focused stays where it is. */
+  private readonly shownAt = new Map<string, ShownAt>();
+  /**
+   * Labels shown as their icon when their definition was pinned open: they show their name until
+   * it closes.
+   */
+  private readonly named = new Set<string>();
   private readonly projected = new Vector3();
   private readonly toCamera = new Vector3();
+  private readonly lifted = new Vector3();
   private readonly camera: PerspectiveCamera;
   /** No-go rectangles in the label container's coordinates. */
   private readonly noGo: () => readonly Rect[];
@@ -102,8 +110,16 @@ export class LabelLayer {
 
   setLabels(labels: Label[]): void {
     this.labels = labels;
+    // New anchors: where the old labels sat no longer says where these go.
+    this.shownAt.clear();
+    this.named.clear();
     this.buildLeaders();
     this.measure();
+  }
+
+  /** What labels keep off from now on, such as the lines the view is about. */
+  setKeepClear(keep: readonly KeepClear[]): void {
+    this.keep = keep;
   }
 
   /** Leaders live in an SVG layer in the labels' own container, beneath the labels. */
@@ -152,147 +168,122 @@ export class LabelLayer {
     for (const { copy } of copies) copy.remove();
   }
 
+  /** A point's place on screen, in CSS pixels, and its depth (-1 to 1 in view). */
+  private toScreen(p: Vector3, width: number, height: number) {
+    const q = this.projected.copy(p).project(this.camera);
+    return { x: (q.x * 0.5 + 0.5) * width, y: (-q.y * 0.5 + 0.5) * height, z: q.z };
+  }
+
+  /** What labels keep off, as bands on screen: each tube as thick as it's drawn, and a little more. */
+  private bands(width: number, height: number): Band[] {
+    const bands: Band[] = [];
+    for (const k of this.keep) {
+      const on = k.points.flatMap((p) => {
+        const s = this.toScreen(p, width, height);
+        if (s.z <= -1 || s.z >= 1) return [];
+        const t = this.toScreen(this.lifted.copy(p).setY(p.y + k.radius), width, height);
+        return [{ x: s.x, y: s.y, r: Math.hypot(t.x - s.x, t.y - s.y) + CLEARANCE }];
+      });
+      const ends = on.length === 1 ? [on[0], on[0]] : on;
+      for (let i = 1; i < ends.length; i++) {
+        const a = ends[i - 1];
+        const b = ends[i];
+        if (a && b) bands.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, r: Math.max(a.r, b.r) });
+      }
+    }
+    return bands;
+  }
+
   /**
    * Places every label for the current camera. `bounds` is the part of the view a focused label
    * is pulled into, so the panel or sheet never covers it; it defaults to the whole view. At most
-   * `maxVisible` labels show at once (a focused one always does), highest priority first.
+   * `maxVisible` labels show at once (a focused one always does), highest priority first. With
+   * `icons`, for a small view, they show as their icons.
    */
   update(
     width: number,
     height: number,
     bounds: Rect = { x: 0, y: 0, w: width, h: height },
     maxVisible = Infinity,
+    icons = false,
   ): void {
-    // The controls first; each label placed joins them, so later ones keep clear of it.
-    const placed: Rect[] = [...this.noGo()];
     const focused = document.activeElement;
-    const items = this.labels
-      .map((label) => {
-        this.projected.copy(label.anchor).project(this.camera);
-        const p = this.projected;
-        const facingOk =
-          !label.facing ||
-          this.toCamera.copy(this.camera.position).sub(label.anchor).dot(label.facing) > 0;
-        const x = (p.x * 0.5 + 0.5) * width;
-        const y = (-p.y * 0.5 + 0.5) * height;
-        const depth = p.z;
-        // The leader's end, on the thing itself, when it differs from where the label sits.
-        const q = label.point ? this.projected.copy(label.point).project(this.camera) : null;
-        return {
-          label,
-          x,
-          y,
-          point: q ? { x: (q.x * 0.5 + 0.5) * width, y: (-q.y * 0.5 + 0.5) * height } : { x, y },
-          depth,
-          visible: !label.hidden && facingOk && depth > -1 && depth < 1,
-          focused: !label.hidden && (label.highlight === true || label.element.contains(focused)),
-        };
-      })
-      .sort(
-        (a, b) =>
-          Number(b.focused) - Number(a.focused) ||
-          b.label.priority - a.label.priority ||
-          a.depth - b.depth,
-      );
-
-    const margin = 4;
-    const inside = (r: Rect) =>
-      r.x >= margin && r.y >= margin && r.x + r.w <= width - margin && r.y + r.h <= height - margin;
-    const clamp = (r: Rect): Rect => ({
-      ...r,
-      x: Math.min(Math.max(r.x, bounds.x + margin), bounds.x + bounds.w - margin - r.w),
-      y: Math.min(Math.max(r.y, bounds.y + margin), bounds.y + bounds.h - margin - r.h),
-    });
-
-    // Near an edge, a label may slide inward along its row, up to a little over half its width,
-    // so it stays readable and still sits by its anchor.
-    const slide = (r: Rect): Rect | null => {
-      const x = Math.min(Math.max(r.x, margin), width - margin - r.w);
-      return Math.abs(x - r.x) <= r.w * 0.6 ? { ...r, x } : null;
-    };
-
-    let shown = 0;
-    for (const it of items) {
-      it.label.element.classList.toggle('lit', it.label.highlight === true && !it.label.hidden);
-      const size = this.sizes.get(it.label.id) ?? { w: 120, h: 28 };
-      // Labels sit a little above their point (or below it), with room for the leader between.
-      const below = it.label.below === true;
-      const full = {
-        x: it.x - size.w / 2,
-        y: below ? it.y + 14 : it.y - size.h - 14,
-        w: size.w,
-        h: size.h,
+    const candidates = this.labels.map((label): Candidate => {
+      const s = this.toScreen(label.anchor, width, height);
+      const facingOk =
+        !label.facing ||
+        this.toCamera.copy(this.camera.position).sub(label.anchor).dot(label.facing) > 0;
+      const visible = !label.hidden && facingOk && s.z > -1 && s.z < 1;
+      // The leader's end, on the thing itself, when it differs from where the label sits.
+      const q = label.point ? this.toScreen(label.point, width, height) : s;
+      // A label shown as its icon, as all are in a small view, shows its name while its definition
+      // is pinned open by a tap or click, as when it's focused. (Not for a hover, which the name,
+      // taking more room, could move out from under.)
+      const pinned = label.element.dataset.tip === 'pinned';
+      if (!pinned) this.named.delete(label.id);
+      else if (icons || this.shownAt.get(label.id)?.icon) this.named.add(label.id);
+      label.element.classList.toggle('lit', label.highlight === true && !label.hidden);
+      const isFocused =
+        !label.hidden &&
+        (label.highlight === true ||
+          label.element.contains(focused) ||
+          (pinned && this.named.has(label.id)));
+      return {
+        id: label.id,
+        priority: label.priority,
+        depth: s.z,
+        at: { x: s.x, y: s.y },
+        // A leader only when its point is in view: a label pulled in from off screen has none.
+        point: visible ? { x: q.x, y: q.y } : null,
+        // Its other places, on screen; one out of view is no place for it.
+        elsewhere: (label.along ?? []).map((p) => {
+          const a = this.toScreen(p, width, height);
+          return a.z > -1 && a.z < 1 ? { x: a.x, y: a.y } : null;
+        }),
+        size: this.sizes.get(label.id) ?? { w: 120, h: 28 },
+        visible,
+        focused: isFocused,
+        quiet: label.quiet === true,
+        below: label.below === true,
+        offLine: label.offLine === true,
+        // Only a focused label's definition is kept clear of.
+        tip: isFocused ? openTip(label.element) : null,
       };
-      // Where it may sit: over its point, then to either side, then a row further out, so labels
-      // on things close together stack beside each other, each with its leader, before any
-      // shrinks to its icon.
-      const dx = size.w / 2 + 10;
-      const dy = (size.h + 8) * (below ? 1 : -1);
-      const spots = [
-        [0, 0],
-        [-dx, 0],
-        [dx, 0],
-        [0, dy],
-        [-dx, dy],
-        [dx, dy],
-      ].flatMap(([ox = 0, oy = 0]) => {
-        const r = slide({ ...full, x: full.x + ox, y: full.y + oy });
-        return r ? [r] : [];
-      });
-      const spot = spots.find((r) => inside(r) && !overlaps(r, placed));
-      const compact = { x: it.x - 15, y: below ? it.y + 12 : it.y - 42, w: 30, h: 30 };
-      // A leader only when its point is in view: a label pulled in from off screen has none.
-      const point = it.visible ? it.point : null;
-      if (it.focused) {
-        // A focused label is always shown, pulled into the free part of the view and out from
-        // under the controls and any label shown before it (WCAG 2.4.11).
-        const r = clearOf(clamp(full), placed, width, height, margin);
-        placed.push(r);
-        shown++;
-        this.place(it.label, r, '', point);
-        // Its definition may be open beside it; later labels keep clear of that too.
-        const tip = openTip(it.label.element);
-        if (tip) placed.push(tip);
-      } else if (!it.visible) {
-        this.place(it.label, full, 'off', null);
-      } else if (it.label.quiet === true || shown >= maxVisible) {
-        // Quiet, or over the cap: out of sight, but still in the tab order, so focusing it shows it.
-        this.place(it.label, full, 'capped', null);
-      } else if (spot) {
-        placed.push(spot);
-        shown++;
-        this.place(it.label, spot, '', point);
-      } else if (inside(compact) && !overlaps(compact, placed)) {
-        placed.push(compact);
-        shown++;
-        this.place(it.label, compact, 'compact', point);
-      } else {
-        // No room beside the others: out of sight like a label over the cap, and like it, still
-        // reachable by keyboard.
-        this.place(it.label, full, 'capped', null);
-      }
+    });
+    const placements = placeLabels(
+      candidates,
+      {
+        width,
+        height,
+        bounds,
+        noGo: this.noGo(),
+        keepClear: this.bands(width, height),
+        maxVisible,
+        icons,
+      },
+      this.shownAt,
+    );
+    const byId = new Map(this.labels.map((label) => [label.id, label]));
+    for (const placement of placements) {
+      const label = byId.get(placement.id);
+      if (label) this.place(label, placement);
     }
   }
 
-  private place(
-    label: Label,
-    r: Rect,
-    state: '' | 'compact' | 'off' | 'capped',
-    point: { x: number; y: number } | null,
-  ): void {
+  private place(label: Label, { rect: r, state, point, shownAt }: Placement): void {
+    if (shownAt) this.shownAt.set(label.id, shownAt);
+    else this.shownAt.delete(label.id);
     const { classList, style } = label.element;
     // A label being hidden fades out where it is, at its current size, rather than jumping first.
-    const key =
-      state === 'off' || state === 'capped'
-        ? state
-        : `${Math.round(r.x)},${Math.round(r.y)},${state},${point ? `${Math.round(point.x)},${Math.round(point.y)}` : '-'}`;
+    const key = !r
+      ? state
+      : `${Math.round(r.x)},${Math.round(r.y)},${state},${point ? `${Math.round(point.x)},${Math.round(point.y)}` : '-'}`;
     if (this.lastKey.get(label.id) === key) return;
     this.lastKey.set(label.id, key);
-    const showing = state === '' || state === 'compact';
-    this.drawLeader(label.id, showing ? r : null, point);
+    this.drawLeader(label.id, r, point);
     classList.toggle('off', state === 'off');
     classList.toggle('capped', state === 'capped');
-    if (!showing) return;
+    if (!r) return;
     style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
     classList.toggle('compact', state === 'compact');
   }
@@ -305,17 +296,13 @@ export class LabelLayer {
     const leader = this.leaders.get(id);
     if (!leader) return;
     const { group, line, dot } = leader;
-    const covered =
-      r && point && point.x > r.x && point.x < r.x + r.w && point.y > r.y && point.y < r.y + r.h;
-    if (!r || !point || covered) {
+    const from = r && point ? leaderStart(r, point) : null;
+    if (!from || !point) {
       group.classList.add('off');
       return;
     }
-    const pad = Math.min(12, r.w / 2);
-    const fromX = Math.min(Math.max(point.x, r.x + pad), r.x + r.w - pad);
-    const fromY = Math.min(Math.max(point.y, r.y), r.y + r.h);
-    line.setAttribute('x1', fromX.toFixed(1));
-    line.setAttribute('y1', fromY.toFixed(1));
+    line.setAttribute('x1', from.x.toFixed(1));
+    line.setAttribute('y1', from.y.toFixed(1));
     line.setAttribute('x2', point.x.toFixed(1));
     line.setAttribute('y2', point.y.toFixed(1));
     dot.setAttribute('cx', point.x.toFixed(1));

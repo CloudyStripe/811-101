@@ -1,6 +1,6 @@
 /**
  * A radio group's keyboard: one tab stop (the checked option), arrow keys move the choice and the
- * focus with it, and Home and End jump to the ends. Shared by the segmented control and the dial.
+ * focus with it, and Home and End jump to the ends. The segmented control is built on it.
  */
 import { useRef } from 'preact/hooks';
 

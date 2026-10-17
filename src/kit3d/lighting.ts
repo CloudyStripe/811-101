@@ -93,6 +93,8 @@ function buildEnvironment(t: SceneTokens): Scene {
 
 export interface Lighting {
   setTheme(tokens: SceneTokens): void;
+  /** The model's bounds changed, as when it's built again: lights and shadow fit it anew. */
+  setBounds(bounds: Box3): void;
   /** After a lost graphics context comes back: renders the environment again from scratch. */
   restore(tokens: SceneTokens): void;
   setShadowQuality(mapSize: number, radius: number): void;
@@ -113,8 +115,11 @@ export function createLighting(
   const pmrem = new PMREMGenerator(renderer);
   let envTarget: WebGLRenderTarget | null = null;
   let backdrop: Texture | null = null;
+  /** The theme the lights were last set for. */
+  let current = tokens;
 
-  const center = bounds.getCenter(new Vector3());
+  const box = bounds.clone();
+  const center = box.getCenter(new Vector3());
 
   const key = new DirectionalLight();
   key.castShadow = true;
@@ -142,9 +147,9 @@ export function createLighting(
     probe.updateMatrixWorld();
     const lo = new Vector3(Infinity, Infinity, Infinity);
     const hi = new Vector3(-Infinity, -Infinity, -Infinity);
-    for (const x of [bounds.min.x, bounds.max.x])
-      for (const y of [bounds.min.y, bounds.max.y])
-        for (const z of [bounds.min.z, bounds.max.z]) {
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y])
+        for (const z of [box.min.z, box.max.z]) {
           corner.set(x, y, z).applyMatrix4(probe.matrixWorldInverse);
           lo.min(corner);
           hi.max(corner);
@@ -169,7 +174,17 @@ export function createLighting(
     renderer.shadowMap.needsUpdate = true;
   }
 
+  /** Places the key and rim lights round the model's middle, and fits the shadow to the model. */
+  function placeLights(t: SceneTokens) {
+    directionFrom(t.key.azimuth, t.key.elevation, direction);
+    key.position.copy(center).addScaledVector(direction, 260);
+    directionFrom(t.rim.azimuth, t.rim.elevation, direction);
+    rim.position.copy(center).addScaledVector(direction, 200);
+    fitShadow();
+  }
+
   function setTheme(t: SceneTokens) {
+    current = t;
     const environment = buildEnvironment(t);
     const next = pmrem.fromScene(environment, 0.035);
     disposeObject(environment);
@@ -181,21 +196,17 @@ export function createLighting(
     backdrop = backdropTexture(t);
     scene.background = backdrop;
 
-    directionFrom(t.key.azimuth, t.key.elevation, direction);
-    key.position.copy(center).addScaledVector(direction, 260);
     key.color.set(t.key.color);
     key.intensity = t.key.intensity * t.exposure;
-    fitShadow();
 
     hemisphere.color.set(t.hemisphere.sky);
     hemisphere.groundColor.set(t.hemisphere.ground);
     hemisphere.intensity = t.hemisphere.intensity * t.exposure;
 
-    directionFrom(t.rim.azimuth, t.rim.elevation, direction);
-    rim.position.copy(center).addScaledVector(direction, 200);
     rim.color.set(t.rim.color);
     rim.intensity = t.rim.intensity * t.exposure;
 
+    placeLights(t);
     renderer.shadowMap.needsUpdate = true;
   }
 
@@ -204,6 +215,14 @@ export function createLighting(
 
   return {
     setTheme,
+    setBounds(next) {
+      box.copy(next);
+      box.getCenter(center);
+      key.target.position.copy(center);
+      rim.target.position.copy(center);
+      placeLights(current);
+      renderer.shadowMap.needsUpdate = true;
+    },
     restore(t: SceneTokens) {
       // The old environment's and backdrop's GPU objects went with the lost context; disposing
       // them now would only ask the new context to delete objects it never had.

@@ -54,12 +54,9 @@ interface Shot {
   crop: { x: number; y: number; width: number };
 }
 
-/** Opens the lab in capture mode and closes its guide, so the 3D view has the whole width. */
+/** Opens the lab in capture mode; its guide and key start closed, so the view has its whole room. */
 async function labReady(page: Page): Promise<void> {
   await page.waitForFunction(() => document.documentElement.dataset.sceneReady === 'true');
-  // Narrower than 1280 px, the guide starts closed already.
-  const close = page.getByRole('button', { name: 'Close the lab guide' });
-  if (await close.isVisible()) await close.click();
 }
 
 /** The diorama in capture mode, its guide closed, so the overview has the whole width. */
@@ -76,7 +73,7 @@ const SHOTS: Shot[] = [
     ready: labReady,
     hide: LAB_CHROME,
     // Close on the hookup and the signal setting off along the main, apart from the hero.
-    crop: { x: 260, y: 230, width: 620 },
+    crop: { x: 40, y: 185, width: 600 },
   },
   {
     name: 'gas-petroleum',
@@ -88,10 +85,10 @@ const SHOTS: Shot[] = [
 ];
 
 /**
- * The phone's square hero, cut from the wide capture (1200 × 900) around the block: the hookup, the
- * trench and the signal setting off, with little of the empty floor in front.
+ * The phone's square hero, cut from the wide capture (1200 × 900) around the block's near end: the
+ * hookup, the trench and the signal setting off along the main.
  */
-const HERO_SQUARE_CROP = { x: 160, y: 60, width: 800, height: 800 };
+const HERO_SQUARE_CROP = { x: 20, y: 150, width: 600, height: 600 };
 
 /** The portal's hero: the lab's block in its town, the signal along the gas main. */
 const HERO = {

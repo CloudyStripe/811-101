@@ -320,6 +320,8 @@ test.describe('with motion', () => {
 });
 
 test('losing the graphics context: a clear message, then a clean recovery', async ({ page }) => {
+  // The whole view built again after the loss, its shaders compiled anew, in software.
+  test.slow();
   const frames = await countFrames(page);
   await open(page);
   await page.evaluate(() => {

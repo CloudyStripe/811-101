@@ -257,11 +257,18 @@ export class SignalEffects {
     return { material, source };
   }
 
-  /** The signal along a lead or riser: the transmitter's full current, banded like the lines. */
-  private wireGlow(points: readonly (readonly [number, number, number])[], direction: 1 | -1) {
+  /**
+   * The signal along a lead or riser: the transmitter's full current, banded like the lines, in a
+   * sleeve `radius` thick.
+   */
+  private wireGlow(
+    points: readonly (readonly [number, number, number])[],
+    direction: 1 | -1,
+    radius = 0.075,
+  ) {
     const curve = new CatmullRomCurve3(points.map(([x, y, z]) => new Vector3(x, y, z)));
     const length = curve.getLength();
-    const geometry = withTubeDistance(new TubeGeometry(curve, 48, 0.075, 8, false), length);
+    const geometry = withTubeDistance(new TubeGeometry(curve, 48, radius, 8, false), length);
     const material = this.material({
       uMode: { value: 1 },
       uIntensity: { value: WIRE_INTENSITY },
@@ -275,7 +282,7 @@ export class SignalEffects {
   }
 
   private buildSetup(setup: SetupId): SetupFx {
-    const { lines, hookup, leads, risers, block, depth } = this.layout;
+    const { lines, hookup, leads, risers, block, drawn } = this.layout;
     const group = new Group();
     // The conductor that carries the signal: the steel main, or the plastic main's tracer wire.
     const line = setup === 'steel' ? lines.steel : lines.tracer;
@@ -295,10 +302,12 @@ export class SignalEffects {
     });
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.
+    // Each wire's glow is a sleeve a little wider than the wire, so it shows around it.
+    const sleeve = (radius: number) => Math.max(0.075, radius * 1.67);
     const wires = [
-      this.wireGlow(leads.signal, 1),
-      this.wireGlow(risers[setup], -1),
-      this.wireGlow(leads.ground, -1),
+      this.wireGlow(leads.signal[setup], 1, sleeve(this.layout.leadRadius)),
+      this.wireGlow(risers[setup], -1, sleeve(this.layout.riserRadius[setup])),
+      this.wireGlow(leads.ground, -1, sleeve(this.layout.leadRadius)),
     ];
     group.add(targetSleeve, telecomSleeve, ...wires);
 
@@ -313,15 +322,15 @@ export class SignalEffects {
     const bins = 7;
     for (let i = 0; i < bins; i++) {
       const x = 10 + i * 20;
-      const depthY = (-5.2 - 3.2 * (i / (bins - 1))) * depth;
+      const depthY = drawn(-5.2 - 3.2 * (i / (bins - 1)));
       flows.push(this.flow(start(x), depthY, { kind: 'leak', from: x - 10, to: x + 10 }, group));
     }
     // Current still on the target at the end of the block returns from beyond it.
-    flows.push(this.flow(start(BLOCK_FT - 2), -8.6 * depth, { kind: 'beyond' }, group));
+    flows.push(this.flow(start(BLOCK_FT - 2), drawn(-8.6), { kind: 'beyond' }, group));
     flows.push(
       this.flow(
         new Vector3(t.x0, t.y - t.radius - 0.1, 0.12),
-        -3.6 * depth,
+        drawn(-3.6),
         { kind: 'telecom' },
         group,
       ),

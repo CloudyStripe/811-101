@@ -27,12 +27,13 @@ function blobTexture(): CanvasTexture {
 }
 
 /** Footprints in feet: center, size along x and z, and turn about the vertical. */
-function footprints({ hookup, hydrant }: LabLayout) {
+function footprints({ hookup, hydrant, equipment: k }: LabLayout) {
+  const tx = hookup.transmitter;
   return [
-    { x: hookup.transmitter.x, z: hookup.transmitter.z, w: 2.5, d: 1.9, turn: -0.55 },
+    { x: tx.x, z: tx.z, w: 2.5 * k, d: 1.9 * k, turn: tx.turn },
     { x: hookup.pedestal.x, z: hookup.pedestal.z, w: 2.0, d: 1.7, turn: 0 },
     { x: hydrant.x, z: hydrant.z, w: 1.5, d: 1.5, turn: 0 },
-    { x: hookup.access.x, z: hookup.access.z, w: 1.0, d: 1.0, turn: 0 },
+    { x: hookup.access.x, z: hookup.access.z, w: 1.0 * k, d: 1.0 * k, turn: 0 },
   ];
 }
 

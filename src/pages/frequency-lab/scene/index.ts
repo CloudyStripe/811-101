@@ -1,8 +1,9 @@
 /**
  * The Frequency Lab's 3D scene: the street block, both setups, the signal effects and the
- * labels, behind a small API the UI drives.
+ * labels, behind a small API the UI drives. The block is built for the view the screen asks for,
+ * its ground drawn deeper in the tall view, and built again when the screen turns.
  */
-import { Box3, PerspectiveCamera, Scene, Vector3 } from 'three';
+import { Box3, PerspectiveCamera, Scene, Vector3, type Group } from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
 import {
   LABEL_LIMITS,
@@ -19,7 +20,7 @@ import {
   type VisibleArea,
 } from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
-import { LabelLayer } from '../../../kit3d/labels.ts';
+import { LabelLayer, type KeepClear, type Rect } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
 import { createPost, preloadPost } from '../../../kit3d/post.ts';
 import type { Tier } from '../../../kit3d/quality.ts';
@@ -29,18 +30,19 @@ import { labState, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, labelPlaces, type LabelId } from './labels.ts';
 import { buildContactShadows } from './contact.ts';
-import { labLayout, viewFor, type LabLayout } from './layout.ts';
-import { TransmitterScreen, buildSetup, buildShared, setLineGlow } from './lines.ts';
+import { layoutFor, viewKind, viewOf, type LabLayout, type ViewKind } from './layout.ts';
+import {
+  TransmitterScreen,
+  buildSetup,
+  buildShared,
+  setLineGlow,
+  type SharedLines,
+} from './lines.ts';
 import { SignalEffects } from './signal.ts';
-import { buildStreet } from './street.ts';
-import { buildScenery } from './world.ts';
+import { buildStreet, type Street } from './street.ts';
+import { buildScenery, type Scenery } from './world.ts';
 
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+export type { Rect } from '../../../kit3d/labels.ts';
 
 export interface LabSceneOptions {
   canvas: HTMLCanvasElement;
@@ -53,10 +55,12 @@ export interface LabSceneOptions {
   /** Deterministic frames for screenshots: fixed time and tier, no governor, one frame then stop. */
   capture: boolean;
   perf: boolean;
-  /** The part of the canvas the panel and controls leave free, in CSS pixels. */
+  /** The part of the canvas the console, the drawer and the header leave free, in CSS pixels. */
   visibleArea: () => VisibleArea;
   /** Rectangles labels must avoid, in the canvas's CSS pixels. */
   noGo: () => Rect[];
+  /** Told which view the block is built for: from in front, or at three-quarters, deeper. */
+  onView?: (kind: ViewKind) => void;
   onContextLost?: () => void;
   onContextRestored?: () => void;
 }
@@ -70,13 +74,16 @@ export interface LabScene {
   setTier(tier: Tier | 'auto'): Promise<void>;
   readonly tier: Tier;
   /**
-   * Re-measures labels and frames the view for the room it has, e.g. after fonts load or the panel
+   * Re-measures labels and frames the view for the room it has, e.g. after fonts load or the drawer
    * changes. With `ease`, the view glides to its new framing (at once when motion is reduced).
    */
   relayout(ease?: boolean): void;
   /** Shows one label however crowded the view, while the key points at its line; null for none. */
   highlight(id: LabelId | null): void;
-  /** Places labels again, now, without touching the camera: when a label gains focus or a sheet opens. */
+  /**
+   * Places labels again, now, without touching the camera: when a label gains or loses focus, or
+   * its definition is pinned open or let go.
+   */
   refreshLabels(): void;
   dispose(): void;
 }
@@ -90,18 +97,71 @@ const READINGS = FREQUENCIES.map(frequencyLabel);
 const maxLabels = (width: number) =>
   width < LABEL_LIMITS.narrowBelow ? LABEL_LIMITS.narrow : LABEL_LIMITS.wide;
 
+/** What's built for one view: the block at the depth that view draws it, and all on and in it. */
+interface Built {
+  kind: ViewKind;
+  layout: LabLayout;
+  street: Street;
+  scenery: Scenery;
+  shared: SharedLines;
+  setups: Record<SetupId, Group>;
+  contact: Group;
+  fx: SignalEffects;
+  /** Built before the graphics context was lost: its GPU resources went with it. */
+  lost: boolean;
+}
+
+/** What casts shadows in a build: the slab, and the trees and lamps standing on it. */
+function boundsOf({ block }: LabLayout): Box3 {
+  return new Box3(
+    new Vector3(block.x0, block.bottom, block.z0),
+    new Vector3(block.x1, 15, block.z1),
+  );
+}
+
+/** Everything a build puts in the main scene. */
+const sceneParts = (b: Built): Group[] => [
+  b.street.group,
+  b.scenery.group,
+  b.shared.group,
+  b.setups.steel,
+  b.setups.plastic,
+  b.contact,
+];
+
 /**
- * How many times deeper than true the ground is drawn, so the cut face reads as a band: the view
- * is marked not to scale.
+ * What labels keep off: the buried lines on the cut face, each as thick as it's drawn, so a label
+ * hangs off its line on a leader instead of over it, or over the line beside it.
  */
-const DEPTH = 3;
+function linesOf(layout: LabLayout, setup: SetupId): KeepClear[] {
+  const { lines, block } = layout;
+  // Points all along, so the band narrows with distance as the line does.
+  const tube = (line: { y: number; radius: number; x0: number }): KeepClear => ({
+    points: Array.from(
+      { length: 9 },
+      (_, i) => new Vector3(line.x0 + ((block.x1 - line.x0) * i) / 8, line.y, 0),
+    ),
+    radius: line.radius,
+  });
+  const gas = setup === 'steel' ? [lines.steel] : [lines.plastic, lines.tracer];
+  const water = lines.water;
+  return [
+    tube(lines.telecom),
+    ...gas.map(tube),
+    // The water main crosses under the street, its end standing out of the cut face.
+    {
+      points: [new Vector3(water.x, water.y, 0), new Vector3(water.x, water.y, water.z1)],
+      radius: water.radius,
+    },
+  ];
+}
 
 function labelsFor(
-  layout: LabLayout,
+  { layout, kind }: Built,
   elements: Map<LabelId, HTMLElement>,
   setup: SetupId,
 ): Label[] {
-  const places = labelPlaces(layout);
+  const places = labelPlaces(layout, kind);
   return LABEL_SPECS.flatMap((spec) => {
     const element = elements.get(spec.id);
     if (!element) return [];
@@ -112,10 +172,12 @@ function labelsFor(
         element,
         anchor: new Vector3(...place.anchor[setup]),
         ...(place.point ? { point: new Vector3(...place.point[setup]) } : {}),
+        ...(place.along ? { along: place.along[setup].map((p) => new Vector3(...p)) } : {}),
         priority: spec.priority,
         hidden: spec.text[setup] === null,
         ...(spec.below ? { below: true } : {}),
-        ...(spec.onFace ? { facing: FACE_NORMAL } : {}),
+        // A label on the cut face names a line, and keeps off it.
+        ...(spec.onFace ? { facing: FACE_NORMAL, offLine: true } : {}),
       },
     ];
   });
@@ -141,7 +203,6 @@ async function buildLabScene(
   const scene = new Scene();
   const fxScene = new Scene();
   const camera = new PerspectiveCamera(34, 1, 0.5, 2400);
-  const layout = labLayout({ depth: DEPTH });
   const depthUniforms = createDepthUniforms();
 
   let labelsDirty = true;
@@ -165,6 +226,9 @@ async function buildLabScene(
   let frequency = o.frequency;
   let theme = o.theme;
   let disposed = false;
+  /** Builds for a view the screen has turned from: kept until the new build has drawn. */
+  const stale: Built[] = [];
+  let staleFrames = 0;
 
   const runtime: SceneRuntime = new SceneRuntime(
     {
@@ -183,8 +247,10 @@ async function buildLabScene(
         const animating = !reducedMotion && !paused && !o.capture;
         if (animating) {
           animTime += dt;
-          fx.setTime(animTime);
+          built.fx.setTime(animTime);
         }
+        // An old build goes once the new one has drawn, so the shaders they share stay compiled.
+        if (stale.length > 0 && --staleFrames <= 0) for (const b of stale.splice(0)) release(b);
         if (glide) {
           const t = Math.min(1, (performance.now() - glide.start) / MOTION.panel);
           if (t < 1) showGlide(easeInOut(t));
@@ -196,10 +262,10 @@ async function buildLabScene(
           }
         }
         if (labelsDirty) {
-          labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+          placeLabels();
           labelsDirty = false;
         }
-        return animating || glide !== null;
+        return animating || glide !== null || stale.length > 0;
       },
       resize() {
         glide = null;
@@ -207,8 +273,8 @@ async function buildLabScene(
       },
       tierChanged(tierSettings) {
         lighting.setShadowQuality(tierSettings.shadowMapSize, tierSettings.shadowRadius);
-        street.setDetail(tierSettings.detail);
-        contact.visible = !tierSettings.ao;
+        built.street.setDetail(tierSettings.detail);
+        built.contact.visible = !tierSettings.ao;
       },
       contextLost() {
         o.onContextLost?.();
@@ -216,6 +282,10 @@ async function buildLabScene(
       contextRestored() {
         // The sky and its lighting were rendered into a texture the lost context took with it.
         lighting.restore(labSceneTokens(theme));
+        // So was everything the block had uploaded: it's built afresh, and the old build goes
+        // without disposing, since its GPU objects now belong to no context.
+        for (const b of [built, ...stale]) b.lost = true;
+        rebuild(built.kind);
         labelsDirty = true;
         o.onContextRestored?.();
       },
@@ -224,48 +294,110 @@ async function buildLabScene(
   onRuntime(runtime);
   const { stage, renderer } = runtime;
 
-  // Everything that casts a shadow: the slab, and the trees and lamps on it.
-  const { block } = layout;
-  const bounds = new Box3(
-    new Vector3(block.x0, block.bottom, block.z0),
-    new Vector3(block.x1, 15, block.z1),
-  );
   const settings = () => runtime.settings;
   // The ambient-occlusion chunk downloads while the scene is built and compiled.
   preloadPost(settings());
-  const lighting = createLighting(renderer, scene, bounds, labSceneTokens(o.theme), {
-    shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius },
+  // The stage has no size until the runtime starts, so the first view is chosen by the canvas's own.
+  const firstKind = viewKind(o.visibleArea(), {
+    width: o.canvas.clientWidth,
+    height: o.canvas.clientHeight,
   });
-  const street = buildStreet(layout);
-  street.setDetail(settings().detail);
-  const scenery = buildScenery(layout);
-  scenery.setTheme(labSceneTokens(o.theme));
-  const shared = buildShared(layout, READINGS);
+  // The sun's shadow fits the block built first, and fits again whenever it's built for another view.
+  const lighting = createLighting(
+    renderer,
+    scene,
+    boundsOf(layoutFor(firstKind)),
+    labSceneTokens(o.theme),
+    { shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius } },
+  );
   const screenFonts = Promise.all(TransmitterScreen.FONTS.map((f) => document.fonts.load(f))).then(
     () => true,
     () => false,
   );
-  const setups = { steel: buildSetup(layout, 'steel'), plastic: buildSetup(layout, 'plastic') };
-  // Baked contact shadows stand in for ambient occlusion on the tier without it.
-  const contact = buildContactShadows(layout);
-  contact.visible = !settings().ao;
-  scene.add(street.group, scenery.group, shared.group, setups.steel, setups.plastic, contact);
-  setLineGlow(scene, labSceneTokens(o.theme).lineGlow);
-  const fx = new SignalEffects(depthUniforms, layout);
-  fx.setTime(animTime);
-  fxScene.add(fx.group);
+
+  /** Builds the block for a view, in the scenes. */
+  function build(kind: ViewKind): Built {
+    const layout = layoutFor(kind);
+    const street = buildStreet(layout);
+    street.setDetail(settings().detail);
+    const scenery = buildScenery(layout);
+    scenery.setTheme(labSceneTokens(theme));
+    const b: Built = {
+      kind,
+      layout,
+      street,
+      scenery,
+      shared: buildShared(layout, READINGS),
+      setups: { steel: buildSetup(layout, 'steel'), plastic: buildSetup(layout, 'plastic') },
+      // Baked contact shadows stand in for ambient occlusion on the tier without it.
+      contact: buildContactShadows(layout),
+      fx: new SignalEffects(depthUniforms, layout),
+      lost: false,
+    };
+    b.contact.visible = !settings().ao;
+    b.fx.setTime(animTime);
+    scene.add(...sceneParts(b));
+    fxScene.add(b.fx.group);
+    setLineGlow(scene, labSceneTokens(theme).lineGlow);
+    return b;
+  }
+
+  /** Lets a build go: out of the scenes, and its GPU resources freed. */
+  function release(b: Built) {
+    scene.remove(...sceneParts(b));
+    fxScene.remove(b.fx.group);
+    // A build from before a lost context has nothing left to free: asking the new context to
+    // delete objects it never had only warns.
+    if (b.lost) return;
+    b.shared.screen.dispose();
+    for (const part of [...sceneParts(b), b.fx.group]) disposeObject(part);
+  }
+
+  let built = build(firstKind);
+  o.onView?.(built.kind);
+
+  /**
+   * Builds the block for the view the screen now asks for, with the labels placed on it and the
+   * shadows drawn again. The old build stays, out of sight, until the new one has drawn.
+   */
+  function rebuild(kind: ViewKind) {
+    const old = built;
+    scene.remove(...sceneParts(old));
+    fxScene.remove(old.fx.group);
+    stale.push(old);
+    staleFrames = 2;
+    built = build(kind);
+    lighting.setBounds(boundsOf(built.layout));
+    o.onView?.(kind);
+    labelsFor_ = null;
+    shadowsFor = null;
+    applyState();
+  }
 
   const cam = new LabCamera(camera);
   const labels = new LabelLayer(camera, o.noGo);
-  /** The part of the view the panel or sheet leaves free, as the label layer wants it. */
+  /** The part of the view the console and the drawer leave free, as the label layer wants it. */
   const freeArea = () => {
     const v = o.visibleArea();
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
-  /** Frames the view for a free area of the canvas, with the view that suits it unless given. */
-  function frameArea(area: VisibleArea, view = viewFor(layout, area, stage)) {
+  /** Places the labels in the free area: fewer on a phone, and as their icons in a small view. */
+  const placeLabels = () => {
+    const area = freeArea();
+    labels.update(
+      stage.width,
+      stage.height,
+      area,
+      maxLabels(area.w),
+      area.h < LABEL_LIMITS.iconsBelow,
+    );
+  };
+  /** Frames the view for a free area of the canvas, with the block built for the view that suits it. */
+  function frameArea(area: VisibleArea) {
+    const kind = viewKind(area, stage, built.kind);
+    if (kind !== built.kind) rebuild(kind);
     cam.setLayout(stage.width, stage.height, area);
-    cam.frame(view);
+    cam.frame(viewOf(built.layout, kind));
     shownArea = area;
     labelsDirty = true;
   }
@@ -284,15 +416,19 @@ async function buildLabScene(
   let labelsFor_: SetupId | null = null;
 
   function applyState() {
-    setups.steel.visible = setup === 'steel';
-    setups.plastic.visible = setup === 'plastic';
-    fx.setState(labState(setup, frequency));
-    shared.screen.show(FREQUENCIES.indexOf(frequency));
+    built.setups.steel.visible = setup === 'steel';
+    built.setups.plastic.visible = setup === 'plastic';
+    built.fx.setState(labState(setup, frequency));
+    built.shared.screen.show(FREQUENCIES.indexOf(frequency));
     // Label text only changes with the setup, so a frequency change needn't re-measure them.
     if (labelsFor_ !== setup) {
       labelsFor_ = setup;
-      current = labelsFor(layout, o.labelElements, setup);
+      // A line the key points at stays lit through a new build or setup.
+      const lit = current.find((label) => label.highlight)?.id;
+      current = labelsFor(built, o.labelElements, setup);
+      for (const label of current) label.highlight = label.id === lit;
       labels.setLabels(current);
+      labels.setKeepClear(linesOf(built.layout, setup));
     }
     // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
     if (shadowsFor !== setup) {
@@ -308,9 +444,9 @@ async function buildLabScene(
    * the view.
    */
   async function precompile() {
-    setups.steel.visible = true;
-    setups.plastic.visible = true;
-    fx.showAll();
+    built.setups.steel.visible = true;
+    built.setups.plastic.visible = true;
+    built.fx.showAll();
     await runtime.compile([scene, fxScene]);
   }
 
@@ -323,18 +459,18 @@ async function buildLabScene(
   // fallback and redraws when the font arrives.
   const timeout = new Promise<boolean>((resolve) => setTimeout(resolve, 2000, false));
   if (await Promise.race([screenFonts, timeout])) {
-    shared.screen.draw();
+    built.shared.screen.draw();
   } else {
     void screenFonts.then((loaded) => {
       if (!loaded || disposed) return;
-      shared.screen.draw();
+      built.shared.screen.draw();
       stage.requestFrame();
     });
   }
   applyState();
   // In capture mode, one settled frame, labels placed, then still for the screenshot.
   runtime.start(() => {
-    labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+    placeLabels();
   });
 
   return {
@@ -353,7 +489,7 @@ async function buildLabScene(
       const tokens = labSceneTokens(theme);
       lighting.setTheme(tokens);
       setLineGlow(scene, tokens.lineGlow);
-      scenery.setTheme(tokens);
+      built.scenery.setTheme(tokens);
       stage.requestFrame();
     },
     setReducedMotion(reduced) {
@@ -366,7 +502,7 @@ async function buildLabScene(
     },
     highlight(id) {
       for (const label of current) label.highlight = label.id === id;
-      labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+      placeLabels();
     },
     setTier(next) {
       return runtime.setTier(next);
@@ -374,16 +510,18 @@ async function buildLabScene(
     refreshLabels() {
       // Labels are HTML and the camera hasn't moved, so they're placed now, without waiting for a
       // frame: a label just focused is where it belongs before anything measures it.
-      labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+      placeLabels();
     },
     relayout(ease = false) {
       labels.measure();
       const area = o.visibleArea();
-      // A glide from the framing shown now, unless motion is reduced or there's nothing to glide from.
-      if (ease && !reducedMotion && !o.capture && shownArea) {
+      // A glide from the framing shown now, unless motion is reduced, there's nothing to glide
+      // from, or the new room asks for the other view, whose block is built anew.
+      const kind = viewKind(area, stage, built.kind);
+      if (ease && !reducedMotion && !o.capture && shownArea && kind === built.kind) {
         // Where it lands: the pose that frames the new area, fitted without moving the camera.
         cam.setLayout(stage.width, stage.height, area);
-        const toPose = cam.poseFor(viewFor(layout, area, stage));
+        const toPose = cam.poseFor(viewOf(built.layout, kind));
         cam.setLayout(stage.width, stage.height, shownArea);
         glide = {
           from: shownArea,
@@ -399,7 +537,7 @@ async function buildLabScene(
       frameArea(area);
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
-        labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+        placeLabels();
         runtime.renderOnce();
         return;
       }
@@ -411,7 +549,8 @@ async function buildLabScene(
       disposed = true;
       runtime.dispose();
       lighting.dispose();
-      shared.screen.dispose();
+      for (const b of stale.splice(0)) release(b);
+      built.shared.screen.dispose();
       disposeObject(scene);
       disposeObject(fxScene);
     },

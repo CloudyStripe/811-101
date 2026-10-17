@@ -306,9 +306,6 @@ export const DIORAMA_COLORS = {
 /** Icon ink on APWA color chips: dark on every chip, in both themes. */
 export const CHIP_INK = '#1b1a17';
 
-/** A device's own screen, such as the transmitter's: dark, with light figures, in either theme. */
-export const DEVICE = { lcd: '#22231f', lcdInk: '#e9e6dd' } as const;
-
 /**
  * The locate signal's own color: a luminous cyan, chosen to sit well away from every APWA hue
  * (checked in tokens.test.ts). Strength is shown by brightness, never by a change of color.
@@ -404,8 +401,11 @@ export function easeInOut(t: number): number {
 /** Stacking order: the 3D view, chrome over it, the site header, popovers, the perf HUD. */
 export const LAYER = { scene: 0, chrome: 10, header: 20, popover: 40, hud: 50 } as const;
 
-/** At most this many 3D labels show at once: fewer in a narrow view, so the scene leads. */
-export const LABEL_LIMITS = { narrow: 4, wide: 7, narrowBelow: 600 } as const;
+/**
+ * At most this many 3D labels show at once: fewer in a narrow view, so the scene leads. In a view
+ * shorter than `iconsBelow`, as on a phone with its guide open, they show as their icons.
+ */
+export const LABEL_LIMITS = { narrow: 4, wide: 7, narrowBelow: 600, iconsBelow: 260 } as const;
 
 function chromeVars(t: ChromeTokens, theme: ThemeName): string {
   const apwa = (Object.keys(APWA) as ApwaCode[])
@@ -446,7 +446,6 @@ export function tokensCss(): string {
     `--font-display: ${TYPE.display}; --font-body: ${TYPE.body}; --font-mono: ${TYPE.mono};`,
     type,
     `--signal: ${SIGNAL_COLOR}; --chip-ink: ${CHIP_INK}; --soil: ${MATERIAL_COLORS.subsoil};`,
-    `--lcd: ${DEVICE.lcd}; --lcd-ink: ${DEVICE.lcdInk};`,
     // The ground's layers, top down, for drawings in the page (the 404, the portal).
     `--strata-1: ${MATERIAL_COLORS.topsoil}; --strata-2: ${MATERIAL_COLORS.subsoil}; --strata-3: ${MATERIAL_COLORS.clay};`,
     space,

@@ -19,7 +19,6 @@ import {
   srgbToLinear,
 } from './color.ts';
 import {
-  DEVICE,
   DIORAMA_COLORS,
   FACILITY_TINT_STRENGTH,
   MATERIAL_COLORS,
@@ -45,10 +44,6 @@ describe('chrome contrast (WCAG 2.2 AA)', () => {
       expect(contrast(t.ink3, bg), `muted text on ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t.accentInk, t.accent)).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('device screens are readable: light figures on a dark screen, in both themes', () => {
-    expect(contrast(DEVICE.lcdInk, DEVICE.lcd)).toBeGreaterThanOrEqual(7);
   });
 
   it.each(themes)('%s: the focus ring passes 3:1 against every surface', (name) => {

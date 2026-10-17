@@ -6,9 +6,23 @@ import { ruleSummary, stateSummary } from './summary.ts';
 describe('stateSummary', () => {
   it('names the setup and frequency, then says what the signal does', () => {
     expect(stateSummary('steel', 83_000)).toBe(
-      'Steel main at 83 kHz: the signal fades out before the end of the block, and even more of it bleeds onto the telecom cable.',
+      'Steel main at 83 kHz: the signal fades out before the end of the block, and much more of it bleeds onto the telecom cable.',
     );
-    expect(stateSummary('plastic', 512)).toMatch(/^Plastic main at 512 Hz: the signal reaches/);
+  });
+
+  it.each(FREQUENCIES)(
+    'on the plastic main at %i Hz, says first that the tracer wire carries the signal',
+    (f) => {
+      expect(stateSummary('plastic', f)).toMatch(
+        /^Plastic main at [\d.]+ k?Hz: the tracer wire carries the signal\. The signal /,
+      );
+    },
+  );
+
+  it('reads the plastic main in full', () => {
+    expect(stateSummary('plastic', 512)).toBe(
+      'Plastic main at 512 Hz: the tracer wire carries the signal. The signal reaches the end of the block, and almost none of it bleeds onto the telecom cable.',
+    );
   });
 
   it('reads as plain text, with no term markup and no numbers beyond the names', () => {

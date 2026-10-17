@@ -2,8 +2,9 @@
  * The layout between and beyond the two designed sizes: tablets, phones held sideways or with
  * browser toolbars showing, small and zoomed laptop windows, and a 1280×1024 screen zoomed to 400%
  * (320×256, WCAG 1.4.10). Every control must be reachable and on top where it's clicked, the
- * frequency dial on screen without scrolling (sheet open or closed), the hookup framed clear of
- * the controls, and no chrome overlapping.
+ * frequency buttons on screen without scrolling, the hookup framed clear of the controls, the
+ * guide never over the lines, and no chrome overlapping. On phones held sideways, the settings
+ * menu fits under its button.
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
@@ -17,8 +18,13 @@ interface Size {
   framed: boolean;
   /** Everything fits without scrolling. */
   fits: boolean;
-  /** The guide is a sheet that opens over the view. */
-  sheet: boolean;
+  /**
+   * With the guide open, the frequency buttons stay on screen too. On short screens they step
+   * aside for it, and on short phones the page scrolls down to it.
+   */
+  roomy: boolean;
+  /** With the guide open, the view keeps room enough to label the gas main above it. */
+  guideRoom?: boolean;
 }
 
 const SIZES: Size[] = [
@@ -29,7 +35,8 @@ const SIZES: Size[] = [
     touch: true,
     framed: true,
     fits: true,
-    sheet: false,
+    roomy: true,
+    guideRoom: true,
   },
   {
     name: 'large-tablet-portrait',
@@ -38,7 +45,8 @@ const SIZES: Size[] = [
     touch: true,
     framed: true,
     fits: true,
-    sheet: false,
+    roomy: true,
+    guideRoom: true,
   },
   {
     name: 'tablet-landscape',
@@ -47,7 +55,8 @@ const SIZES: Size[] = [
     touch: true,
     framed: true,
     fits: true,
-    sheet: false,
+    roomy: true,
+    guideRoom: true,
   },
   {
     name: 'small-laptop',
@@ -56,7 +65,8 @@ const SIZES: Size[] = [
     touch: false,
     framed: true,
     fits: true,
-    sheet: false,
+    roomy: true,
+    guideRoom: true,
   },
   {
     name: 'small-window',
@@ -65,7 +75,7 @@ const SIZES: Size[] = [
     touch: false,
     framed: true,
     fits: true,
-    sheet: false,
+    roomy: true,
   },
   {
     name: 'narrow-window',
@@ -74,7 +84,8 @@ const SIZES: Size[] = [
     touch: false,
     framed: true,
     fits: true,
-    sheet: false,
+    roomy: true,
+    guideRoom: true,
   },
   // A 1366 × 768 laptop at 125% zoom, with browser toolbars.
   {
@@ -84,7 +95,7 @@ const SIZES: Size[] = [
     touch: false,
     framed: true,
     fits: true,
-    sheet: true,
+    roomy: false,
   },
   {
     name: 'short-window',
@@ -93,7 +104,7 @@ const SIZES: Size[] = [
     touch: false,
     framed: true,
     fits: true,
-    sheet: true,
+    roomy: false,
   },
   // A small phone with the browser's toolbars showing.
   {
@@ -103,7 +114,7 @@ const SIZES: Size[] = [
     touch: true,
     framed: true,
     fits: true,
-    sheet: true,
+    roomy: false,
   },
   {
     name: 'phone-landscape',
@@ -112,7 +123,7 @@ const SIZES: Size[] = [
     touch: true,
     framed: true,
     fits: true,
-    sheet: true,
+    roomy: false,
   },
   {
     name: 'small-phone-landscape',
@@ -121,7 +132,7 @@ const SIZES: Size[] = [
     touch: true,
     framed: true,
     fits: true,
-    sheet: true,
+    roomy: false,
   },
   // The smallest sideways phone: everything fits, but the view is too small to frame the hookup.
   {
@@ -131,7 +142,7 @@ const SIZES: Size[] = [
     touch: true,
     framed: false,
     fits: true,
-    sheet: true,
+    roomy: false,
   },
   // 1280 × 1024 at 400%: a reflow check. The page scrolls to reach everything.
   {
@@ -141,7 +152,7 @@ const SIZES: Size[] = [
     touch: false,
     framed: false,
     fits: false,
-    sheet: true,
+    roomy: false,
   },
 ];
 
@@ -163,8 +174,8 @@ async function onTop(page: Page, selector: string, index: number) {
   });
 }
 
-/** Asserts the whole frequency dial is on screen, and the page fits it without scrolling. */
-async function expectDialOnScreen(page: Page, height: number, when: string) {
+/** Asserts the frequency buttons are on screen, and the page fits them without scrolling. */
+async function expectFrequencyOnScreen(page: Page, height: number, when: string) {
   const overflow = await page.evaluate(
     () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
   );
@@ -193,7 +204,7 @@ for (const size of SIZES) {
     }) => {
       await open(page);
       await page.screenshot({ path: `artifacts/screenshots/layout-${size.name}.png` });
-      if (size.fits) await expectDialOnScreen(page, size.height, 'with the guide closed');
+      if (size.fits) await expectFrequencyOnScreen(page, size.height, 'with the guide closed');
 
       // The hookup, where the lesson starts, is framed clear of the controls.
       if (size.framed) {
@@ -204,13 +215,32 @@ for (const size of SIZES) {
         }
       }
 
-      // Opening the guide as a sheet leaves the dial on screen.
-      if (size.sheet && size.fits) {
-        await page.getByRole('button', { name: 'Details' }).click();
+      // The guide opens between the view and the console, never over the lines, and closes.
+      if (size.fits) {
+        const guide = page
+          .getByRole('region', { name: 'Controls' })
+          .getByRole('button', { name: 'Guide', exact: true });
+        await guide.click();
         await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
-        await page.screenshot({ path: `artifacts/screenshots/layout-${size.name}-sheet.png` });
-        await expectDialOnScreen(page, size.height, 'with the guide open');
-        await page.getByRole('button', { name: 'Details' }).click();
+        await page.screenshot({ path: `artifacts/screenshots/layout-${size.name}-guide.png` });
+        if (size.roomy) await expectFrequencyOnScreen(page, size.height, 'with the guide open');
+        const target = page.locator('[data-label="target"]');
+        if (size.guideRoom) await expect(target).not.toHaveClass(/\b(off|capped)\b/);
+        // Shown or not, the main's label is never under the guide.
+        if (await target.locator('.lbl-btn').isVisible()) {
+          const label = await target.locator('.lbl-btn').boundingBox();
+          const drawer = await page.locator('#lab-drawer').boundingBox();
+          const over =
+            label !== null &&
+            drawer !== null &&
+            label.x < drawer.x + drawer.width &&
+            label.x + label.width > drawer.x &&
+            label.y < drawer.y + drawer.height &&
+            label.y + label.height > drawer.y;
+          expect(over, 'the main under the guide').toBe(false);
+        }
+        await page.getByRole('button', { name: 'Close the lab guide' }).click();
+        await expect(page.locator('#lab-drawer')).toBeHidden();
       }
 
       // The lab's own controls; the header's settings menu is closed, so its choices are hidden.
@@ -247,16 +277,24 @@ for (const size of SIZES) {
 test.describe('rotating a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('with the guide open, the view is framed again once it closes', async ({ page }) => {
+  test('turns the block between its deeper three-quarter view and the view from in front', async ({
+    page,
+  }) => {
     await open(page);
-    const details = page.getByRole('button', { name: 'Details' });
-    for (const [width, height] of [
-      [844, 390],
-      [390, 844],
+    const stage = page.locator('.stage');
+    await expect(stage).toHaveAttribute('data-view', 'tall');
+    const guide = page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Guide', exact: true });
+    for (const [width, height, view] of [
+      [844, 390, 'wide'],
+      [390, 844, 'tall'],
     ] as const) {
-      await details.click();
+      // Turned with the guide open, then closed: the view is framed again each time.
+      await guide.click();
       await page.setViewportSize({ width, height });
-      await details.click();
+      await expect(stage).toHaveAttribute('data-view', view);
+      await guide.click();
       for (const id of ['transmitter', 'target']) {
         await expect(
           page.locator(`[data-label="${id}"]`),
@@ -266,6 +304,36 @@ test.describe('rotating a phone', () => {
     }
   });
 });
+
+/** The settings menu on phones held sideways: all of it under its button, nothing to scroll to. */
+for (const size of SIZES.filter((s) =>
+  ['phone-landscape', 'small-phone-landscape', 'tiny-phone-landscape'].includes(s.name),
+)) {
+  test.describe(`settings ${size.name}`, () => {
+    test.use({
+      viewport: { width: size.width, height: size.height },
+      hasTouch: true,
+      isMobile: true,
+    });
+
+    test('the settings menu shows every line, with nothing to scroll', async ({ page }) => {
+      await page.goto('./');
+      await page.getByRole('button', { name: 'Settings' }).tap();
+      const menu = page.getByRole('dialog', { name: 'Settings' });
+      await expect(menu).toBeVisible();
+      const fit = await menu.evaluate((m) => ({
+        hidden: m.scrollHeight - m.clientHeight,
+        bottom: m.getBoundingClientRect().bottom,
+      }));
+      expect(fit.hidden, 'left to scroll to').toBeLessThanOrEqual(1);
+      expect(fit.bottom).toBeLessThanOrEqual(size.height);
+      await expect(menu.getByText('Saved in this browser')).toBeInViewport({ ratio: 1 });
+      for (const name of ['Dark', 'Reduced', 'High']) {
+        await expect(menu.getByRole('radio', { name })).toBeInViewport({ ratio: 1 });
+      }
+    });
+  });
+}
 
 /** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
 for (const size of SIZES.filter((s) =>

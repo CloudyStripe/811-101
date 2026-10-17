@@ -1,7 +1,8 @@
 /**
  * A label on something in the 3D view. The scene's label layer positions it and owns its classes
  * (`off`, `compact`, `capped`), so this component keeps its own state in data attributes. Hovering,
- * focusing or tapping it shows a one-line definition, kept inside the view.
+ * focusing or tapping it shows a one-line definition, kept inside the view. Shown as its icon, it
+ * shows its name too while it's focused, or its definition is pinned open by a tap or click.
  */
 import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { labelDefinition } from '../../../content/training/frequency-lab.ts';
@@ -18,16 +19,29 @@ export function SceneLabel({
   spec,
   setup,
   register,
+  onTipChange,
 }: {
   spec: LabelSpec;
   setup: SetupId;
   register: (element: HTMLDivElement | null) => void;
+  /** Told when the definition opens or closes, so the label layer can place the label again. */
+  onTipChange?: () => void;
 }) {
   const tip = useTip<HTMLDivElement>();
   const tipId = useId();
   const tipRef = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState({ shift: 0, above: false });
   const text = spec.text[setup];
+
+  // Pinning the definition open, or letting it go, changes how the label shows (as its icon, it
+  // shows its name while pinned), so it's placed again first, and the definition then measures
+  // the label where it sits. A focused label already shows in full, and stays as it is.
+  const heldWas = useRef(tip.held);
+  useLayoutEffect(() => {
+    if (heldWas.current === tip.held) return;
+    heldWas.current = tip.held;
+    if (!tip.ref.current?.contains(document.activeElement)) onTipChange?.();
+  }, [tip.held, tip.ref, onTipChange]);
 
   // The tip goes below its label, or above it, wherever it stays inside the view and clear of the
   // page's controls; it slides sideways to fit.
@@ -63,7 +77,16 @@ export function SceneLabel({
       above ??
       Math.max(box.left + EDGE, Math.min(center - width / 2, box.right - EDGE - width));
     setPlace({ shift: Math.round(left - (center - width / 2)), above: above !== null });
-  }, [tip.open, tip.ref]);
+  }, [tip.open, tip.held, tip.ref]);
+
+  // Pinned open without focus, as on Safari, the definition has only now been placed beside the
+  // grown label, so the other labels are placed again to keep clear of where it really sits.
+  const placeTipWas = useRef(place);
+  useLayoutEffect(() => {
+    if (placeTipWas.current === place) return;
+    placeTipWas.current = place;
+    if (tip.held && !tip.ref.current?.contains(document.activeElement)) onTipChange?.();
+  }, [place, tip.held, tip.ref, onTipChange]);
 
   return (
     <div
@@ -71,7 +94,7 @@ export function SceneLabel({
       data-label={spec.id}
       // What carries the signal is the label to read first.
       data-tier={CARRIER[setup] === spec.id ? 'current' : 'context'}
-      data-tip={tip.open ? 'open' : undefined}
+      data-tip={tip.held ? 'pinned' : tip.open ? 'open' : undefined}
       hidden={text === null}
       ref={(element) => {
         tip.ref.current = element;

@@ -1,14 +1,15 @@
 /**
  * The lab in use: labels never flash, whether before the scene places them or while they're
  * hidden; the 3D view keeps drawing through setup and frequency changes; the signal pauses and
- * plays; the knob steps on a click; and the key finds each line in the view.
+ * plays; each frequency button chooses its frequency; the key finds each line in the view; and on
+ * a phone with the guide open, the labels show as icons that show their names on a tap.
  */
 import type { Locator, Page } from '@playwright/test';
 import { MOTION_WAIT, countFrames, expect, isMoving, test } from './fixtures.ts';
 
 type Watched = Window & { labelProblems?: string[] };
 
-/** Switches to the plastic main, steps the dial through every frequency, and switches back. */
+/** Switches to the plastic main, steps through every frequency, and switches back. */
 async function exercise(page: Page, afterEach: (step: string) => Promise<void>) {
   const setup = page.getByRole('radiogroup', { name: 'Setup' });
   const tracer = page.locator('[data-label="tracer"]');
@@ -21,8 +22,8 @@ async function exercise(page: Page, afterEach: (step: string) => Promise<void>) 
   await expect(page.locator('[data-label="target"] .lbl-text')).toHaveText('Plastic gas main');
   await afterEach('plastic at 512 Hz');
 
-  const dial = page.getByRole('radiogroup', { name: 'Transmitter frequency' });
-  await dial.getByRole('radio', { checked: true }).focus();
+  const frequency = page.getByRole('radiogroup', { name: 'Frequency' });
+  await frequency.getByRole('radio', { checked: true }).focus();
   for (const f of [8000, 33000, 83000]) {
     await page.keyboard.press('ArrowRight');
     await expect(page).toHaveURL(new RegExp(`f=${String(f)}(&|$)`));
@@ -169,34 +170,32 @@ test.describe('with reduced motion', () => {
     });
   });
 
-  test('a click on the knob steps it to the next frequency, round to the first', async ({
+  test('each frequency button chooses its frequency, and the chosen one shows once', async ({
     page,
   }) => {
     await open(page);
-    const dial = page.getByRole('radiogroup', { name: 'Transmitter frequency' });
-    const knob = page.locator('.dial-knob');
-    for (const [name, f] of [
-      ['8 kilohertz', 8000],
-      ['33 kilohertz', 33000],
-      ['83 kilohertz', 83000],
-      ['512 hertz', 512],
+    const frequency = page.getByRole('radiogroup', { name: 'Frequency' });
+    for (const [name, label, f] of [
+      ['83 kilohertz', '83 kHz', 83000],
+      ['8 kilohertz', '8 kHz', 8000],
+      ['33 kilohertz', '33 kHz', 33000],
+      ['512 hertz', '512 Hz', 512],
     ] as const) {
-      await knob.click();
-      await expect(dial.getByRole('radio', { checked: true })).toHaveAccessibleName(name);
+      await frequency.getByRole('radio', { name }).click();
+      const chosen = frequency.getByRole('radio', { checked: true });
+      await expect(chosen).toHaveCount(1);
+      await expect(chosen).toHaveAccessibleName(name);
+      await expect(chosen).toHaveText(label);
       await expect(page).toHaveURL(new RegExp(`f=${String(f)}(&|$)`));
     }
-    // The detents are a radio group: End and Home jump to the ends.
-    await dial.getByRole('radio', { checked: true }).focus();
-    await page.keyboard.press('End');
-    await expect(dial.getByRole('radio', { name: '83 kilohertz' })).toBeFocused();
-    await expect(dial.getByRole('radio', { checked: true })).toHaveAccessibleName('83 kilohertz');
-    await page.keyboard.press('Home');
-    await expect(dial.getByRole('radio', { name: '512 hertz' })).toBeFocused();
-    await expect(dial.getByRole('radio', { checked: true })).toHaveAccessibleName('512 hertz');
+    // The chosen frequency shows once in the controls: no screen repeats it.
+    await expect(
+      page.getByRole('region', { name: 'Controls' }).getByText('512 Hz', { exact: true }),
+    ).toHaveCount(1);
   });
 });
 
-test.describe('the key beside the view', () => {
+test.describe('the key', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
 
   /** Whether the label is what's on top at its middle: in view, and under nothing. */
@@ -212,13 +211,18 @@ test.describe('the key beside the view', () => {
     page,
   }) => {
     await open(page);
+    await page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Key', exact: true })
+      .click();
     const key = page.getByRole('region', { name: 'Key' });
     for (const setup of ['Steel main', 'Plastic main']) {
       await page
         .getByRole('radiogroup', { name: 'Setup' })
         .getByRole('radio', { name: setup })
         .click();
-      const rows = key.getByRole('button');
+      // Its rows, not the button that closes it.
+      const rows = key.locator('.legend-row');
       const count = await rows.count();
       expect(count, `${setup}: a row for each line`).toBeGreaterThanOrEqual(3);
       for (let i = 0; i < count; i++) {
@@ -237,19 +241,6 @@ test.describe('the key beside the view', () => {
         expect(await onTop(label), `${setup}: ${name} focused, in view`).toBe(true);
       }
     }
-  });
-
-  test('with the guide open and less room, the key moves into the guide', async ({ page }) => {
-    await page.setViewportSize({ width: 1300, height: 900 });
-    await open(page);
-    const key = page.getByRole('region', { name: 'Key' });
-    await expect(key).toBeHidden();
-    const inGuide = page.locator('.lab-panel').getByRole('button', { name: 'Key' });
-    await expect(inGuide).toBeVisible();
-    await expect(inGuide).toHaveAttribute('aria-expanded', 'false');
-    // Closed down to its title, the guide leaves room for the key beside the view again.
-    await page.getByRole('button', { name: 'Close the lab guide' }).click();
-    await expect(key).toBeVisible();
   });
 });
 
@@ -314,6 +305,70 @@ test.describe('on a phone', () => {
   });
 });
 
+test.describe('on a phone, with the guide open', () => {
+  test.use({
+    reducedMotion: 'reduce',
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("the same four labels show, as their icons, and a tap shows one's name and definition", async ({
+    page,
+  }) => {
+    // As Safari does, a tap gives a label no focus: its definition, pinned open, shows its name.
+    await page.addInitScript(() => {
+      document.addEventListener(
+        'mousedown',
+        (event) => {
+          if ((event.target as Element | null)?.closest('.lbl-btn')) event.preventDefault();
+        },
+        true,
+      );
+    });
+    await open(page);
+    const shown = page.locator('.lbl:not(.off):not(.capped):not([hidden])');
+    const ids = () =>
+      shown.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.label ?? '').sort());
+    await expect(shown).toHaveCount(4);
+    // Each hangs off what it names, on its own leader.
+    await expect(page.locator('.lbl-leaders g:not(.off)')).toHaveCount(4);
+    const closed = await ids();
+    await page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Guide', exact: true })
+      .tap();
+    await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
+    // Once the view has made room for the guide, the same four show, each as its icon.
+    await expect(page.locator('.lbl.compact:not(.off):not(.capped):not([hidden])')).toHaveCount(4);
+    await expect(shown).toHaveCount(4);
+    expect(await ids()).toEqual(closed);
+
+    // A tap shows its name and definition, over the others, which stay where they are.
+    const telecom = page.locator('[data-label="telecom"]');
+    const stake = page.locator('[data-label="stake"]');
+    const stakeWas = await stake.locator('.lbl-btn').boundingBox();
+    await telecom.locator('.lbl-btn').tap();
+    await expect(telecom).not.toHaveClass(/\bcompact\b/);
+    await expect(telecom.getByRole('tooltip')).toBeVisible();
+    const box = await telecom.locator('.lbl-btn').boundingBox();
+    expect(box?.width ?? 0, 'its name shows beside its icon').toBeGreaterThan(80);
+    expect(await stake.locator('.lbl-btn').boundingBox()).toEqual(stakeWas);
+
+    // A tap on another lets it go, and shows that one's.
+    await stake.locator('.lbl-btn').tap();
+    await expect(stake).not.toHaveClass(/\bcompact\b/);
+    await expect(stake.getByRole('tooltip')).toBeVisible();
+    await expect(telecom).toHaveClass(/\bcompact\b/);
+    await expect(telecom.getByRole('tooltip')).toBeHidden();
+
+    // A tap on the view lets it go back to its icon.
+    await page.locator('.lab-canvas').tap({ position: { x: 30, y: 230 } });
+    await expect(stake).toHaveClass(/\bcompact\b/);
+    await expect(stake.getByRole('tooltip')).toBeHidden();
+  });
+});
+
 test.describe('losing the graphics context', () => {
   test.use({ reducedMotion: 'reduce' });
 
@@ -357,6 +412,12 @@ test.describe('losing the graphics context', () => {
         (window as Window & { restoreGl?: () => void }).restoreGl?.();
       });
       await expect(message).toBeHidden();
+      await expect(page.locator('[data-label="transmitter"]')).not.toHaveClass(/\boff\b/);
+
+      // Turned after the context came back, the block is built for the new view, cleanly: the old
+      // build's objects went with the lost context, and nothing asks to delete them.
+      await page.setViewportSize({ width: size.height, height: size.width });
+      await expect(page.locator('.stage')).toHaveAttribute('data-view', 'tall');
       await expect(page.locator('[data-label="transmitter"]')).not.toHaveClass(/\boff\b/);
     });
   }

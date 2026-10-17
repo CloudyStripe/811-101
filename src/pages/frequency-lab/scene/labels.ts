@@ -3,7 +3,7 @@
  * label buttons without pulling the 3D bundle into the first load.
  */
 import type { SetupId } from '../../../signal/model.ts';
-import type { LabLayout } from './layout.ts';
+import type { LabLayout, ViewKind } from './layout.ts';
 
 export type LabelId =
   'transmitter' | 'stake' | 'access' | 'target' | 'tracer' | 'telecom' | 'water';
@@ -24,10 +24,14 @@ export interface LabelSpec {
   below?: boolean;
 }
 
-/** Where a label sits: its anchor, and where its leader points on the thing itself, per setup. */
+/**
+ * Where a label sits: its anchor, and where its leader points on the thing itself, per setup. A
+ * label on a line may sit further along it instead, where there's no room by its anchor.
+ */
 export interface LabelPlace {
   anchor: Record<SetupId, Point3>;
   point?: Record<SetupId, Point3>;
+  along?: Record<SetupId, Point3[]>;
 }
 
 const same = (p: Point3): Record<SetupId, Point3> => ({ steel: p, plastic: p });
@@ -40,7 +44,8 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     id: 'transmitter',
     text: { steel: 'Transmitter', plastic: 'Transmitter' },
     icon: 'transmitter',
-    priority: 5,
+    // Where the signal starts: placed before the stake beside it, so it sits right over it.
+    priority: 6,
     onFace: false,
   },
   {
@@ -62,7 +67,7 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     text: { steel: 'Steel gas main', plastic: 'Plastic gas main' },
     icon: 'gas',
     color: 'yellow',
-    priority: 6,
+    priority: 7,
     onFace: true,
     below: true,
   },
@@ -71,7 +76,7 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     text: { steel: null, plastic: 'Tracer wire' },
     icon: 'wire',
     color: 'yellow',
-    priority: 7,
+    priority: 8,
     onFace: true,
     below: true,
   },
@@ -80,7 +85,7 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     text: { steel: 'Telecom cable', plastic: 'Telecom cable' },
     icon: 'telecom',
     color: 'orange',
-    priority: 6,
+    priority: 7,
     onFace: true,
   },
   {
@@ -95,37 +100,75 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
 ];
 
 /**
- * Where each label sits in the block's layout. Labels on the lines hang under or over them, just
- * in front of the cut face.
+ * How far along the block each line's label sits, in feet, first choice first: near the hookup,
+ * seen from in front. At three-quarters the hookup's own labels fill the near end, so the cable's
+ * and the tracer wire's sit further along.
  */
-export function labelPlaces(layout: LabLayout): Record<LabelId, LabelPlace> {
-  const { hookup, lines } = layout;
+const ALONG: Readonly<
+  Record<ViewKind, Record<'target' | 'tracer' | 'telecom', readonly [number, ...number[]]>>
+> = {
+  wide: { target: [30, 70, 110], tracer: [58, 98, 128], telecom: [44, 84, 124] },
+  tall: { target: [30, 60, 90], tracer: [90, 60, 120], telecom: [90, 60, 120] },
+};
+
+/**
+ * Where each label sits in the block's layout, for the view it's seen in. Labels on the equipment
+ * sit over it, at the size it's drawn; labels on the lines hang under or over them, just in front
+ * of the cut face.
+ */
+export function labelPlaces(layout: LabLayout, kind: ViewKind): Record<LabelId, LabelPlace> {
+  const { hookup, lines, equipment: k } = layout;
+  const along = ALONG[kind];
+  /** A line's label, at its first place along it and with the rest to fall back on. */
+  const onLine = (xs: readonly [number, ...number[]], at: (x: number) => Point3): LabelPlace => {
+    const [first, ...rest] = xs;
+    const others = rest.map(at);
+    return { anchor: same(at(first)), along: { steel: others, plastic: others } };
+  };
   const { transmitter: tx, stake, access } = hookup;
+  // The transmitter's case top, and its handle's, standing on the grass.
+  const caseTop = 0.12 + 0.92 * k;
+  const handleTop = 0.12 + 1.39 * k;
   return {
     transmitter: {
-      anchor: same([tx.x, 1.5, tx.z]),
-      point: same([tx.x, 1.05, tx.z]),
+      anchor: same([tx.x, handleTop + 0.05 * k, tx.z]),
+      point: same([tx.x, caseTop, tx.z]),
     },
     stake: {
-      anchor: same([stake.x, stake.top + 0.4, stake.z]),
+      anchor: same([stake.x, stake.top + 0.3 + 0.1 * k, stake.z]),
       point: same([stake.x, stake.top, stake.z]),
     },
     access: {
-      anchor: { steel: [access.x, 3.5, access.z], plastic: [access.x, 0.6, access.z] },
-      point: { steel: [access.x, 3.0, access.z], plastic: [access.x, 0.22, access.z] },
+      anchor: {
+        steel: [access.x, 3 * k + 0.5, access.z],
+        plastic: [access.x, 0.225 * k + 0.375, access.z],
+      },
+      point: { steel: [access.x, 3 * k, access.z], plastic: [access.x, 0.225 * k, access.z] },
     },
     target: {
       anchor: {
-        steel: [30, lines.steel.y - lines.steel.radius, lines.steel.radius],
-        plastic: [30, lines.plastic.y - lines.plastic.radius, lines.plastic.radius],
+        steel: [along.target[0], lines.steel.y - lines.steel.radius, lines.steel.radius],
+        plastic: [along.target[0], lines.plastic.y - lines.plastic.radius, lines.plastic.radius],
+      },
+      along: {
+        steel: along.target
+          .slice(1)
+          .map((x) => [x, lines.steel.y - lines.steel.radius, lines.steel.radius]),
+        plastic: along.target
+          .slice(1)
+          .map((x) => [x, lines.plastic.y - lines.plastic.radius, lines.plastic.radius]),
       },
     },
-    tracer: {
-      anchor: same([58, lines.tracer.y - lines.tracer.radius, lines.plastic.radius]),
-    },
-    telecom: {
-      anchor: same([44, lines.telecom.y + lines.telecom.radius, lines.telecom.radius]),
-    },
+    tracer: onLine(along.tracer, (x) => [
+      x,
+      lines.tracer.y - lines.tracer.radius,
+      lines.plastic.radius,
+    ]),
+    telecom: onLine(along.telecom, (x) => [
+      x,
+      lines.telecom.y + lines.telecom.radius,
+      lines.telecom.radius,
+    ]),
     water: {
       anchor: same([lines.water.x, lines.water.y - lines.water.radius, lines.water.z1]),
     },

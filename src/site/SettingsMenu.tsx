@@ -1,10 +1,12 @@
 /**
  * Settings, the same on every page: theme, motion and 3D quality, each a row of choices. A
  * native popover under the header's button, so the browser handles Escape, clicks outside and
- * returning focus. Choices apply at once and are remembered in this browser.
+ * returning focus. Choices apply at once and are remembered in this browser. On a short screen
+ * held sideways, each setting's name sits beside its choices in a wider menu, so it all fits
+ * under the button.
  */
 import type { TargetedToggleEvent } from 'preact';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon } from '../design/icons.tsx';
 import { Segmented } from '../design/Segmented.tsx';
 import type { Settings } from './settings.ts';
@@ -13,6 +15,10 @@ import { useSettings } from './useSettings.ts';
 const POPOVER_ID = 'site-settings-menu';
 const WIDTH = 320;
 const EDGE = 12;
+/** Too short for the menu's rows stacked under the button, and wide enough to set them side by side. */
+const SHORT_AND_WIDE = '(max-height: 27em) and (min-width: 30em)';
+/** The menu's width there, with each setting's name beside its choices. */
+const WIDE_WIDTH = 560;
 
 const GROUPS: {
   [K in keyof Settings]: {
@@ -77,6 +83,8 @@ function Row<T extends string>({
 
 export function SettingsMenu() {
   const [settings, setSettings] = useSettings();
+  // Set as it opens: on a short screen held sideways, the settings sit side by side.
+  const [wide, setWide] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const popover = useRef<HTMLDivElement>(null);
   const close = () => {
@@ -84,21 +92,26 @@ export function SettingsMenu() {
   };
 
   // It stays put while the page scrolls under it, so it closes instead. Only the page's own
-  // scrolling counts (it reaches the window); the menu scrolling inside itself doesn't.
+  // scrolling counts (it reaches the window); the menu scrolling inside itself doesn't. It's
+  // fitted to the screen as it opens, so it closes when the screen turns or resizes, too.
   useEffect(() => {
-    const onScroll = () => {
+    const onMove = () => {
       close();
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', onMove, { passive: true });
+    window.addEventListener('resize', onMove);
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', onMove);
+      window.removeEventListener('resize', onMove);
     };
   }, []);
 
   function place(event: TargetedToggleEvent<HTMLDivElement>) {
     const r = button.current?.getBoundingClientRect();
     if (event.newState !== 'open' || !r) return;
-    const width = Math.min(WIDTH, innerWidth - 2 * EDGE);
+    const wide = matchMedia(SHORT_AND_WIDE).matches;
+    setWide(wide);
+    const width = Math.min(wide ? WIDE_WIDTH : WIDTH, innerWidth - 2 * EDGE);
     const left = Math.max(EDGE, Math.min(r.right - width, innerWidth - EDGE - width));
     const top = Math.round(r.bottom + 8);
     const { style } = event.currentTarget;
@@ -124,7 +137,7 @@ export function SettingsMenu() {
       <div
         id={POPOVER_ID}
         popover="auto"
-        class="settings"
+        class={wide ? 'settings settings-wide' : 'settings'}
         role="dialog"
         aria-labelledby={`${POPOVER_ID}-title`}
         ref={popover}
