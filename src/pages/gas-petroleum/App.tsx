@@ -503,25 +503,31 @@ export function App() {
   }, [viewKey]);
 
   // ← and → step through the journey, as the step bar does, unless focus is in something that
-  // uses them: a radio group, a quiz, a field, or the view, which they turn.
+  // uses them: a radio group, a quiz, a field, or the view, which they turn. The page listens
+  // once, and a key acts on the page as last drawn: listening again after each change, as an
+  // effect does a frame later, let a key pressed in between act on the page as it was before.
+  const onArrow = useRef<(event: KeyboardEvent) => void>(() => undefined);
+  onArrow.current = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
+    if (target?.closest('canvas')) return;
+    if (!journey || journey.quiz) return;
+    event.preventDefault();
+    if (event.key === 'ArrowLeft') journeyBack();
+    else if (waitsAtFork(journey)) toChoice();
+    else journeyNext();
+  };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
-      if (target?.closest('canvas')) return;
-      if (!journey || journey.quiz) return;
-      event.preventDefault();
-      if (event.key === 'ArrowLeft') journeyBack();
-      else if (waitsAtFork(journey)) toChoice();
-      else journeyNext();
+      onArrow.current(event);
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
     };
-  });
+  }, []);
 
   /**
    * The canvas: a tap or click opens what's under it, and twice on open ground centers the view
