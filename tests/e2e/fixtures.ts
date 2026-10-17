@@ -7,17 +7,19 @@ export async function waitReady(page: Page): Promise<void> {
   });
 }
 
-type Counted = Window & { drawnFrames?: number };
+type Counted = Window & { drawnFrames?: number; frameTimes?: number[] };
 
 /**
- * Counts the frames a 3D view draws, from before the page loads, and returns a reader of the count.
- * The view's loop sleeps whenever nothing moves, so the count holds still exactly when the view
- * does. (Screenshots of a moving canvas are too slow under software WebGL to compare instead.)
+ * Counts the frames a 3D view draws, from before the page loads, and returns a reader of the count;
+ * it notes when the last few began, too, for `waitStill`. The view's loop sleeps whenever nothing
+ * moves, so the count holds still exactly when the view does. (Screenshots of a moving canvas are
+ * too slow under software WebGL to compare instead.)
  */
 export async function countFrames(page: Page): Promise<() => Promise<number>> {
   await page.addInitScript(() => {
     const w = window as Counted;
     w.drawnFrames = 0;
+    w.frameTimes = [];
     let inFrame = false;
     const gl = WebGL2RenderingContext.prototype;
     for (const name of [
@@ -33,6 +35,7 @@ export async function countFrames(page: Page): Promise<() => Promise<number>> {
         if (!inFrame) {
           inFrame = true;
           w.drawnFrames = (w.drawnFrames ?? 0) + 1;
+          w.frameTimes = [...(w.frameTimes ?? []), performance.now()].slice(-5);
           setTimeout(() => {
             inFrame = false;
           }, 0);
@@ -65,6 +68,27 @@ export async function isMoving(
  * with other tests, can take many seconds to draw again after a change.
  */
 export const MOTION_WAIT = 45_000;
+
+/**
+ * Waits until a view whose frames `countFrames` counts is still: it has drawn nothing for two
+ * seconds, or for three times the longest gap between its last few frames if that's longer. Software
+ * WebGL starved by other tests can take seconds over one frame of a move that's still settling, and
+ * that gap alone isn't stillness. Check `isMoving` after, to see it stays still.
+ */
+export async function waitStill(page: Page, message: string): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const times = (window as Counted).frameTimes ?? [];
+          const gaps = times.slice(1).map((t, i) => t - (times[i] ?? t));
+          const quiet = Math.max(2000, 3 * Math.max(0, ...gaps));
+          return performance.now() - (times.at(-1) ?? 0) > quiet;
+        }),
+      { message, intervals: [500], timeout: MOTION_WAIT },
+    )
+    .toBe(true);
+}
 
 /**
  * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
