@@ -20,8 +20,11 @@ const SHORT_AND_WIDE = '(max-height: 27em) and (min-width: 30em)';
 /** The menu's width there, with each setting's name beside its choices. */
 const WIDE_WIDTH = 560;
 
+/** The menu's settings: the labels in the 3D views are toggled on the lessons, beside them. */
+type MenuSetting = Exclude<keyof Settings, 'labels'>;
+
 const GROUPS: {
-  [K in keyof Settings]: {
+  [K in MenuSetting]: {
     label: string;
     options: readonly { value: Settings[K]; label: string }[];
   };
@@ -171,7 +174,7 @@ export function SettingsMenu() {
           }}
         />
         <p class="settings-note">
-          Saved in this browser, for every page. The site keeps nothing else.
+          Saved in this browser, for every page, like the lessons' Labels. Nothing else is kept.
         </p>
       </div>
     </>

@@ -145,7 +145,9 @@ export function App() {
   /** The reader has moved the camera this visit: the first-move hint is done with. */
   const [moved, setMoved] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const [settings] = useSettings();
+  const [settings, setSettings] = useSettings();
+  /** The small labels on the stops' parts show; the stops' markers always do. */
+  const partLabels = settings.labels === 'on';
   const sheet = useSheetLayout();
   /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
   const covered = sheet && sheetOpen && sheetCovers();
@@ -289,6 +291,7 @@ export function App() {
         scene.setTheme(resolvedTheme());
         scene.setReducedMotion(reducesMotion(now.settings.motion, reducedMotionQuery.matches));
         scene.setPaused(now.paused);
+        scene.setPartLabels(now.settings.labels === 'on');
         scene.setFilter(now.filter);
         setLimits(scene.limits);
         setReady(true);
@@ -359,6 +362,9 @@ export function App() {
   useEffect(() => {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
+  useEffect(() => {
+    sceneRef.current?.setPartLabels(partLabels);
+  }, [partLabels]);
   useEffect(() => {
     const scene = sceneRef.current;
     scene?.setTheme(resolvedTheme());
@@ -746,7 +752,17 @@ export function App() {
   );
 
   const dock = (
-    <Dock key="dock" filter={filter} onFilter={setFilter} paused={paused} onPause={setPaused} />
+    <Dock
+      key="dock"
+      filter={filter}
+      onFilter={setFilter}
+      paused={paused}
+      onPause={setPaused}
+      labels={partLabels}
+      onLabels={(on) => {
+        setSettings({ ...settings, labels: on ? 'on' : 'off' });
+      }}
+    />
   );
 
   /** Any camera button: the camera moves, and the hint is done with. */

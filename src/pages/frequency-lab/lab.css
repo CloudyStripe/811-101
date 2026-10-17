@@ -3,9 +3,9 @@
  * header: the view, then the drawer (the guide or the key, when one is open), then the console.
  * The view is framed in the room above the drawer or the console, so neither ever covers the
  * lines.
- * - Wide screens: the lesson's lede at the view's top left, the scale tag at its top right, and
- *   the console in one row: the summary, the setup, the frequency, pause, and the guide and key.
- * - Medium widths: the console in two rows.
+ * - Wide screens: nothing over the view but its labels, and the console in one row: the summary,
+ *   the setup, pause, the frequency, and the guide, key and labels.
+ * - Medium widths: the console in two rows, or three in a small window.
  * - Phones (760px and under): the console stacks, in thumb reach; an open drawer takes part of the
  *   view's room on tall phones, and on short ones the page scrolls down to it.
  * - Short screens, such as phones held sideways: the drawer and the console in a column on the
@@ -59,8 +59,6 @@ body {
   max-height: 100svh;
 }
 
-.lab-lede,
-.lab-scale,
 .lab-console,
 .lab-drawer {
   position: relative;
@@ -90,42 +88,11 @@ body {
 }
 
 /* Chrome surfaces are opaque, so text contrast holds over any part of the 3D view. */
-.lab-lede,
 .lab-console,
 .lab-drawer {
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-1);
-}
-
-/* The lesson in one line, at the view's top left, under the header that names the lab. */
-.lab-lede {
-  grid-area: view;
-  align-self: start;
-  justify-self: start;
-  max-width: 25rem;
-  margin: 0;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-lg);
-  color: var(--ink-2);
-  font-size: 0.92rem;
-  line-height: 1.4;
-}
-
-/* The view is drawn deeper than true, and says so, in the view's top corner. */
-.lab-scale {
-  grid-area: view;
-  align-self: start;
-  justify-self: end;
-  margin: 0;
-  padding: 4px var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
-  color: var(--ink-2);
-  font-size: var(--text-small);
-  font-weight: 700;
 }
 
 /*
@@ -207,7 +174,7 @@ body {
   gap: var(--space-2);
 }
 
-/* The guide's and the key's buttons: pills, filled while their drawer is open. */
+/* The guide's and the key's buttons, and the labels': pills, filled while open or on. */
 .console-toggle {
   display: inline-flex;
   align-items: center;
@@ -231,7 +198,8 @@ body {
   background: var(--surface-2);
 }
 
-.console-toggle[aria-expanded='true'] {
+.console-toggle[aria-expanded='true'],
+.console-toggle[aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-ink);
@@ -242,7 +210,8 @@ body {
     background: var(--surface-2);
   }
 
-  .console-toggle[aria-expanded='true']:hover {
+  .console-toggle[aria-expanded='true']:hover,
+  .console-toggle[aria-pressed='true']:hover {
     background: var(--accent);
   }
 }
@@ -297,7 +266,7 @@ body {
   gap: var(--space-4) var(--space-6);
 }
 
-/* The lede shows in the guide where the view has no room for it: on phones and short screens. */
+/* The lesson's one line opens the guide on phones and short screens. */
 .guide-lede {
   display: none;
   grid-column: 1 / -1;
@@ -436,11 +405,11 @@ body {
 }
 
 /*
- * Medium widths: the summary over the setup, pause, frequency, and the guide's and key's buttons.
- * The console's widths are in em, so they follow the reader's default text size: larger text gets
- * the roomier layout sooner.
+ * Medium widths: the summary over the setup, pause, frequency, and the guide's, key's and labels'
+ * buttons. The console's widths are in em, so they follow the reader's default text size: larger
+ * text gets the roomier layout sooner.
  */
-@media (max-width: 73.6875em) {
+@media (max-width: 81.3125em) {
   .lab-console {
     grid-template-columns: auto auto auto minmax(0, 1fr);
     grid-template-areas:
@@ -458,14 +427,21 @@ body {
   }
 }
 
-/* Narrower, as on a tablet held upright: the setup and pause, then the frequency and the drawers. */
-@media (min-width: 761px) and (max-width: 54.9375em) {
+/*
+ * Narrower, as on a tablet held upright or a small window: the setup and pause, then the frequency
+ * and the drawers, without the groups' names, so the console stays short enough for the drawer.
+ */
+@media (min-width: 761px) and (max-width: 64em) {
   .lab-console {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'summary summary'
       'setup pause'
       'frequency drawers';
+  }
+
+  .console-caption {
+    display: none;
   }
 
   .console-pause {
@@ -485,14 +461,11 @@ body {
 }
 
 /*
- * Phones, and short screens such as phones held sideways: the lede moves into the guide, and the
- * console stacks: the summary, the setup with pause, the frequency, then the guide and the key.
+ * Phones, and short screens such as phones held sideways: the lede opens the guide, and the
+ * console stacks: the summary, the setup with pause, the frequency, then the guide, the key and
+ * the labels.
  */
 @media (max-width: 760px), (max-height: 580px) and (min-width: 561px) {
-  .lab-lede {
-    display: none;
-  }
-
   .guide-lede {
     display: block;
   }
@@ -544,9 +517,11 @@ body {
     justify-self: stretch;
   }
 
+  /* Each an equal share of the row, and narrow enough for three on the smallest phones. */
   .console-drawers .console-toggle {
     flex: 1;
     min-height: 40px;
+    padding: 0 var(--space-2);
   }
 
   .drawer-head {

@@ -356,10 +356,8 @@ describe('views', () => {
 
 /**
  * The free area the page leaves the view at the sizes the lab is designed for: below the header
- * and above the console (or the open drawer), with the lede and the scale tag in its top corners.
+ * and above the console (or the open drawer), nothing else over it.
  */
-const LEDE = { x: 8, y: 58, width: 416, height: 74 };
-const SCALE_TAG = { x: 1315, y: 58, width: 117, height: 46 };
 const ROOMS: {
   name: string;
   canvas: { width: number; height: number };
@@ -369,18 +367,18 @@ const ROOMS: {
   {
     name: 'desktop',
     canvas: { width: 1440, height: 900 },
-    area: { x: 0, y: 58, width: 1440, height: 718, keepOut: [LEDE, SCALE_TAG] },
+    area: { x: 0, y: 58, width: 1440, height: 718 },
     desktop: true,
   },
   {
     name: 'desktop, guide open',
     canvas: { width: 1440, height: 900 },
-    area: { x: 0, y: 58, width: 1440, height: 340, keepOut: [LEDE, SCALE_TAG] },
+    area: { x: 0, y: 58, width: 1440, height: 340 },
   },
   {
     name: 'laptop',
     canvas: { width: 1024, height: 768 },
-    area: { x: 0, y: 58, width: 1024, height: 560, keepOut: [{ ...LEDE, width: 300 }] },
+    area: { x: 0, y: 58, width: 1024, height: 560 },
   },
   {
     name: 'tablet, upright',
@@ -390,13 +388,7 @@ const ROOMS: {
   {
     name: 'phone',
     canvas: { width: 390, height: 844 },
-    area: {
-      x: 0,
-      y: 66,
-      width: 390,
-      height: 510,
-      keepOut: [{ x: 270, y: 96, width: 112, height: 46 }],
-    },
+    area: { x: 0, y: 66, width: 390, height: 510 },
   },
   {
     name: 'phone, sideways',

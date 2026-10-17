@@ -71,6 +71,8 @@ export interface LabScene {
   setReducedMotion(reduced: boolean): void;
   /** Stops the signal's motion while the reader has paused it, whatever the motion setting. */
   setPaused(paused: boolean): void;
+  /** Shows or hides the labels on the tools and lines; hidden, they aren't placed. */
+  setLabelsShown(shown: boolean): void;
   setTier(tier: Tier | 'auto'): Promise<void>;
   readonly tier: Tier;
   /**
@@ -209,6 +211,7 @@ async function buildLabScene(
   let animTime = 1.25;
   let reducedMotion = o.reducedMotion;
   let paused = false;
+  let labelsShown = true;
   /**
    * The free area the view is framed for, and a glide under way to a new framing: the area and the
    * camera's pose both ease from where they were, so a change of view (and lens) eases too.
@@ -383,6 +386,7 @@ async function buildLabScene(
   };
   /** Places the labels in the free area: fewer on a phone, and as their icons in a small view. */
   const placeLabels = () => {
+    if (!labelsShown) return;
     const area = freeArea();
     labels.update(
       stage.width,
@@ -498,6 +502,21 @@ async function buildLabScene(
     },
     setPaused(next) {
       paused = next;
+      stage.requestFrame();
+    },
+    setLabelsShown(next) {
+      if (labelsShown === next) return;
+      labelsShown = next;
+      if (next) {
+        // Shown again, they're measured afresh (hidden, they had no size) and placed now, so none
+        // shows first where it was before they hid.
+        labels.measure();
+        placeLabels();
+      } else {
+        // Hidden, nothing stays lit for a key row that can no longer point at it.
+        for (const label of current) label.highlight = false;
+      }
+      labelsDirty = true;
       stage.requestFrame();
     },
     highlight(id) {

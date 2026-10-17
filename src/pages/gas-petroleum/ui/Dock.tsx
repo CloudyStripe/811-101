@@ -1,7 +1,8 @@
 /**
- * The diorama's controls, in thumb reach on phones: which path to show, and a pause for the
- * model's motion. The steps have their own bar, in the guide (StepBar), and the camera's buttons
- * sit in the view's corner (ViewControls).
+ * The diorama's controls, in thumb reach on phones: which path to show, a pause for the model's
+ * motion, and a toggle for the small labels on the stops' parts (the stops' markers always show),
+ * remembered like the other settings. The steps have their own bar, in the guide (StepBar), and the
+ * camera's buttons sit in the view's corner (ViewControls).
  */
 import { PATH_NAMES } from '../../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../../design/icons.tsx';
@@ -38,6 +39,9 @@ export function Dock(props: {
   onFilter: (filter: Filter) => void;
   paused: boolean;
   onPause: (paused: boolean) => void;
+  /** Whether the small labels on the stops' parts show. */
+  labels: boolean;
+  onLabels: (labels: boolean) => void;
 }) {
   const pauseName = props.paused ? 'Play the motion' : 'Pause the motion';
   return (
@@ -64,6 +68,18 @@ export function Dock(props: {
           }}
         >
           <Icon name={props.paused ? 'play' : 'pause'} />
+        </button>
+        <button
+          type="button"
+          class="icon-button dock-labels"
+          aria-label="Labels on the parts"
+          title="Labels on the parts"
+          aria-pressed={props.labels}
+          onClick={() => {
+            props.onLabels(!props.labels);
+          }}
+        >
+          <Icon name="labels" />
         </button>
       </div>
     </section>

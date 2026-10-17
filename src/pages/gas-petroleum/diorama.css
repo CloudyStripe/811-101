@@ -124,6 +124,18 @@ body {
   color: var(--accent-ink);
 }
 
+/* The parts' labels, beside the pause: a round button, filled while they show. */
+.gp-dock .dock-labels {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.gp-dock .dock-labels[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 /*
  * The camera's buttons, as on a map, in the lower right corner of the view: zoom in and out,
  * stacked, beside a round pad of turns and tilts about the compass, which sets the view back.
@@ -1289,6 +1301,20 @@ nav.stepbar > :last-child {
   .gp-panel .panel-body {
     padding: var(--space-3) var(--space-4) var(--space-4);
     border-top: 1px solid var(--line);
+  }
+}
+
+/*
+ * The narrowest phones: the path switch by its words alone, and closer, so the dock keeps to one
+ * line down to about 360 px; below that, a name may take two lines in its button.
+ */
+@media (max-width: 380px) {
+  .gp-dock .dock-filter .icon {
+    display: none;
+  }
+
+  .gp-dock .dock-filter .segmented-option {
+    padding: 6px 4px;
   }
 }
 

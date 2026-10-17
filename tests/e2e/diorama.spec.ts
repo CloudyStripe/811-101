@@ -304,6 +304,25 @@ test.describe('on a phone', () => {
   });
 });
 
+test("the parts' labels hide and show from the dock, and the stops' markers stay", async ({
+  page,
+}) => {
+  await open(page, '&stop=city-gate');
+  const parts = page.locator('.dlbl:not(.dlbl-clock):not(.off)');
+  await expect(parts.first()).toBeVisible();
+  const toggle = dock(page).getByRole('button', { name: 'Labels on the parts' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(parts).toHaveCount(0);
+  // The markers are how to get around, so they stay.
+  await expect(page.locator('.mk:not(.off)').first()).toBeVisible();
+  await expect(page.locator('[data-label="city-gate"]')).not.toHaveClass(/\boff\b/);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(parts.first()).toBeVisible();
+});
+
 test('at the fork, → leads to the choice of path, and the keys follow the path chosen', async ({
   page,
 }) => {

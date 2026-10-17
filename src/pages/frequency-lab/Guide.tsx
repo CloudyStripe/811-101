@@ -1,7 +1,7 @@
 /**
  * The lab guide: what the signal is doing now, first, then how locating works, what to try and
  * the rule, in plain sections, and the way to About this model. On phones it starts with the
- * lesson's one line, which wider screens show over the view.
+ * lesson's one line, which the rule then says in full.
  */
 import { useId } from 'preact/hooks';
 import type { Frequency } from '../../../config/equipment.ts';

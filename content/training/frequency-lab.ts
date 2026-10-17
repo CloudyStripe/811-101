@@ -12,7 +12,7 @@ import type { SetupId } from '../../src/signal/model.ts';
 
 type PerSetup<T> = Readonly<Record<SetupId, T>>;
 
-/** The rule, as the lab's tagline. The static page shell repeats it (a test keeps them in step). */
+/** The rule, as the lab's tagline: it opens the guide on phones, and the rule says it in full. */
 export const TAGLINE = claim(
   'fl.tagline',
   'Use the lowest frequency that works: it travels farther and spreads less to other lines.',
@@ -145,10 +145,11 @@ export const KEY = {
     'fl.key.colors',
     "Lines are colored like the paint marks locators use: yellow for gas, orange for communications, blue for drinking water. Real pipes aren't always those colors.",
   ),
-  /** Symbol explanations: they describe the lab's drawing, not the world. */
+  /** Symbol explanations and the scale: they describe the lab's drawing, not the world. */
   signal:
     'Glowing bands: the signal. Brighter is stronger, and closer bands mean a higher frequency.',
   soil: 'Faint dashes in the soil: the signal returning to the ground stake.',
+  scale: 'Not to scale: depths and line sizes are exaggerated so the lines are easy to see.',
 } as const;
 
 export const ABOUT = {

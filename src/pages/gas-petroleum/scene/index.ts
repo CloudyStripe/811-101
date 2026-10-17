@@ -123,6 +123,8 @@ export interface DioramaScene {
   relayout(ease?: boolean): void;
   /** Places labels again, now: when a label gains focus. */
   refreshLabels(): void;
+  /** Shows or hides the small labels on the stops' parts; the stops' markers always show. */
+  setPartLabels(shown: boolean): void;
   dispose(): void;
 }
 
@@ -796,6 +798,11 @@ async function buildDiorama(
     },
     refreshLabels() {
       placeLabels();
+    },
+    setPartLabels(shown) {
+      details.setPartsShown(shown);
+      labelsDirty = true;
+      redraw();
     },
     dispose() {
       if (disposed) return;

@@ -4,7 +4,8 @@
  * assistive tech. Each sits beside its point, on a short leader to a dot on it, so no label covers
  * a part that's named: above it where there's room, else beside or below it, clear of the controls,
  * the stops' labels and each other. It hides when its point is behind the camera, on the far side
- * of the face it's drawn on, or where there's no room. The clock sits on its own point.
+ * of the face it's drawn on, or where there's no room. The clock sits on its own point. The
+ * reader can hide the parts' labels, as the lab's labels hide; the clock shows all the same.
  */
 import { Vector3, type PerspectiveCamera } from 'three';
 import { DETAILS, type StopId } from '../../../../content/utilities/gas-petroleum.ts';
@@ -60,6 +61,8 @@ function spots(x: number, y: number, w: number, h: number): Rect[] {
 export class DetailLayer {
   private readonly items: Item[] = [];
   private readonly clock: Item;
+  /** Whether the parts' labels show; the clock's doesn't hang on it. */
+  private partsShown = true;
   /** The leaders, in an SVG under the labels. */
   private readonly svg: SVGSVGElement;
   private readonly v = new Vector3();
@@ -118,6 +121,11 @@ export class DetailLayer {
     return { stop, spec, element, text: span, key: '', leader: { group, line, dot } };
   }
 
+  /** Shows or hides the parts' labels, from the next update on. */
+  setPartsShown(shown: boolean) {
+    this.partsShown = shown;
+  }
+
   /** The clock's words while the time-lapse plays; null hides it. */
   setClock(text: string | null) {
     this.clock.text.textContent = text ?? '';
@@ -137,7 +145,8 @@ export class DetailLayer {
     // Where each wanted label's point lands, if it's in view and facing the camera.
     const points = new Map<Item, { x: number; y: number }>();
     for (const item of [this.clock, ...this.items]) {
-      const wanted = item === this.clock ? clockShown : item.stop === open && open !== null;
+      const wanted =
+        item === this.clock ? clockShown : this.partsShown && item.stop === open && open !== null;
       if (!wanted) continue;
       const { spec } = item;
       this.v.set(...spec.at);

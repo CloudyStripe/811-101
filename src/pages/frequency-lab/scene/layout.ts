@@ -9,7 +9,7 @@
  * the gas main's trench, where only the water main lies, may be drawn flatter (`under`), so the
  * lines lead the face instead of a deep band of soil below them. The locating
  * equipment (transmitter, stake, access point and leads) is drawn `equipment` times its size, so
- * it reads beside the long block. The view says it's not to scale. Everything else above ground is
+ * it reads beside the long block. The key says it's not to scale. Everything else above ground is
  * true size. Nothing here touches three.js, so the layout can be checked in plain tests.
  */
 import { GEOMETRY } from '../../../signal/constants.ts';

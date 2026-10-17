@@ -49,6 +49,8 @@ export const ICONS = {
   // The lab's guide, and its key to the colors and marks in the view.
   guide: 'book-open-text',
   key: 'swatches',
+  // Labels in the view, shown or hidden: a tag, as on a part.
+  labels: 'tag',
 } as const;
 
 const PACKAGE = new URL('../node_modules/@phosphor-icons/core/', import.meta.url);

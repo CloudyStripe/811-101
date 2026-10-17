@@ -1,8 +1,9 @@
 /**
  * The lab's console, under the view: what the view shows now, in one line that stays on screen;
  * the setup; a button that pauses the signal's motion; the transmitter's frequency, as four large
- * buttons; and the buttons that open the guide or the key between the view and the console. They
- * read in that order in every layout.
+ * buttons; the buttons that open the guide or the key between the view and the console; and one
+ * that shows or hides the labels in the view, remembered like the other settings. They read in that
+ * order in every layout.
  */
 import {
   FREQUENCIES,
@@ -46,6 +47,9 @@ export interface ConsoleProps {
   drawer: DrawerId | null;
   drawerElement: string;
   onDrawer: (drawer: DrawerId | null) => void;
+  /** Whether the view shows its labels on the tools and lines. */
+  labels: boolean;
+  onLabels: (labels: boolean) => void;
 }
 
 export function Console(props: ConsoleProps) {
@@ -117,6 +121,17 @@ export function Console(props: ConsoleProps) {
             {d.label}
           </button>
         ))}
+        <button
+          type="button"
+          class="console-toggle"
+          aria-pressed={props.labels}
+          onClick={() => {
+            props.onLabels(!props.labels);
+          }}
+        >
+          <Icon name="labels" />
+          Labels
+        </button>
       </div>
     </section>
   );
