@@ -202,8 +202,11 @@ export function App() {
       return area;
     };
     const freeArea = (box: DOMRect): VisibleArea => {
-      // The camera's buttons sit in the view's corner on every layout, kept clear like the dock.
-      const camera = controlsOver(box, ['.gp-camera']);
+      // The camera's buttons sit in the view's lower right corner on every layout: the view is
+      // framed above them, as it is beside the guide, so nothing it frames sits under them.
+      const buttons = rectOf('.gp-camera');
+      const above = (bottom: number) =>
+        buttons ? Math.min(bottom, buttons.top - box.top - 8) : bottom;
       if (shortQuery.matches) {
         const dock = rectOf('.gp-dock');
         if (live.current.sheetOpen) {
@@ -218,30 +221,28 @@ export function App() {
             height: Math.max(120, bottom - top),
           };
         }
-        // Short screens: right of the column of controls.
+        // Short screens: right of the column of controls, above the camera's buttons.
         const left = (dock?.right ?? box.left) - box.left + 8;
         return {
           x: left,
           y: 0,
           width: Math.max(160, box.width - left),
-          height: box.height,
-          keepOut: camera,
+          height: Math.max(120, above(box.height)),
         };
       }
       const top = (rectOf('.site-header')?.bottom ?? 0) - box.top;
       if (phoneQuery.matches) {
-        // Phones: between the header and the sheet below the view.
+        // Phones: between the header and the camera's buttons, over the sheet.
         const bottom = (rectOf('.gp-panel')?.top ?? box.bottom) - box.top;
         return {
           x: 0,
           y: top,
           width: box.width,
-          height: Math.max(120, bottom - top),
-          keepOut: camera,
+          height: Math.max(120, above(bottom) - top),
         };
       }
-      // Wider screens: left of the open panel, the full height, with the dock kept clear, and the
-      // closed panel's title bar too.
+      // Wider screens: left of the open panel, above the camera's buttons, with the dock kept
+      // clear, and the closed panel's title bar too.
       const panel = rectOf('.gp-panel');
       const open = live.current.panelOpen;
       const right = Math.max(160, panel && open ? panel.left - box.left - 8 : box.width);
@@ -249,8 +250,8 @@ export function App() {
         x: 0,
         y: top,
         width: right,
-        height: Math.max(120, box.height - top),
-        keepOut: [...controlsOver(box, open ? ['.gp-dock'] : ['.gp-dock', '.gp-panel']), ...camera],
+        height: Math.max(120, above(box.height) - top),
+        keepOut: controlsOver(box, open ? ['.gp-dock'] : ['.gp-dock', '.gp-panel']),
       };
     };
 
