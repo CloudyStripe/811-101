@@ -15,6 +15,7 @@ export const CREDITED: readonly { name: string; ships: string; license?: string 
   { name: 'postprocessing', ships: 'Bloom, tone mapping and antialiasing' },
   // Its package.json says ISC, but the license file it ships is CC0 1.0.
   { name: 'n8ao', ships: 'Ambient occlusion', license: 'CC0-1.0' },
+  { name: 'camera-controls', ships: "Turning, tilting, zooming and panning the diorama's camera" },
   { name: 'preact', ships: 'The interface' },
   { name: '@phosphor-icons/core', ships: 'Icons (Phosphor, bold weight)' },
   { name: '@fontsource-variable/archivo', ships: 'The Archivo typeface' },
@@ -48,7 +49,9 @@ function licenseText(name: string): string {
 function homepage(m: Manifest): string {
   if (m.homepage) return m.homepage.replace(/#readme$/, '');
   const repo = typeof m.repository === 'string' ? m.repository : m.repository?.url;
-  return (repo ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
+  const url = (repo ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
+  // A bare "owner/name" is GitHub's shorthand.
+  return /^[\w.-]+\/[\w.-]+$/.test(url) ? `https://github.com/${url}` : url;
 }
 
 /** The text of public/credits.txt. */
