@@ -19,6 +19,7 @@ import {
   TIMELAPSE,
   TOURS,
   stopById,
+  type StopId,
 } from '../../content/utilities/gas-petroleum.ts';
 import { stopName, stopSummary } from '../../src/pages/gas-petroleum/summary.ts';
 import {
@@ -213,13 +214,12 @@ test("a stop's label opens it, and a link to a stop opens there", async ({ page 
   await expect(page.locator('[data-label="formation"]')).toHaveClass(/\b(off|capped)\b/);
   expect(await page.locator('.lbl:not(.off):not(.capped)').count()).toBeLessThanOrEqual(2);
   // A label out of sight for want of room still takes focus, and shows when it has it.
-  const label = page.locator('[data-label="pump"] .lbl-btn');
-  await label.focus();
-  await expect(page.locator('[data-label="pump"]')).not.toHaveClass(/\b(off|capped)\b/);
+  const capped = page.locator('.lbl.capped[data-label]').first();
+  const id = (await capped.getAttribute('data-label')) as StopId;
+  await capped.locator('.lbl-btn').focus();
+  await expect(page.locator(`[data-label="${id}"]`)).not.toHaveClass(/\b(off|capped)\b/);
   await page.keyboard.press('Enter');
-  await expect(guide(page).getByRole('heading', { level: 2 })).toHaveText(
-    stopById('pump').title.text,
-  );
+  await expect(guide(page).getByRole('heading', { level: 2 })).toHaveText(stopById(id).title.text);
 });
 
 test('the fork offers both paths, and the keys follow the path chosen', async ({ page }) => {

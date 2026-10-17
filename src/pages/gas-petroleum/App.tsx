@@ -207,11 +207,11 @@ export function App() {
       const buttons = rectOf('.gp-camera');
       const above = (bottom: number) =>
         buttons ? Math.min(bottom, buttons.top - box.top - 8) : bottom;
+      const top = (rectOf('.site-header')?.bottom ?? 0) - box.top;
       if (shortQuery.matches) {
         const dock = rectOf('.gp-dock');
         if (live.current.sheetOpen) {
           // Short screens, the sheet open in the view's column: the column it left, above the dock.
-          const top = (rectOf('.site-header')?.bottom ?? 0) - box.top;
           const x = (dock?.left ?? box.left) - box.left;
           const bottom = (dock?.top ?? box.bottom) - box.top - 8;
           return {
@@ -221,16 +221,16 @@ export function App() {
             height: Math.max(120, bottom - top),
           };
         }
-        // Short screens: right of the column of controls, above the camera's buttons.
+        // Short screens: right of the column of controls, below the header and above the
+        // camera's buttons.
         const left = (dock?.right ?? box.left) - box.left + 8;
         return {
           x: left,
-          y: 0,
+          y: top,
           width: Math.max(160, box.width - left),
-          height: Math.max(120, above(box.height)),
+          height: Math.max(120, above(box.height) - top),
         };
       }
-      const top = (rectOf('.site-header')?.bottom ?? 0) - box.top;
       if (phoneQuery.matches) {
         // Phones: between the header and the camera's buttons, over the sheet.
         const bottom = (rectOf('.gp-panel')?.top ?? box.bottom) - box.top;
@@ -241,8 +241,8 @@ export function App() {
           height: Math.max(120, above(bottom) - top),
         };
       }
-      // Wider screens: left of the open panel, above the camera's buttons, with the dock kept
-      // clear, and the closed panel's title bar too.
+      // Wider screens: left of the open panel, above the camera's buttons and the dock beside or
+      // below them, clear of the closed panel's title bar.
       const panel = rectOf('.gp-panel');
       const open = live.current.panelOpen;
       const right = Math.max(160, panel && open ? panel.left - box.left - 8 : box.width);
@@ -251,7 +251,7 @@ export function App() {
         y: top,
         width: right,
         height: Math.max(120, above(box.height) - top),
-        keepOut: controlsOver(box, open ? ['.gp-dock'] : ['.gp-dock', '.gp-panel']),
+        keepOut: open ? [] : controlsOver(box, ['.gp-panel']),
       };
     };
 

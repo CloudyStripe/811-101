@@ -184,6 +184,22 @@ body {
   grid-column: 1 / -1;
 }
 
+/*
+ * Wide screens: the buttons sit in the dock's row, at the right of the free part, rather than
+ * above it, so the view, framed above them, keeps the most room.
+ */
+@media (min-width: 1101px) and (min-height: 581px) {
+  .gp-camera {
+    grid-area: auto;
+    grid-row: 2;
+    grid-column: 2;
+  }
+
+  .gp-grid[data-panel='closed'] .gp-camera {
+    grid-column: 2 / -1;
+  }
+}
+
 .cam-zoom,
 .cam-pad {
   border: 1px solid var(--line);
