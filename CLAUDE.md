@@ -36,9 +36,19 @@ An interactive learning site about buried utilities and line locating.
   arrows, Home and End): the lab's setup and its four frequency buttons, and the diorama's path
   switch.
 - **The lab's layout:** the view, then a drawer (the guide or the key, one at a time, opened from
-  the console and closed by its button or Escape), then the console (the one-line summary, setup,
-  frequency, pause, Guide and Key). The view is framed above whichever is open, so neither covers
+  the console and closed by its button or Escape), then the console (the summary of what the view
+  shows, setup, frequency, pause, Guide and Key). The view is framed above whichever is open, so neither covers
   the lines; on short screens the drawer and console are a column beside the view.
+- **The lab's two views** (`layout.ts`): from in front on wide screens, the ground drawn 3× deep;
+  at three-quarters on tall ones, 7× deep so the lines are drawn thick, with the layers under the
+  gas main's trench flattened to 2× (`VIEW_UNDER`) so the lines lead the cut face.
+- **3D labels** (`src/kit3d/labels.ts`; where they go is decided in `placement.ts`, a pure,
+  tested function): the highest-priority labels show, up to a cap. They keep off the buried lines
+  (`setKeepClear`) and each other's leaders, hanging further off a line, or further along it, on a
+  longer leader. In a short view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows
+  its name, over the others, while focused or its definition is pinned open by a tap.
+- **Settings menu:** on a short screen held sideways, each setting's name sits beside its choices
+  in a wider menu, so the whole menu fits under its button.
 - **The wordmark** is the site's name set in Archivo, heavy and wide: in the header and footer,
   and as the two-line "811 / 101" tile of the favicons and share previews (`scripts/wordmark.ts`).
   Never 811 or Common Ground Alliance artwork.
