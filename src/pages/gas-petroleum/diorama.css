@@ -167,6 +167,34 @@ body {
   visibility: hidden;
 }
 
+/*
+ * A short screen's open sheet takes the view's column, and the view the column it leaves: the
+ * buttons and the hint, in the view's column, step out of sight (and so out of the tab order) under
+ * it. Dragging, pinching and the keys still move the view.
+ */
+@media (max-height: 580px) and (min-width: 561px) {
+  .gp-grid[data-sheet='open'] .gp-camera,
+  .gp-grid[data-sheet='open'] > .gp-hint {
+    visibility: hidden;
+  }
+}
+
+/* A tall phone's open sheet leaves a shorter view above it: the buttons sit in one row there. */
+@media (max-width: 760px) and (min-height: 681px) {
+  .gp-grid[data-sheet='open'] .gp-camera {
+    gap: var(--space-1);
+  }
+
+  .gp-grid[data-sheet='open'] :is(.cam-zoom, .cam-pad) {
+    display: flex;
+    border-radius: var(--radius-pill);
+  }
+
+  .gp-grid[data-sheet='open'] .cam-pad .cam-reset {
+    border-color: transparent;
+  }
+}
+
 /* With the guide closed to its title, the view, and so the buttons, reach the right edge. */
 .gp-grid[data-panel='closed'] .gp-camera {
   grid-column: 1 / -1;

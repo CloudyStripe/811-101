@@ -72,8 +72,11 @@ const shortQuery = matchMedia('(max-height: 580px) and (min-width: 561px)');
 const sheetLayout = () => phoneQuery.matches || shortQuery.matches;
 /** Phones tall enough that the open sheet leaves the top of the view showing. */
 const tallPhoneQuery = matchMedia('(max-width: 760px) and (min-height: 681px)');
-/** Layouts where an open sheet covers the whole view. */
-const sheetCovers = () => sheetLayout() && !tallPhoneQuery.matches;
+/**
+ * Layouts where an open sheet covers the whole view: a small phone held upright. Held sideways, the
+ * sheet takes the view's column, and the view moves to the column it leaves, above the dock.
+ */
+const sheetCovers = () => phoneQuery.matches && !shortQuery.matches && !tallPhoneQuery.matches;
 /** Wide enough for the guide to start open beside the view. */
 const roomyQuery = matchMedia('(min-width: 1280px)');
 /** A screen worked by touch: the hint says to pinch, not scroll. */
@@ -202,8 +205,21 @@ export function App() {
       // The camera's buttons sit in the view's corner on every layout, kept clear like the dock.
       const camera = controlsOver(box, ['.gp-camera']);
       if (shortQuery.matches) {
+        const dock = rectOf('.gp-dock');
+        if (live.current.sheetOpen) {
+          // Short screens, the sheet open in the view's column: the column it left, above the dock.
+          const top = (rectOf('.site-header')?.bottom ?? 0) - box.top;
+          const x = (dock?.left ?? box.left) - box.left;
+          const bottom = (dock?.top ?? box.bottom) - box.top - 8;
+          return {
+            x,
+            y: top,
+            width: Math.max(160, dock?.width ?? box.width / 2),
+            height: Math.max(120, bottom - top),
+          };
+        }
         // Short screens: right of the column of controls.
-        const left = (rectOf('.gp-dock')?.right ?? box.left) - box.left + 8;
+        const left = (dock?.right ?? box.left) - box.left + 8;
         return {
           x: left,
           y: 0,

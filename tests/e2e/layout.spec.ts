@@ -335,6 +335,25 @@ for (const size of SIZES.filter((s) =>
   });
 }
 
+/** Every piece of the diorama's chrome that shows sits clear of every other. */
+async function expectChromeApart(page: Page) {
+  const chrome = await page.$$eval('[data-chrome]', (els) =>
+    els.flatMap((e) => {
+      const r = e.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0 || !e.checkVisibility({ visibilityProperty: true })) {
+        return [];
+      }
+      return [{ id: e.getAttribute('class') ?? '', x: r.x, y: r.y, w: r.width, h: r.height }];
+    }),
+  );
+  chrome.forEach((a, i) => {
+    for (const b of chrome.slice(i + 1)) {
+      const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+    }
+  });
+}
+
 /** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
 for (const size of SIZES.filter((s) =>
   [
@@ -371,20 +390,9 @@ for (const size of SIZES.filter((s) =>
         if (!(await page.locator(controls).nth(i).isVisible())) continue;
         expect(await onTop(page, controls, i), `control #${String(i)} is covered`).toBe(true);
       }
-      const chrome = await page.$$eval('[data-chrome]', (els) =>
-        els.flatMap((e) => {
-          const r = e.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) return [];
-          return [{ id: e.getAttribute('class') ?? '', x: r.x, y: r.y, w: r.width, h: r.height }];
-        }),
-      );
-      chrome.forEach((a, i) => {
-        for (const b of chrome.slice(i + 1)) {
-          const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-          expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
-        }
-      });
-      // Where the open sheet covers the view, the camera's buttons go out of sight and reach too.
+      await expectChromeApart(page);
+      // With the sheet open: where it covers the view, the camera's buttons go out of sight and
+      // reach with it; wherever it opens, nothing that shows sits over anything else.
       const toggle = page.locator('.gp-panel .sheet-toggle');
       if (await toggle.isVisible()) {
         await toggle.click();
@@ -393,6 +401,7 @@ for (const size of SIZES.filter((s) =>
           await expect(page.locator('.gp-camera')).toBeHidden();
           await expect(page.locator('.gp-camera')).toHaveAttribute('inert', '');
         }
+        await expectChromeApart(page);
       }
     });
   });
