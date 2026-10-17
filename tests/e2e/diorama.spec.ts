@@ -274,16 +274,25 @@ test("every stop's marker shows on the model, named where there's room, and open
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('the markers show by number, a name only while open or focused, and Start is in reach', async ({
+  test('the markers show names where they fit, every stop is on the map by name, and Start is in reach', async ({
     page,
   }) => {
     await open(page);
+    // All thirteen, some by name and the crowded ones by number.
     await expect(page.locator('.mk:not(.off)')).toHaveCount(STOPS.length);
-    await expect(page.locator('.mk:not(.off):not(.compact)')).toHaveCount(0);
+    expect(await page.locator('.mk:not(.off):not(.compact)').count()).toBeGreaterThan(0);
+    expect(await page.locator('.mk.compact:not(.off)').count()).toBeGreaterThan(0);
     // Focused, a marker shows its name.
     const drilling = page.locator('[data-label="drilling"]');
     await drilling.locator('.mk-btn').focus();
     await expect(drilling).not.toHaveClass(/\bcompact\b/);
+    // The guide's map names every stop.
+    await page.getByRole('button', { name: 'Details' }).click();
+    const map = page.getByRole('group', { name: /Every stop/ });
+    for (const stop of STOPS) await expect(map).toContainText(stop.label);
+    // In the short view over the open sheet, the markers show by number.
+    await expect(page.locator('.mk:not(.off):not(.compact)')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Details' }).click();
     // The way in shows under the sheet's bar, with the sheet closed.
     await page.getByRole('button', { name: 'Start at the beginning' }).click();
     await expect(page.locator('.gp-panel')).toContainText('Step 1 of 4');

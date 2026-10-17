@@ -198,9 +198,10 @@ export function App() {
       if (shortQuery.matches) {
         const dock = rectOf('.gp-dock');
         if (live.current.sheetOpen) {
-          // Short screens, the sheet open in the view's column: the column it left, above the dock.
+          // Short screens, the sheet open in the view's column: the column it left, above the
+          // camera's buttons, which go with it, and the dock.
           const x = (dock?.left ?? box.left) - box.left;
-          const bottom = (dock?.top ?? box.bottom) - box.top - 8;
+          const bottom = above((dock?.top ?? box.bottom) - box.top - 8);
           return {
             x,
             y: top,
@@ -444,9 +445,17 @@ export function App() {
   /** At the fork, with the path still to choose. */
   const waitsAtFork = (j: Journey | null) => j !== null && j.path === null && stopAt(j) === FORK;
 
-  /** Asked for from the step bar or a key: the guide, and focus on the fork's first way on. */
+  /**
+   * Asked for from the step bar or a key: the guide, and focus on the fork's first way on, the
+   * choice marked out so the eye finds it too, until the stop changes.
+   */
   const focusChoice = useRef(false);
+  const [choiceAsked, setChoiceAsked] = useState(false);
+  useEffect(() => {
+    setChoiceAsked(false);
+  }, [stop]);
   function toChoice() {
+    setChoiceAsked(true);
     const way = document.querySelector<HTMLElement>('.fork-way');
     // Already showing: focus goes there now; else once the guide has opened.
     if (way && way.offsetParent !== null) {
@@ -466,8 +475,10 @@ export function App() {
   function journeyNext() {
     if (!journey) return;
     if (journey.quiz) {
+      // Finished: the overview, with both paths showing again.
       setJourney(null);
       setStop(null);
+      setFilter('both');
       return;
     }
     walk(forward(journey));
@@ -492,6 +503,8 @@ export function App() {
   useEffect(() => {
     if (shownView.current === viewKey) return;
     shownView.current = viewKey;
+    // A new view's words start at their top, wherever the last one's were read to.
+    document.getElementById('gp-body')?.scrollTo({ top: 0 });
     const active = document.activeElement;
     if (active && active !== document.body) return;
     const heading = [
@@ -716,6 +729,7 @@ export function App() {
             timeLapse={timeLapse}
             onPlayTimeLapse={playTimeLapse}
             onStepTimeLapse={(step) => sceneRef.current?.stepTimeLapse(step)}
+            choiceAsked={choiceAsked}
             onChoose={choosePath}
           />
         ) : (

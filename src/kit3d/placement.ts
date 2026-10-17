@@ -455,6 +455,8 @@ export function placeLabels(
 
 /** A marker's badge: what shows of it without its name. */
 export const MARKER = { w: 26, h: 26 };
+/** Room kept between badges, so none touches another. */
+const APART = 2;
 
 /**
  * Where a marker's badge may sit, nearest first: as a label may, then further out to either side,
@@ -528,8 +530,11 @@ export function placeMarkers(
   /** The points of the markers in sight, where their leaders end. */
   const points = order.filter(inSight).map((c) => c.at);
   const onPoint = (r: Rect, own: Point) => points.some((p) => p !== own && holds(r, p));
-  /** Inside the view, clear of the controls and the badges. */
-  const roomy = (r: Rect) => inside(r) && !overlaps(r, noGo) && !overlaps(r, badges);
+  /** Inside the view, clear of the controls, and a little apart from the badges. */
+  const roomy = (r: Rect) =>
+    inside(r) &&
+    !overlaps(r, noGo) &&
+    !overlaps({ x: r.x - APART, y: r.y - APART, w: r.w + 2 * APART, h: r.h + 2 * APART }, badges);
   /** Roomy, off the other points, clear of the leaders, and its own leader crossing no badge. */
   const free = (c: Candidate, point: Point | null) => (r: Rect) => {
     if (!roomy(r) || onPoint(r, c.at) || bands.some((band) => covers(band, r))) return false;

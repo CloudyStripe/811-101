@@ -1,89 +1,78 @@
 /**
- * A map of every stop: the shared start, forking into the natural gas and gasoline paths. The
- * lines are drawn as the routes are in the view (stone; yellow dashed; yellow banded), and each
- * stop is a button that opens it, numbered in its path's shape as its marker on the model is.
+ * A map of every stop, by name: the shared start, then the fork into the natural gas and gasoline
+ * paths, side by side. Each path's line is drawn as its route is in the view (stone; yellow
+ * dashed; yellow banded), and each stop is a button in its path's shape, numbered as its marker on
+ * the model is, with its short name, that opens it.
  */
 import {
   PATH_NAMES,
-  TOURS,
   stopById,
+  type PathId,
   type StopId,
 } from '../../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../../design/icons.tsx';
 import { PATH_STYLE } from '../../../design/paths.ts';
+import { PATHS, SHARED, stopsOf } from '../journey.ts';
 import { stopName } from '../summary.ts';
 import { PathShape } from './PathShape.tsx';
 
-const W = 344;
-const H = 152;
-
-/** Where each stop sits on the map, in its own units. */
-function layout(): { id: StopId; x: number; y: number }[] {
-  const shared = TOURS.gas.stops.slice(0, 4);
-  const gas = TOURS.gas.stops.slice(4);
-  const gasoline = TOURS.gasoline.stops.slice(4);
-  return [
-    // Far enough apart that their buttons stay apart however narrow the guide.
-    ...shared.map((id, i) => ({ id, x: 14 + i * 32, y: 76 })),
-    ...gas.map((id, i) => ({ id, x: 150 + (i * 180) / (gas.length - 1), y: 34 })),
-    ...gasoline.map((id, i) => ({ id, x: 150 + (i * 180) / (gasoline.length - 1), y: 118 })),
-  ];
+/** A path's name, with its icon, over its stops. */
+function PathName({ path }: { path: PathId }) {
+  return (
+    <p class="rmap-name">
+      <Icon name={PATH_STYLE[path].icon} />
+      {PATH_NAMES[path]}
+    </p>
+  );
 }
 
-const NODES = layout();
+/** A path's stops in order, along its line. */
+function Stops(props: { path: PathId; ids: readonly StopId[]; onOpen: (id: StopId) => void }) {
+  return (
+    <ol
+      class="rmap-stops"
+      data-path={props.path}
+      style={{ '--path': PATH_STYLE[props.path].color }}
+    >
+      {props.ids.map((id) => {
+        const stop = stopById(id);
+        return (
+          <li key={id}>
+            <button
+              type="button"
+              class="rmap-stop"
+              aria-label={stopName(id)}
+              onClick={() => {
+                props.onOpen(id);
+              }}
+            >
+              <PathShape path={stop.path}>{stop.step}</PathShape>
+              <span>{stop.label}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export function RouteMap({ onOpen }: { onOpen: (id: StopId) => void }) {
-  const yellow = PATH_STYLE.gas.color;
   return (
-    <div class="rmap">
-      <svg class="rmap-lines" viewBox={`0 0 ${String(W)} ${String(H)}`} aria-hidden="true">
-        <path class="rmap-line rmap-shared" d="M16 76H112" stroke={PATH_STYLE.shared.color} />
-        <path
-          class="rmap-line rmap-gas"
-          d="M112 76C130 76 128 34 150 34H330"
-          stroke={yellow}
-          stroke-dasharray="7 5"
-        />
-        <path
-          class="rmap-line rmap-gasoline"
-          d="M112 76C130 76 128 118 150 118H330"
-          stroke={yellow}
-        />
-        <path class="rmap-bands" d="M112 76C130 76 128 118 150 118H330" stroke-dasharray="2.5 7" />
-      </svg>
-      <span class="rmap-name rmap-name-gas">
-        <Icon name={PATH_STYLE.gas.icon} />
-        {PATH_NAMES.gas}
-      </span>
-      <span class="rmap-name rmap-name-gasoline">
-        <Icon name={PATH_STYLE.gasoline.icon} />
-        {PATH_NAMES.gasoline}
-      </span>
-      <span class="rmap-name rmap-name-shared">{PATH_NAMES.shared}</span>
-      <ol class="rmap-stops" aria-label="Every stop: a shared start that forks into two paths">
-        {NODES.map((n) => {
-          const stop = stopById(n.id);
-          return (
-            <li
-              key={n.id}
-              style={{ left: `${String((n.x / W) * 100)}%`, top: `${String((n.y / H) * 100)}%` }}
-            >
-              <button
-                type="button"
-                class="rmap-stop"
-                data-path={stop.path}
-                aria-label={stopName(n.id)}
-                title={stop.label}
-                onClick={() => {
-                  onOpen(n.id);
-                }}
-              >
-                <PathShape path={stop.path}>{stop.step}</PathShape>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+    <div
+      class="rmap"
+      role="group"
+      aria-label="Every stop: a shared start that forks into two paths"
+    >
+      <PathName path="shared" />
+      <Stops path="shared" ids={SHARED} onOpen={onOpen} />
+      <div class="rmap-fork">
+        {PATHS.map((path) => (
+          <div key={path} class="rmap-path">
+            <PathName path={path} />
+            <Stops path={path} ids={stopsOf(path).slice(SHARED.length)} onOpen={onOpen} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

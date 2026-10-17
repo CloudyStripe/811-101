@@ -3,7 +3,7 @@
  * the fork's choice of path; and a path's quiz, and where to go after it. Every sentence of the
  * lesson comes from the content module, word for word; the rest is the guide's own wording.
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   OVERVIEW,
   PATH_NAMES,
@@ -157,9 +157,19 @@ function TimeLapseBox(props: {
  * The fork: the two ways on, each in its path's shape, with its icon and a piece of its line, where
  * it goes first and how far it runs. The path already chosen, if any, says so.
  */
-export function ForkChoice(props: { chosen: PathKey | null; onChoose: (path: PathKey) => void }) {
+export function ForkChoice(props: {
+  chosen: PathKey | null;
+  /** Asked for from the step bar: marked out, so the eye finds it. */
+  asked: boolean;
+  onChoose: (path: PathKey) => void;
+}) {
   return (
-    <div class="fork" role="group" aria-labelledby="fork-title">
+    <div
+      class="fork"
+      role="group"
+      aria-labelledby="fork-title"
+      data-asked={props.asked ? '' : undefined}
+    >
       <p class="fork-title" id="fork-title">
         Choose a path
       </p>
@@ -216,6 +226,8 @@ export function StopPanel(props: {
   timeLapse: TimeLapseState;
   onPlayTimeLapse: () => void;
   onStepTimeLapse: (step: number) => void;
+  /** The fork's choice was asked for from the step bar. */
+  choiceAsked: boolean;
   onChoose: (path: PathKey) => void;
 }) {
   const stop = stopById(props.stop);
@@ -253,7 +265,13 @@ export function StopPanel(props: {
           onStep={props.onStepTimeLapse}
         />
       )}
-      {fork && <ForkChoice chosen={props.journey?.path ?? null} onChoose={props.onChoose} />}
+      {fork && (
+        <ForkChoice
+          chosen={props.journey?.path ?? null}
+          asked={props.choiceAsked}
+          onChoose={props.onChoose}
+        />
+      )}
       {stop.safety && (
         <p class="callout">
           <b>Safety tip:</b> <Rich text={stop.safety.text} define={define} />
@@ -275,6 +293,11 @@ export function QuizPanel(props: {
   const other = otherPath(props.path);
   /** What was just answered, read out: right or not and why, then the score once all are in. */
   const [said, setSaid] = useState('');
+  // Once all are answered, the score comes into view, with where to go next.
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (done) end.current?.scrollIntoView({ block: 'nearest' });
+  }, [done]);
   function answer(question: number, option: number) {
     props.onAnswer(question, option);
     const q = questions[question];
@@ -332,7 +355,7 @@ export function QuizPanel(props: {
         );
       })}
       {done && (
-        <div class="q-end">
+        <div class="q-end" ref={end}>
           <p class="q-score">
             You got {score} of {questions.length}.
           </p>

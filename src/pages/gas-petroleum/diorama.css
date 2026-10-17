@@ -150,27 +150,51 @@ body {
   visibility: hidden;
 }
 
-/*
- * A short screen's open sheet takes the view's column, and the view the column it leaves: the
- * buttons and the hint, in the view's column, step out of sight (and so out of the tab order) under
- * it. Dragging, pinching and the keys still move the view.
- */
-@media (max-height: 580px) and (min-width: 561px) {
-  .gp-grid[data-sheet='open'] .gp-camera,
-  .gp-grid[data-sheet='open'] > .gp-hint {
-    visibility: hidden;
-  }
-}
-
 /* With the guide closed to its title, the view, and so the buttons, reach the right edge. */
 .gp-grid[data-panel='closed'] .gp-camera {
   grid-column: 1 / -1;
 }
 
 /*
- * Wide screens: the buttons sit in the dock's row, at the right of the free part, rather than
+ * A short screen's open sheet takes the view's column, and the view the column it leaves: the
+ * buttons go with the view, in one row above the dock, so a tap still turns and zooms it; the hint
+ * steps out of sight under the sheet.
+ */
+@media (max-height: 580px) and (min-width: 561px) {
+  .gp-grid[data-sheet='open'] .gp-camera {
+    grid-area: auto;
+    grid-row: 2;
+    grid-column: 1;
+    gap: var(--space-1);
+  }
+
+  .gp-grid[data-sheet='open'] .cam-zoom,
+  .gp-grid[data-sheet='open'] .cam-pad {
+    display: flex;
+    border-radius: var(--radius-pill);
+  }
+
+  .gp-grid[data-sheet='open'] .cam-pad .cam-reset {
+    border-color: transparent;
+  }
+
+  .gp-grid[data-sheet='open'] > .gp-hint {
+    visibility: hidden;
+  }
+}
+
+/*
+ * Wider screens: the buttons sit in the dock's row, at the right of the free part, rather than
  * above it, so the view, framed above them, keeps the most room.
  */
+@media (min-width: 761px) and (max-width: 1100px) and (min-height: 581px) {
+  .gp-camera {
+    grid-area: auto;
+    grid-row: 2;
+    grid-column: 1;
+  }
+}
+
 @media (min-width: 1101px) and (min-height: 581px) {
   .gp-camera {
     grid-area: auto;
@@ -478,6 +502,18 @@ body {
   border: 2px solid var(--ink);
 }
 
+/* Asked for from the step bar: the choice marked out, and the way focused ringed, by mouse too. */
+.fork[data-asked] {
+  outline: 2px solid var(--ink);
+  outline-offset: 6px;
+  border-radius: var(--radius-md);
+}
+
+.fork[data-asked] .fork-way:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .fork-way .fork-mark {
   width: 34px;
   height: 34px;
@@ -565,41 +601,21 @@ body {
   font-size: var(--text-small);
 }
 
-/* The route map: lines drawn as in the view, stops over them as buttons in their paths' shapes. */
+/*
+ * The route map: the shared start, then the two paths side by side, each line drawn as its route
+ * is in the view, each stop a button in its path's shape, with its number and its name.
+ */
 .rmap {
-  position: relative;
-  aspect-ratio: 344 / 152;
+  display: grid;
+  gap: var(--space-2);
   margin: 0 0 var(--space-2);
 }
 
-.rmap-lines {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.rmap-line {
-  fill: none;
-  stroke-width: 5;
-  stroke-linecap: round;
-}
-
-.rmap-bands {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 5;
-}
-
-/* On the panel's own color, so the map's lines never run behind the words. */
 .rmap-name {
-  position: absolute;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 2px;
-  background: var(--surface);
+  margin: 0;
   color: var(--ink-2);
   font-family: var(--font-mono);
   font-size: var(--text-eyebrow);
@@ -613,52 +629,95 @@ body {
   height: 14px;
 }
 
-.rmap-name-gas {
-  top: -2px;
-  left: 43.6%;
+/* The two paths side by side, their names in one row and their stops in the next, so a name that
+   wraps keeps both lists level. */
+.rmap-fork {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  grid-auto-flow: column;
+  gap: var(--space-2) var(--space-3);
+  align-items: end;
 }
 
-.rmap-name-gasoline {
-  bottom: -4px;
-  left: 43.6%;
+.rmap-path {
+  display: contents;
 }
 
-.rmap-name-shared {
-  top: 30%;
-  left: 0;
+.rmap-fork .rmap-stops {
+  align-self: start;
 }
 
 .rmap-stops {
+  position: relative;
+  display: grid;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.rmap-stops li {
+/* Its path's line, behind its stops' shapes: solid stone; yellow dashes on pale gaps; yellow banded. */
+.rmap-stops::before {
+  content: '';
   position: absolute;
-  transform: translate(-50%, -50%);
+  top: 14px;
+  bottom: 14px;
+  left: 14px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--path);
+}
+
+.rmap-stops[data-path='gas']::before {
+  background: repeating-linear-gradient(to bottom, var(--path) 0 7px, #f3f1ec 7px 11px);
+}
+
+.rmap-stops[data-path='gasoline']::before {
+  background: repeating-linear-gradient(to bottom, var(--path) 0 6px, #1b1a17 6px 9px);
 }
 
 .rmap-stop {
-  display: grid;
-  place-items: center;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 2px 6px 2px 2px;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
   cursor: pointer;
 }
 
-/* Big enough to tap, and apart from each other however narrow the guide. */
 .rmap-stop .pshape {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
 
 @media (hover: hover) {
-  .rmap-stop:hover .pshape-fill {
-    fill: var(--surface-2);
+  .rmap-stop:hover {
+    background: var(--surface-2);
   }
+}
+
+/* A piece of a path's line, as at the fork's choice. */
+.rmap-line {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.rmap-bands {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 5;
 }
 
 /* The quiz: each question, its choices, and what was right, marked in words and icons. */
@@ -746,6 +805,12 @@ body {
   display: grid;
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+/* A long one wraps in balanced lines, with room above and below them. */
+.q-next .button {
+  padding-block: var(--space-2);
+  text-wrap: balance;
 }
 
 /*
@@ -956,12 +1021,12 @@ nav.stepbar > :last-child {
 /* Its path's icon, on a tab at the badge's top corner, away from its name. */
 .mk-tab {
   position: absolute;
-  top: -5px;
-  left: -6px;
+  top: -6px;
+  left: -7px;
   display: grid;
   place-items: center;
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: var(--chip);
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.55);
@@ -970,7 +1035,7 @@ nav.stepbar > :last-child {
 }
 
 .mk.left .mk-tab {
-  right: -6px;
+  right: -7px;
   left: auto;
 }
 
@@ -979,8 +1044,8 @@ nav.stepbar > :last-child {
 }
 
 .mk-tab .icon {
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
 }
 
 .mk .lbl-text {

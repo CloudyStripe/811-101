@@ -622,13 +622,14 @@ async function buildDiorama(
       // Faded back, by its badge alone, unless it's focused.
       label.badgeOnly = faded;
     }
-    // A small view shows them by number alone, but for the open stop and a focused one.
+    // A view too short for names, as on a phone with the guide open, shows them by number alone,
+    // but for the open stop and a focused one.
     labels.update(
       runtime.stage.width,
       runtime.stage.height,
       free,
       Infinity,
-      area.width < LABEL_LIMITS.narrowBelow,
+      Math.min(area.width, area.height) < LABEL_LIMITS.iconsBelow,
     );
     // The small labels on the open stop's parts keep clear of the controls and the stops' labels.
     details.update(
