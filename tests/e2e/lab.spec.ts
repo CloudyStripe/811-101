@@ -1,7 +1,8 @@
 /**
  * The lab in use: labels never flash, whether before the scene places them or while they're
  * hidden; the 3D view keeps drawing through setup and frequency changes; the signal pauses and
- * plays; each frequency button chooses its frequency; and the key finds each line in the view.
+ * plays; each frequency button chooses its frequency; the key finds each line in the view; and on
+ * a phone with the guide open, the labels show as icons that show their names on a tap.
  */
 import type { Locator, Page } from '@playwright/test';
 import { MOTION_WAIT, countFrames, expect, isMoving, test } from './fixtures.ts';
@@ -301,6 +302,70 @@ test.describe('on a phone', () => {
       }
       expect([...reached].sort()).toEqual([...ids].sort());
     }
+  });
+});
+
+test.describe('on a phone, with the guide open', () => {
+  test.use({
+    reducedMotion: 'reduce',
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("the same four labels show, as their icons, and a tap shows one's name and definition", async ({
+    page,
+  }) => {
+    // As Safari does, a tap gives a label no focus: its definition, pinned open, shows its name.
+    await page.addInitScript(() => {
+      document.addEventListener(
+        'mousedown',
+        (event) => {
+          if ((event.target as Element | null)?.closest('.lbl-btn')) event.preventDefault();
+        },
+        true,
+      );
+    });
+    await open(page);
+    const shown = page.locator('.lbl:not(.off):not(.capped):not([hidden])');
+    const ids = () =>
+      shown.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.label ?? '').sort());
+    await expect(shown).toHaveCount(4);
+    // Each hangs off what it names, on its own leader.
+    await expect(page.locator('.lbl-leaders g:not(.off)')).toHaveCount(4);
+    const closed = await ids();
+    await page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Guide', exact: true })
+      .tap();
+    await expect(page.getByRole('heading', { name: "What's happening" })).toBeVisible();
+    // Once the view has made room for the guide, the same four show, each as its icon.
+    await expect(page.locator('.lbl.compact:not(.off):not(.capped):not([hidden])')).toHaveCount(4);
+    await expect(shown).toHaveCount(4);
+    expect(await ids()).toEqual(closed);
+
+    // A tap shows its name and definition, over the others, which stay where they are.
+    const telecom = page.locator('[data-label="telecom"]');
+    const stake = page.locator('[data-label="stake"]');
+    const stakeWas = await stake.locator('.lbl-btn').boundingBox();
+    await telecom.locator('.lbl-btn').tap();
+    await expect(telecom).not.toHaveClass(/\bcompact\b/);
+    await expect(telecom.getByRole('tooltip')).toBeVisible();
+    const box = await telecom.locator('.lbl-btn').boundingBox();
+    expect(box?.width ?? 0, 'its name shows beside its icon').toBeGreaterThan(80);
+    expect(await stake.locator('.lbl-btn').boundingBox()).toEqual(stakeWas);
+
+    // A tap on another lets it go, and shows that one's.
+    await stake.locator('.lbl-btn').tap();
+    await expect(stake).not.toHaveClass(/\bcompact\b/);
+    await expect(stake.getByRole('tooltip')).toBeVisible();
+    await expect(telecom).toHaveClass(/\bcompact\b/);
+    await expect(telecom.getByRole('tooltip')).toBeHidden();
+
+    // A tap on the view lets it go back to its icon.
+    await page.locator('.lab-canvas').tap({ position: { x: 30, y: 230 } });
+    await expect(stake).toHaveClass(/\bcompact\b/);
+    await expect(stake.getByRole('tooltip')).toBeHidden();
   });
 });
 

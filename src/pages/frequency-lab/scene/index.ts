@@ -20,7 +20,7 @@ import {
   type VisibleArea,
 } from '../../../kit3d/camera.ts';
 import { disposeObject } from '../../../kit3d/dispose.ts';
-import { LabelLayer } from '../../../kit3d/labels.ts';
+import { LabelLayer, type KeepClear, type Rect } from '../../../kit3d/labels.ts';
 import { createLighting } from '../../../kit3d/lighting.ts';
 import { createPost, preloadPost } from '../../../kit3d/post.ts';
 import type { Tier } from '../../../kit3d/quality.ts';
@@ -42,12 +42,7 @@ import { SignalEffects } from './signal.ts';
 import { buildStreet, type Street } from './street.ts';
 import { buildScenery, type Scenery } from './world.ts';
 
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+export type { Rect } from '../../../kit3d/labels.ts';
 
 export interface LabSceneOptions {
   canvas: HTMLCanvasElement;
@@ -85,7 +80,10 @@ export interface LabScene {
   relayout(ease?: boolean): void;
   /** Shows one label however crowded the view, while the key points at its line; null for none. */
   highlight(id: LabelId | null): void;
-  /** Places labels again, now, without touching the camera: when a label gains focus. */
+  /**
+   * Places labels again, now, without touching the camera: when a label gains or loses focus, or
+   * its definition is pinned open or let go.
+   */
   refreshLabels(): void;
   dispose(): void;
 }
@@ -131,12 +129,39 @@ const sceneParts = (b: Built): Group[] => [
   b.contact,
 ];
 
+/**
+ * What labels keep off: the buried lines on the cut face, each as thick as it's drawn, so a label
+ * hangs off its line on a leader instead of over it, or over the line beside it.
+ */
+function linesOf(layout: LabLayout, setup: SetupId): KeepClear[] {
+  const { lines, block } = layout;
+  // Points all along, so the band narrows with distance as the line does.
+  const tube = (line: { y: number; radius: number; x0: number }): KeepClear => ({
+    points: Array.from(
+      { length: 9 },
+      (_, i) => new Vector3(line.x0 + ((block.x1 - line.x0) * i) / 8, line.y, 0),
+    ),
+    radius: line.radius,
+  });
+  const gas = setup === 'steel' ? [lines.steel] : [lines.plastic, lines.tracer];
+  const water = lines.water;
+  return [
+    tube(lines.telecom),
+    ...gas.map(tube),
+    // The water main crosses under the street, its end standing out of the cut face.
+    {
+      points: [new Vector3(water.x, water.y, 0), new Vector3(water.x, water.y, water.z1)],
+      radius: water.radius,
+    },
+  ];
+}
+
 function labelsFor(
-  layout: LabLayout,
+  { layout, kind }: Built,
   elements: Map<LabelId, HTMLElement>,
   setup: SetupId,
 ): Label[] {
-  const places = labelPlaces(layout);
+  const places = labelPlaces(layout, kind);
   return LABEL_SPECS.flatMap((spec) => {
     const element = elements.get(spec.id);
     if (!element) return [];
@@ -147,10 +172,12 @@ function labelsFor(
         element,
         anchor: new Vector3(...place.anchor[setup]),
         ...(place.point ? { point: new Vector3(...place.point[setup]) } : {}),
+        ...(place.along ? { along: place.along[setup].map((p) => new Vector3(...p)) } : {}),
         priority: spec.priority,
         hidden: spec.text[setup] === null,
         ...(spec.below ? { below: true } : {}),
-        ...(spec.onFace ? { facing: FACE_NORMAL } : {}),
+        // A label on the cut face names a line, and keeps off it.
+        ...(spec.onFace ? { facing: FACE_NORMAL, offLine: true } : {}),
       },
     ];
   });
@@ -235,7 +262,7 @@ async function buildLabScene(
           }
         }
         if (labelsDirty) {
-          labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+          placeLabels();
           labelsDirty = false;
         }
         return animating || glide !== null || stale.length > 0;
@@ -354,6 +381,17 @@ async function buildLabScene(
     const v = o.visibleArea();
     return { x: v.x, y: v.y, w: v.width, h: v.height };
   };
+  /** Places the labels in the free area: fewer on a phone, and as their icons in a small view. */
+  const placeLabels = () => {
+    const area = freeArea();
+    labels.update(
+      stage.width,
+      stage.height,
+      area,
+      maxLabels(area.w),
+      area.h < LABEL_LIMITS.iconsBelow,
+    );
+  };
   /** Frames the view for a free area of the canvas, with the block built for the view that suits it. */
   function frameArea(area: VisibleArea) {
     const kind = viewKind(area, stage, built.kind);
@@ -387,9 +425,10 @@ async function buildLabScene(
       labelsFor_ = setup;
       // A line the key points at stays lit through a new build or setup.
       const lit = current.find((label) => label.highlight)?.id;
-      current = labelsFor(built.layout, o.labelElements, setup);
+      current = labelsFor(built, o.labelElements, setup);
       for (const label of current) label.highlight = label.id === lit;
       labels.setLabels(current);
+      labels.setKeepClear(linesOf(built.layout, setup));
     }
     // Only the setup changes what casts shadows, so a frequency change leaves the shadow map be.
     if (shadowsFor !== setup) {
@@ -431,7 +470,7 @@ async function buildLabScene(
   applyState();
   // In capture mode, one settled frame, labels placed, then still for the screenshot.
   runtime.start(() => {
-    labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+    placeLabels();
   });
 
   return {
@@ -463,7 +502,7 @@ async function buildLabScene(
     },
     highlight(id) {
       for (const label of current) label.highlight = label.id === id;
-      labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+      placeLabels();
     },
     setTier(next) {
       return runtime.setTier(next);
@@ -471,7 +510,7 @@ async function buildLabScene(
     refreshLabels() {
       // Labels are HTML and the camera hasn't moved, so they're placed now, without waiting for a
       // frame: a label just focused is where it belongs before anything measures it.
-      labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+      placeLabels();
     },
     relayout(ease = false) {
       labels.measure();
@@ -498,7 +537,7 @@ async function buildLabScene(
       frameArea(area);
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
-        labels.update(stage.width, stage.height, freeArea(), maxLabels(freeArea().w));
+        placeLabels();
         runtime.renderOnce();
         return;
       }

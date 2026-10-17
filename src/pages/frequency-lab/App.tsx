@@ -313,6 +313,7 @@ export function App() {
               key={spec.id}
               spec={spec}
               setup={setup}
+              onTipChange={refreshLabels}
               register={(el) => {
                 if (el) labelRefs.current.set(spec.id, el);
                 else labelRefs.current.delete(spec.id);

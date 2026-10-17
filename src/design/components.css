@@ -266,7 +266,10 @@
   will-change: transform;
 }
 
-.lbl[data-tip='open'] {
+/* A label that's open, focused or lit sits over the others, which may lie under it in a small view. */
+.lbl[data-tip],
+.lbl.lit,
+.lbl:focus-within {
   z-index: 2;
 }
 

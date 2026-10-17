@@ -10,6 +10,9 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 /** Grace period for the pointer to cross from the trigger to the tip. */
 const LEAVE_DELAY_MS = 120;
 
+/** What a press may be meant for: another trigger, or another control. */
+const CONTROLS = 'a, button, input, select, textarea, summary, label';
+
 /** Closes the tip that's open now, if any. */
 let closeOpenTip: (() => void) | null = null;
 let listening = false;
@@ -58,15 +61,24 @@ export function useTip<T extends HTMLElement>() {
     };
   }, [open, close]);
 
-  // A pinned tip closes when the pointer goes down anywhere else.
+  // A pinned tip closes on a press anywhere else. A press on a control waits for its click, so
+  // whatever the closing moves (a label it named shrinks back to its icon) moves only once the
+  // click has landed, and a tap on the label beside it isn't lost. A press on anything else closes
+  // it at once: Safari on a phone sends no click for a tap on plain content.
   useEffect(() => {
     if (!pinned) return;
+    const outside = (event: Event) => !ref.current?.contains(event.target as Node);
     const onDown = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setPinned(false);
+      if (outside(event) && !(event.target as Element).closest(CONTROLS)) setPinned(false);
+    };
+    const onClick = (event: MouseEvent) => {
+      if (outside(event)) setPinned(false);
     };
     document.addEventListener('pointerdown', onDown);
+    document.addEventListener('click', onClick);
     return () => {
       document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('click', onClick);
     };
   }, [pinned]);
 
@@ -120,5 +132,8 @@ export function useTip<T extends HTMLElement>() {
     }
   }
 
-  return { open, ref, handlers, toggle };
+  /** Open because a click or tap pinned it, rather than for hover or focus. */
+  const held = open && pinned;
+
+  return { open, held, ref, handlers, toggle };
 }

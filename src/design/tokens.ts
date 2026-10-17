@@ -401,8 +401,11 @@ export function easeInOut(t: number): number {
 /** Stacking order: the 3D view, chrome over it, the site header, popovers, the perf HUD. */
 export const LAYER = { scene: 0, chrome: 10, header: 20, popover: 40, hud: 50 } as const;
 
-/** At most this many 3D labels show at once: fewer in a narrow view, so the scene leads. */
-export const LABEL_LIMITS = { narrow: 4, wide: 7, narrowBelow: 600 } as const;
+/**
+ * At most this many 3D labels show at once: fewer in a narrow view, so the scene leads. In a view
+ * shorter than `iconsBelow`, as on a phone with its guide open, they show as their icons.
+ */
+export const LABEL_LIMITS = { narrow: 4, wide: 7, narrowBelow: 600, iconsBelow: 260 } as const;
 
 function chromeVars(t: ChromeTokens, theme: ThemeName): string {
   const apwa = (Object.keys(APWA) as ApwaCode[])
