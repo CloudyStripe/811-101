@@ -91,7 +91,7 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
 
 /**
  * How far along the block each line's label sits, in feet, first choice first: near the hookup,
- * seen from in front. At three-quarters the hookup's own labels fill the near end, so the cable's
+ * seen from in front. From the hookup end its own labels fill the near end, so the cable's
  * and the tracer wire's sit further along.
  */
 const ALONG: Readonly<

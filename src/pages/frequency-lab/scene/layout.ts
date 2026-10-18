@@ -69,20 +69,31 @@ export interface LabLayoutOptions {
   equipment?: number;
 }
 
-/** The two views of the slab: from in front, on wide screens, and at three-quarters, on tall ones. */
+/** The two views of the slab: from in front, on wide screens, and from the hookup end, on tall ones. */
 export type ViewKind = 'wide' | 'tall';
 
+/** How a view draws what's underground, in times true. */
+export interface Ground {
+  /** The shallowest and the deepest it draws the ground the lines lie in. */
+  least: number;
+  most: number;
+  /** How deep it draws the layers under the gas main's trench, where nothing lies. */
+  under: number;
+  /** How thick it draws the lines, however deep the ground. */
+  thick: number;
+}
+
 /**
- * How each view draws what's underground, in times true: the ground the lines lie in (`depth`),
- * deep enough that the block fills the height between the header and the console; the layers under
- * the trench, where nothing lies, flattened nearly to their true depth (`under`); and the lines
- * (`thick`), thicker in the tall view, so they're drawn large across a phone's narrow screen.
+ * How each view draws what's underground. The ground the lines lie in is drawn as deep as it takes
+ * for the block to fill the free area's height (`depthFor`), within the view's bounds: deep where
+ * the room is tall for its width, shallow in a strip, as above a drawer open on a desktop, where the
+ * block fills the width instead. The layers under the trench are flattened nearly to their true
+ * depth. The lines keep one thickness whatever the depth, so they look the same on every screen as
+ * wide; thicker in the tall view, so they're drawn large across a phone's narrow screen.
  */
-export const VIEW_GROUND: Readonly<
-  Record<ViewKind, Required<Omit<LabLayoutOptions, 'equipment'>>>
-> = {
-  wide: { depth: 13, under: 1.5, thick: 6 },
-  tall: { depth: 15, under: 1.5, thick: 9 },
+export const VIEW_GROUND: Readonly<Record<ViewKind, Ground>> = {
+  wide: { least: 5, most: 22, under: 1.5, thick: 6 },
+  tall: { least: 8, most: 20, under: 1.5, thick: 9 },
 };
 
 /** How many times its true size the locating equipment is drawn, so it reads beside the block. */
@@ -186,9 +197,9 @@ export function labLayout({
     // Ends where it turns back to its pedestal, so the ground stake stands clear of every line.
     telecom: { y: d(-2.3), radius: 0.18 * thick, x0: -13 },
   };
-  // Wide enough to hold the gas main, however thick it's drawn.
+  // Wide enough to hold the gas main, however thick it's drawn, and begun before its rounded end.
   const trench = {
-    x0: -1.6,
+    x0: Math.min(-1.6, steel.x0 - steel.radius - 0.3),
     zBack: -Math.max(2.4, steel.radius * 3),
     bottom: d(TRENCH_FLOOR),
   };
@@ -379,7 +390,7 @@ function slabView(
 /**
  * Wide screens: almost square to the cut face and a little above it, the lines running left to
  * right, turned a touch toward the hookup so the equipment stands clear of the face. A long lens,
- * so perspective doesn't splay the deep face's top corners out past its foot.
+ * so perspective doesn't splay a deep face's top corners out past its foot.
  */
 export function wideView(layout: LabLayout): View {
   return slabView(layout, -8, 15, { margin: 0.04, fov: 20 });
@@ -417,7 +428,7 @@ export function viewKind(
   return canvas.height > canvas.width * k || area.height > area.width * k ? 'tall' : 'wide';
 }
 
-/** A view of the layout: from in front, or at three-quarters. */
+/** A view of the layout: from in front, or from the hookup end. */
 export function viewOf(layout: LabLayout, kind: ViewKind): View {
   return kind === 'tall' ? tallView(layout) : wideView(layout);
 }
@@ -431,7 +442,15 @@ export function viewFor(
   return viewOf(layout, viewKind(area, canvas));
 }
 
-/** The layout each view is drawn with: the ground as deep as the view asks, the equipment large. */
-export function layoutFor(kind: ViewKind): LabLayout {
-  return labLayout({ ...VIEW_GROUND[kind], equipment: EQUIPMENT_SIZE });
+/**
+ * The layout a view is drawn with: the ground the lines lie in as deep as given, the layers under
+ * the trench and the lines as the view draws them, the equipment large.
+ */
+export function layoutFor(kind: ViewKind, depth: number): LabLayout {
+  return labLayout({
+    depth,
+    under: VIEW_GROUND[kind].under,
+    thick: VIEW_GROUND[kind].thick,
+    equipment: EQUIPMENT_SIZE,
+  });
 }

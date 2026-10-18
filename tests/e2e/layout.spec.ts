@@ -281,7 +281,7 @@ for (const size of SIZES) {
 test.describe('rotating a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('turns the block between its deeper three-quarter view and the view from in front', async ({
+  test('turns the block between its view from the hookup end and the view from in front', async ({
     page,
   }) => {
     await open(page);
@@ -473,3 +473,82 @@ for (const size of SIZES.filter((s) =>
     });
   });
 }
+
+/**
+ * The rows of the view, between the header and the console, that the block takes: with the page's
+ * chrome and labels hidden, a row is the block's where enough of it differs from the sky at its
+ * left edge, which is sky at every size.
+ */
+async function blockRows(page: Page) {
+  const free = await page.evaluate(() => {
+    const top = document.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0;
+    const below = document.querySelector('.lab-console')?.getBoundingClientRect().top;
+    return { top, bottom: (below ?? innerHeight) - 8 };
+  });
+  const png = await page.screenshot({
+    style: '.labels, .site-header, .lab-console { visibility: hidden !important; }',
+  });
+  const rows = await page.evaluate(async (data) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${data}`;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+    ctx.drawImage(img, 0, 0);
+    const { data: px, width, height } = ctx.getImageData(0, 0, img.width, img.height);
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; y < height; y++) {
+      const edge = y * width * 4;
+      let block = 0;
+      for (let x = 0; x < width; x += 3) {
+        const i = (y * width + x) * 4;
+        const differs =
+          Math.abs((px[i] ?? 0) - (px[edge] ?? 0)) +
+          Math.abs((px[i + 1] ?? 0) - (px[edge + 1] ?? 0)) +
+          Math.abs((px[i + 2] ?? 0) - (px[edge + 2] ?? 0));
+        if (differs > 40) block++;
+      }
+      if (block > width / 60) {
+        if (top < 0) top = y;
+        bottom = y;
+      }
+    }
+    return { top, bottom };
+  }, png.toString('base64'));
+  return { free, rows };
+}
+
+test.describe('the block fills its room', () => {
+  for (const size of [
+    { name: 'desktop', width: 1440, height: 900, touch: false },
+    { name: 'phone', width: 390, height: 844, touch: true },
+    { name: '4:3 monitor', width: 1280, height: 1024, touch: false },
+  ]) {
+    test.describe(size.name, () => {
+      test.use({
+        viewport: { width: size.width, height: size.height },
+        hasTouch: size.touch,
+        isMobile: size.touch,
+        reducedMotion: 'reduce',
+      });
+
+      test('between the header and the console, with no band of sky above or under it', async ({
+        page,
+      }) => {
+        await page.goto('training/frequency-lab/?tier=low&capture');
+        await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+          timeout: 60_000,
+        });
+        const { free, rows } = await blockRows(page);
+        const room = free.bottom - free.top;
+        expect(rows.top, 'the block shows').toBeGreaterThan(0);
+        expect((rows.top - free.top) / room, 'sky above').toBeLessThan(0.08);
+        expect((free.bottom - rows.bottom) / room, 'sky under').toBeLessThan(0.07);
+      });
+    });
+  }
+});

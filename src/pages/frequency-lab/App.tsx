@@ -167,9 +167,10 @@ export function App() {
           perf: PERF,
           visibleArea,
           noGo,
-          // Which view the block is built for, on the page for tests and styles to read.
-          onView: (kind) => {
+          // Which view the block is built for, and how deep, on the page for tests and styles to read.
+          onView: (kind, depth) => {
             stageEl.dataset.view = kind;
+            stageEl.dataset.depth = String(depth);
           },
           onContextLost: () => {
             setFailed(
