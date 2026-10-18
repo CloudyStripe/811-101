@@ -18,6 +18,8 @@ export interface View {
   margin?: number;
   /** How close the camera may come to its target, however much room the free area has. */
   minDistance?: number;
+  /** How far it may stand back to fit what it must show (`Shot.maxDistance`). */
+  maxDistance?: number;
   /** CSS pixels kept clear at the free area's sides for labels on points near them. */
   labelRoom?: number;
   /**
@@ -29,6 +31,9 @@ export interface View {
   floor?: number;
   /** The nearest the camera may stand to what it looks at, by how high that is. */
   nearestAt?: (height: number) => number;
+  /** Points to keep in view too, without centering on them, and their margin (`Shot.alsoSee`). */
+  alsoSee?: readonly Point3[];
+  alsoMargin?: number;
   /**
    * The vertical field of view across the whole canvas, in degrees, if not the camera's own. A
    * wider one brings the camera in closer, so the near field looms larger against the far.
@@ -121,11 +126,14 @@ export class LabCamera {
         to: view.target,
         mustSee: view.mustSee,
         minDistance: view.minDistance,
+        maxDistance: view.maxDistance,
         labelRoom: view.labelRoom,
         keepOut: (v.keepOut ?? []).map((box) => toFitRect(box, v)),
         slide: view.slide,
         floor: view.floor,
         nearestAt: view.nearestAt,
+        alsoSee: view.alsoSee,
+        alsoMargin: view.alsoMargin,
       },
       fov,
       { width: v.width, height: v.height, canvasHeight: this.canvasSize.height },

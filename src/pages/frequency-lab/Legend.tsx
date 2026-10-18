@@ -1,7 +1,8 @@
 /**
- * The key: what each line, color and glow in the 3D view means. Opened from the console, each
- * line's row also finds it: pointing at the row shows the line's label in the view, and pressing
- * it moves focus to that label, which tells what the line is.
+ * The key: what each line, color and glow in the 3D view means, and that it's not to scale. Opened
+ * from the console, each line's row also finds it while the view shows its labels: pointing at the
+ * row shows the line's label in the view, and pressing it moves focus to that label, which tells
+ * what the line is.
  */
 import { KEY } from '../../../content/training/frequency-lab.ts';
 import { APWA } from '../../design/apwa.ts';
@@ -79,6 +80,7 @@ export function Legend({ setup, find }: { setup: SetupId; find?: LegendFind }) {
         </li>
       </ul>
       <p class="muted">{KEY.colors.text}</p>
+      <p class="muted">{KEY.scale}</p>
     </div>
   );
 }

@@ -354,6 +354,46 @@ async function expectChromeApart(page: Page) {
   });
 }
 
+/**
+ * The step bar's parts, each in its own room inside the bar: side by side, or where the guide is
+ * narrow, its way on in a row of its own; never one over another, nor the strip spilling out.
+ */
+async function expectStepBarFits(page: Page, at: string) {
+  const bars = await page.$$eval('.stepbar', (els) =>
+    els
+      .filter((bar) => bar.checkVisibility())
+      .map((bar) => {
+        const box = (e: Element) => {
+          const r = e.getBoundingClientRect();
+          return { id: e.className || e.tagName, x: r.x, y: r.y, w: r.width, h: r.height };
+        };
+        const where = bar.querySelector('.stepbar-where');
+        const strip = bar.querySelector('.stepbar-strip');
+        return {
+          bar: box(bar),
+          parts: [...bar.children].map(box),
+          where: where ? box(where) : null,
+          strip: strip ? box(strip) : null,
+        };
+      }),
+  );
+  const holds = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    b.x >= a.x - 0.5 &&
+    b.y >= a.y - 0.5 &&
+    b.x + b.w <= a.x + a.w + 0.5 &&
+    b.y + b.h <= a.y + a.h + 0.5;
+  for (const { bar, parts, where, strip } of bars) {
+    parts.forEach((a, i) => {
+      expect(holds(bar, a), `${at}: ${a.id} inside the step bar`).toBe(true);
+      for (const b of parts.slice(i + 1)) {
+        const over = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+        expect(over, `${at}: ${a.id} over ${b.id}`).toBe(false);
+      }
+    });
+    if (where && strip) expect(holds(where, strip), `${at}: the strip in its place`).toBe(true);
+  }
+}
+
 /** The diorama at a few of the same sizes: its controls on screen and on top, none overlapping. */
 for (const size of SIZES.filter((s) =>
   [
@@ -384,13 +424,31 @@ for (const size of SIZES.filter((s) =>
       );
       expect(overflow, 'page taller than the screen').toBeLessThanOrEqual(1);
       const controls =
-        '.gp-dock button, .gp-dock [role="radio"], .gp-camera button, .gp-panel .sheet-toggle';
+        '.gp-dock button, .gp-dock [role="radio"], .gp-camera button, .gp-panel .sheet-toggle, .stepbar button';
       const count = await page.locator(controls).count();
       for (let i = 0; i < count; i++) {
         if (!(await page.locator(controls).nth(i).isVisible())) continue;
         expect(await onTop(page, controls, i), `control #${String(i)} is covered`).toBe(true);
       }
       await expectChromeApart(page);
+      await expectStepBarFits(page, 'at the fork');
+      // Beside the view, the guide opened (it starts closed below 1280 px): the step bar, at the
+      // guide's narrowest, still fits.
+      const openGuide = page.getByRole('button', { name: 'Open the guide' });
+      if (await openGuide.isVisible()) {
+        await openGuide.click();
+        await expect(page.locator('.gp-grid')).toHaveAttribute('data-panel', 'open');
+        await expectChromeApart(page);
+        await expectStepBarFits(page, 'the guide open at the fork');
+        await page.locator('.gp-panel').getByRole('button', { name: 'Choose a path' }).click();
+        await page
+          .locator('.gp-panel')
+          .getByRole('button', { name: /Natural gas path/ })
+          .click();
+        await expect(page.locator('.gp-panel')).toContainText('Step 5 of 9');
+        await expectChromeApart(page);
+        await expectStepBarFits(page, 'the guide open on the natural gas path');
+      }
       // With the sheet open: where it covers the view, the camera's buttons go out of sight and
       // reach with it; wherever it opens, nothing that shows sits over anything else.
       const toggle = page.locator('.gp-panel .sheet-toggle');

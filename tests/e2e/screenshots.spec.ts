@@ -218,12 +218,11 @@ const DIORAMA: State[] = [
     },
   },
   {
-    // A journey on a phone: the view first, and where it is at a peek.
+    // A journey on a phone: the view first, and where it is at a peek, the step bar under it.
     name: 'peek',
     query: '',
     phoneOnly: true,
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Details' }).click();
       await page.getByRole('button', { name: 'Start at the beginning' }).click();
       await page.getByRole('button', { name: 'Details' }).click();
     },

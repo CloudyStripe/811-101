@@ -18,31 +18,23 @@ import { useSettings } from '../../site/useSettings.ts';
 import type { AtLimits, DioramaScene, Filter, Rect } from './scene/index.ts';
 import {
   FORK,
-  PATHS,
-  SHARED,
   back,
   begin,
   choose,
   forward,
   fromFork,
+  journeyAt,
   reach,
   stopAt,
-  stopsOf,
   type Journey,
   type PathKey,
 } from './journey.ts';
 import type { TimeLapseState } from './scene/timelapse.ts';
 import { QUIZ_TITLE, viewSummary } from './summary.ts';
 import { Dock } from './ui/Dock.tsx';
-import {
-  JourneyBar,
-  JourneyStrip,
-  OverviewPanel,
-  QuizPanel,
-  StopPanel,
-  neighbors,
-} from './ui/Panels.tsx';
-import { StopLabel } from './ui/StopLabel.tsx';
+import { OverviewPanel, QuizPanel, StopPanel } from './ui/Panels.tsx';
+import { StepBar } from './ui/StepBar.tsx';
+import { StopMarker } from './ui/StopMarker.tsx';
 import { ViewControls } from './ui/ViewControls.tsx';
 
 const PAGE = pageById('gas-petroleum');
@@ -53,12 +45,6 @@ const INITIAL_STOP: StopId | null = STOP_IDS.find((id) => id === params.get('sto
 const TIER_PARAM = parseTier(params.get('tier'));
 const CAPTURE = params.has('capture');
 const PERF = params.has('perf');
-/** The overview's landmarks, named in the view: where it starts, the fork, and each path's end. */
-const LANDMARKS: readonly StopId[] = [
-  SHARED[0] ?? FORK,
-  FORK,
-  ...PATHS.flatMap((path) => stopsOf(path).slice(-1)),
-];
 /** What lands the establishing move: any input at all. */
 const LAND_ON = ['pointerdown', 'keydown', 'wheel'] as const;
 
@@ -134,8 +120,13 @@ function useSheetLayout(): boolean {
 
 export function App() {
   const [stop, setStop] = useState<StopId | null>(INITIAL_STOP);
-  /** The story under way, from Start or a tour button; null while the reader roams freely. */
-  const [journey, setJourney] = useState<Journey | null>(null);
+  /**
+   * Where the story is: at a stop, its journey (from Start, a tour, or the stop opened on its own);
+   * null in the overview.
+   */
+  const [journey, setJourney] = useState<Journey | null>(() =>
+    INITIAL_STOP ? journeyAt(INITIAL_STOP) : null,
+  );
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [filter, setFilter] = useState<Filter>('both');
   const [paused, setPaused] = useState(false);
@@ -154,7 +145,9 @@ export function App() {
   /** The reader has moved the camera this visit: the first-move hint is done with. */
   const [moved, setMoved] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const [settings] = useSettings();
+  const [settings, setSettings] = useSettings();
+  /** The small labels on the stops' parts show; the stops' markers always do. */
+  const partLabels = settings.labels === 'on';
   const sheet = useSheetLayout();
   /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
   const covered = sheet && sheetOpen && sheetCovers();
@@ -165,12 +158,8 @@ export function App() {
   const sceneRef = useRef<DioramaScene | null>(null);
   /** The room the view was last framed for, and the stage's size then. */
   const lastArea = useRef<{ area: VisibleArea; size: string } | null>(null);
-  /** The way a shared stop leans: the journey's path, the filter's, or natural gas first. */
-  const lean: PathKey = journey?.path ?? (filter === 'gasoline' ? 'gasoline' : 'gas');
-  /** The stops whose labels the view names: where it is and where it goes next, or landmarks. */
-  const named: readonly StopId[] = stop ? [stop, ...neighbors(stop, lean).next] : LANDMARKS;
-  const live = useRef({ stop, settings, panelOpen, sheetOpen, paused, filter, named });
-  live.current = { stop, settings, panelOpen, sheetOpen, paused, filter, named };
+  const live = useRef({ stop, settings, panelOpen, sheetOpen, paused, filter });
+  live.current = { stop, settings, panelOpen, sheetOpen, paused, filter };
 
   // Build the 3D scene once, after first paint; it lives in its own lazy chunk.
   useEffect(() => {
@@ -211,9 +200,10 @@ export function App() {
       if (shortQuery.matches) {
         const dock = rectOf('.gp-dock');
         if (live.current.sheetOpen) {
-          // Short screens, the sheet open in the view's column: the column it left, above the dock.
+          // Short screens, the sheet open in the view's column: the column it left, above the
+          // camera's buttons, which go with it, and the dock.
           const x = (dock?.left ?? box.left) - box.left;
-          const bottom = (dock?.top ?? box.bottom) - box.top - 8;
+          const bottom = above((dock?.top ?? box.bottom) - box.top - 8);
           return {
             x,
             y: top,
@@ -301,8 +291,8 @@ export function App() {
         scene.setTheme(resolvedTheme());
         scene.setReducedMotion(reducesMotion(now.settings.motion, reducedMotionQuery.matches));
         scene.setPaused(now.paused);
+        scene.setPartLabels(now.settings.labels === 'on');
         scene.setFilter(now.filter);
-        scene.nameLabels(now.named);
         setLimits(scene.limits);
         setReady(true);
         if (now.stop) scene.show(now.stop, { fly: false });
@@ -369,13 +359,12 @@ export function App() {
   useEffect(() => {
     sceneRef.current?.setFilter(filter);
   }, [filter]);
-  const namedKey = named.join(' ');
-  useEffect(() => {
-    sceneRef.current?.nameLabels(live.current.named);
-  }, [namedKey]);
   useEffect(() => {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
+  useEffect(() => {
+    sceneRef.current?.setPartLabels(partLabels);
+  }, [partLabels]);
   useEffect(() => {
     const scene = sceneRef.current;
     scene?.setTheme(resolvedTheme());
@@ -412,20 +401,28 @@ export function App() {
   }
 
   /**
-   * Opens a stop (or the overview) from the map, a label or the stop's own links. A journey under
-   * way goes on if the stop is on its way, and going down a path chooses it; anywhere else, it ends.
+   * Opens a stop from its marker or the map, or with null, the overview. A journey under way goes
+   * on if the stop is on its way, and going down a path chooses it; anywhere else, a journey starts
+   * at the stop, along its own path, or for a stop of the shared start, the path the view shows.
    */
   function open(id: StopId | null) {
-    const next = journey && id ? reach(journey, id) : null;
-    if (journey) setJourney(next);
-    if (next?.path && next.path !== journey?.path) {
+    if (!id) {
+      setJourney(null);
+      setStop(null);
+      showGuide();
+      return;
+    }
+    const kept = journey ? reach(journey, id) : null;
+    if (kept?.path && kept.path !== journey?.path) {
       // Going down a path chose it: the view shows it, as the fork's choice does.
-      setFilter(next.path);
-    } else if (id && filter !== 'both') {
+      setFilter(kept.path);
+    } else if (filter !== 'both') {
       // A stop on the path the filter hides brings both paths back.
       const path = stopById(id).path;
       if (path !== 'shared' && path !== filter) setFilter('both');
     }
+    const shown = filter === 'gas' || filter === 'gasoline' ? filter : null;
+    setJourney(kept ?? journeyAt(id, shown));
     setStop(id);
     showGuide();
   }
@@ -454,9 +451,17 @@ export function App() {
   /** At the fork, with the path still to choose. */
   const waitsAtFork = (j: Journey | null) => j !== null && j.path === null && stopAt(j) === FORK;
 
-  /** Asked for from the dock: the guide, and focus on the fork's first way on. */
+  /**
+   * Asked for from the step bar or a key: the guide, and focus on the fork's first way on, the
+   * choice marked out so the eye finds it too, until the stop changes.
+   */
   const focusChoice = useRef(false);
+  const [choiceAsked, setChoiceAsked] = useState(false);
+  useEffect(() => {
+    setChoiceAsked(false);
+  }, [stop]);
   function toChoice() {
+    setChoiceAsked(true);
     const way = document.querySelector<HTMLElement>('.fork-way');
     // Already showing: focus goes there now; else once the guide has opened.
     if (way && way.offsetParent !== null) {
@@ -476,8 +481,10 @@ export function App() {
   function journeyNext() {
     if (!journey) return;
     if (journey.quiz) {
+      // Finished: the overview, with both paths showing again.
       setJourney(null);
       setStop(null);
+      setFilter('both');
       return;
     }
     walk(forward(journey));
@@ -489,12 +496,9 @@ export function App() {
 
   /** At the fork: on along the path chosen, which the view then shows. */
   function choosePath(path: PathKey) {
-    if (journey) {
-      setFilter(path);
-      walk(choose(path));
-    } else {
-      open(stopsOf(path)[SHARED.length] ?? FORK);
-    }
+    if (!journey) return;
+    setFilter(path);
+    walk(choose(path));
   }
 
   // A control in the guide that changes the view is often gone with the old view: a stop on the
@@ -505,6 +509,8 @@ export function App() {
   useEffect(() => {
     if (shownView.current === viewKey) return;
     shownView.current = viewKey;
+    // A new view's words start at their top, wherever the last one's were read to.
+    document.getElementById('gp-body')?.scrollTo({ top: 0 });
     const active = document.activeElement;
     if (active && active !== document.body) return;
     const heading = [
@@ -513,10 +519,10 @@ export function App() {
     heading?.focus({ preventScroll: true });
   }, [viewKey]);
 
-  // ← and → step through the stops (or a journey's steps), unless focus is in something that uses
-  // them: a radio group, a quiz, a field, or the view, which they turn. The page listens once, and
-  // a key acts on the page as last drawn: listening again after each change, as an effect does a
-  // frame later, let a key pressed in between act on the page as it was before.
+  // ← and → step through the journey, as the step bar does, unless focus is in something that
+  // uses them: a radio group, a quiz, a field, or the view, which they turn. The page listens
+  // once, and a key acts on the page as last drawn: listening again after each change, as an
+  // effect does a frame later, let a key pressed in between act on the page as it was before.
   const onArrow = useRef<(event: KeyboardEvent) => void>(() => undefined);
   onArrow.current = (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -524,21 +530,13 @@ export function App() {
     const target = event.target as HTMLElement | null;
     if (target?.closest('[role="radiogroup"], .q, .tl-controls, input, textarea, select')) return;
     if (target?.closest('canvas')) return;
-    const forward = event.key === 'ArrowRight';
-    if (journey) {
-      if (journey.quiz) return;
-      event.preventDefault();
-      if (forward) journeyNext();
-      else journeyBack();
-      return;
-    }
-    if (!stop) return;
-    const { prev, next } = neighbors(stop, lean);
-    const to = forward ? (lean === 'gasoline' && next.length > 1 ? next[1] : next[0]) : prev;
-    if (to) {
-      event.preventDefault();
-      open(to);
-    }
+    if (!journey) return;
+    // In a quiz, ← goes back as the step bar's Back does, and → waits for Finish.
+    if (journey.quiz && event.key === 'ArrowRight') return;
+    event.preventDefault();
+    if (event.key === 'ArrowLeft') journeyBack();
+    else if (waitsAtFork(journey)) toChoice();
+    else journeyNext();
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -652,30 +650,23 @@ export function App() {
 
   const quizPath = journey?.quiz ? journey.path : null;
   const title = quizPath ? QUIZ_TITLE : stop ? stopById(stop).title.text : OVERVIEW.title.text;
-  const neighborsNow = stop && !journey ? neighbors(stop, lean) : null;
-  const journeyAhead = journey && !journey.quiz ? forward(journey) : null;
-  const dockPrev = journey
-    ? back(journey)
-      ? { id: null, label: 'Back' }
-      : null
-    : neighborsNow?.prev
-      ? { id: neighborsNow.prev, label: `Previous stop: ${stopById(neighborsNow.prev).label}` }
-      : null;
-  const nextId = neighborsNow
-    ? ((lean === 'gasoline' && neighborsNow.next.length > 1
-        ? neighborsNow.next[1]
-        : neighborsNow.next[0]) ?? null)
-    : null;
-  // In the quiz the dock is the overview's, so a journey's next is a step, the quiz, or the choice.
-  const dockNext = journey
-    ? journeyAhead
-      ? { id: null, label: journeyAhead.quiz ? 'Take the quiz' : 'Next step' }
-      : waitsAtFork(journey)
-        ? { id: null, label: 'Choose a path' }
-        : null
-    : nextId
-      ? { id: nextId, label: `Next stop: ${stopById(nextId).label}` }
-      : null;
+
+  // The steps: under the sheet's bar on phones, at the foot of the guide beside the view, under
+  // its text, or its title while it's closed.
+  const stepBar = (
+    <StepBar
+      journey={journey}
+      onStart={() => {
+        beginJourney(begin());
+      }}
+      onOverview={() => {
+        open(null);
+      }}
+      onBack={journeyBack}
+      onNext={journeyNext}
+      onChoose={toChoice}
+    />
+  );
 
   const panel = (
     <aside
@@ -691,7 +682,6 @@ export function App() {
           <p class="sheet-summary" tabIndex={-1}>
             {viewSummary(stop, quizPath)}
           </p>
-          {journey && <JourneyStrip journey={journey} />}
         </div>
         <button
           type="button"
@@ -724,6 +714,7 @@ export function App() {
           <Icon name={panelOpen ? 'close' : 'chevron-down'} />
         </button>
       </div>
+      {sheet && stepBar}
       <div class="panel-body" id="gp-body">
         {quizPath ? (
           <QuizPanel
@@ -740,19 +731,15 @@ export function App() {
           <StopPanel
             stop={stop}
             journey={journey}
-            lean={lean}
             hasView={failed === null}
             timeLapse={timeLapse}
             onPlayTimeLapse={playTimeLapse}
             onStepTimeLapse={(step) => sceneRef.current?.stepTimeLapse(step)}
-            onOpen={open}
+            choiceAsked={choiceAsked}
             onChoose={choosePath}
           />
         ) : (
           <OverviewPanel
-            onStart={() => {
-              beginJourney(begin());
-            }}
             onTour={(path) => {
               beginJourney(begin(path));
             }}
@@ -760,7 +747,7 @@ export function App() {
           />
         )}
       </div>
-      {journey && <JourneyBar journey={journey} onBack={journeyBack} onNext={journeyNext} />}
+      {!sheet && stepBar}
     </aside>
   );
 
@@ -771,20 +758,9 @@ export function App() {
       onFilter={setFilter}
       paused={paused}
       onPause={setPaused}
-      stop={quizPath ? null : stop}
-      prev={dockPrev}
-      next={dockNext}
-      onPrev={() => {
-        if (journey) journeyBack();
-        else if (dockPrev?.id) open(dockPrev.id);
-      }}
-      onNext={() => {
-        if (waitsAtFork(journey)) toChoice();
-        else if (journey) journeyNext();
-        else if (dockNext?.id) open(dockNext.id);
-      }}
-      onOverview={() => {
-        open(null);
+      labels={partLabels}
+      onLabels={(on) => {
+        setSettings({ ...settings, labels: on ? 'on' : 'off' });
       }}
     />
   );
@@ -820,8 +796,8 @@ export function App() {
         />
         <SceneLoader page={PAGE} done={failed !== null} />
         {/*
-          A label out of sight for want of room shows as soon as it has focus. The small labels on
-          a stop's parts come first, so the stops' own labels, which are buttons, sit over them.
+          Every stop's marker, named where there's room, and when focused. The small labels on a
+          stop's parts come first, so the markers, which are buttons, sit over them.
         */}
         <div
           class="labels"
@@ -830,11 +806,12 @@ export function App() {
           onFocusOut={refreshLabels}
         >
           <div class="details" ref={detailRef} />
-          {STOP_IDS.map((id) => (
-            <StopLabel
+          {STOPS.map(({ id, path }) => (
+            <StopMarker
               key={id}
               id={id}
               current={stop === id}
+              faded={stop !== id && path !== 'shared' && filter !== 'both' && path !== filter}
               register={(el) => {
                 if (el) labelRefs.current.set(id, el);
                 else labelRefs.current.delete(id);

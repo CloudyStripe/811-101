@@ -4,13 +4,7 @@ import { termKey, termKeysIn } from '../../src/content-kit/terms.ts';
 import { LABEL_SPECS } from '../../src/pages/frequency-lab/scene/labels.ts';
 import { FREQUENCIES } from '../../config/equipment.ts';
 import { SETUPS, labState } from '../../src/signal/model.ts';
-import {
-  FREQUENCY_LAB,
-  FREQUENCY_NOTES,
-  TAGLINE,
-  TERMS,
-  labelDefinition,
-} from './frequency-lab.ts';
+import { FREQUENCY_LAB, FREQUENCY_NOTES, TERMS, labelDefinition } from './frequency-lab.ts';
 
 /** Every string in the content, claims and instructions alike. */
 function stringsIn(value: unknown, into: string[] = []): string[] {
@@ -72,13 +66,5 @@ describe('the frequency notes', () => {
       const fallsShort = FREQUENCY_NOTES[f].text.includes('fades out before the end of the block');
       expect(fallsShort, `${String(f)} Hz`).toBe(!labState(setup, f).works);
     }
-  });
-});
-
-describe('the static page shell', () => {
-  it('shows the same tagline the app does', async () => {
-    const { readFile } = await import('node:fs/promises');
-    const html = await readFile('training/frequency-lab/index.html', 'utf8');
-    expect(html.replaceAll(/\s+/g, ' ')).toContain(TAGLINE.text);
   });
 });

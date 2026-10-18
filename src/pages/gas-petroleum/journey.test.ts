@@ -8,10 +8,12 @@ import {
   choose,
   forward,
   fromFork,
+  journeyAt,
   otherPath,
   progressOf,
   reach,
   stopAt,
+  stopsInSight,
   type Journey,
 } from './journey.ts';
 
@@ -87,5 +89,33 @@ describe('the journey', () => {
     expect(progressOf(begin())).toEqual({ step: 1, of: SHARED.length });
     expect(progressOf(choose('gas'))).toEqual({ step: 5, of: TOURS.gas.stops.length });
     expect(progressOf({ path: 'gasoline', index: 7, quiz: true })).toEqual({ step: 8, of: 8 });
+  });
+
+  it('opens a stop on its own along its path, or a shared stop along the path the view shows', () => {
+    // A stop of a path: along that path, counting the shared start.
+    expect(journeyAt('city-gate')).toEqual({ path: 'gas', index: 7, quiz: false });
+    expect(progressOf(journeyAt('city-gate'))).toEqual({ step: 8, of: TOURS.gas.stops.length });
+    expect(journeyAt('pump', 'gas').path).toBe('gasoline');
+    // A shared stop: along the path shown, or with the choice still to come at the fork.
+    expect(journeyAt('reservoir', 'gasoline')).toEqual({ path: 'gasoline', index: 1, quiz: false });
+    expect(journeyAt('reservoir')).toEqual({ path: null, index: 1, quiz: false });
+    expect(forward(journeyAt(FORK))).toBeNull();
+    // Each of its steps follows the stop's own path, on to its quiz.
+    expect(walk(journeyAt('distillation'))).toEqual([
+      ...TOURS.gasoline.stops.slice(TOURS.gasoline.stops.indexOf('distillation')),
+      null,
+    ]);
+  });
+
+  it("keeps where each stop leads in its view: the next stop, both ways on at the fork, or back at a path's end", () => {
+    expect(stopsInSight('formation')).toEqual(['reservoir']);
+    expect(stopsInSight(FORK)).toEqual(['gas-plant', 'crude-transport']);
+    expect(stopsInSight('storage-lng')).toEqual(['city-gate']);
+    expect(stopsInSight('city-gate')).toEqual(['gas-uses']);
+    expect(stopsInSight('gas-uses')).toEqual(['city-gate']);
+    expect(stopsInSight('pump')).toEqual(['delivery']);
+    for (const id of new Set([...TOURS.gas.stops, ...TOURS.gasoline.stops])) {
+      expect(stopsInSight(id).length, id).toBeGreaterThan(0);
+    }
   });
 });

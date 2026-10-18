@@ -11,17 +11,15 @@ import {
 
 describe('parseSettings', () => {
   it('keeps known values', () => {
-    expect(parseSettings({ theme: 'dark', motion: 'reduce', quality: 'low' })).toEqual({
-      theme: 'dark',
-      motion: 'reduce',
-      quality: 'low',
-    });
+    expect(
+      parseSettings({ theme: 'dark', motion: 'reduce', quality: 'low', labels: 'off' }),
+    ).toEqual({ theme: 'dark', motion: 'reduce', quality: 'low', labels: 'off' });
   });
 
   it('falls back to defaults for anything missing, unknown or malformed', () => {
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings('dark')).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettings({ theme: 'sepia', motion: 3, quality: 'ultra' })).toEqual(
+    expect(parseSettings({ theme: 'sepia', motion: 3, quality: 'ultra', labels: 'some' })).toEqual(
       DEFAULT_SETTINGS,
     );
     expect(parseSettings({ theme: 'light' })).toEqual({ ...DEFAULT_SETTINGS, theme: 'light' });
@@ -40,7 +38,7 @@ describe('reducesMotion', () => {
 describe('applyToDocument', () => {
   it('sets overrides and clears them for "match device"', () => {
     const root = { dataset: {} as DOMStringMap };
-    applyToDocument({ theme: 'dark', motion: 'full', quality: 'auto' }, root);
+    applyToDocument({ ...DEFAULT_SETTINGS, theme: 'dark', motion: 'full' }, root);
     expect(root.dataset).toEqual({ theme: 'dark', motion: 'full' });
     applyToDocument(DEFAULT_SETTINGS, root);
     expect(root.dataset).toEqual({});

@@ -1,6 +1,8 @@
 /**
  * Display settings, shared by every page: the only things the site remembers between visits.
- * They're kept in localStorage when it's available, and the site works the same without it.
+ * They're kept in localStorage when it's available, and the site works the same without it. The
+ * header's menu holds theme, motion and quality; whether the 3D views label their parts is
+ * toggled on the lessons themselves, next to what it labels.
  */
 import { THEMES, type ThemeName } from '../design/tokens.ts';
 import { parseTier, type Tier } from '../kit3d/quality.ts';
@@ -8,14 +10,22 @@ import { parseTier, type Tier } from '../kit3d/quality.ts';
 export type ThemeSetting = 'system' | 'light' | 'dark';
 export type MotionSetting = 'system' | 'reduce' | 'full';
 export type QualitySetting = 'auto' | Tier;
+export type LabelsSetting = 'on' | 'off';
 
 export interface Settings {
   theme: ThemeSetting;
   motion: MotionSetting;
   quality: QualitySetting;
+  /** The labels on the 3D views' tools, lines and parts: the diorama's stop markers always show. */
+  labels: LabelsSetting;
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', motion: 'system', quality: 'auto' };
+export const DEFAULT_SETTINGS: Settings = {
+  theme: 'system',
+  motion: 'system',
+  quality: 'auto',
+  labels: 'on',
+};
 
 export const SETTINGS_KEY = '811-101.settings';
 
@@ -69,6 +79,7 @@ export function parseSettings(raw: unknown): Settings {
     theme: pick(r.theme, ['system', 'light', 'dark'], 'system'),
     motion: pick(r.motion, ['system', 'reduce', 'full'], 'system'),
     quality: tier ?? 'auto',
+    labels: pick(r.labels, ['on', 'off'], 'on'),
   };
 }
 

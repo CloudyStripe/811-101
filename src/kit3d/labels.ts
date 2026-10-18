@@ -9,7 +9,8 @@
  * while it's focused or its definition is pinned open. A label out of sight for want of room stays
  * in the tab order, and a focused label is always placed so it's never hidden (WCAG 2.4.11). A thin
  * leader line ties each shown label to the point it names, and only so many show at once, so the
- * scene stays the hero.
+ * scene stays the hero. Placed as markers instead (placeMarkers), every one in view shows, as its
+ * badge, with its name beside it where there's room.
  */
 import { Vector3, type PerspectiveCamera } from 'three';
 import {
@@ -19,6 +20,7 @@ import {
   type Candidate,
   type Placement,
   type Rect,
+  type Room,
   type ShownAt,
 } from './placement.ts';
 
@@ -43,8 +45,8 @@ export interface Label {
   hidden?: boolean;
   /** Shown however crowded the view, like a focused label: pointed at from elsewhere, e.g. a key. */
   highlight?: boolean;
-  /** Shown only while focused: out of sight otherwise, however much room, but in the tab order. */
-  quiet?: boolean;
+  /** Placed as a marker, shown by its badge alone unless focused, as on a path faded back. */
+  badgeOnly?: boolean;
   /** Hangs below its anchor instead of above it, e.g. to keep clear of a line just above. */
   below?: boolean;
   /**
@@ -78,6 +80,13 @@ function openTip(element: HTMLElement): Rect | null {
   return { x: t.left - (l.left + l.width / 2), y: t.top - l.top, w: t.width, h: t.height };
 }
 
+/** How a layer decides where its labels go: placeLabels, or placeMarkers. */
+export type Placer = (
+  candidates: readonly Candidate[],
+  room: Room,
+  last: ReadonlyMap<string, ShownAt>,
+) => Placement[];
+
 export class LabelLayer {
   private labels: Label[] = [];
   private keep: readonly KeepClear[] = [];
@@ -98,6 +107,7 @@ export class LabelLayer {
   private readonly camera: PerspectiveCamera;
   /** No-go rectangles in the label container's coordinates. */
   private readonly noGo: () => readonly Rect[];
+  private readonly placer: Placer;
   /** One leader line and anchor dot per label, drawn in an SVG under the labels. */
   private svg: SVGSVGElement | null = null;
   private readonly leaders = new Map<
@@ -105,9 +115,14 @@ export class LabelLayer {
     { group: SVGGElement; line: SVGLineElement; dot: SVGCircleElement }
   >();
 
-  constructor(camera: PerspectiveCamera, noGo: () => readonly Rect[]) {
+  constructor(
+    camera: PerspectiveCamera,
+    noGo: () => readonly Rect[],
+    placer: Placer = placeLabels,
+  ) {
     this.camera = camera;
     this.noGo = noGo;
+    this.placer = placer;
   }
 
   setLabels(labels: Label[]): void {
@@ -245,14 +260,15 @@ export class LabelLayer {
         size: this.sizes.get(label.id) ?? { w: 120, h: 28 },
         visible,
         focused: isFocused,
-        quiet: label.quiet === true,
+        lit: label.highlight === true && !label.hidden,
+        badgeOnly: label.badgeOnly === true,
         below: label.below === true,
         offLine: label.offLine === true,
         // Only a focused label's definition is kept clear of.
         tip: isFocused ? openTip(label.element) : null,
       };
     });
-    const placements = placeLabels(
+    const placements = this.placer(
       candidates,
       {
         width,
@@ -280,22 +296,25 @@ export class LabelLayer {
     return this.shownRects;
   }
 
-  private place(label: Label, { rect: r, state, point, shownAt }: Placement): void {
+  private place(label: Label, { rect: r, state, point, shownAt, side, from }: Placement): void {
     if (shownAt) this.shownAt.set(label.id, shownAt);
     else this.shownAt.delete(label.id);
     const { classList, style } = label.element;
     // A label being hidden fades out where it is, at its current size, rather than jumping first.
     const key = !r
       ? state
-      : `${Math.round(r.x)},${Math.round(r.y)},${state},${point ? `${Math.round(point.x)},${Math.round(point.y)}` : '-'}`;
+      : `${Math.round(r.x)},${Math.round(r.y)},${state},${side ?? ''},${point ? `${Math.round(point.x)},${Math.round(point.y)}` : '-'}`;
     if (this.lastKey.get(label.id) === key) return;
     this.lastKey.set(label.id, key);
-    this.drawLeader(label.id, r, point);
+    // From the whole label, or a named marker's badge.
+    this.drawLeader(label.id, from ?? r, point);
     classList.toggle('off', state === 'off');
     classList.toggle('capped', state === 'capped');
     if (!r) return;
     style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
     classList.toggle('compact', state === 'compact');
+    // A marker's name on the left of its badge.
+    classList.toggle('left', side === 'left');
   }
 
   /**

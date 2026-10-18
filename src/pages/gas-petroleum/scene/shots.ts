@@ -1,11 +1,11 @@
 /**
  * The camera's shots and its limits. The overview looks from the south and above on wide screens,
  * and from the east on tall ones, where the model's length then runs into the view and its width
- * fills the screen. Each stop's shot centers its subject and makes it the biggest thing in view;
- * the stops either side may show at its edges, or just beyond. A shot gives a direction and what
- * must be in view; the fit sets the distance, so it frames the same things in whatever room the
- * guide, the dock and the camera's buttons leave. How near the camera stands sets how much of the
- * ground's night grade it gets.
+ * fills the screen. Each stop's shot centers its subject at about a third of the view, with the
+ * marker of the stop it leads to in view too. A shot gives a direction and what must be in view;
+ * the fit sets the distance, so it frames the same things in whatever room the guide, the dock and
+ * the camera's buttons leave. How near the camera stands sets how much of the ground's night grade
+ * it gets.
  *
  * The reader turns the camera all the way round, tilts it within `ORBIT.polar`, zooms from
  * `nearestAt` out to `ORBIT.far` of the distance the whole model shows from, and pans what it
@@ -72,10 +72,14 @@ export function orbitBounds(): Box3 {
 }
 
 /**
- * How a stop's shot frames its subject: the room kept round it, as a share of the free area each
- * way, so it fills the rest, centered, and is the biggest thing in view.
+ * How a stop's shot frames its subject. `margin`: the room kept round it, as a share of the free
+ * area each way, so it takes about a third of the view, centered. `nextMargin`: the room kept
+ * round the markers of the stops it leads to, which are in view too, the camera standing back as
+ * far as that takes. `reach`: the farthest it stands back for a big subject, as a share of the
+ * overview's distance in the same room, so a tall one takes more than a third, seen nearer than
+ * the overview and up close enough for the ground's night grade.
  */
-export const STOP_SHOT = { margin: 0.3 } as const;
+export const STOP_SHOT = { margin: 2 / 3, nextMargin: 0.12, reach: 0.75 } as const;
 
 /**
  * Where the ground's night grade fades, as shares of the overview's distance: all of it from
@@ -89,7 +93,8 @@ const STOP_ELEVATION = MathUtils.degToRad(18);
 /**
  * How much of the ground's night grade a view gets, by how near its camera stands, as a share of
  * the overview's distance: all of it as near as a stop's shot, where the lawn fills the view and
- * would read as day, and none at the overview's distance or farther, where the small model in the
+ * would read as day (most of it where, on a very wide screen, the shot stands back to show where
+ * the stop leads), and none at the overview's distance or farther, where the small model in the
  * dark sky reads as night already. Between, as the reader zooms, it fades.
  */
 export function nightGradeAt(share: number): number {
@@ -158,10 +163,17 @@ export function stopAim(model: StopModel): { from: Point; to: Point } {
 
 /**
  * A stop's shot: its subject (its parts, their details and its label) centered in the room the
- * view has and the biggest thing in it, from no nearer than the camera comes. The camera's buttons
- * and the guide leave that room, so nothing slides it off center.
+ * view has, at about a third of it, with the markers of the stops it leads to (`inSight`) on
+ * screen too, the camera standing back along its line as far as that takes; no farther out for its
+ * subject than `STOP_SHOT.reach` of the overview's distance in that room (`overview`), and no
+ * nearer than it comes. The camera's buttons and the guide leave that room, so nothing slides it
+ * off center.
  */
-export function stopShot(model: StopModel): View {
+export function stopShot(
+  model: StopModel,
+  inSight: readonly StopModel[] = [],
+  overview = Infinity,
+): View {
   const { from, to } = stopAim(model);
   return {
     position: from,
@@ -170,8 +182,11 @@ export function stopShot(model: StopModel): View {
     margin: STOP_SHOT.margin,
     labelRoom: 60,
     minDistance: ORBIT.near,
+    maxDistance: STOP_SHOT.reach * overview,
     floor: ORBIT.floor,
     nearestAt,
+    alsoSee: inSight.flatMap(markerPoints),
+    alsoMargin: STOP_SHOT.nextMargin,
   };
 }
 

@@ -1,8 +1,10 @@
 /**
  * The lab in use: labels never flash, whether before the scene places them or while they're
  * hidden; the 3D view keeps drawing through setup and frequency changes; the signal pauses and
- * plays; each frequency button chooses its frequency; the key finds each line in the view; and on
- * a phone with the guide open, the labels show as icons that show their names on a tap.
+ * plays; each frequency button chooses its frequency; the key finds each line in the view, and
+ * says the view isn't to scale; the labels hide and show from the console, and stay as set, on the
+ * diorama too; and on a phone with the guide open, the labels show as icons that show their names
+ * on a tap.
  */
 import type { Locator, Page } from '@playwright/test';
 import { MOTION_WAIT, countFrames, expect, isMoving, test, waitStill } from './fixtures.ts';
@@ -181,6 +183,65 @@ test.describe('with reduced motion', () => {
       page.getByRole('region', { name: 'Controls' }).getByText('512 Hz', { exact: true }),
     ).toHaveCount(1);
   });
+});
+
+test('the labels hide and show from the console, and stay as set, on the diorama too', async ({
+  page,
+}) => {
+  // Two pages and a reload, under software rendering.
+  test.slow();
+  await open(page);
+  // Nothing over the view but the labels: the lesson's line and the scale are said elsewhere.
+  await expect(page.locator('.lab-lede, .lab-scale')).toHaveCount(0);
+  const controls = page.getByRole('region', { name: 'Controls' });
+  const toggle = controls.getByRole('button', { name: 'Labels' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const transmitter = page.locator('[data-label="transmitter"]');
+  await expect(transmitter).toBeVisible();
+  const width = (await transmitter.locator('.lbl-btn').boundingBox())?.width ?? 0;
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.labels')).toBeHidden();
+  // The key says the view isn't to scale, and lists the lines without finding hidden labels.
+  await controls.getByRole('button', { name: 'Key', exact: true }).click();
+  const key = page.locator('#lab-drawer');
+  await expect(key).toContainText('Not to scale: depths and line sizes are exaggerated');
+  await expect(key).toContainText('Steel gas main');
+  await expect(key.locator('.legend-row')).toHaveCount(0);
+  // On again, on the same page, with the key closed as before (a short view shows labels as their
+  // icons): the labels come back measured as before, and the key finds them again.
+  await controls.getByRole('button', { name: 'Key', exact: true }).click();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(transmitter).toBeVisible();
+  await expect(transmitter).not.toHaveClass(/\b(off|compact)\b/);
+  expect((await transmitter.locator('.lbl-btn').boundingBox())?.width).toBeCloseTo(width, 0);
+  await controls.getByRole('button', { name: 'Key', exact: true }).click();
+  await expect(key.locator('.legend-row').first()).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  // Remembered: still off after a reload, and on the diorama's parts too, its markers still there.
+  await open(page);
+  await expect(page.locator('.labels')).toBeHidden();
+  await page.goto('utilities/gas-petroleum/?tier=low&stop=city-gate');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+  await expect(
+    page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Labels on the parts' }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  // Placed already (the markers and the parts' labels are placed together), and no part named.
+  await expect(page.locator('[data-label="city-gate"]')).not.toHaveClass(/\boff\b/);
+  await expect(page.locator('.dlbl:not(.dlbl-clock):not(.off)')).toHaveCount(0);
+  // Back on: the lab's labels show again.
+  await page
+    .getByRole('region', { name: 'Controls' })
+    .getByRole('button', { name: 'Labels on the parts' })
+    .click();
+  await open(page);
+  await expect(page.locator('[data-label="transmitter"]')).toBeVisible();
 });
 
 test.describe('the key', () => {

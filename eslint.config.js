@@ -13,6 +13,8 @@ export default defineConfig(
       'playwright-report/',
       'test-results/',
       'artifacts/',
+      // Worktrees the desktop app makes for other sessions, each checked in its own right.
+      '.claude/',
     ],
   },
   js.configs.recommended,

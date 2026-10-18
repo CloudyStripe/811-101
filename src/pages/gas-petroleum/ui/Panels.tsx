@@ -1,10 +1,9 @@
 /**
- * What the guide shows: the overview with one way to start, its map and its tours; a stop, with
- * the fork's choice of path; a path's quiz, and where to go after it; and the bar that steps
- * through a journey, with a strip of where it is. Every sentence of the lesson comes from the
- * content module, word for word; the rest is the guide's own wording.
+ * What the guide shows under its step bar: the overview, with its map and its tours; a stop, with
+ * the fork's choice of path; and a path's quiz, and where to go after it. Every sentence of the
+ * lesson comes from the content module, word for word; the rest is the guide's own wording.
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   OVERVIEW,
   PATH_NAMES,
@@ -22,20 +21,10 @@ import { Icon } from '../../../design/icons.tsx';
 import { PATH_STYLE } from '../../../design/paths.ts';
 import { Rich } from '../../../design/Term.tsx';
 import { pageById } from '../../../site/pages.ts';
-import {
-  FORK,
-  PATHS,
-  SHARED,
-  back,
-  forward,
-  otherPath,
-  progressOf,
-  stopsOf,
-  type Journey,
-  type PathKey,
-} from '../journey.ts';
+import { FORK, PATHS, SHARED, otherPath, stopsOf, type Journey, type PathKey } from '../journey.ts';
 import type { TimeLapseState } from '../scene/timelapse.ts';
 import { clockText } from '../summary.ts';
+import { PathShape } from './PathShape.tsx';
 import { RouteMap } from './RouteMap.tsx';
 
 export const define = (key: string): string | undefined => TERMS[key]?.text;
@@ -43,7 +32,6 @@ export const define = (key: string): string | undefined => TERMS[key]?.text;
 const BASE = import.meta.env.BASE_URL;
 
 export function OverviewPanel(props: {
-  onStart: () => void;
   onTour: (path: PathKey) => void;
   onOpen: (id: StopId) => void;
 }) {
@@ -57,13 +45,6 @@ export function OverviewPanel(props: {
           </span>
         ))}
       </p>
-      <div class="start">
-        <button type="button" class="button button-primary" onClick={props.onStart}>
-          <Icon name="play" />
-          Start at the beginning
-        </button>
-        <p class="start-note">The stops both fuels share, then you choose a path.</p>
-      </div>
       <RouteMap onOpen={props.onOpen} />
       <p class="eyebrow tour-title">Or one path from start to end</p>
       <div class="tour-pick">
@@ -88,7 +69,7 @@ export function OverviewPanel(props: {
         ))}
       </div>
       <ul class="howto">
-        <li>Open any labeled place, or a stop on the map, to learn about it.</li>
+        <li>Open any numbered marker on the model, or a stop on the map, to learn about it.</li>
         <li>
           Drag the model to turn it, scroll or pinch to zoom, and right-drag or use two fingers to
           move it; double-click or double-tap to center it on a spot. The buttons in its corner
@@ -96,8 +77,8 @@ export function OverviewPanel(props: {
         </li>
         <li>Underlined words have short definitions. Hover or tap them.</li>
         <li>
-          Keyboard: ← and → step through the stops. With the model focused, the arrow keys turn and
-          tilt it, + and − zoom, Shift and the arrows move it, and Home sets it back.
+          Keyboard: ← and → step back and on. With the model focused, the arrow keys turn and tilt
+          it, + and − zoom, Shift and the arrows move it, and Home sets it back.
         </li>
       </ul>
     </>
@@ -172,26 +153,23 @@ function TimeLapseBox(props: {
   );
 }
 
-/** The next and previous stops along a stop's path, and the fork's two ways on. */
-export function neighbors(id: StopId, lean: PathKey): { prev: StopId | null; next: StopId[] } {
-  const stop = stopById(id);
-  const path: PathKey = stop.path === 'shared' ? lean : stop.path;
-  const seq = stopsOf(path);
-  const i = seq.indexOf(id);
-  const prev = i > 0 ? (seq[i - 1] ?? null) : null;
-  if (id === FORK) return { prev, next: PATHS.map((p) => stopsOf(p)[SHARED.length] ?? id) };
-  if (i < seq.length - 1) return { prev, next: [seq[i + 1] ?? id] };
-  // One path's end leads to the other path.
-  return { prev, next: [stopsOf(otherPath(path))[SHARED.length] ?? id] };
-}
-
 /**
- * The fork: the two ways on, each with its path's pattern and icon, where it goes first and how
- * far it runs. The path already chosen, if any, says so.
+ * The fork: the two ways on, each in its path's shape, with its icon and a piece of its line, where
+ * it goes first and how far it runs. The path already chosen, if any, says so.
  */
-export function ForkChoice(props: { chosen: PathKey | null; onChoose: (path: PathKey) => void }) {
+export function ForkChoice(props: {
+  chosen: PathKey | null;
+  /** Asked for from the step bar: marked out, so the eye finds it. */
+  asked: boolean;
+  onChoose: (path: PathKey) => void;
+}) {
   return (
-    <div class="fork" role="group" aria-labelledby="fork-title">
+    <div
+      class="fork"
+      role="group"
+      aria-labelledby="fork-title"
+      data-asked={props.asked ? '' : undefined}
+    >
       <p class="fork-title" id="fork-title">
         Choose a path
       </p>
@@ -210,9 +188,9 @@ export function ForkChoice(props: { chosen: PathKey | null; onChoose: (path: Pat
               props.onChoose(path);
             }}
           >
-            <span class="fork-mark" aria-hidden="true" style={{ '--path': style.color }}>
+            <PathShape path={path} class="fork-mark">
               <Icon name={style.icon} />
-            </span>
+            </PathShape>
             <span class="fork-text">
               <b>{PATH_NAMES[path]}</b>
               <small>
@@ -243,24 +221,26 @@ export function ForkChoice(props: { chosen: PathKey | null; onChoose: (path: Pat
 export function StopPanel(props: {
   stop: StopId;
   journey: Journey | null;
-  lean: PathKey;
   /** Whether the 3D view is there: without it, the time-lapse has nothing to show. */
   hasView: boolean;
   timeLapse: TimeLapseState;
   onPlayTimeLapse: () => void;
   onStepTimeLapse: (step: number) => void;
-  onOpen: (id: StopId) => void;
+  /** The fork's choice was asked for from the step bar. */
+  choiceAsked: boolean;
   onChoose: (path: PathKey) => void;
 }) {
   const stop = stopById(props.stop);
-  const { prev, next } = neighbors(props.stop, props.lean);
   const fork = props.stop === FORK;
   return (
     <>
+      {/* Its marker, as on the model, and its path. */}
       <p class="eyebrow stop-path" data-path={stop.path}>
+        <PathShape path={stop.path} class="stop-mark">
+          {stop.step}
+        </PathShape>
         <Icon name={PATH_STYLE[stop.path].icon} />
         {PATH_NAMES[stop.path]}
-        {!props.journey && <span class="stop-step">Stage {stop.step}</span>}
       </p>
       <p class="lead">
         {stop.text.map((c, i) => (
@@ -285,59 +265,17 @@ export function StopPanel(props: {
           onStep={props.onStepTimeLapse}
         />
       )}
-      {fork && <ForkChoice chosen={props.journey?.path ?? null} onChoose={props.onChoose} />}
+      {fork && (
+        <ForkChoice
+          chosen={props.journey?.path ?? null}
+          asked={props.choiceAsked}
+          onChoose={props.onChoose}
+        />
+      )}
       {stop.safety && (
         <p class="callout">
           <b>Safety tip:</b> <Rich text={stop.safety.text} define={define} />
         </p>
-      )}
-      {!props.journey && (
-        <nav class="stop-nav" aria-label="Stops">
-          {prev ? (
-            <button
-              type="button"
-              class="button button-secondary"
-              onClick={() => {
-                props.onOpen(prev);
-              }}
-            >
-              <Icon name="back" />
-              {stopById(prev).label}
-            </button>
-          ) : (
-            <span />
-          )}
-          {!fork && (
-            <span class="stop-nav-next">
-              {next.map((id) => {
-                const to = stopById(id);
-                // At a path's end, the way on is the other path, marked as such.
-                const across = to.path !== stop.path;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    class={across ? 'button button-secondary' : 'button button-primary'}
-                    data-path={across ? to.path : undefined}
-                    onClick={() => {
-                      props.onOpen(id);
-                    }}
-                  >
-                    {across ? (
-                      <>
-                        <Icon name={PATH_STYLE[to.path].icon} />
-                        {PATH_NAMES[to.path]}
-                      </>
-                    ) : (
-                      `Next: ${to.label}`
-                    )}
-                    <Icon name="forward" />
-                  </button>
-                );
-              })}
-            </span>
-          )}
-        </nav>
       )}
     </>
   );
@@ -355,6 +293,11 @@ export function QuizPanel(props: {
   const other = otherPath(props.path);
   /** What was just answered, read out: right or not and why, then the score once all are in. */
   const [said, setSaid] = useState('');
+  // Once all are answered, the score comes into view, with where to go next.
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (done) end.current?.scrollIntoView({ block: 'nearest' });
+  }, [done]);
   function answer(question: number, option: number) {
     props.onAnswer(question, option);
     const q = questions[question];
@@ -412,7 +355,7 @@ export function QuizPanel(props: {
         );
       })}
       {done && (
-        <div class="q-end">
+        <div class="q-end" ref={end}>
           <p class="q-score">
             You got {score} of {questions.length}.
           </p>
@@ -443,81 +386,5 @@ export function QuizPanel(props: {
         </div>
       )}
     </>
-  );
-}
-
-/**
- * Where a journey is, at a glance: the shared start's stops, then the chosen path's own, or the
- * fork ahead while none is chosen. The words beside it (the step, or the view's summary) say it to
- * screen readers, so the strip itself is hidden from them.
- */
-export function JourneyStrip({ journey }: { journey: Journey }) {
-  return (
-    <ol class="jstrip" aria-hidden="true">
-      {stopsOf(journey.path).map((id, i) => {
-        const path = stopById(id).path;
-        return (
-          <li
-            key={id}
-            data-path={path}
-            data-state={
-              journey.quiz || i < journey.index
-                ? 'done'
-                : i === journey.index
-                  ? 'current'
-                  : undefined
-            }
-            style={path === 'shared' ? undefined : { '--path': PATH_STYLE[path].color }}
-          />
-        );
-      })}
-      {journey.path === null && (
-        <li class="jstrip-fork">
-          <svg viewBox="0 0 14 10">
-            <path d="M1 5h5l6-4M6 5l6 4" />
-          </svg>
-        </li>
-      )}
-    </ol>
-  );
-}
-
-/** Steps through a journey: back, where it is, and on (or to its quiz, or the end). */
-export function JourneyBar(props: { journey: Journey; onBack: () => void; onNext: () => void }) {
-  const { journey } = props;
-  const { step, of } = progressOf(journey);
-  const next = forward(journey);
-  const toQuiz = next?.quiz === true;
-  // At the fork with no path chosen, the way on is the choice above.
-  const waiting = !journey.quiz && next === null;
-  return (
-    <div class="tourbar">
-      <button
-        type="button"
-        class="button button-secondary"
-        aria-disabled={back(journey) === null || undefined}
-        onClick={props.onBack}
-      >
-        <Icon name="back" />
-        Back
-      </button>
-      <div class="tourbar-progress">
-        <span>{journey.quiz ? 'Quiz' : `Step ${String(step)} of ${String(of)}`}</span>
-        <JourneyStrip journey={journey} />
-      </div>
-      <button
-        type="button"
-        class="button button-primary"
-        aria-label={
-          journey.quiz ? 'Finish, back to the overview' : toQuiz ? 'Take the quiz' : 'Next step'
-        }
-        aria-disabled={waiting || undefined}
-        title={waiting ? 'Choose a path first' : undefined}
-        onClick={props.onNext}
-      >
-        {journey.quiz ? 'Finish' : toQuiz ? 'Quiz' : 'Next'}
-        <Icon name="forward" />
-      </button>
-    </div>
   );
 }

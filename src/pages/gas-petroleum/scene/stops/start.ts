@@ -122,7 +122,8 @@ export function reservoir(): StopModel {
     hits: [hit(-28, -6.4, 24, 22, 4.4, 1.2)],
     view: { from: [-27, -1, 62], to: [-28, -7, 24] },
     focus: [],
-    label: { at: [-24, -3.6, 24.4], facing: FRONT },
+    // On the top's front edge, over the rock it names, so it shows from every side.
+    label: { at: [-20, 0.2, 24] },
     details: [
       { key: 'gas', at: [-28, -5.55, FACE], swatch: C.gasZone, facing: FRONT },
       { key: 'oil', at: [-35.2, -6.5, FACE], swatch: C.oilZone, facing: FRONT },
@@ -472,7 +473,9 @@ export function lifting(): StopModel {
       [-15, 8.6, -11],
       [-15, 5, 15.5],
     ],
-    label: { at: [-28, 3.2, 13.5] },
+    // Over the water tank, west of the separator: from the east, as phones see the overview, the
+    // start's four markers sit apart.
+    label: { at: [-33.4, 4, 11.4] },
     details: [
       { key: 'pumpJack', at: [px - 0.4, 5.1, wz] },
       { key: 'gasWell', at: [gx, 2.7, gz + 0.2] },

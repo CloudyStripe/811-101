@@ -1,4 +1,7 @@
-/** The diorama's paths: both fuels in APWA yellow, told apart by pattern and icon, never by color. */
+/**
+ * The diorama's paths: both fuels in APWA yellow, told apart by pattern, shape and icon, never by
+ * color.
+ */
 import { describe, expect, it } from 'vitest';
 import { APWA } from './apwa.ts';
 import { hexToOklch } from './color.ts';
@@ -10,9 +13,10 @@ describe('path styles', () => {
     expect(PATH_STYLE.gasoline.color).toBe(APWA.yellow.fill);
   });
 
-  it('tells every path apart by its pattern and its icon', () => {
+  it("tells every path apart by its pattern, its markers' shape and its icon", () => {
     const styles = Object.values(PATH_STYLE);
     expect(new Set(styles.map((s) => s.pattern)).size).toBe(styles.length);
+    expect(new Set(styles.map((s) => s.shape)).size).toBe(styles.length);
     expect(new Set(styles.map((s) => s.icon)).size).toBe(styles.length);
     // The drop stands for water.
     for (const s of styles) expect(s.icon).not.toBe('water');

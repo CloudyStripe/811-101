@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { FREQUENCIES, type Frequency } from '../../../config/equipment.ts';
-import { ABOUT, KEY, TAGLINE } from '../../../content/training/frequency-lab.ts';
+import { ABOUT, KEY } from '../../../content/training/frequency-lab.ts';
 import { Dialog } from '../../design/Dialog.tsx';
 import { Rich } from '../../design/Term.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
@@ -79,8 +79,9 @@ function controlsOver(box: DOMRect, selectors: readonly string[]): Box[] {
 export function App() {
   const [setup, setSetup] = useState<SetupId>(INITIAL_SETUP);
   const [frequency, setFrequency] = useState<Frequency>(INITIAL_FREQUENCY);
-  // Changed in the header's settings menu; the scene follows.
-  const [settings] = useSettings();
+  // Changed in the header's settings menu, or for the labels, on the console; the scene follows.
+  const [settings, setSettings] = useSettings();
+  const labelsShown = settings.labels === 'on';
   // The guide or the key, open between the view and the console; or neither.
   const [drawer, setDrawer] = useState<DrawerId | null>(null);
   // The reader can pause the signal's motion, whatever the motion setting (WCAG 2.2.2).
@@ -116,13 +117,12 @@ export function App() {
     /**
      * The part of the 3D view the chrome leaves free, which the camera frames: below the site
      * header, and above the drawer when it's open, or the console; on short screens, right of the
-     * column that holds them. The lede and the scale tag only take the view's top corners, so the
-     * fit keeps what the lesson needs out from under them.
+     * column that holds them, the fit keeping what the lesson needs out from under the header's
+     * pills over its top.
      */
     const visibleArea = (): VisibleArea => {
       const box = stageEl.getBoundingClientRect();
       const top = Math.max(0, (rectOf('.site-header')?.bottom ?? box.top) - box.top);
-      const keepOut = controlsOver(box, ['.lab-lede', '.lab-scale']);
       if (shortQuery.matches) {
         // The whole height beside the column, clear of the header's pills over its top.
         const left = (rectOf('.lab-console')?.right ?? box.left) - box.left + 8;
@@ -131,13 +131,13 @@ export function App() {
           y: 0,
           width: Math.max(160, box.width - left),
           height: box.height,
-          keepOut: [...keepOut, ...controlsOver(box, ['.site-home', '.site-page', '.site-tools'])],
+          keepOut: controlsOver(box, ['.site-home', '.site-page', '.site-tools']),
         };
       }
       const drawerBox = rectOf(`#${DRAWER_ID}:not([hidden])`);
       const below = drawerBox && drawerBox.height > 0 ? drawerBox : rectOf('.lab-console');
       const bottom = Math.min(box.height, (below?.top ?? box.bottom) - box.top - 8);
-      return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top), keepOut };
+      return { x: 0, y: top, width: box.width, height: Math.max(120, bottom - top) };
     };
 
     void (async () => {
@@ -191,6 +191,7 @@ export function App() {
         scene.setTheme(resolvedTheme());
         scene.setReducedMotion(reducesMotion(now.motion, reducedMotionQuery.matches));
         scene.setPaused(live.current.paused);
+        scene.setLabelsShown(now.labels === 'on');
         if (!TIER_PARAM && now.quality !== s.quality) void scene.setTier(now.quality);
         void document.fonts.ready.then(() => {
           scene?.setState(live.current.setup, live.current.frequency);
@@ -256,6 +257,11 @@ export function App() {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
 
+  // Before paint, so labels shown again are placed before they're seen.
+  useLayoutEffect(() => {
+    sceneRef.current?.setLabelsShown(labelsShown);
+  }, [labelsShown]);
+
   // Opening or closing the drawer changes how much room the view has: it glides to frame the
   // lines above the drawer. The first run is the scene's own first framing.
   const firstLayout = useRef(true);
@@ -280,15 +286,6 @@ export function App() {
 
   return (
     <div class="lab-grid" data-drawer={drawer ?? undefined}>
-      {/* The lab's one-line lesson, under the site header that names it. */}
-      <p class="lab-lede" data-chrome>
-        {TAGLINE.text}
-      </p>
-      {/* The ground is drawn deeper than true, and the lines thicker, so the cut face reads. */}
-      <p class="lab-scale" data-chrome>
-        Not to scale
-      </p>
-
       <main class="stage" ref={stageRef}>
         <canvas
           ref={canvasRef}
@@ -304,7 +301,7 @@ export function App() {
         */}
         <div
           class="labels"
-          hidden={failed !== null}
+          hidden={failed !== null || !labelsShown}
           onFocusInCapture={refreshLabels}
           onFocusOut={refreshLabels}
         >
@@ -348,8 +345,9 @@ export function App() {
         {drawer === 'key' && (
           <Legend
             setup={setup}
+            // Its rows find lines in the view while the view shows their labels.
             find={
-              sceneReady
+              sceneReady && labelsShown
                 ? {
                     onHighlight: (id) => {
                       sceneRef.current?.highlight(id);
@@ -376,6 +374,10 @@ export function App() {
         onDrawer={(next) => {
           if (next) setDrawer(next);
           else closeDrawer();
+        }}
+        labels={labelsShown}
+        onLabels={(on) => {
+          setSettings({ ...settings, labels: on ? 'on' : 'off' });
         }}
       />
 

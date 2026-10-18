@@ -31,6 +31,12 @@ export interface Shot {
    */
   minDistance?: number;
   /**
+   * The camera stands no farther than this from its target to fit the must-see points, so a big
+   * subject fills more of the area than its margin asks rather than send it far out. Points to see
+   * too (`alsoSee`) may still take it farther.
+   */
+  maxDistance?: number;
+  /**
    * CSS pixels kept clear at the free area's left and right, so a label centered on a point near
    * either side still fits beside it. Counts only where it's more than the margin.
    */
@@ -55,6 +61,13 @@ export interface Shot {
    * steps back along its line of sight: the same view, a little smaller.
    */
   nearestAt?: (height: number) => number;
+  /**
+   * Points that must be in view too, without being centered on: the camera stands back along its
+   * line until they're inside `alsoMargin` of the area's edges (default 0.08) and out from under
+   * the controls, the must-see points still centered. Not with `slide`.
+   */
+  alsoSee?: readonly Point3[];
+  alsoMargin?: number;
 }
 
 /**
@@ -197,9 +210,31 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
   const slide = (a: number, b: number, za: number, zb: number, tan: number) =>
     ((a + b) * tan) / (1 / Math.max(za, 1e-3) + 1 / Math.max(zb, 1e-3));
   const minDistance = shot.minDistance ?? 0;
-  const fitted = () => Math.max(minDistance, nearest());
+  const maxDistance = shot.maxDistance ?? Infinity;
+  const fitted = () => Math.max(minDistance, Math.min(maxDistance, nearest()));
+  const also = (shot.alsoSee ?? []).map((p) => new Vector3(...p));
+  const alsoLimit = 1 - (shot.alsoMargin ?? 0.08);
+  /** Whether the points to see too are inside their limits, clear of the controls, from here. */
+  const alsoInside = (distance: number) => {
+    place(distance);
+    return also.every((p) => {
+      v.copy(p).project(cam);
+      return (
+        v.z > -1 &&
+        v.z < 1 &&
+        Math.abs(v.x) <= alsoLimit &&
+        Math.abs(v.y) <= alsoLimit &&
+        keepOut.every((r) => v.x <= r.x0 || v.x >= r.x1 || v.y <= r.y0 || v.y >= r.y1)
+      );
+    });
+  };
+  /** How far out the camera stands: the must-see points fitted, then the others in view too. */
+  const distance = () => {
+    const fit = fitted();
+    return also.length > 0 ? Math.max(fit, nearestFor(alsoInside) ?? fit) : fit;
+  };
   for (let pass = 0; pass < 24; pass++) {
-    place(fitted());
+    place(distance());
     const e = extent();
     if (Math.abs(e.x0 + e.x1) < 0.01 && Math.abs(e.y0 + e.y1) < 0.01) break;
     right.setFromMatrixColumn(cam.matrixWorld, 0);
@@ -208,7 +243,7 @@ export function fitShot(shot: Shot, fovDeg: number, area: FitArea, margin = 0.08
       .addScaledVector(right, slide(e.x0, e.x1, e.depth.x0, e.depth.x1, tanH))
       .addScaledVector(up, slide(e.y0, e.y1, e.depth.y0, e.depth.y1, tanV));
   }
-  const centered = fitted();
+  const centered = distance();
   // No sliding asked for, or no controls, or none that cost the centered fit anything: it stands.
   const unhindered =
     shot.slide === true && keepOut.length > 0
