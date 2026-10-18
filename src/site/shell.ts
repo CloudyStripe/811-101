@@ -11,7 +11,7 @@ import { iconSvg, type IconName } from '../design/icon-svg.ts';
 import { THEMES } from '../design/tokens.ts';
 import { lessonPage, lessonTransition, posterPath, sectionOf, type PageInfo } from './pages.ts';
 import { BOOT_SCRIPT } from './settings.ts';
-import { HERO_SHAPES, PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from './stills.ts';
+import { PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 /** The settings script every page runs first. */
 export const BOOT = BOOT_SCRIPT;
@@ -138,14 +138,14 @@ export function loaderHtml(page: PageInfo): string {
 
 /**
  * The portal's hero: the site's name, set as its wordmark, with its tagline in a line under it,
- * then a still of the diorama the screen's whole width. The still comes in the reader's theme and
- * the screen's shape (see portal.css): only one of them loads.
+ * and the whole diorama in its sky beside them. The still comes in the reader's theme (see
+ * portal.css): only that one loads, and none where the hero stacks.
  */
 export function heroHtml(): string {
   // Root-relative, from public/: the build puts the site's base path in front.
-  const stills = THEME_NAMES.flatMap((theme) =>
-    HERO_SHAPES.map((shape) => `--hero-${theme}-${shape}: url('/${heroPath(theme, shape)}')`),
-  ).join('; ');
+  const stills = THEME_NAMES.map((theme) => `--hero-${theme}: url('/${heroPath(theme)}')`).join(
+    '; ',
+  );
   return [
     '<section class="hero" aria-labelledby="hero-title">',
     '<div class="hero-text">',

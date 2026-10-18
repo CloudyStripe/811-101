@@ -5,7 +5,7 @@ import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
 import { SECTIONS } from '../../content/portal.ts';
 import { PAGES, lessonPage, lessonTransition, pageById, posterPath } from './pages.ts';
 import { BOOT, CARDS_NAME, CARDS_SLOT, HERO_SLOT, LOADER_SLOT, renderPage } from './shell.ts';
-import { HERO_SHAPES, THEME_NAMES, heroPath, previewPath } from './stills.ts';
+import { THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 const render = (page: (typeof PAGES)[number]) => renderPage(readFileSync(page.html, 'utf8'), page);
 const count = (html: string, pattern: RegExp) => [...html.matchAll(pattern)].length;
@@ -81,9 +81,7 @@ describe('renderPage', () => {
     expect(html).toContain(`<h1 id="hero-title" class="hero-title">${escapeHtml(BRAND.name)}</h1>`);
     expect(html).toContain(`<p class="hero-line">${escapeHtml(BRAND.tagline)}</p>`);
     for (const theme of THEME_NAMES) {
-      for (const shape of HERO_SHAPES) {
-        expect(html).toContain(`--hero-${theme}-${shape}: url('/${heroPath(theme, shape)}')`);
-      }
+      expect(html).toContain(`--hero-${theme}: url('/${heroPath(theme)}')`);
     }
   });
 

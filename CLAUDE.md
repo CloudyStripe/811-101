@@ -27,15 +27,15 @@ An interactive learning site about buried utilities and line locating.
   it; then a large card for each lesson and one for each section still to come (811 Basics),
   over the sky's foot. The page paints the diorama's own sky (`--sky-*`, from the scene tokens)
   across the screen, and the model's still stands at the hero's full height, so the two skies
-  meet with no edge. On upright screens the name sits on a band of the sky's top color over the
-  model; on phones, in the sky above the model as a phone shows it. A lesson's card keeps its
-  section's name and line, and a section's first card carries its id, where a lesson's
-  breadcrumb leads.
-- **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme
-  (and for the hero, per screen shape: a wide band, 4:3 on phones), named in `src/site/stills.ts`;
-  only the reader's loads. `npm run thumbnails` makes them from the real 3D views: the hero is the
-  diorama's overview two steps farther out, cut to the model and the sky's whole height (and the
-  phone's overview for phones); the Gas & Petroleum card is the refinery up close.
+  meet with no edge. The model shows only where it fits beside the name: wherever the hero would
+  stack (phones, upright tablets, short screens), the name and its line sit on the sky, then the
+  cards, and with no picture set there, the still is never fetched (tested on a phone). A
+  lesson's card keeps its section's name and line, and a section's first card carries its id,
+  where a lesson's breadcrumb leads.
+- **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme,
+  named in `src/site/stills.ts`; only the reader's loads. `npm run thumbnails` makes them from the
+  real 3D views: the hero is the diorama's overview two steps farther out, cut to the model and
+  the sky's whole height; the Gas & Petroleum card is the refinery up close.
 - **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion. A
   lesson's preview carries on into its loader; a lesson page waits for the change to finish before
   replacing its static shell (`src/site/arrival.ts`), or the animation is cut short.

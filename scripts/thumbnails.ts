@@ -3,7 +3,7 @@
  * lesson's look changes. It serves the site with Vite's dev server and opens each view with its
  * chrome hidden, then writes:
  * - the portal's stills, day and night (public/stills/): each lesson's preview, cropped to the
- *   scene, and the hero, the whole diorama in its sky, wide and narrow;
+ *   scene, and the hero, the whole diorama in its sky;
  * - each 3D page's loader posters, day and night: small WebPs, shown blurred (public/posters/);
  * - share previews: 1200 × 630 JPEGs with the mark and the page's name (public/share/).
  * It stops without saving anything wrong: on a page error, a crop outside the 3D view, or an
@@ -17,14 +17,7 @@ import type { Lesson } from '../content/portal.ts';
 import { THEMES, TYPE } from '../src/design/tokens.ts';
 import { PAGES, pageById, posterPath, type PageInfo } from '../src/site/pages.ts';
 import { SHARE_SIZE } from '../src/site/shell.ts';
-import {
-  HERO_SHAPES,
-  HERO_SIZES,
-  PREVIEW_SIZE,
-  THEME_NAMES,
-  heroPath,
-  previewPath,
-} from '../src/site/stills.ts';
+import { HERO_SIZE, PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from '../src/site/stills.ts';
 import { TILE_COLORS, WORDMARK_HTML, archivoFace, wordmarkCss } from './wordmark.ts';
 
 const PORT = 5199;
@@ -106,28 +99,17 @@ const SHOTS: Shot[] = [
 ];
 
 /**
- * The portal's hero, the whole diorama in its sky. Wide: the overview two steps farther out, by
- * its own key, at 1600 × 900 one and a half times over (2400 × 1350 pixels), cut to the model and
- * a margin of sky either side, top to bottom. Narrow: the overview as a phone shows it, at
- * 390 × 1000 twice over, so there's sky above the model for the site's name, cut under the model.
+ * The portal's hero, the whole diorama in its sky: the overview two steps farther out, by its own
+ * key, at 1600 × 900 one and a half times over (2400 × 1350 pixels), cut to the model and a
+ * margin of sky either side, top to bottom.
  */
-const HERO_SHOTS = {
-  wide: {
-    path: 'utilities/gas-petroleum/?tier=high&capture',
-    ready: dioramaMoved(['-', '-']),
-    hide: DIORAMA_CHROME,
-    viewport: { width: 1600, height: 900 },
-    scale: 1.5,
-    crop: { x: 342, y: 0, width: 1642, height: 1350 },
-  },
-  narrow: {
-    path: 'utilities/gas-petroleum/?tier=high&capture',
-    ready: dioramaReady,
-    hide: DIORAMA_CHROME,
-    viewport: { width: 390, height: 1000 },
-    scale: 2,
-    crop: { x: 0, y: 0, width: 780, height: 1240 },
-  },
+const HERO = {
+  path: 'utilities/gas-petroleum/?tier=high&capture',
+  ready: dioramaMoved(['-', '-']),
+  hide: DIORAMA_CHROME,
+  viewport: { width: 1600, height: 900 },
+  scale: 1.5,
+  crop: { x: 342, y: 0, width: 1642, height: 1350 },
 } as const;
 
 /** What each 3D page shows in its poster and share preview. */
@@ -355,18 +337,15 @@ try {
     }
   }
 
-  // The portal's hero, in each theme and shape.
+  // The portal's hero, in each theme.
   for (const scheme of THEME_NAMES) {
-    for (const shape of HERO_SHAPES) {
-      const shot = HERO_SHOTS[shape];
-      const png = await still(browser, shot, shot.viewport, scheme, shot.scale);
-      const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
-        encode(tab, png, HERO_SIZES[shape], 'image/webp', STILL_QUALITY, shot.crop),
-      );
-      const path = `public/${heroPath(scheme, shape)}`;
-      await writeFile(path, webp);
-      console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
-    }
+    const png = await still(browser, HERO, HERO.viewport, scheme, HERO.scale);
+    const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
+      encode(tab, png, HERO_SIZE, 'image/webp', STILL_QUALITY, HERO.crop),
+    );
+    const path = `public/${heroPath(scheme)}`;
+    await writeFile(path, webp);
+    console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
   }
 
   // Posters and share previews, for every 3D page built on the site's shell.

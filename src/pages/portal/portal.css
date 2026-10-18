@@ -69,7 +69,7 @@
  * sides fade into the page's sky, which is the same, so no seam shows.
  */
 .hero-image {
-  --hero: var(--hero-light-wide);
+  --hero: var(--hero-light);
   align-self: stretch;
   aspect-ratio: 1642 / 1350;
   background: var(--hero) center / cover no-repeat;
@@ -78,12 +78,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .hero-image {
-    --hero: var(--hero-dark-wide);
+    --hero: var(--hero-dark);
   }
 }
 
 :root[data-theme='dark'] .hero-image {
-  --hero: var(--hero-dark-wide);
+  --hero: var(--hero-dark);
 }
 
 /* The cards, over the hero's foot: three in a row on wide screens, then two, then one. */
@@ -319,68 +319,34 @@
 }
 
 /*
- * Upright screens and phones: the name, then the model, then the cards. The name sits on a band of
- * the sky's top color, where the model's still starts, so the two meet with no edge.
+ * Wherever the hero would stack (phones, upright tablets, short screens): the name and its line on
+ * the sky, then the cards. The model shows only beside the name: here it isn't drawn, and with no
+ * picture set, it's never fetched.
  */
-@media (max-width: 760px), (max-width: 1023px) and (orientation: portrait) {
+@media (max-width: 760px), (max-width: 1023px) and (orientation: portrait), (max-height: 500px) {
   .portal {
-    --cards-up: 3rem;
+    --cards-up: 2rem;
   }
 
   .hero {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    gap: 0;
     height: auto;
-    padding: 0;
-    background: var(--sky-zenith);
+    padding: calc(var(--header-h) + var(--space-5)) var(--gutter)
+      calc(var(--cards-up) + var(--space-8));
   }
 
   .hero-text {
-    padding: calc(var(--header-h) + var(--space-4)) var(--page-pad) var(--space-2);
+    padding: 0;
   }
 
   .hero-image {
-    width: 100%;
-    mask-image: none;
+    display: none;
+    background: none;
   }
 }
 
-/*
- * Small phones: the model as a phone shows it, from the east, the name in the sky above it; then one
- * card under another, what's coming as the lessons are.
- */
+/* Small phones: one card under another, what's coming as the lessons are. */
 @media (max-width: 640px) {
-  .portal {
-    --cards-up: 1.5rem;
-  }
-
-  .hero-text,
-  .hero-image {
-    grid-area: 1 / 1;
-  }
-
-  .hero-text {
-    position: relative;
-    z-index: 1;
-    align-self: start;
-  }
-
-  .hero-image {
-    --hero: var(--hero-light-narrow);
-    aspect-ratio: 780 / 1240;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) .hero-image {
-      --hero: var(--hero-dark-narrow);
-    }
-  }
-
-  :root[data-theme='dark'] .hero-image {
-    --hero: var(--hero-dark-narrow);
-  }
-
   .cards {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);

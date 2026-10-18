@@ -307,16 +307,20 @@ for (const theme of ['light', 'dark'] as const) {
         reducedMotion: 'reduce',
       });
 
-      test('the portal passes axe, loads its one hero still, and nothing runs off', async ({
+      test('the portal passes axe, loads its hero only beside the name, and nothing runs off', async ({
         page,
       }) => {
-        // Of the hero's stills, only the one for this theme and screen loads.
+        // On a desktop the hero's still for this theme loads; on a phone, where the hero stacks,
+        // none does.
         const heroes: string[] = [];
         page.on('request', (req) => {
           if (req.url().includes('/stills/hero-')) heroes.push(new URL(req.url()).pathname);
         });
         await openPortal(page);
-        expect(heroes).toEqual([`/811-101/${heroPath(theme, vp.mobile ? 'narrow' : 'wide')}`]);
+        expect(heroes).toEqual(vp.mobile ? [] : [`/811-101/${heroPath(theme)}`]);
+        // The name and its line on the sky, then the cards, the first on the first screen.
+        const first = await page.locator('.card').first().boundingBox();
+        expect(first?.y ?? Infinity).toBeLessThan(vp.height - 120);
         await expectNoViolations(page);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
