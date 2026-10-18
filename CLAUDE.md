@@ -19,11 +19,18 @@ An interactive learning site about buried utilities and line locating.
   Add a page there first.
 - **Static shell:** `src/site/shell.ts` writes each built page's head (title, description, share
   preview, favicons, theme color, the settings script), the header, the footer, the 3D loader, and
-  the portal's hero and sections (icons included) into its HTML at build time. The portal is all
+  the portal's hero and cards (icons included) into its HTML at build time. The portal is all
   static: its script only names a lesson's preview for the page change as the lesson opens. Pages'
   own HTML keeps only what's theirs; links in it use `%BASE%`.
+- **The portal:** about one screen on a desktop (tested at 1440 × 900): the site's name as the h1,
+  set as its wordmark, with its tagline under it; a still of the diorama the screen's whole width;
+  and a large card for each lesson, then one for each section still to come (811 Basics). A
+  lesson's card keeps its section's name and line, and a section's first card carries its id,
+  where a lesson's breadcrumb leads.
 - **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme
-  (and for the hero, per screen shape), named in `src/site/stills.ts`; only the reader's loads.
+  (and for the hero, per screen shape: a wide band, 4:3 on phones), named in `src/site/stills.ts`;
+  only the reader's loads. `npm run thumbnails` makes them from the real 3D views: the hero is the
+  diorama's overview a step nearer, the Gas & Petroleum card its whole model.
 - **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion. A
   lesson's preview carries on into its loader; a lesson page waits for the change to finish before
   replacing its static shell (`src/site/arrival.ts`), or the animation is cut short.

@@ -1,25 +1,29 @@
 /**
- * The portal's stills, in public/stills/ and made by `npm run thumbnails`: its hero, in each theme
- * and in a wide shape for wide screens and a square one for phones; and each lesson's preview, in
- * each theme. Only one of each set loads: the reader's theme and screen pick it.
+ * The portal's stills, in public/stills/ and made by `npm run thumbnails`: its hero, the diorama
+ * in each theme, in a wide shape for the screen's whole width and a narrower one for phones; and
+ * each lesson's preview, in each theme. Only one of each set loads: the reader's theme and screen
+ * pick it.
  */
 import type { Lesson } from '../../content/portal.ts';
 import type { ThemeName } from '../design/tokens.ts';
 
 export const THEME_NAMES: readonly ThemeName[] = ['light', 'dark'];
 
-export type HeroShape = 'wide' | 'square';
+export type HeroShape = 'wide' | 'narrow';
 
-export const HERO_SHAPES: readonly HeroShape[] = ['wide', 'square'];
+export const HERO_SHAPES: readonly HeroShape[] = ['wide', 'narrow'];
 
-/** The hero's shapes, in pixels: the space it fills beside the words, or under them on phones. */
+/**
+ * The hero's shapes, in pixels: a band the screen's whole width, sharp on wide screens, its middle
+ * kept on narrower ones; and 4:3 on phones.
+ */
 export const HERO_SIZES: Readonly<Record<HeroShape, { width: number; height: number }>> = {
-  wide: { width: 1200, height: 900 },
-  square: { width: 800, height: 800 },
+  wide: { width: 2400, height: 640 },
+  narrow: { width: 800, height: 600 },
 };
 
-/** A lesson's preview, in pixels: 16:9, sharp at the portal's tile size. */
-export const PREVIEW_SIZE = { width: 800, height: 450 } as const;
+/** A lesson's preview, in pixels: 2:1, sharp at the portal's card size. */
+export const PREVIEW_SIZE = { width: 800, height: 400 } as const;
 
 /** The hero still's address under the site's base path. */
 export const heroPath = (theme: ThemeName, shape: HeroShape): string =>

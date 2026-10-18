@@ -1,6 +1,6 @@
 /**
- * The portal's script. The page itself is static (src/site/shell.ts writes its hero, its sections
- * and their icons), so this only lets a lesson's preview carry on into its loader as it opens.
+ * The portal's script. The page itself is static (src/site/shell.ts writes its hero, its cards and
+ * their icons), so this only lets a lesson's preview carry on into its loader as it opens.
  */
 import '../../site/boot.ts';
 import './portal.css';
@@ -11,18 +11,18 @@ interface PageSwap extends Event {
   activation: { entry: { url: string } | null } | null;
 }
 
-// Only the tile being opened takes part, through its preview in the reader's theme; the others
+// Only the card being opened takes part, through its preview in the reader's theme; the others
 // fade with the page.
 addEventListener('pageswap', (event) => {
   const { viewTransition, activation } = event as PageSwap;
   const to = activation?.entry?.url;
-  for (const tile of document.querySelectorAll<HTMLElement>('.tile')) {
-    const link = tile.querySelector<HTMLAnchorElement>('.tile-link');
+  for (const card of document.querySelectorAll<HTMLElement>('.card[data-transition]')) {
+    const link = card.querySelector<HTMLAnchorElement>('.card-link');
     const opening =
       viewTransition !== null && to !== undefined && link !== null && sameAddress(link.href, to);
-    for (const image of tile.querySelectorAll<HTMLElement>('.tile-image')) {
+    for (const image of card.querySelectorAll<HTMLElement>('.card-image')) {
       const shown = image.offsetParent !== null;
-      image.style.viewTransitionName = opening && shown ? (tile.dataset.transition ?? '') : '';
+      image.style.viewTransitionName = opening && shown ? (card.dataset.transition ?? '') : '';
     }
   }
 });

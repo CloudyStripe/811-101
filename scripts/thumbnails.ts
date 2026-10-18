@@ -3,7 +3,7 @@
  * lesson's look changes. It serves the site with Vite's dev server and opens each view with its
  * chrome hidden, then writes:
  * - the portal's stills, day and night (public/stills/): each lesson's preview, cropped to the
- *   scene, and the hero, wide and square;
+ *   scene, and the hero, a slice of the diorama, wide and narrow;
  * - each 3D page's loader posters, day and night: small WebPs, shown blurred (public/posters/);
  * - share previews: 1200 × 630 JPEGs with the mark and the page's name (public/share/).
  * It stops without saving anything wrong: on a page error, a crop outside the 3D view, or an
@@ -18,6 +18,7 @@ import { THEMES, TYPE } from '../src/design/tokens.ts';
 import { PAGES, pageById, posterPath, type PageInfo } from '../src/site/pages.ts';
 import { SHARE_SIZE } from '../src/site/shell.ts';
 import {
+  HERO_SHAPES,
   HERO_SIZES,
   PREVIEW_SIZE,
   THEME_NAMES,
@@ -39,8 +40,10 @@ const POSTER = { width: 480, height: 270, quality: 0.6 };
  */
 const SHOT_TIMEOUT = 120_000;
 
-/** CSS that hides the lab's chrome, so an image is the 3D view alone. */
+/** CSS that hides a 3D page's chrome, so an image is the 3D view alone. */
 const LAB_CHROME = '.site-header, [data-chrome], .labels, .scene-loader';
+/** The diorama's, with the hint that goes once the view is moved. */
+const DIORAMA_CHROME = `${LAB_CHROME}, .gp-hint`;
 
 interface Shot {
   /** The lesson whose preview it makes (see previewPath). */
@@ -50,7 +53,7 @@ interface Shot {
   ready: (page: Page) => Promise<void>;
   /** CSS that hides the page's chrome, so the image is the 3D view alone. */
   hide: string;
-  /** The part of the 1280 × 720 view to keep, in CSS pixels; 16:9. */
+  /** The part of the 1280 × 720 view to keep, in CSS pixels, as wide as the preview's shape. */
   crop: { x: number; y: number; width: number };
 }
 
@@ -66,36 +69,54 @@ async function dioramaReady(page: Page): Promise<void> {
   if (await close.isVisible()) await close.click();
 }
 
+/** The diorama's overview, a step nearer, by its own key: the hero's slice of the model. */
+async function dioramaNearer(page: Page): Promise<void> {
+  await dioramaReady(page);
+  const view = page.locator('canvas').first();
+  await view.focus();
+  await page.keyboard.press('+');
+  // Off the view again, or its focus ring would frame the still.
+  await view.blur();
+  // The move is a cut with reduced motion; give the view a frame or two to draw it.
+  await page.waitForTimeout(1500);
+}
+
 const SHOTS: Shot[] = [
   {
     name: 'frequency-lab',
     path: 'training/frequency-lab/?setup=steel&f=33000&tier=high&capture',
     ready: labReady,
     hide: LAB_CHROME,
-    // Close on the hookup and the signal setting off along the main, apart from the hero.
-    crop: { x: 40, y: 185, width: 600 },
+    // Close on the hookup and the signal setting off along the main.
+    crop: { x: 40, y: 200, width: 600 },
   },
   {
     name: 'gas-petroleum',
     path: 'utilities/gas-petroleum/?tier=high&capture',
     ready: dioramaReady,
-    hide: LAB_CHROME,
-    crop: { x: 120, y: 120, width: 1040 },
+    hide: DIORAMA_CHROME,
+    // The whole model, apart from the hero's slice of it.
+    crop: { x: 120, y: 110, width: 1040 },
   },
 ];
 
 /**
- * The phone's square hero, cut from the wide capture (1200 × 900) around the block's near end: the
- * hookup, the trench and the signal setting off along the main.
+ * The portal's hero: the diorama's overview a step nearer, so a slice of the model fills the
+ * screen's width, from its wells and the refinery to the gas station and the town. Captured at
+ * 1600 × 900, one and a half times over (2400 × 1350 pixels), then cut: the wide band across the
+ * middle, and for phones, 4:3 around the refinery.
  */
-const HERO_SQUARE_CROP = { x: 20, y: 150, width: 600, height: 600 };
-
-/** The portal's hero: the lab's block in its town, the signal along the gas main. */
 const HERO = {
-  path: 'training/frequency-lab/?setup=steel&f=8000&tier=high&capture',
-  ready: labReady,
-  hide: LAB_CHROME,
+  path: 'utilities/gas-petroleum/?tier=high&capture',
+  ready: dioramaNearer,
+  hide: DIORAMA_CHROME,
+  viewport: { width: 1600, height: 900 },
+  scale: 1.5,
 };
+const HERO_CROPS = {
+  wide: { x: 0, y: 260, width: 2400, height: 640 },
+  narrow: { x: 600, y: 200, width: 1200, height: 900 },
+} as const;
 
 /** What each 3D page shows in its poster and share preview. */
 const STILLS: Partial<
@@ -109,7 +130,7 @@ const STILLS: Partial<
   'gas-petroleum': {
     path: 'utilities/gas-petroleum/?tier=high&capture',
     ready: dioramaReady,
-    hide: LAB_CHROME,
+    hide: DIORAMA_CHROME,
   },
 };
 
@@ -214,14 +235,15 @@ async function withPage<T>(
   }
 }
 
-/** A 3D view with its chrome hidden, as a PNG at the given size and theme. */
+/** A 3D view with its chrome hidden, as a PNG at the given size (times `scale`) and theme. */
 async function still(
   browser: Browser,
   view: { path: string; ready: (page: Page) => Promise<void>; hide: string },
   size: { width: number; height: number },
   scheme: 'light' | 'dark',
+  scale = 1,
 ): Promise<Buffer> {
-  return withPage(browser, { ...size, scale: 1, scheme }, async (page, errors) => {
+  return withPage(browser, { ...size, scale, scheme }, async (page, errors) => {
     await page.goto(`${BASE}${view.path}`);
     await view.ready(page);
     const png = await page.screenshot({
@@ -285,7 +307,10 @@ try {
         async (page, errors) => {
           await page.goto(`${BASE}${shot.path}`);
           await shot.ready(page);
-          const clip = { ...shot.crop, height: (shot.crop.width * 9) / 16 };
+          const clip = {
+            ...shot.crop,
+            height: (shot.crop.width * PREVIEW_SIZE.height) / PREVIEW_SIZE.width,
+          };
           const canvas = await page.locator('canvas').first().boundingBox();
           if (
             !canvas ||
@@ -318,17 +343,13 @@ try {
     }
   }
 
-  // The portal's hero, in each theme: wide beside its words, and square, cut from the same
-  // capture, under them on phones.
+  // The portal's hero, in each theme: the wide band, and for phones the narrow one, cut from
+  // the same capture.
   for (const scheme of THEME_NAMES) {
-    const png = await still(browser, HERO, HERO_SIZES.wide, scheme);
-    const shapes = [
-      ['wide', undefined],
-      ['square', HERO_SQUARE_CROP],
-    ] as const;
-    for (const [shape, crop] of shapes) {
+    const png = await still(browser, HERO, HERO.viewport, scheme, HERO.scale);
+    for (const shape of HERO_SHAPES) {
       const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
-        encode(tab, png, HERO_SIZES[shape], 'image/webp', STILL_QUALITY, crop),
+        encode(tab, png, HERO_SIZES[shape], 'image/webp', STILL_QUALITY, HERO_CROPS[shape]),
       );
       const path = `public/${heroPath(scheme, shape)}`;
       await writeFile(path, webp);
