@@ -1024,8 +1024,9 @@ nav.stepbar > :last-child {
 
 /*
  * A stop's marker on the model: its numbered badge, a tab with its path's icon, and its name beside
- * them, on the right, or with .left, the left. Without its name (.compact), the badge shows alone,
- * and hovered, shows its name over the others. The label layer places it (.lbl, components.css).
+ * them, on the right, or with .left, the left. Without its name (.compact), the badge shows alone.
+ * The label layer places it (.lbl, components.css), and names it while it's focused or under the
+ * mouse, over the others.
  */
 .mk-btn {
   display: flex;
@@ -1136,8 +1137,8 @@ nav.stepbar > :last-child {
     border-color: var(--ink-3);
   }
 
-  /* A marker shown without its name, for want of room, shows it while hovered, over the others. */
-  .mk.compact:hover {
+  /* Under the mouse, named by the label layer however crowded, over the others. */
+  .mk:hover {
     z-index: 3;
   }
 
@@ -1147,14 +1148,6 @@ nav.stepbar > :last-child {
 
   .mk[data-faded]:hover .pshape-in {
     color: var(--ink);
-  }
-
-  .mk.compact:hover .lbl-text {
-    position: static;
-    width: auto;
-    height: 22px;
-    overflow: visible;
-    clip-path: none;
   }
 }
 

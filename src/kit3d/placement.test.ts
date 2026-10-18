@@ -486,6 +486,27 @@ describe('placeMarkers', () => {
     if (!now?.rect) throw new Error('not shown');
     expect(badgeOf({ ...now, rect: now.rect })).toEqual(badgeOf({ ...was, rect: was.rect }));
   });
+  it('keeps a focused or hovered marker named on the side it was shown on, the others named as before', () => {
+    // In a view 600 wide, C's name takes its right, so B, left of it, is named on its left.
+    const r = room({ width: 600, bounds: { x: 0, y: 0, w: 600, h: 600 } });
+    const c = marker('c', { x: 500, y: 300 }, { priority: 2 });
+    const first = placeAll([marker('b', { x: 330, y: 300 }), c], r);
+    const was = first.get('b');
+    if (!was?.shownAt || !was.rect) throw new Error('not shown');
+    expect(was.side).toBe('left');
+    expect(first.get('c')?.state).toBe('');
+    // Focused, or under the mouse, B is placed first, but its name stays on its left, where the
+    // pointer found it, and C keeps its name.
+    const again = placeAll(
+      [marker('b', { x: 330, y: 300 }, { focused: true }), c],
+      r,
+      new Map([['b', was.shownAt]]),
+    );
+    expect(again.get('b')?.side).toBe('left');
+    expect(again.get('b')?.rect).toEqual(was.rect);
+    expect(again.get('c')?.state).toBe('');
+  });
+
   it("keeps a badge off another marker's point, so that one's leader can reach it", () => {
     // Two points a little apart, one above the other, as two far stops can land: the first placed
     // would cover the second's point, sitting right over its own.

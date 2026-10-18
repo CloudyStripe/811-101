@@ -7,15 +7,16 @@
  * focused labels first, then those tied to one point, then those that may sit at other places
  * along what they name, so these find room around the rest. Each takes the first spot by its
  * point that's inside the view, clear of the controls and the labels placed, covering nothing kept
- * clear (buried lines, say, and the leaders drawn so far), with its own leader under no label. It
- * shows in full where there's room and as its icon where there isn't, or always as its icon in a
+ * clear (buried lines, say, and the leaders drawn so far) nor another shown label's point, with its
+ * own leader under no label; last, the spots on the other side of its point. It shows in full where there's room and as its icon where there isn't, or always as its icon in a
  * small view; with no room at all it steps out of sight, leaving its place empty. A focused label
  * always shows in full where it was shown before, pulled into the free part of the view and out
  * from under the controls (WCAG 2.4.11). In a small view it shows in full over the others, keeping
  * only its icon's room, so they stay where they are.
  *
  * Markers (placeMarkers) are labels that never give way to each other: every one in view shows, as
- * a numbered badge, with its name beside it where there's room.
+ * a numbered badge, with its name beside it where there's room. A focused one keeps its badge, and
+ * its name's side, where they were shown.
  */
 
 export interface Point {
@@ -79,6 +80,8 @@ export interface ShownAt {
   dx: number;
   dy: number;
   icon: boolean;
+  /** A marker's name, the side of its badge it was shown on. */
+  side?: 'left' | 'right';
 }
 
 /** The view the labels go in. */
@@ -658,12 +661,17 @@ export function placeMarkers(
       !overlaps(r, names) &&
       !onPoint(r, c.at) &&
       !bands.some((band) => band !== own && covers(band, r));
-    // A lit marker's name went with its badge. No room either side for a focused marker's name:
-    // over the others, on a side in view, clear of the controls and its own point if it can be.
-    const kept = held.get(c.id);
-    const side: 'right' | 'left' | null = kept
-      ? kept.side
-      : c.focused || !(room.icons || c.badgeOnly)
+    // A lit marker's name went with its badge. A focused one's stays on the side it was shown on,
+    // while that's in view and clear of the controls, so it doesn't jump from under the reader's
+    // eye and pointer. No room either side for a focused marker's name: over the others, on a side
+    // in view, clear of the controls and its own point if it can be.
+    const before = c.focused ? shownAt?.side : undefined;
+    const was = before === 'left' ? left : right;
+    const stays = before && inside(was) && clear(was) ? before : null;
+    const side: 'right' | 'left' | null =
+      held.get(c.id)?.side ??
+      stays ??
+      (c.focused || !(room.icons || c.badgeOnly)
         ? fits(right)
           ? 'right'
           : fits(left)
@@ -671,7 +679,8 @@ export function placeMarkers(
             : c.focused
               ? anyway(right, left, clear)
               : null
-        : null;
+        : null);
+    const kept = held.has(c.id);
     const rect = side === 'left' ? left : side === 'right' ? right : badge;
     if (side && !kept) names.push(rect);
     out.push({
@@ -679,7 +688,13 @@ export function placeMarkers(
       state: side ? '' : 'compact',
       rect,
       point,
-      shownAt: shownAt && { ...shownAt, icon: side === null },
+      shownAt: shownAt && {
+        at: shownAt.at,
+        dx: shownAt.dx,
+        dy: shownAt.dy,
+        icon: side === null,
+        ...(side ? { side } : {}),
+      },
       ...(side === 'left' ? { side } : {}),
       ...(side ? { from: badge } : {}),
     });

@@ -41,9 +41,20 @@ test('the diorama, labels off: no name shows in its view, and a marker names its
   // The numbered markers stay, the open stop's too, and each still opens its stop.
   const marker = page.locator('[data-label="city-gate"] .mk-btn');
   await expect(marker).toBeVisible();
-  // Hovered, a marker names its stop, and only it; moved off, the name goes again.
+  // Hovered, a marker names its stop, and only it, placed as a focused one is, clear of the
+  // controls; moved off, the name goes again.
   await marker.hover();
   await expect.poll(() => shownNames(page)).toEqual(['City gate']);
+  await expect(page.locator('[data-label="city-gate"]')).not.toHaveClass(/\bcompact\b/);
+  const overChrome = await page.evaluate(() => {
+    const r = document.querySelector('[data-label="city-gate"] .mk-btn')?.getBoundingClientRect();
+    if (!r) return null;
+    return [...document.querySelectorAll('[data-chrome]')].some((el) => {
+      const c = el.getBoundingClientRect();
+      return c.width > 0 && r.x < c.right && r.right > c.x && r.y < c.bottom && r.bottom > c.y;
+    });
+  });
+  expect(overChrome, 'the hovered name under a control').toBe(false);
   await page.mouse.move(2, 400);
   await expect.poll(() => shownNames(page)).toEqual([]);
   // Focused, too.
