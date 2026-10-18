@@ -1,8 +1,8 @@
 /**
  * The diorama's controls, in thumb reach on phones: which path to show, a pause for the model's
- * motion, and a toggle for the small labels on the stops' parts (the stops' markers always show),
- * remembered like the other settings, named as in the lab, but on phones and short screens by its
- * icon alone. The steps have their own bar, in the guide (StepBar), and the camera's buttons sit
+ * motion, and a toggle for every name in the view, the stops' and their parts' (the numbered
+ * markers always show), remembered like the other settings and named as the lab's is, but on
+ * phones and short screens by its icon alone. The steps have their own bar, in the guide (StepBar), and the camera's buttons sit
  * in the view's corner (ViewControls).
  */
 import { PATH_NAMES } from '../../../../content/utilities/gas-petroleum.ts';
@@ -40,7 +40,7 @@ export function Dock(props: {
   onFilter: (filter: Filter) => void;
   paused: boolean;
   onPause: (paused: boolean) => void;
-  /** Whether the small labels on the stops' parts show. */
+  /** Whether the view shows its names. */
   labels: boolean;
   onLabels: (labels: boolean) => void;
 }) {
@@ -73,8 +73,8 @@ export function Dock(props: {
         <button
           type="button"
           class="icon-button dock-labels"
-          aria-label="Labels on the parts"
-          title="Labels on the parts"
+          aria-label="Labels"
+          title="Names in the view"
           aria-pressed={props.labels}
           onClick={() => {
             props.onLabels(!props.labels);

@@ -124,8 +124,12 @@ export interface DioramaScene {
   relayout(ease?: boolean): void;
   /** Places labels again, now: when a label gains focus. */
   refreshLabels(): void;
-  /** Shows or hides the small labels on the stops' parts; the stops' markers always show. */
-  setPartLabels(shown: boolean): void;
+  /**
+   * Shows or hides every name in the view: the small labels on the stops' parts, and the stops'
+   * names, which then show only on a marker that's hovered or focused. The numbered markers always
+   * show, since they're how to get around.
+   */
+  setLabels(shown: boolean): void;
   dispose(): void;
 }
 
@@ -161,6 +165,8 @@ async function buildDiorama(
   let lapseThroughPause = false;
   let disposed = false;
   let labelsDirty = true;
+  /** Whether the view shows its names (the labels setting). */
+  let named = true;
   /** Seconds of motion so far: the clock every machine and bead runs on. */
   let time = 3;
   let shown: StopId | null = null;
@@ -613,7 +619,8 @@ async function buildDiorama(
     const free = { x: area.x, y: area.y, w: area.width, h: area.height };
     // Every stop's marker shows. The open stop's is named however crowded; the rest are named in
     // the story's order where there's room, step by step, the path the view shows first after the
-    // fork; a path faded back shows by number alone, and comes last.
+    // fork; a path faded back shows by number alone, and comes last. With the labels off, every
+    // marker shows by number alone, the open stop's too, but for one hovered or focused.
     const first = filter === 'gasoline' ? 'gasoline' : 'gas';
     for (const label of labelList) {
       const stop = stops.find((s) => s.id === label.id);
@@ -621,9 +628,9 @@ async function buildDiorama(
       const faded = dimmed(stop.path) && label.id !== shown;
       const rank = stop.step * 2 + (stop.path === 'shared' || stop.path === first ? 0 : 1);
       label.priority = -rank - (faded ? 100 : 0);
-      label.highlight = label.id === shown;
-      // Faded back, by its badge alone, unless it's focused.
-      label.badgeOnly = faded;
+      label.highlight = named && label.id === shown;
+      // Faded back, or with the labels off, by its badge alone, unless it's focused.
+      label.badgeOnly = faded || !named;
     }
     // A view too short for names, as on a phone with the guide open, shows them by number alone,
     // but for the open stop and a focused one.
@@ -800,7 +807,8 @@ async function buildDiorama(
     refreshLabels() {
       placeLabels();
     },
-    setPartLabels(shown) {
+    setLabels(shown) {
+      named = shown;
       details.setPartsShown(shown);
       labelsDirty = true;
       redraw();

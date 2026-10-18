@@ -230,7 +230,7 @@ test('the labels hide and show from the console, and stay as set, on the diorama
   await expect(
     page
       .getByRole('region', { name: 'Controls' })
-      .getByRole('button', { name: 'Labels on the parts' }),
+      .getByRole('button', { name: 'Labels', exact: true }),
   ).toHaveAttribute('aria-pressed', 'false');
   // Placed already (the markers and the parts' labels are placed together), and no part named.
   await expect(page.locator('[data-label="city-gate"]')).not.toHaveClass(/\boff\b/);
@@ -238,7 +238,7 @@ test('the labels hide and show from the console, and stay as set, on the diorama
   // Back on: the lab's labels show again.
   await page
     .getByRole('region', { name: 'Controls' })
-    .getByRole('button', { name: 'Labels on the parts' })
+    .getByRole('button', { name: 'Labels', exact: true })
     .click();
   await open(page);
   await expect(page.locator('[data-label="transmitter"]')).toBeVisible();

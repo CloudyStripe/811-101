@@ -147,7 +147,7 @@ export function App() {
   const [failed, setFailed] = useState<string | null>(null);
   const [settings, setSettings] = useSettings();
   /** The small labels on the stops' parts show; the stops' markers always do. */
-  const partLabels = settings.labels === 'on';
+  const labelsShown = settings.labels === 'on';
   const sheet = useSheetLayout();
   /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
   const covered = sheet && sheetOpen && sheetCovers();
@@ -291,7 +291,7 @@ export function App() {
         scene.setTheme(resolvedTheme());
         scene.setReducedMotion(reducesMotion(now.settings.motion, reducedMotionQuery.matches));
         scene.setPaused(now.paused);
-        scene.setPartLabels(now.settings.labels === 'on');
+        scene.setLabels(now.settings.labels === 'on');
         scene.setFilter(now.filter);
         setLimits(scene.limits);
         setReady(true);
@@ -363,8 +363,8 @@ export function App() {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
   useEffect(() => {
-    sceneRef.current?.setPartLabels(partLabels);
-  }, [partLabels]);
+    sceneRef.current?.setLabels(labelsShown);
+  }, [labelsShown]);
   useEffect(() => {
     const scene = sceneRef.current;
     scene?.setTheme(resolvedTheme());
@@ -758,7 +758,7 @@ export function App() {
       onFilter={setFilter}
       paused={paused}
       onPause={setPaused}
-      labels={partLabels}
+      labels={labelsShown}
       onLabels={(on) => {
         setSettings({ ...settings, labels: on ? 'on' : 'off' });
       }}
