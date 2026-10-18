@@ -53,7 +53,7 @@
  */
 .hero-image {
   --hero: var(--hero-light-wide);
-  height: clamp(12rem, 100svh - 38rem, 24rem);
+  height: clamp(10rem, 100svh - 38rem, 24rem);
   /* Cut more from the cut face than from the refinery's top, where the band is short. */
   background: var(--hero) center 30% / cover no-repeat;
 }
@@ -88,8 +88,12 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-1);
-  /* The lessons' breadcrumbs jump here; leave the header's room above. */
-  scroll-margin-top: calc(var(--header-h) + var(--space-4));
+  /*
+   * The lessons' breadcrumbs jump here. Where the card already shows on the first screen, as on a
+   * desktop, the page stays at its top; elsewhere the card comes up to the screen's foot, never
+   * under the header.
+   */
+  scroll-margin-top: max(calc(var(--header-h) + var(--space-4)), calc(100svh - 24rem));
   transition:
     box-shadow var(--dur) var(--ease),
     transform var(--dur) var(--ease);
@@ -194,6 +198,12 @@
   content: '';
   position: absolute;
   inset: 0;
+}
+
+/* The card a breadcrumb led to, lifted a little, so the reader sees where they are. */
+.card:target {
+  border-color: var(--ink-3);
+  box-shadow: var(--shadow-2);
 }
 
 /* Icons are drawn into slots already their size, so nothing moves. */
@@ -335,5 +345,14 @@
     width: 34%;
     height: auto;
     max-height: 60%;
+  }
+}
+
+/* Short screens, as a phone held sideways: a slimmer band, so the cards start on the first screen. */
+@media (max-height: 500px) {
+  .hero-image {
+    height: 8rem;
+    max-height: none;
+    aspect-ratio: auto;
   }
 }

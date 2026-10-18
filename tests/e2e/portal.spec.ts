@@ -88,6 +88,13 @@ test('the hero names the site and says what it is, over a still the screen’s w
 test.describe('on a desktop', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
+  test('a lesson’s breadcrumb lands on its card, the page still at its top', async ({ page }) => {
+    await page.goto('./#utilities');
+    await loadImages(page);
+    await expect(page.locator('#utilities')).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
   test('the portal is one screen: everything but the footer shows without scrolling', async ({
     page,
   }) => {
