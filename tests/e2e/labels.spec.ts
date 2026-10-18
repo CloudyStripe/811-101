@@ -31,6 +31,7 @@ test('the diorama, labels off: no name shows in its view, and a marker names its
   });
   // On: the open stop's name, the others' where they fit, and its parts'.
   await expect.poll(() => shownNames(page)).toContain('City gate');
+  await expect.poll(() => shownNames(page)).toContain('Odorant added');
   const toggle = page
     .getByRole('region', { name: 'Controls' })
     .getByRole('button', { name: 'Labels', exact: true });
@@ -50,11 +51,14 @@ test('the diorama, labels off: no name shows in its view, and a marker names its
   await expect.poll(() => shownNames(page)).toEqual(['City gate']);
   await marker.blur();
   await expect.poll(() => shownNames(page)).toEqual([]);
-  // The step bar, a control, keeps its words; and the overview shows no names either.
+  // The step bar, a control, keeps its words; and the overview shows no names either, while the
+  // guide's map, a control too, names every stop.
   await expect(page.locator('.gp-panel .stepbar')).toContainText('Step 8 of 9');
   await page.locator('.gp-panel').getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.locator('[data-label="city-gate"] .mk-btn')).toBeVisible();
   await expect.poll(() => shownNames(page)).toEqual([]);
+  await expect(page.locator('.rmap .rmap-stop')).toHaveCount(13);
+  await expect(page.locator('.rmap').getByText('City gate', { exact: true })).toBeVisible();
   // A stop is still a click on its marker away. The marker, focused and under the pointer, names
   // it until both move on.
   const pipeline = page.locator('[data-label="pipeline"] .mk-btn');
@@ -62,5 +66,22 @@ test('the diorama, labels off: no name shows in its view, and a marker names its
   await expect(page).toHaveURL(/[?&]stop=pipeline(&|$)/);
   await page.mouse.move(2, 400);
   await pipeline.blur();
+  await expect.poll(() => shownNames(page)).toEqual([]);
+  // On again, the names come back: the open stop's among them.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => shownNames(page)).toContain('Pipeline');
+});
+
+test('the diorama, opened with labels already off, shows no name in its view', async ({ page }) => {
+  test.slow();
+  await page.addInitScript(() => {
+    localStorage.setItem('811-101.settings', JSON.stringify({ labels: 'off' }));
+  });
+  await page.goto('utilities/gas-petroleum/?tier=low&stop=city-gate');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+  await expect(page.locator('[data-label="city-gate"] .mk-btn')).toBeVisible();
   await expect.poll(() => shownNames(page)).toEqual([]);
 });

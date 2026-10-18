@@ -146,7 +146,10 @@ export function App() {
   const [moved, setMoved] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [settings, setSettings] = useSettings();
-  /** The small labels on the stops' parts show; the stops' markers always do. */
+  /**
+   * The names in the view show: the stops' and the small labels on their parts. Off, the numbered
+   * markers still show, each named only while it's hovered or focused.
+   */
   const labelsShown = settings.labels === 'on';
   const sheet = useSheetLayout();
   /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
@@ -639,6 +642,13 @@ export function App() {
     setMoved(true);
   }
 
+  /** Names the marker the pointer is now over, if any, as the scene names a focused one. */
+  function hoverOver(target: EventTarget | null) {
+    const marker = target instanceof Element ? target.closest<HTMLElement>('.mk') : null;
+    const id = marker?.dataset.label;
+    sceneRef.current?.setHovered(STOP_IDS.find((stopId) => stopId === id) ?? null);
+  }
+
   function refreshLabels() {
     sceneRef.current?.refreshLabels();
   }
@@ -804,6 +814,13 @@ export function App() {
           hidden={failed !== null}
           onFocusIn={refreshLabels}
           onFocusOut={refreshLabels}
+          // A marker under the mouse is named on a side with room; a touch names it by focus.
+          onPointerOver={(event) => {
+            if (event.pointerType !== 'touch') hoverOver(event.target);
+          }}
+          onPointerOut={(event) => {
+            if (event.pointerType !== 'touch') hoverOver(event.relatedTarget);
+          }}
         >
           <div class="details" ref={detailRef} />
           {STOPS.map(({ id, path }) => (

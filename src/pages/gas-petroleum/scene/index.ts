@@ -125,6 +125,11 @@ export interface DioramaScene {
   /** Places labels again, now: when a label gains focus. */
   refreshLabels(): void;
   /**
+   * The stop whose marker is under the mouse, or null: it's named as a focused one is, on a side of
+   * its badge with room for its name, clear of the controls.
+   */
+  setHovered(id: StopId | null): void;
+  /**
    * Shows or hides every name in the view: the small labels on the stops' parts, and the stops'
    * names, which then show only on a marker that's hovered or focused. The numbered markers always
    * show, since they're how to get around.
@@ -167,6 +172,8 @@ async function buildDiorama(
   let labelsDirty = true;
   /** Whether the view shows its names (the labels setting). */
   let named = true;
+  /** The stop whose marker is under the mouse. */
+  let hovered: StopId | null = null;
   /** Seconds of motion so far: the clock every machine and bead runs on. */
   let time = 3;
   let shown: StopId | null = null;
@@ -627,8 +634,10 @@ async function buildDiorama(
       if (!stop) continue;
       const faded = dimmed(stop.path) && label.id !== shown;
       const rank = stop.step * 2 + (stop.path === 'shared' || stop.path === first ? 0 : 1);
-      label.priority = -rank - (faded ? 100 : 0);
+      // The open stop's marker first, named or not, so no other badge takes its place.
+      label.priority = (label.id === shown ? 1000 : 0) - rank - (faded ? 100 : 0);
       label.highlight = named && label.id === shown;
+      label.hovered = label.id === hovered;
       // Faded back, or with the labels off, by its badge alone, unless it's focused.
       label.badgeOnly = faded || !named;
     }
@@ -805,6 +814,11 @@ async function buildDiorama(
       reframe(ease);
     },
     refreshLabels() {
+      placeLabels();
+    },
+    setHovered(id) {
+      if (hovered === id) return;
+      hovered = id;
       placeLabels();
     },
     setLabels(shown) {

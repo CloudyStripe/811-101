@@ -45,6 +45,12 @@ export interface Label {
   hidden?: boolean;
   /** Shown however crowded the view, like a focused label: pointed at from elsewhere, e.g. a key. */
   highlight?: boolean;
+  /**
+   * Under the mouse: placed as a focused label is, named on a side with room for it. For markers,
+   * whose badge stays put as their name shows; a label growing from its icon could move out from
+   * under the pointer.
+   */
+  hovered?: boolean;
   /** Placed as a marker, shown by its badge alone unless focused, as on a path faded back. */
   badgeOnly?: boolean;
   /** Hangs below its anchor instead of above it, e.g. to keep clear of a line just above. */
@@ -243,6 +249,7 @@ export class LabelLayer {
       const isFocused =
         !label.hidden &&
         (label.highlight === true ||
+          label.hovered === true ||
           label.element.contains(focused) ||
           (pinned && this.named.has(label.id)));
       return {

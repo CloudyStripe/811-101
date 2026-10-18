@@ -91,12 +91,9 @@ export async function waitStill(page: Page, message: string): Promise<void> {
 }
 
 /**
- * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
- * previews, below the fold, and its hero's still, a CSS background.
- */
-/**
- * The names drawn in a 3D view, at their size: its labels' names, and the diorama's on its stops' parts
- * (not the time-lapse's clock). A name kept for screen readers, clipped to a pixel, isn't drawn.
+ * The names drawn in a 3D view, at their size: its labels' names, and the diorama's on its stops'
+ * parts (not the time-lapse's clock). A name kept for screen readers, clipped to a pixel, isn't
+ * drawn.
  */
 export function shownNames(page: Page): Promise<string[]> {
   return page.evaluate(() =>
@@ -118,6 +115,10 @@ export function shownNames(page: Page): Promise<string[]> {
   );
 }
 
+/**
+ * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
+ * previews, below the fold, and its hero's still, a CSS background.
+ */
 export async function loadImages(page: Page): Promise<void> {
   await page.evaluate(async () => {
     for (const img of document.images) img.loading = 'eager';

@@ -83,7 +83,7 @@ body {
   text-align: center;
 }
 
-/* The dock: the path switch, the pause and the parts' labels. */
+/* The dock: the path switch, the pause and the labels' switch. */
 .gp-dock {
   grid-area: dock;
   align-self: end;
@@ -125,7 +125,7 @@ body {
 }
 
 /*
- * The parts' labels, beside the pause: a pill with its word, as in the lab, filled while they
+ * The labels' switch, beside the pause: a pill with its word, as in the lab, filled while the names
  * show; on phones, short screens and narrow windows, a round button by its icon alone.
  */
 .gp-dock .dock-labels {
