@@ -54,19 +54,22 @@ An interactive learning site about buried utilities and line locating.
   tools and lines). The view is framed above whichever is open, so neither covers the lines; on
   short screens the drawer and console are a column beside the view. Nothing else sits over the
   view: the lesson's one line is in the guide, and the Key says the view isn't to scale.
-- **The lab's two views** (`layout.ts`): from in front on wide screens; on tall ones from the
-  hookup end and above. The ground the lines lie in is drawn deep (13×, 15× in the tall view:
-  `VIEW_GROUND`), so the block fills the height between the header and the console, with no band
-  of sky under it (tested); the layers under the gas main's trench, where nothing lies, are
-  flattened to 1.5×. The lines are drawn 6× thick (9× in the tall view), so they read on the deep
-  face without crowding it.
+- **The lab's two views** (`layout.ts`): from in front on wide screens, and from the hookup end and
+  above on tall ones. The ground the lines lie in is drawn as deep as it takes for the block to
+  fill the height between the header and the console (`depthFor` in `fill.ts`, within each view's
+  bounds in `VIEW_GROUND`), so no band of sky lies under it (tested at every design size, and on
+  the real page): about 13× at 1440×900, deeper on squarer screens and phones, and shallow above an
+  open drawer, where the block fills the strip's width instead. The layers under the gas main's
+  trench, where nothing lies, are flattened to 1.5×; the lines keep one thickness (6×, 9× in the
+  tall view). A new view or depth builds the block again (a resized window, once it holds still).
 - **3D labels** (`src/kit3d/labels.ts`; where they go is decided in `placement.ts`, a pure,
   tested function): the highest-priority labels show, up to a cap. They keep off the buried lines
   (`setKeepClear`) and each other's leaders, hanging further off a line, or further along it, on a
-  longer leader. In a short view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows
-  its name, over the others, while focused or its definition is pinned open by a tap. Placed as
-  markers (`placeMarkers`), as the diorama's stops are, none gives way: every one in view shows,
-  as its numbered badge, and names follow beside them in priority order wherever they fit.
+  longer leader, and with no room on their own side of their point, on the other. In a short
+  view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows its name, over the
+  others, while focused or its definition is pinned open by a tap. Placed as markers
+  (`placeMarkers`), as the diorama's stops are, none gives way: every one in view shows, as its
+  numbered badge, and names follow beside them in priority order wherever they fit.
 - **Settings menu:** on a short screen held sideways, each setting's name sits beside its choices
   in a wider menu, so the whole menu fits under its button.
 - **The wordmark** is the site's name set in Archivo, heavy and wide: in the header and footer,
