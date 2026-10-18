@@ -431,6 +431,11 @@ for (const size of SIZES.filter((s) =>
         expect(await onTop(page, controls, i), `control #${String(i)} is covered`).toBe(true);
       }
       await expectChromeApart(page);
+      // The path switch keeps each of its names to one line.
+      for (const option of await page.locator('.gp-dock [role="radio"]').all()) {
+        const name = await option.innerText();
+        expect((await option.boundingBox())?.height ?? 0, `${name} on one line`).toBeLessThan(40);
+      }
       await expectStepBarFits(page, 'at the fork');
       // Beside the view, the guide opened (it starts closed below 1280 px): the step bar, at the
       // guide's narrowest, still fits.
