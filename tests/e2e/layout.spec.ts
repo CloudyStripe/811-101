@@ -226,8 +226,11 @@ for (const size of SIZES) {
         if (size.roomy) await expectFrequencyOnScreen(page, size.height, 'with the guide open');
         const target = page.locator('[data-label="target"]');
         if (size.guideRoom) await expect(target).not.toHaveClass(/\b(off|capped)\b/);
-        // Shown or not, the main's label is never under the guide.
-        if (await target.locator('.lbl-btn').isVisible()) {
+        // Shown, or over the cap and focused, which shows it, the main's label is never under the
+        // guide.
+        if (!(await target.evaluate((el) => el.classList.contains('off')))) {
+          await target.locator('.lbl-btn').focus();
+          await expect(target).not.toHaveClass(/\bcapped\b/);
           const label = await target.locator('.lbl-btn').boundingBox();
           const drawer = await page.locator('#lab-drawer').boundingBox();
           const over =
@@ -238,6 +241,7 @@ for (const size of SIZES) {
             label.y < drawer.y + drawer.height &&
             label.y + label.height > drawer.y;
           expect(over, 'the main under the guide').toBe(false);
+          await target.locator('.lbl-btn').blur();
         }
         await page.getByRole('button', { name: 'Close the lab guide' }).click();
         await expect(page.locator('#lab-drawer')).toBeHidden();

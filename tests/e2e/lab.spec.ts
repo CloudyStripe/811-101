@@ -265,7 +265,11 @@ test.describe('the key', () => {
       .getByRole('button', { name: 'Key', exact: true })
       .click();
     const key = page.getByRole('region', { name: 'Key' });
-    for (const setup of ['Steel main', 'Plastic main']) {
+    // The steel main and the telecom cable; the plastic main, its tracer wire and the telecom cable.
+    for (const [setup, lines] of [
+      ['Steel main', 2],
+      ['Plastic main', 3],
+    ] as const) {
       await page
         .getByRole('radiogroup', { name: 'Setup' })
         .getByRole('radio', { name: setup })
@@ -273,7 +277,7 @@ test.describe('the key', () => {
       // Its rows, not the button that closes it.
       const rows = key.locator('.legend-row');
       const count = await rows.count();
-      expect(count, `${setup}: a row for each line`).toBeGreaterThanOrEqual(3);
+      expect(count, `${setup}: a row for each line`).toBe(lines);
       for (let i = 0; i < count; i++) {
         const row = rows.nth(i);
         const name = (await row.textContent()) ?? '';
@@ -404,17 +408,30 @@ test.describe('on a phone, with the guide open', () => {
     expect(box?.width ?? 0, 'its name shows beside its icon').toBeGreaterThan(80);
     expect(await stake.locator('.lbl-btn').boundingBox()).toEqual(stakeWas);
 
-    // A tap on another lets it go, and shows that one's.
-    await stake.locator('.lbl-btn').tap();
-    await expect(stake).not.toHaveClass(/\bcompact\b/);
-    await expect(stake.getByRole('tooltip')).toBeVisible();
+    // A tap on another lets it go, and shows that one's: on one the open definition leaves in
+    // sight, since in so small a view it covers some.
+    const other = await page.evaluate(() => {
+      for (const el of document.querySelectorAll<HTMLElement>(
+        '.lbl.compact:not(.off):not(.capped):not([hidden])',
+      )) {
+        const b = el.querySelector('.lbl-btn')?.getBoundingClientRect();
+        const hit = b && document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+        if (hit && el.contains(hit)) return el.dataset.label ?? null;
+      }
+      return null;
+    });
+    expect(other, 'an icon in sight beside the open definition').not.toBeNull();
+    const next = page.locator(`[data-label="${other ?? ''}"]`);
+    await next.locator('.lbl-btn').tap();
+    await expect(next).not.toHaveClass(/\bcompact\b/);
+    await expect(next.getByRole('tooltip')).toBeVisible();
     await expect(telecom).toHaveClass(/\bcompact\b/);
     await expect(telecom.getByRole('tooltip')).toBeHidden();
 
     // A tap on the view lets it go back to its icon.
     await page.locator('.lab-canvas').tap({ position: { x: 30, y: 230 } });
-    await expect(stake).toHaveClass(/\bcompact\b/);
-    await expect(stake.getByRole('tooltip')).toBeHidden();
+    await expect(next).toHaveClass(/\bcompact\b/);
+    await expect(next.getByRole('tooltip')).toBeHidden();
   });
 });
 
