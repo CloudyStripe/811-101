@@ -64,12 +64,13 @@ An interactive learning site about buried utilities and line locating.
   tall view). A new view or depth builds the block again (a resized window, once it holds still).
 - **3D labels** (`src/kit3d/labels.ts`; where they go is decided in `placement.ts`, a pure,
   tested function): the highest-priority labels show, up to a cap. They keep off the buried lines
-  (`setKeepClear`) and each other's leaders, hanging further off a line, or further along it, on a
-  longer leader, and with no room on their own side of their point, on the other. In a short
-  view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows its name, over the
-  others, while focused or its definition is pinned open by a tap. Placed as markers
+  (`setKeepClear`) and each other's points and leaders, hanging further off a line, or further
+  along it, on a longer leader, and with no room on their own side of their point, on the other.
+  In a short view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows its name, over
+  the others, while focused or its definition is pinned open by a tap. Placed as markers
   (`placeMarkers`), as the diorama's stops are, none gives way: every one in view shows, as its
-  numbered badge, and names follow beside them in priority order wherever they fit.
+  numbered badge, and names follow beside them in priority order wherever they fit; a focused or
+  hovered one keeps its badge and its name's side where they were.
 - **Settings menu:** on a short screen held sideways, each setting's name sits beside its choices
   in a wider menu, so the whole menu fits under its button.
 - **The wordmark** is the site's name set in Archivo, heavy and wide: in the header and footer,
@@ -179,7 +180,7 @@ In the field, the color is the code.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
 - **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
 - **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire and the signal bloom; lamps and lit windows glow under it. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
-- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
+- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view or depth, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
 
 ## The diorama's story
 

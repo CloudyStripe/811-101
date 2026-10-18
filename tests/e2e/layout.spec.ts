@@ -226,21 +226,28 @@ for (const size of SIZES) {
         if (size.roomy) await expectFrequencyOnScreen(page, size.height, 'with the guide open');
         const target = page.locator('[data-label="target"]');
         if (size.guideRoom) await expect(target).not.toHaveClass(/\b(off|capped)\b/);
-        // Shown, or over the cap and focused, which shows it, the main's label is never under the
-        // guide.
-        if (!(await target.evaluate((el) => el.classList.contains('off')))) {
-          await target.locator('.lbl-btn').focus();
-          await expect(target).not.toHaveClass(/\bcapped\b/);
+        // Shown, the main's label is never under the guide; over the cap, focusing it shows it,
+        // clear of the guide too.
+        const underGuide = async () => {
           const label = await target.locator('.lbl-btn').boundingBox();
           const drawer = await page.locator('#lab-drawer').boundingBox();
-          const over =
+          return (
             label !== null &&
             drawer !== null &&
             label.x < drawer.x + drawer.width &&
             label.x + label.width > drawer.x &&
             label.y < drawer.y + drawer.height &&
-            label.y + label.height > drawer.y;
-          expect(over, 'the main under the guide').toBe(false);
+            label.y + label.height > drawer.y
+          );
+        };
+        const state = await target.getAttribute('class');
+        if (!/\boff\b/.test(state ?? '')) {
+          if (!/\bcapped\b/.test(state ?? '')) {
+            expect(await underGuide(), 'the main under the guide').toBe(false);
+          }
+          await target.locator('.lbl-btn').focus();
+          await expect(target).not.toHaveClass(/\bcapped\b/);
+          expect(await underGuide(), 'the main, focused, under the guide').toBe(false);
           await target.locator('.lbl-btn').blur();
         }
         await page.getByRole('button', { name: 'Close the lab guide' }).click();
@@ -551,4 +558,35 @@ test.describe('the block fills its room', () => {
       });
     });
   }
+});
+
+test.describe('the block is built again for its room', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+
+  test('shallower over an open drawer, deep again once it closes, and deeper for a squarer window', async ({
+    page,
+  }) => {
+    await page.goto('training/frequency-lab/?tier=low');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    const stage = page.locator('.stage');
+    const depth = async () => Number(await stage.getAttribute('data-depth'));
+    const closed = await depth();
+    expect(closed).toBeGreaterThan(0);
+    const guide = page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Guide', exact: true });
+    await guide.click();
+    await expect.poll(depth).toBeLessThan(closed);
+    await page.getByRole('button', { name: 'Close the lab guide' }).click();
+    await expect.poll(depth).toBe(closed);
+    // Resized squarer, it's built deeper once the window holds still, and fills its room again.
+    await page.setViewportSize({ width: 1280, height: 1024 });
+    await expect.poll(depth, { timeout: 15_000 }).toBeGreaterThan(closed);
+    const { free, rows } = await blockRows(page);
+    const room = free.bottom - free.top;
+    expect((rows.top - free.top) / room, 'sky above').toBeLessThan(0.08);
+    expect((free.bottom - rows.bottom) / room, 'sky under').toBeLessThan(0.07);
+  });
 });

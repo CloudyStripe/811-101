@@ -120,8 +120,8 @@ interface Built {
 
 /**
  * What casts and takes shadows in a build: the slab down to a little under the gas main, and the
- * trees and lamps standing on it. Nothing below the main casts a shadow, so the sun's shadow keeps
- * its detail for the street however deep the ground is drawn.
+ * trees and lamps standing on it. Nothing below the main casts a shadow, so the soil drawn under
+ * it doesn't take the sun's shadow map from the street.
  */
 function boundsOf({ block, lines }: LabLayout): Box3 {
   const below = lines.steel.y - lines.steel.radius - 4;
@@ -414,8 +414,8 @@ async function buildLabScene(
    * suit it. While a window is being resized (`settle`), a new depth waits until it holds still; a
    * new view doesn't.
    */
-  function frameArea(area: VisibleArea, settle = false) {
-    const { kind, depth } = asks(area);
+  function frameArea(area: VisibleArea, settle = false, asked = asks(area)) {
+    const { kind, depth } = asked;
     if (settling) clearTimeout(settling);
     settling = null;
     if (kind !== built.kind) rebuild(kind, depth);
@@ -564,17 +564,16 @@ async function buildLabScene(
     relayout(ease = false) {
       labels.measure();
       const area = o.visibleArea();
+      // The room is measured afresh here, so a rebuild still waiting on a resize isn't needed.
+      if (settling) clearTimeout(settling);
+      settling = null;
       // A glide from the framing shown now, unless motion is reduced, there's nothing to glide
-      // from, or the new room asks for another view or depth, whose block is built anew.
-      const { kind, depth } = asks(area);
-      if (
-        ease &&
-        !reducedMotion &&
-        !o.capture &&
-        shownArea &&
-        kind === built.kind &&
-        depth === built.layout.depth
-      ) {
+      // from, or the new room asks for the other view, seen from elsewhere and framed at once. A
+      // new depth builds the block anew first, and the camera glides on to frame it.
+      const asked = asks(area);
+      const { kind, depth } = asked;
+      if (ease && !reducedMotion && !o.capture && shownArea && kind === built.kind) {
+        if (depth !== built.layout.depth) rebuild(kind, depth);
         // Where it lands: the pose that frames the new area, fitted without moving the camera.
         cam.setLayout(stage.width, stage.height, area);
         const toPose = cam.poseFor(viewOf(built.layout, kind));
@@ -590,7 +589,7 @@ async function buildLabScene(
         return;
       }
       glide = null;
-      frameArea(area);
+      frameArea(area, false, asked);
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
         placeLabels();
