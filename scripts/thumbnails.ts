@@ -95,8 +95,8 @@ const SHOTS: Shot[] = [
     path: 'utilities/gas-petroleum/?tier=high&capture',
     ready: dioramaReady,
     hide: DIORAMA_CHROME,
-    // The whole model, apart from the hero's slice of it.
-    crop: { x: 120, y: 110, width: 1040 },
+    // The whole model, from the core sample's column to the town, apart from the hero's slice.
+    crop: { x: 64, y: 100, width: 1136 },
   },
 ];
 

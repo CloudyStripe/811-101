@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
 import { SECTIONS } from '../../content/portal.ts';
 import { PAGES, lessonPage, lessonTransition, pageById, posterPath } from './pages.ts';
-import { BOOT, CARDS_SLOT, HERO_SLOT, LOADER_SLOT, renderPage } from './shell.ts';
+import { BOOT, CARDS_NAME, CARDS_SLOT, HERO_SLOT, LOADER_SLOT, renderPage } from './shell.ts';
 import { HERO_SHAPES, THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 const render = (page: (typeof PAGES)[number]) => renderPage(readFileSync(page.html, 'utf8'), page);
@@ -88,7 +88,11 @@ describe('renderPage', () => {
   });
 
   it('the portal: a card for each lesson, with its preview in each theme, then what’s coming', () => {
-    const html = render(pageById('portal'));
+    const page = render(pageById('portal'));
+    // The cards' list alone, not the footer's lessons.
+    const start = page.indexOf(`<ul class="cards" aria-label="${escapeHtml(CARDS_NAME)}">`);
+    const html = page.slice(start, page.indexOf('</ul>', start));
+    expect(start).toBeGreaterThan(0);
     // Each section's first card carries its id: the lessons' first, then what's coming.
     const ids = [...html.matchAll(/<li id="([^"]+)" class="card/g)].map(([, id]) => id);
     const live = SECTIONS.filter((s) => s.lessons.length > 0);

@@ -13,6 +13,7 @@ import { BRAND, SITE_URL } from '../../config/brand.ts';
 import { SECTIONS, type Lesson } from '../../content/portal.ts';
 import { THEMES } from '../../src/design/tokens.ts';
 import { PAGES, lessonPage, lessonTransition, pageById } from '../../src/site/pages.ts';
+import { CARDS_NAME } from '../../src/site/shell.ts';
 import { SETTINGS_KEY } from '../../src/site/settings.ts';
 import { PREVIEW_SIZE, heroPath, previewPath } from '../../src/site/stills.ts';
 import { expect, loadImages, test, waitReady } from './fixtures.ts';
@@ -39,7 +40,7 @@ async function expectNoViolations(page: Page) {
 test('the portal’s cards show every lesson and section, and what’s coming', async ({ page }) => {
   await openPortal(page);
   await expect(page).toHaveTitle(BRAND.name);
-  const cards = page.getByRole('list', { name: 'Lessons' }).getByRole('listitem');
+  const cards = page.getByRole('list', { name: CARDS_NAME }).getByRole('listitem');
   const lessons = SECTIONS.flatMap((section) => section.lessons);
   const coming = SECTIONS.filter((section) => section.lessons.length === 0);
   await expect(cards).toHaveCount(lessons.length + coming.length);
@@ -95,7 +96,7 @@ test.describe('on a desktop', () => {
     for (const part of [
       page.getByRole('heading', { level: 1 }),
       page.locator('.hero-image'),
-      ...(await page.getByRole('list', { name: 'Lessons' }).getByRole('listitem').all()),
+      ...(await page.getByRole('list', { name: CARDS_NAME }).getByRole('listitem').all()),
     ]) {
       const box = await part.boundingBox();
       expect((box?.y ?? Infinity) + (box?.height ?? 0)).toBeLessThanOrEqual(screen);

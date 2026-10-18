@@ -28,6 +28,9 @@ export const HERO_SLOT = '<!-- portal-hero -->';
 /** Where the cards go in the portal's static shell. */
 export const CARDS_SLOT = '<!-- portal-cards -->';
 
+/** What the cards' list is named for readers: the lessons, then what's to come. */
+export const CARDS_NAME = 'Lessons, and what’s coming';
+
 const attr = escapeHtml;
 
 /** The head's tags, after the page's own. */
@@ -178,7 +181,8 @@ export function cardsHtml(): string {
       // The link covers the whole card, so anywhere on it opens the lesson.
       `<h2 class="card-title"><a class="card-link" href="${BASE_PATH}${lesson.href}">${escapeHtml(lesson.title)}</a>${iconSlot('forward', 'card-arrow')}</h2>`,
       `<p class="card-summary">${escapeHtml(lesson.summary)}</p>`,
-      `<p class="card-section">${iconSlot(section.icon, 'card-icon')}<span><strong>${escapeHtml(section.title)}</strong> ${escapeHtml(section.summary)}</span></p>`,
+      // A stop between the section's name and its line, heard but not seen.
+      `<p class="card-section">${iconSlot(section.icon, 'card-icon')}<span><strong>${escapeHtml(section.title)}</strong><span class="sr-only">:</span> ${escapeHtml(section.summary)}</span></p>`,
       '</div></li>',
     ].join('');
   };
@@ -198,7 +202,7 @@ export function cardsHtml(): string {
     ),
     ...SECTIONS.filter((section) => section.lessons.length === 0).map(soonCard),
   ];
-  return `<ul class="cards" aria-label="Lessons">${cards.join('')}</ul>`;
+  return `<ul class="cards" aria-label="${attr(CARDS_NAME)}">${cards.join('')}</ul>`;
 }
 
 /**

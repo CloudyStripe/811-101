@@ -166,8 +166,8 @@ export function stopAim(model: StopModel): { from: Point; to: Point } {
  * view has, at about a third of it, with the markers of the stops it leads to (`inSight`) on
  * screen too, the camera standing back along its line as far as that takes (but for a stop framed
  * alone); no farther out for its subject than `STOP_SHOT.reach` of the overview's distance in that
- * room (`overview`), and no nearer than it comes. The camera's buttons and the guide leave that room, so nothing slides it
- * off center.
+ * room (`overview`), and no nearer than it comes. The camera's buttons and the guide leave that
+ * room, so nothing slides it off center.
  */
 export function stopShot(
   model: StopModel,

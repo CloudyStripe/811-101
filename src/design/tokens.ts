@@ -342,8 +342,10 @@ export const TYPE = {
  * between, so there are no jumps at breakpoints.
  */
 export const TYPE_SCALE = {
-  /** The portal's statement. 36 to 64 px. */
+  /** The portal's name, set as the wordmark. 36 to 64 px. */
   display: 'clamp(2.25rem, 1.5rem + 3.2vw, 4rem)',
+  /** The portal's line under its name. 17 to 22 px. */
+  lede: 'clamp(1.0625rem, 0.95rem + 0.5vw, 1.375rem)',
   /** A page's title. 22 to 28 px. */
   h1: 'clamp(1.375rem, 1.2rem + 0.75vw, 1.75rem)',
   /** Sections. 20 to 22 px. */

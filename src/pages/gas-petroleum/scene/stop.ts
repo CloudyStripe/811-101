@@ -35,7 +35,7 @@ export interface StopModel {
   /**
    * The camera's direction at this stop: from where, at what. The fit sets the distance. `alone`:
    * framed for its subject alone, at a third of the view, with the stop it leads to in sight only
-   * where it fits then (the step bar says where Next goes).
+   * where it fits then (the step bar's Next goes on to it).
    */
   view: { from: Point; to: Point; alone?: boolean };
   /** What must be in view at this stop, beyond its hit volumes and details. */
