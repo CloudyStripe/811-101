@@ -312,6 +312,8 @@ test("the parts' labels hide and show from the dock, and the stops' markers stay
   await expect(parts.first()).toBeVisible();
   const toggle = dock(page).getByRole('button', { name: 'Labels on the parts' });
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // On a wide screen it says its word, as the lab's does.
+  await expect(toggle.getByText('Labels', { exact: true })).toBeVisible();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(parts).toHaveCount(0);

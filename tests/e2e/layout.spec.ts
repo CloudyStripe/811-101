@@ -438,6 +438,7 @@ for (const size of SIZES.filter((s) =>
       if (await openGuide.isVisible()) {
         await openGuide.click();
         await expect(page.locator('.gp-grid')).toHaveAttribute('data-panel', 'open');
+        await expectChromeApart(page);
         await expectStepBarFits(page, 'the guide open at the fork');
         await page.locator('.gp-panel').getByRole('button', { name: 'Choose a path' }).click();
         await page
@@ -445,6 +446,7 @@ for (const size of SIZES.filter((s) =>
           .getByRole('button', { name: /Natural gas path/ })
           .click();
         await expect(page.locator('.gp-panel')).toContainText('Step 5 of 9');
+        await expectChromeApart(page);
         await expectStepBarFits(page, 'the guide open on the natural gas path');
       }
       // With the sheet open: where it covers the view, the camera's buttons go out of sight and

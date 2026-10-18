@@ -378,6 +378,27 @@ describe('placeMarkers', () => {
     }
   });
 
+  it("keeps the other badges clear of a lit marker's name, as the open stop's, however crowded", () => {
+    // A row 60 px apart, the lit one in the middle: its name would cover a badge either side.
+    const row = [0, 1, 2, 3, 4].map((i) =>
+      marker(
+        `m${String(i)}`,
+        { x: 200 + i * 60, y: 300 },
+        i === 2 ? { focused: true, lit: true } : { priority: 5 - i },
+      ),
+    );
+    const placed = shown(placeAll(row));
+    expect(placed).toHaveLength(5);
+    const lit = placed.find((p) => p.id === 'm2');
+    if (!lit) throw new Error('not shown');
+    expect(lit.state).toBe('');
+    for (const b of placed) {
+      if (b === lit) continue;
+      expect(overlap(lit.rect, badgeOf(b)), `the lit name over ${b.id}`).toBe(false);
+      if (b.state === '') expect(overlap(lit.rect, b.rect), `over ${b.id}'s name`).toBe(false);
+    }
+  });
+
   it('puts a name on the left of its badge where the right runs out of view', () => {
     const p = placeAll([marker('edge', { x: 760, y: 300 })]).get('edge');
     expect(p?.state).toBe('');

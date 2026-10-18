@@ -1,8 +1,9 @@
 /**
  * The diorama's controls, in thumb reach on phones: which path to show, a pause for the model's
  * motion, and a toggle for the small labels on the stops' parts (the stops' markers always show),
- * remembered like the other settings. The steps have their own bar, in the guide (StepBar), and the
- * camera's buttons sit in the view's corner (ViewControls).
+ * remembered like the other settings, named as in the lab, but on phones and short screens by its
+ * icon alone. The steps have their own bar, in the guide (StepBar), and the camera's buttons sit
+ * in the view's corner (ViewControls).
  */
 import { PATH_NAMES } from '../../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../../design/icons.tsx';
@@ -80,6 +81,7 @@ export function Dock(props: {
           }}
         >
           <Icon name="labels" />
+          <span class="dock-labels-word">Labels</span>
         </button>
       </div>
     </section>

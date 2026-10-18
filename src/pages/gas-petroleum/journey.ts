@@ -60,6 +60,21 @@ export function journeyAt(stop: StopId, path: PathKey | null = null): Journey {
   return { path: on, index: Math.max(0, stopsOf(on).indexOf(stop)), quiz: false };
 }
 
+/**
+ * The stops a stop's view keeps in sight: where it leads, the next along its path (at the fork,
+ * both ways on), or at a path's end, where it came from.
+ */
+export function stopsInSight(stop: StopId): StopId[] {
+  if (stop === FORK) return PATHS.flatMap((p) => stopsOf(p)[SHARED.length] ?? []);
+  const shared = SHARED.indexOf(stop);
+  if (shared >= 0) return SHARED.slice(shared + 1, shared + 2);
+  const seq = stopsOf(PATHS.find((p) => stopsOf(p).includes(stop)) ?? null);
+  const i = seq.indexOf(stop);
+  if (i < 0) return [];
+  const near = i < seq.length - 1 ? seq[i + 1] : seq[i - 1];
+  return near ? [near] : [];
+}
+
 /** The stop the journey is at, or null at its quiz. */
 export function stopAt(journey: Journey): StopId | null {
   return journey.quiz ? null : (stopsOf(journey.path)[journey.index] ?? null);

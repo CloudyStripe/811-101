@@ -29,6 +29,7 @@ import { OrbitRig, type AtLimits } from '../../../kit3d/orbit.ts';
 import { createPost, preloadPost } from '../../../kit3d/post.ts';
 import type { Tier } from '../../../kit3d/quality.ts';
 import { SceneRuntime } from '../../../kit3d/runtime.ts';
+import { stopsInSight } from '../journey.ts';
 import { clockText } from '../summary.ts';
 import { padsOn, setDimColor } from './build.ts';
 import { DetailLayer, type Rect } from './details.ts';
@@ -447,8 +448,8 @@ async function buildDiorama(
   function poseIn(area: VisibleArea): CameraPose {
     const model = modelOf(shown);
     if (!model) return overviewPoseIn(area);
-    const view = stopShot(model);
-    return fitIn(area, view);
+    const inSight = stopsInSight(model.id).flatMap((id) => modelOf(id) ?? []);
+    return fitIn(area, stopShot(model, inSight, overviewReach(area)));
   }
 
   /**

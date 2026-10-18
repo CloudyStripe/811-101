@@ -13,6 +13,7 @@ import {
   progressOf,
   reach,
   stopAt,
+  stopsInSight,
   type Journey,
 } from './journey.ts';
 
@@ -104,5 +105,17 @@ describe('the journey', () => {
       ...TOURS.gasoline.stops.slice(TOURS.gasoline.stops.indexOf('distillation')),
       null,
     ]);
+  });
+
+  it("keeps where each stop leads in its view: the next stop, both ways on at the fork, or back at a path's end", () => {
+    expect(stopsInSight('formation')).toEqual(['reservoir']);
+    expect(stopsInSight(FORK)).toEqual(['gas-plant', 'crude-transport']);
+    expect(stopsInSight('storage-lng')).toEqual(['city-gate']);
+    expect(stopsInSight('city-gate')).toEqual(['gas-uses']);
+    expect(stopsInSight('gas-uses')).toEqual(['city-gate']);
+    expect(stopsInSight('pump')).toEqual(['delivery']);
+    for (const id of new Set([...TOURS.gas.stops, ...TOURS.gasoline.stops])) {
+      expect(stopsInSight(id).length, id).toBeGreaterThan(0);
+    }
   });
 });

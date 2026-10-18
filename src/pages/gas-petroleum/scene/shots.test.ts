@@ -2,9 +2,9 @@
  * The diorama's shots and the camera's limits, checked through the page's own camera: framed by
  * LabCamera into the room the guide, the dock and the camera's buttons leave, then projected to CSS
  * pixels. What each shot must show lands in that room and out from under the controls. Every stop's
- * subject sits at the middle of the room and fills it, as the biggest thing in view, near enough
- * for the ground's whole night grade, which the overview never gets. The phone's overview fills its
- * width. However the reader moves it, the camera stays above the grass.
+ * subject sits at the middle of the room at about a third of it, with the marker of the stop it
+ * leads to in view, near enough for the ground's night grade, which the overview never gets. The
+ * phone's overview fills its width. However the reader moves it, the camera stays above the grass.
  */
 import { PerspectiveCamera, Spherical, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ import {
   CLEARANCE,
   ORBIT,
   ORBIT_STEP,
+  STOP_SHOT,
   nearestAt,
   nightGradeAt,
   orbitBounds,
@@ -22,7 +23,7 @@ import {
   stopAim,
   stopShot,
 } from './shots.ts';
-import { SHARED } from '../journey.ts';
+import { SHARED, stopsInSight } from '../journey.ts';
 import type { StopModel } from './stop.ts';
 import { buildStops } from './stops/index.ts';
 
@@ -94,6 +95,22 @@ const SWEEP = [
     canvas: { width, height },
     area: { x: 356, y: 58, width: width - 356, height: height - 116 },
   })),
+  // Wide screens with the guide closed, its title over the view's upper right.
+  ...[
+    [1920, 1080],
+    [2560, 1080],
+    [3440, 1440],
+  ].map(([width = 0, height = 0]) => ({
+    name: `${String(width)} x ${String(height)}, guide closed`,
+    canvas: { width, height },
+    area: {
+      x: 0,
+      y: 58,
+      width,
+      height: height - 208,
+      keepOut: [{ x: width - 443, y: 66, width: 427, height: 54 }],
+    },
+  })),
 ];
 
 /** The camera, framed for this view in this room. */
@@ -145,23 +162,38 @@ function expectFramed(view: View, layout: (typeof LAYOUTS)[number]) {
   }
 }
 
-/** A stop's shot in a room, as the scene takes it, and how near it stands, against the overview. */
-function shotIn(model: StopModel, layout: (typeof LAYOUTS)[number]) {
+/**
+ * A stop's shot in a room, as the scene takes it: with the stops it leads to in sight, and the
+ * overview's distance in that room, which sets how far out it may stand for its subject.
+ */
+function stopShotIn(model: StopModel, layout: (typeof LAYOUTS)[number]) {
   const overview = distanceFor(overviewView(overviewPoints(models), tall(layout.area)), layout);
-  const shot = stopShot(model);
+  const inSight = stopsInSight(model.id).flatMap((id) => models.filter((m) => m.id === id));
+  return { shot: stopShot(model, inSight, overview), overview };
+}
+
+/** A stop's shot in a room, and how near it stands, against the overview. */
+function shotIn(model: StopModel, layout: (typeof LAYOUTS)[number]) {
+  const { shot, overview } = stopShotIn(model, layout);
   return { shot, overview, share: distanceFor(shot, layout) / overview };
 }
 
 describe('stop shots', () => {
   for (const layout of LAYOUTS) {
     it.each(models.map((m) => [m.id, m] as const))(
-      `${layout.name}: %s shows all it must, centered in the room and filling it`,
+      `${layout.name}: %s shows all it must, centered at about a third of the room, and where it leads`,
       (_id, model) => {
-        const { shot } = shotIn(model, layout);
+        const { shot, share, overview } = shotIn(model, layout);
         expectFramed(shot, layout);
         const { area } = layout;
-        const xs = onCanvas(shot, layout).map((q) => ((q.x - area.x) / area.width) * 2 - 1);
-        const ys = onCanvas(shot, layout).map((q) => 1 - ((q.y - area.y) / area.height) * 2);
+        /** Canvas pixels in the room's own -1 to 1 units, y up. */
+        const inRoom = (q: { x: number; y: number }) => ({
+          x: ((q.x - area.x) / area.width) * 2 - 1,
+          y: 1 - ((q.y - area.y) / area.height) * 2,
+        });
+        const subject = onCanvas(shot, layout).map(inRoom);
+        const xs = subject.map((q) => q.x);
+        const ys = subject.map((q) => q.y);
         const [x0, x1, y0, y1] = [
           Math.min(...xs),
           Math.max(...xs),
@@ -171,8 +203,24 @@ describe('stop shots', () => {
         // Centered...
         expect(Math.abs(x0 + x1) / 2, 'across').toBeLessThan(0.02);
         expect(Math.abs(y0 + y1) / 2, 'up and down').toBeLessThan(0.02);
-        // ...and filling the room but for its margin, one way or the other, unless the camera
-        // already stands as near as it comes.
+        // ...with the markers of the stops it leads to on screen, inside their margin and out
+        // from under the controls...
+        const edge = 1 - STOP_SHOT.nextMargin;
+        const next = onCanvas(shot, layout, shot.alsoSee ?? []).map((q) => ({ q, ...inRoom(q) }));
+        expect(next.length).toBeGreaterThan(0);
+        for (const n of next) {
+          const at = `next marker at ${n.x.toFixed(2)},${n.y.toFixed(2)}`;
+          expect(n.q.inFront, at).toBe(true);
+          expect(Math.max(Math.abs(n.x), Math.abs(n.y)), at).toBeLessThanOrEqual(edge + 0.01);
+          for (const k of area.keepOut ?? []) {
+            const under =
+              n.q.x > k.x && n.q.x < k.x + k.width && n.q.y > k.y && n.q.y < k.y + k.height;
+            expect(under, `${at} under the controls`).toBe(false);
+          }
+        }
+        // ...and the subject at a third of the room, one way or the other: less where the camera
+        // stands back to show where the stop leads, or as near as it comes, and more only where
+        // a tall subject would take it farther out than its reach.
         const limit = fitLimits(
           { from: shot.position, to: shot.target, mustSee: [], labelRoom: shot.labelRoom },
           { width: area.width, height: area.height, canvasHeight: layout.canvas.height },
@@ -180,8 +228,12 @@ describe('stop shots', () => {
         );
         const fills = Math.max((x1 - x0) / (2 * limit.x), (y1 - y0) / (2 * limit.y));
         const { pose } = framedFor(shot, layout);
-        const nearest = pose.position.distanceTo(pose.target) <= nearestAt(pose.target.y) * 1.01;
-        expect(fills >= 0.98 || nearest, `fills ${fills.toFixed(2)}`).toBe(true);
+        const distance = pose.position.distanceTo(pose.target);
+        const nearest = distance <= nearestAt(pose.target.y) * 1.01;
+        const standsBack = distance > distanceFor(stopShot(model, [], overview), layout) * 1.005;
+        const reached = share >= STOP_SHOT.reach - 0.005;
+        expect(fills >= 0.98 || standsBack || nearest, `fills ${fills.toFixed(2)}`).toBe(true);
+        expect(fills <= 1.02 || reached, `fills ${fills.toFixed(2)}`).toBe(true);
       },
     );
   }
@@ -202,7 +254,7 @@ describe('stop shots', () => {
       const overview = overviewView(overviewPoints(models), tall(layout.area));
       for (const [id, view] of [
         ['overview', overview] as const,
-        ...models.map((m) => [m.id, stopShot(m)] as const),
+        ...models.map((m) => [m.id, stopShotIn(m, layout).shot] as const),
       ]) {
         const { pose } = framedFor(view, layout);
         const at = `${layout.name}: ${id}`;
@@ -223,6 +275,20 @@ describe("the ground's night grade", () => {
       }
     });
   }
+
+  it('on screens of every shape, most of it at every stop, and all of it unless it stands back to show where it leads', () => {
+    for (const layout of SWEEP) {
+      for (const m of models) {
+        const { share, overview } = shotIn(m, layout);
+        const at = `${layout.name}: ${m.id}`;
+        expect(nightGradeAt(share), at).toBeGreaterThanOrEqual(0.75);
+        if (nightGradeAt(share) < 1) {
+          const alone = distanceFor(stopShot(m, [], overview), layout) / overview;
+          expect(share, at).toBeGreaterThan(alone * 1.005);
+        }
+      }
+    }
+  });
 
   it('none in the overview, or farther out, as the arrival starts and the reader zooms out', () => {
     for (const share of [0.95, 1, 1.2, ORBIT.far, 1.8, 3]) expect(nightGradeAt(share)).toBe(0);

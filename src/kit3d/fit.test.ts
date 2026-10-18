@@ -163,6 +163,38 @@ describe('fitShot', () => {
     expect(e.pose.target.distanceTo(free.pose.target)).toBeLessThan(1e-6);
   });
 
+  it('stands back along its line just far enough to show the points to see too, the others still centered', () => {
+    const free = extent(SHOT, WIDE);
+    const far: Point3 = [80, 0, 0];
+    const shot = { ...SHOT, alsoSee: [far], alsoMargin: 0.1 };
+    const e = extent(shot, WIDE);
+    expect(reach(e)).toBeGreaterThan(reach(free) * 1.03);
+    expect(Math.abs((e.x0 + e.x1) / 2)).toBeLessThan(0.01);
+    expect(Math.abs((e.y0 + e.y1) / 2)).toBeLessThan(0.01);
+    const camera = areaCamera(FOV, WIDE);
+    camera.position.copy(e.pose.position);
+    camera.lookAt(e.pose.target);
+    camera.updateMatrixWorld();
+    const v = new Vector3(...far).project(camera);
+    expect(Math.max(Math.abs(v.x), Math.abs(v.y))).toBeCloseTo(0.9, 2);
+    // One in view already (a corner of what it must show) changes nothing; one far off takes it
+    // past its farthest for the others.
+    const near = extent({ ...SHOT, alsoSee: [[30, 6, 4]] }, WIDE);
+    expect(near.pose.position.distanceTo(free.pose.position)).toBeLessThan(1e-6);
+    const capped = extent({ ...shot, maxDistance: reach(free) / 2 }, WIDE);
+    expect(reach(capped)).toBeCloseTo(reach(e), 3);
+  });
+
+  it('stands no farther than its farthest to fit its points, so they fill more of the area, centered', () => {
+    const free = extent(SHOT, WIDE, 0.5);
+    const farthest = reach(free) * 0.8;
+    const e = extent({ ...SHOT, maxDistance: farthest }, WIDE, 0.5);
+    expect(reach(e)).toBeCloseTo(farthest, 6);
+    expect(Math.max(e.x1 - e.x0, e.y1 - e.y0)).toBeGreaterThan(1.01);
+    expect(Math.abs((e.x0 + e.x1) / 2)).toBeLessThan(0.01);
+    expect(Math.abs((e.y0 + e.y1) / 2)).toBeLessThan(0.01);
+  });
+
   it('gives a finite pose for a single point', () => {
     const { pose } = extent({ ...SHOT, mustSee: [[5, 1, 0]] }, WIDE);
     for (const n of [...pose.position.toArray(), ...pose.target.toArray()]) {

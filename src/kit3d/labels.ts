@@ -260,6 +260,7 @@ export class LabelLayer {
         size: this.sizes.get(label.id) ?? { w: 120, h: 28 },
         visible,
         focused: isFocused,
+        lit: label.highlight === true && !label.hidden,
         badgeOnly: label.badgeOnly === true,
         below: label.below === true,
         offLine: label.offLine === true,
