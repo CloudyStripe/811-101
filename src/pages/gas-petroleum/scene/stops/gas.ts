@@ -319,7 +319,9 @@ export function cityGate(): StopModel {
     root,
     finishes,
     hits: [hit(cx, 1.2, cz, 4.8, 2.6, 4.8)],
-    view: { from: [27, 10, 3], to: [17.5, 1, -8.5] },
+    // Past the station, east to the town it feeds. The town's marker, high over the power plant,
+    // can't show behind the station with it at a third of the view, so the station has the view.
+    view: { from: [2.7, 10, -5.9], to: [17.5, 1, -8.5], alone: true },
     focus: [],
     label: { at: [17, 3.4, -9] },
     details: [

@@ -164,9 +164,9 @@ export function stopAim(model: StopModel): { from: Point; to: Point } {
 /**
  * A stop's shot: its subject (its parts, their details and its label) centered in the room the
  * view has, at about a third of it, with the markers of the stops it leads to (`inSight`) on
- * screen too, the camera standing back along its line as far as that takes; no farther out for its
- * subject than `STOP_SHOT.reach` of the overview's distance in that room (`overview`), and no
- * nearer than it comes. The camera's buttons and the guide leave that room, so nothing slides it
+ * screen too, the camera standing back along its line as far as that takes (but for a stop framed
+ * alone); no farther out for its subject than `STOP_SHOT.reach` of the overview's distance in that
+ * room (`overview`), and no nearer than it comes. The camera's buttons and the guide leave that room, so nothing slides it
  * off center.
  */
 export function stopShot(
@@ -185,7 +185,7 @@ export function stopShot(
     maxDistance: STOP_SHOT.reach * overview,
     floor: ORBIT.floor,
     nearestAt,
-    alsoSee: inSight.flatMap(markerPoints),
+    alsoSee: model.view.alone ? [] : inSight.flatMap(markerPoints),
     alsoMargin: STOP_SHOT.nextMargin,
   };
 }
