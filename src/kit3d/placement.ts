@@ -125,15 +125,25 @@ const GAP = 14;
 /** Room kept between labels and the view's edges. */
 const MARGIN = 4;
 
-/** A spot by a label's anchor, in steps of about its own size, or beside it, level with it. */
-type Spot = readonly [number, number] | 'left' | 'right';
+/**
+ * A spot by a label's anchor, in steps of about its own size, or beside it, level with it, or
+ * (`other`) on the other side of it from where it hangs, a step of its width to either side.
+ */
+type Spot = readonly [number, number] | 'left' | 'right' | readonly ['other', number];
+
+/** On the other side of the anchor, under a label that hangs over it (or over one that hangs under). */
+const OTHER_SIDE: readonly Spot[] = [
+  ['other', 0],
+  ['other', -1],
+  ['other', 1],
+];
 
 /**
  * Where a label may sit, nearest first: over its point (or under it), then to either side, then
  * beside the point, level with it, then a row or two further out, so labels on things close
  * together stack beside each other, each with its leader.
  */
-const SPOTS: readonly Spot[] = [
+const NEAR_SPOTS: readonly Spot[] = [
   [0, 0],
   [-1, 0],
   [1, 0],
@@ -146,6 +156,8 @@ const SPOTS: readonly Spot[] = [
   [-1, 2],
   [1, 2],
 ];
+/** And last, with no room on its side, on the other side of its point, before it gives way. */
+const SPOTS: readonly Spot[] = [...NEAR_SPOTS, ...OTHER_SIDE];
 /** The same, for a label on a line: a row further off before either side, so it hangs clear. */
 const OFF_LINE_SPOTS: readonly Spot[] = [
   [0, 0],
@@ -159,10 +171,14 @@ const OFF_LINE_SPOTS: readonly Spot[] = [
   [0, 2],
   [-1, 2],
   [1, 2],
+  ...OTHER_SIDE,
 ];
 
 const overlaps = (r: Rect, list: readonly Rect[]) =>
   list.some((q) => r.x < q.x + q.w && r.x + r.w > q.x && r.y < q.y + q.h && r.y + r.h > q.y);
+
+/** Whether a point lies inside a rectangle. */
+const holds = (r: Rect, p: Point) => p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h;
 
 /** How far a point is from a rectangle: 0 inside it. */
 function fromRect(x: number, y: number, r: Rect): number {
@@ -298,7 +314,9 @@ function spotsBy(
         ? { ...first, x: at.x - size.w - 10, y: level }
         : spot === 'right'
           ? { ...first, x: at.x + 10, y: level }
-          : { ...first, x: first.x + spot[0] * dx, y: first.y + spot[1] * dy };
+          : spot[0] === 'other'
+            ? { ...first, x: first.x + spot[1] * dx, y: over(at, size, !c.below).y }
+            : { ...first, x: first.x + spot[0] * dx, y: first.y + spot[1] * dy };
     const x = Math.min(Math.max(r.x, MARGIN), width - MARGIN - r.w);
     return Math.abs(x - r.x) <= r.w * 0.6 ? [{ ...r, x }] : [];
   });
@@ -325,12 +343,15 @@ export function placeLabels(
     x: Math.min(Math.max(r.x, bounds.x + MARGIN), bounds.x + bounds.w - MARGIN - r.w),
     y: Math.min(Math.max(r.y, bounds.y + MARGIN), bounds.y + bounds.h - MARGIN - r.h),
   });
+  /** Where the labels that show point, so none sits over another's point and its leader. */
+  let points: readonly { id: string; point: Point }[] = [];
   /**
    * Inside the view, clear of the controls and the labels placed, covering nothing kept clear or
-   * any leader, and its own leader to `point` under no label.
+   * any leader, nor another label's point, and its own leader to `point` under no label.
    */
-  const free = (point: Point | null) => (r: Rect) => {
+  const free = (point: Point | null, id: string) => (r: Rect) => {
     if (!inside(r) || overlaps(r, placed) || bands.some((band) => covers(band, r))) return false;
+    if (points.some((q) => q.id !== id && holds(r, q.point))) return false;
     const own = leaderOf(r, point);
     return !own || !shownRects.some((q) => crosses(own, q));
   };
@@ -362,6 +383,7 @@ export function placeLabels(
     else if (shown.length >= room.maxVisible) hide(c, 'capped');
     else shown.push(c);
   }
+  points = shown.flatMap((c) => (c.point ? [{ id: c.id, point: c.point }] : []));
   // Placed in turn: focused labels, then those tied to one point, then those with other places.
   shown.sort(
     (a, b) =>
@@ -377,7 +399,7 @@ export function placeLabels(
     const find = (size: { w: number; h: number }) => {
       for (const [at, p] of places.entries()) {
         if (!p) continue;
-        const r = spots(p, size, c).find(free(p.point));
+        const r = spots(p, size, c).find(free(p.point, c.id));
         if (r) return { r, at, p };
       }
       return null;
@@ -469,7 +491,7 @@ const APART = 2;
  * be, each find a place.
  */
 const MARKER_SPOTS: readonly Spot[] = [
-  ...SPOTS,
+  ...NEAR_SPOTS,
   [-2, 0],
   [2, 0],
   [-2, 1],
@@ -518,7 +540,6 @@ export function placeMarkers(
     x: Math.min(Math.max(r.x, b.x + MARGIN), b.x + b.w - MARGIN - r.w),
     y: Math.min(Math.max(r.y, b.y + MARGIN), b.y + b.h - MARGIN - r.h),
   });
-  const holds = (r: Rect, p: Point) => p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h;
   const inSight = (c: Candidate) =>
     c.visible &&
     c.at.x >= 0 &&

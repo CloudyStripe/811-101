@@ -147,7 +147,7 @@ describe('placeLabels', () => {
   });
 
   it('hangs a label off a line it would cover, on a leader to its point', () => {
-    // A line rising to the right, the label's anchor on it, as on a phone's three-quarter view.
+    // A line rising to the right, the label's anchor on it, as in a phone's view from the hookup end.
     const line: Band = { ax: 200, ay: 500, bx: 600, by: 100, r: 6 };
     const at = { x: 400, y: 300 };
     const placed = place([label('line', at, { offLine: true })], room({ keepClear: [line] }));
@@ -232,6 +232,44 @@ describe('placeLabels', () => {
     expect(placed.get('tied')?.rect).toEqual({ x: 350, y: 258, w: 100, h: 28 });
     expect(placed.get('movable')?.state).toBe('');
     expect(placed.get('movable')?.rect).not.toEqual(placed.get('tied')?.rect);
+  });
+
+  it("keeps a label off another's point, so that one's leader can reach it", () => {
+    // Two points close together under a band of controls, as the hookup is under a header: the
+    // first label, placed first, mustn't sit over the second's point.
+    const header = { x: 0, y: 0, w: 800, h: 280 };
+    const placed = place(
+      [
+        label('transmitter', { x: 440, y: 300 }, { priority: 2 }),
+        label('stake', { x: 400, y: 300 }, { priority: 1 }),
+      ],
+      room({ noGo: [header] }),
+    );
+    const tx = placed.get('transmitter')?.rect;
+    const stake = placed.get('stake')?.rect;
+    if (!tx || !stake) throw new Error('not both shown');
+    const holds = (r: Rect, p: Point) =>
+      p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h;
+    expect(holds(tx, { x: 400, y: 300 }), 'the transmitter over the stake').toBe(false);
+    expect(holds(stake, { x: 440, y: 300 }), 'the stake over the transmitter').toBe(false);
+  });
+
+  it('hangs a label on the other side of its point when its own side has no room, before it gives way', () => {
+    // Controls over everything above the point, and to either side of it, as under a header.
+    const above = { x: 0, y: 0, w: 800, h: 290 };
+    const left = { x: 0, y: 290, w: 330, h: 40 };
+    const right = { x: 470, y: 290, w: 330, h: 40 };
+    const placed = place(
+      [label('stake', { x: 400, y: 300 })],
+      room({ noGo: [above, left, right] }),
+    );
+    const r = placed.get('stake')?.rect;
+    expect(placed.get('stake')?.state).toBe('');
+    if (!r) throw new Error('not shown');
+    // Under its point, clear of it, on a leader up to it.
+    expect(r.y).toBeGreaterThan(300);
+    expect(r.x).toBeLessThan(400);
+    expect(r.x + r.w).toBeGreaterThan(400);
   });
 
   it("leaves a label's place empty when it has no room, rather than show one further down", () => {
