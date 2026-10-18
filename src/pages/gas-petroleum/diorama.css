@@ -1244,6 +1244,11 @@ nav.stepbar > :last-child {
   .gp-grid[data-panel='closed'] {
     grid-template-columns: minmax(0, 1fr) auto;
   }
+
+  /* The dock has the row's whole width under the guide's title, as the camera's buttons do. */
+  .gp-grid[data-panel='closed'] .gp-dock {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Phones, and short screens such as phones held sideways: the guide is a sheet. */
