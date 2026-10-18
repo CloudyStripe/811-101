@@ -85,8 +85,8 @@ const SHOTS: Shot[] = [
     path: 'training/frequency-lab/?setup=steel&f=33000&tier=high&capture',
     ready: labReady,
     hide: LAB_CHROME,
-    // Close on the hookup and the signal setting off along the main.
-    crop: { x: 40, y: 200, width: 600 },
+    // Close on the hookup and the signal setting off along the main, the street edge over them.
+    crop: { x: 40, y: 178, width: 600 },
   },
   {
     name: 'gas-petroleum',
