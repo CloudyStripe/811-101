@@ -34,14 +34,6 @@ How far past the hookup the model follows each line.
 
 **Why:** Well past the block, so the signal that continues beyond it is part of the model, and its return through the earth with it.
 
-### Water main crossing
-
-Where the unconnected water main crosses the target line, measured from the hookup.
-
-**Value:** 100 ft
-
-**Why:** Inside the block and well away from the hookup, so it reads as a separate feature.
-
 ### Fade along the line
 
 - **Fade on the coated steel main:** Share of the current still on the steel main after another 100 ft. The rest leaks into the soil.

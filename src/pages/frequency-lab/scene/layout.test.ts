@@ -43,18 +43,16 @@ describe.each(DEPTHS)('the layout at %i× depth', (depth) => {
       expect(lines[name].radius).toBeCloseTo(real[name].radius * depth);
       expect(lines[name].y).toBeCloseTo(real[name].y * depth);
     }
-    expect(lines.water.radius).toBeCloseTo(real.water.radius * depth);
   });
 
   it('keeps every line buried and clear of the others, in its true order', () => {
     const gap = (upper: { y: number; radius: number }, lower: { y: number; radius: number }) =>
       upper.y - upper.radius - (lower.y + lower.radius);
-    // Telecom over the gas main, both over the water main; the tracer rides on the plastic main.
+    // Telecom over the gas main; the tracer rides on the plastic main.
     expect(gap(lines.telecom, lines.steel)).toBeGreaterThan(0);
-    expect(gap(lines.steel, lines.water)).toBeGreaterThan(0);
     expect(gap(lines.tracer, lines.plastic)).toBeGreaterThanOrEqual(0);
     expect(gap(lines.tracer, lines.plastic)).toBeLessThan(0.1 * depth);
-    for (const line of [lines.telecom, lines.steel, lines.plastic, lines.water]) {
+    for (const line of [lines.telecom, lines.steel, lines.plastic]) {
       expect(line.y + line.radius).toBeLessThan(0);
       expect(line.y - line.radius).toBeGreaterThan(block.bottom);
     }
@@ -255,11 +253,6 @@ describe("the tall view's ground", () => {
   it('lets the lines lead the cut face, with well under half of it below the gas main', () => {
     const below = lines.steel.y - lines.steel.radius - block.bottom;
     expect(below / -block.bottom).toBeLessThan(0.4);
-  });
-
-  it('keeps the water main under the trench and in the slab', () => {
-    expect(lines.water.y + lines.water.radius).toBeLessThan(trench.bottom);
-    expect(lines.water.y - lines.water.radius).toBeGreaterThan(block.bottom);
   });
 });
 

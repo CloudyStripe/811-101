@@ -29,11 +29,10 @@ Every factual claim in the lessons, for locator sign-off.
 | `fl.rule.lowest` | Use the lowest frequency that works. | No | `350c026ea8` | Not reviewed |
 | `fl.rule.why` | Lower frequencies travel farther, and more of the signal stays on your line instead of spreading to others. | No | `87c560a153` | Not reviewed |
 | `fl.rule.higher` | Higher frequencies are for when a lower one can't get enough signal onto the line. | No | `d2919cbc8f` | Not reviewed |
-| `fl.key.colors` | Lines are colored like the paint marks locators use: yellow for gas, orange for communications, blue for drinking water. Real pipes aren't always those colors. | No | `1cee5ae665` | Not reviewed |
+| `fl.key.colors` | Lines are colored like the paint marks locators use: yellow for gas, orange for communications. Real pipes aren't always those colors. | No | `2c2ea70b6d` | Not reviewed |
 | `fl.about.model` | What you see comes from a simplified teaching model, not from measurements. | No | `645d47e9cb` | Not reviewed |
 | `fl.about.distances` | Distances are shortened so the frequencies are easy to compare. Real signals travel much farther, in the same order: lower frequencies farthest. | No | `7232499340` | Not reviewed |
 | `fl.about.slowed` | The signal is slowed way down so you can see it. | No | `05dcc81536` | Not reviewed |
-| `fl.about.water` | Here the water main gets no signal. In the field, a line crossing yours can pick some up. | No | `2df4a033da` | Not reviewed |
 | `fl.label.transmitter` | Puts the signal on the line. | No | `505c0e6273` | Not reviewed |
 | `fl.label.stake` | A metal rod in the soil. The signal returns to it, completing the loop. | No | `1f563fb29e` | Not reviewed |
 | `fl.label.test-station` | Where the transmitter connects to the steel main. | No | `12e8a9d4ef` | Not reviewed |
@@ -42,7 +41,6 @@ Every factual claim in the lessons, for locator sign-off.
 | `fl.label.plastic-main` | A plastic pipe carrying natural gas. Plastic can't carry the signal. | No | `b41b6a67c1` | Not reviewed |
 | `fl.label.tracer` | A wire buried with the plastic pipe. It carries the signal so the pipe can be found. | No | `a75e379e27` | Not reviewed |
 | `fl.label.telecom` | A phone or internet cable. Signal can bleed onto it. | No | `a6adc4fee5` | Not reviewed |
-| `fl.label.water` | A drinking water main crossing under the street. | No | `4f738077e1` | Not reviewed |
 | `fl.term.transmitter` | A device that puts a signal on a buried line. | No | `f09e236b25` | Not reviewed |
 | `fl.term.receiver` | A handheld device that picks up the signal from above ground, so the locator can follow the line. | No | `8b525fd540` | Not reviewed |
 | `fl.term.frequency` | How many times a second the signal repeats, in hertz (Hz). 8 kHz is 8,000 times a second. | No | `d04b4bcc70` | Not reviewed |
@@ -187,7 +185,6 @@ Teaching values from `src/signal/constants.ts`. `docs/SIGNAL_MODEL.md` explains 
 |---|---|---|---|
 | `model.block-length` | Block length: 140 ft. Long enough to see the signal fade in the 3D view, short enough to show street detail. | `5d6de62c12` | Not reviewed |
 | `model.model-length` | Model length: 500 ft. Well past the block, so the signal that continues beyond it is part of the model, and its return through the earth with it. | `24fdcd43ad` | Not reviewed |
-| `model.water-main-crossing` | Water main crossing: 100 ft. Inside the block and well away from the hookup, so it reads as a separate feature. | `0939f470ae` | Not reviewed |
 | `model.fade-on-the-coated-steel-main` | Fade on the coated steel main: 512 Hz: 0.93, 8 kHz: 0.72, 33 kHz: 0.2, 83 kHz: 0.04 (share left per 100 ft). Higher frequencies leak through the pipe coating into the soil more easily, so they fade sooner and don't travel as far. Compressed so the difference shows within one block: real lines fade far more gradually, in the same order. | `20f05c463a` | Not reviewed |
 | `model.fade-on-the-tracer-wire` | Fade on the tracer wire: 512 Hz: 0.95, 8 kHz: 0.8, 33 kHz: 0.5, 83 kHz: 0.19 (share left per 100 ft). The same trend as the steel main, compressed the same way. A thin insulated wire leaks less than the big coated main at every frequency. | `97e07655ea` | Not reviewed |
 | `model.bleed-over-onto-the-telecom-cable` | Bleed-over onto the telecom cable: 512 Hz: 0.02, 8 kHz: 0.06, 33 kHz: 0.15, 83 kHz: 0.32 (share of target current). Coupling onto a metal line running alongside grows with frequency, so higher frequencies bleed over more. | `ccd098cb0b` | Not reviewed |

@@ -16,7 +16,6 @@ export const ICONS = {
   gas: 'flame',
   // A phone, for telecommunications lines; Wi-Fi would mean wireless.
   telecom: 'phone',
-  water: 'drop',
   transmitter: 'radio',
   stake: 'push-pin',
   access: 'plug',

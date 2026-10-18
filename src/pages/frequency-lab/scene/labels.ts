@@ -5,8 +5,7 @@
 import type { SetupId } from '../../../signal/model.ts';
 import type { LabLayout, ViewKind } from './layout.ts';
 
-export type LabelId =
-  'transmitter' | 'stake' | 'access' | 'target' | 'tracer' | 'telecom' | 'water';
+export type LabelId = 'transmitter' | 'stake' | 'access' | 'target' | 'tracer' | 'telecom';
 
 export type Point3 = readonly [number, number, number];
 
@@ -14,9 +13,9 @@ export interface LabelSpec {
   id: LabelId;
   /** Text per setup; null hides the label in that setup. */
   text: Record<SetupId, string | null>;
-  icon: 'transmitter' | 'stake' | 'access' | 'gas' | 'wire' | 'telecom' | 'water';
+  icon: 'transmitter' | 'stake' | 'access' | 'gas' | 'wire' | 'telecom';
   /** APWA color code for line labels; equipment labels stay neutral. */
-  color?: 'yellow' | 'orange' | 'blue';
+  color?: 'yellow' | 'orange';
   priority: number;
   /** Labels on the cut face only show from in front of it. */
   onFace: boolean;
@@ -87,15 +86,6 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     color: 'orange',
     priority: 7,
     onFace: true,
-  },
-  {
-    id: 'water',
-    text: { steel: 'Water main', plastic: 'Water main' },
-    icon: 'water',
-    color: 'blue',
-    priority: 3,
-    onFace: true,
-    below: true,
   },
 ];
 
@@ -169,8 +159,5 @@ export function labelPlaces(layout: LabLayout, kind: ViewKind): Record<LabelId, 
       lines.telecom.y + lines.telecom.radius,
       lines.telecom.radius,
     ]),
-    water: {
-      anchor: same([lines.water.x, lines.water.y - lines.water.radius, lines.water.z1]),
-    },
   };
 }

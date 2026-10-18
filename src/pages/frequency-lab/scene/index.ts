@@ -146,16 +146,7 @@ function linesOf(layout: LabLayout, setup: SetupId): KeepClear[] {
     radius: line.radius,
   });
   const gas = setup === 'steel' ? [lines.steel] : [lines.plastic, lines.tracer];
-  const water = lines.water;
-  return [
-    tube(lines.telecom),
-    ...gas.map(tube),
-    // The water main crosses under the street, its end standing out of the cut face.
-    {
-      points: [new Vector3(water.x, water.y, 0), new Vector3(water.x, water.y, water.z1)],
-      radius: water.radius,
-    },
-  ];
+  return [tube(lines.telecom), ...gas.map(tube)];
 }
 
 function labelsFor(

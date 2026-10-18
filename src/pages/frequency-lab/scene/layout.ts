@@ -6,8 +6,8 @@
  * The block is a slab cut out of the ground, from the stake to the far end, and it's drawn deeper
  * than true: below ground every height is `depth` times its real value, and the lines are as many
  * times thicker, so the cut face reads as a broad band with the lines plain on it. The layers under
- * the gas main's trench, where only the water main lies, may be drawn flatter (`under`), so the
- * lines lead the face instead of a deep band of soil below them. The locating
+ * the gas main's trench, where nothing lies, may be drawn flatter (`under`), so the lines lead the
+ * face instead of a deep band of soil below them. The locating
  * equipment (transmitter, stake, access point and leads) is drawn `equipment` times its size, so
  * it reads beside the long block. The key says it's not to scale. Everything else above ground is
  * true size. Nothing here touches three.js, so the layout can be checked in plain tests.
@@ -48,8 +48,6 @@ export type StratumName = (typeof TRUE_STRATA)[number]['name'];
 
 /** The floor of the gas main's trench and the clay's top, at true depth: the layers under it may be drawn flatter. */
 const TRENCH_FLOOR = TRUE_STRATA[2].top;
-/** The clay's floor, at true depth: the water main lies in the clay. */
-const CLAY_FLOOR = TRUE_STRATA[2].bottom;
 
 export interface Stratum {
   name: StratumName;
@@ -108,7 +106,6 @@ export interface LabLayout {
     plastic: { y: number; radius: number; x0: number };
     tracer: { y: number; radius: number; x0: number };
     telecom: { y: number; radius: number; x0: number };
-    water: { x: number; y: number; radius: number; z0: number; z1: number };
   };
   hookup: {
     access: { x: number; z: number };
@@ -168,25 +165,12 @@ export function labLayout({ depth, under = depth, equipment = 1 }: LabLayoutOpti
   const strata = TRUE_STRATA.map((s) => ({ name: s.name, top: d(s.top), bottom: d(s.bottom) }));
   const steel = { y: d(-3.6), radius: 0.42 * depth, x0: -0.8 };
   const plastic = { y: d(-3.6), radius: 0.33 * depth, x0: -0.8 };
-  // The water main lies in the clay under the trench, kept whole in it while the clay is drawn
-  // thick enough. Drawn flatter than the main is thick, the clay can't hold it: it then lies just
-  // under the trench, reaching down into the gravel.
-  const waterRadius = 0.48 * depth;
-  const waterHighest = d(TRENCH_FLOOR) - waterRadius - 0.2;
-  const waterLowest = d(CLAY_FLOOR) + waterRadius + 0.2;
   const lines = {
     steel,
     plastic,
     tracer: { y: plastic.y + plastic.radius + 0.07 * depth, radius: 0.06 * depth, x0: -0.6 },
     // Ends where it turns back to its pedestal, so the ground stake stands clear of every line.
     telecom: { y: d(-2.3), radius: 0.18 * depth, x0: -13 },
-    water: {
-      x: GEOMETRY.waterCrossingAtFt.value,
-      y: Math.min(waterHighest, Math.max(waterLowest, d(-6.6))),
-      radius: waterRadius,
-      z0: block.z0,
-      z1: 0.35 * depth,
-    },
   };
   // Wide enough to hold the gas main, however thick it's drawn.
   const trench = {
@@ -200,7 +184,8 @@ export function labLayout({ depth, under = depth, equipment = 1 }: LabLayoutOpti
     stake: { x: -24, z: 0, tip: d(-2.6), top: 1.1 * k },
     pedestal: { x: -14, z: -4.3 },
   };
-  const hydrant = { x: GEOMETRY.waterCrossingAtFt.value + 4, z: -4.6 };
+  // A fire hydrant on the verge, most of the way along the block.
+  const hydrant = { x: 104, z: -4.6 };
   const tx = hookup.transmitter;
   const access = hookup.access;
   const stake = hookup.stake;

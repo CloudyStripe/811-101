@@ -95,8 +95,6 @@ ${single(GEOMETRY.blockLengthFt)}
 
 ${single(GEOMETRY.modelLengthFt)}
 
-${single(GEOMETRY.waterCrossingAtFt)}
-
 ${perFrequency('Fade along the line', [
   ['Coated steel main', FADE_PER_100FT.steel],
   ['Tracer wire', FADE_PER_100FT.tracer],

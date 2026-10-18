@@ -40,13 +40,6 @@ export const GEOMETRY = {
     value: 500,
     why: 'Well past the block, so the signal that continues beyond it is part of the model, and its return through the earth with it.',
   },
-  waterCrossingAtFt: {
-    name: 'Water main crossing',
-    meaning: 'Where the unconnected water main crosses the target line, measured from the hookup.',
-    unit: 'ft',
-    value: 100,
-    why: 'Inside the block and well away from the hookup, so it reads as a separate feature.',
-  },
 } as const satisfies Record<string, Constant<number>>;
 
 export const FADE_PER_100FT = {

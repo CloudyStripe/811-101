@@ -46,8 +46,7 @@ describe('constants', () => {
     }
   });
 
-  it('put the water crossing inside the block, and the block inside the model', () => {
-    expect(GEOMETRY.waterCrossingAtFt.value).toBeLessThan(GEOMETRY.blockLengthFt.value);
+  it('put the block inside the model', () => {
     expect(GEOMETRY.blockLengthFt.value).toBeLessThan(GEOMETRY.modelLengthFt.value);
   });
 });
@@ -142,12 +141,6 @@ describe('reach', () => {
     for (const s of STATES) {
       expect(reachFt(s.setup, s.frequency) >= GEOMETRY.blockLengthFt.value).toBe(s.works);
     }
-  });
-});
-
-describe('the water main', () => {
-  it.each(STATES)('$setup at $frequency Hz: carries no signal', (s) => {
-    expect(s.water.ma).toBe(0);
   });
 });
 

@@ -62,8 +62,8 @@ for (const theme of ['light', 'dark'] as const) {
         await open(page);
         await toggle(page, 'Key').click();
         const key = page.getByRole('region', { name: 'Key' });
-        await key.getByRole('button', { name: 'Water main' }).hover();
-        await expect(page.locator('[data-label="water"]')).toHaveClass(/\blit\b/);
+        await key.getByRole('button', { name: 'Telecom cable' }).hover();
+        await expect(page.locator('[data-label="telecom"]')).toHaveClass(/\blit\b/);
         await scan(page, `${theme} wide, key`);
         await page.getByRole('button', { name: 'Pause the signal' }).click();
         await scan(page, `${theme} wide, paused`);

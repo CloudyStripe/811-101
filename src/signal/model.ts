@@ -41,8 +41,6 @@ export interface LabState {
     readonly share: number;
     readonly points: readonly LinePoint[];
   };
-  /** The water main isn't connected to anything and carries no signal. */
-  readonly water: { readonly ma: 0; readonly crossingAt: number };
   readonly earth: {
     /** Current leaking from the target into the soil, per sample interval (x is its midpoint). */
     readonly leakage: readonly LinePoint[];
@@ -107,7 +105,6 @@ export function labState(setup: SetupId, frequency: Frequency): LabState {
     transmitter,
     target: { direction: 1, points },
     telecom: { direction: -1, share, points: points.map((p) => ({ x: p.x, ma: p.ma * share })) },
-    water: { ma: 0, crossingAt: GEOMETRY.waterCrossingAtFt.value },
     earth: {
       leakage,
       pastEnd: points.at(-1)?.ma ?? 0,

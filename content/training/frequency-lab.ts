@@ -143,7 +143,7 @@ export const KEY = {
   heading: 'Key',
   colors: claim(
     'fl.key.colors',
-    "Lines are colored like the paint marks locators use: yellow for gas, orange for communications, blue for drinking water. Real pipes aren't always those colors.",
+    "Lines are colored like the paint marks locators use: yellow for gas, orange for communications. Real pipes aren't always those colors.",
   ),
   /** Symbol explanations and the scale: they describe the lab's drawing, not the world. */
   signal:
@@ -164,10 +164,6 @@ export const ABOUT = {
       'Distances are shortened so the frequencies are easy to compare. Real signals travel much farther, in the same order: lower frequencies farthest.',
     ),
     claim('fl.about.slowed', 'The signal is slowed way down so you can see it.'),
-    claim(
-      'fl.about.water',
-      'Here the water main gets no signal. In the field, a line crossing yours can pick some up.',
-    ),
   ],
   /** Scope, not a claim. */
   leftOut:
@@ -200,7 +196,6 @@ export const LABEL_DEFINITIONS: Readonly<Record<LabelId, Claim | PerSetup<Claim>
     'A wire buried with the plastic pipe. It carries the signal so the pipe can be found.',
   ),
   telecom: claim('fl.label.telecom', 'A phone or internet cable. Signal can bleed onto it.'),
-  water: claim('fl.label.water', 'A drinking water main crossing under the street.'),
 };
 
 export function labelDefinition(id: LabelId, setup: SetupId): Claim {
