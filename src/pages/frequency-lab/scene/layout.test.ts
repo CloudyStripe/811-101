@@ -10,8 +10,7 @@ import { LabCamera, type VisibleArea } from '../../../kit3d/camera.ts';
 import {
   EQUIPMENT_SIZE,
   SURFACE,
-  VIEW_DEPTH,
-  VIEW_UNDER,
+  VIEW_GROUND,
   labLayout,
   layoutFor,
   tallView,
@@ -94,16 +93,34 @@ describe.each(DEPTHS)('the layout at %i× depth', (depth) => {
   });
 });
 
+describe('lines drawn thinner than the ground is deep', () => {
+  it('draws the lines `thick` times their true thickness, at the depths the ground puts them', () => {
+    const real = labLayout({ depth: 1 }).lines;
+    const { lines } = labLayout({ depth: 12, under: 1.5, thick: 5 });
+    for (const name of ['steel', 'plastic', 'tracer', 'telecom'] as const) {
+      expect(lines[name].radius).toBeCloseTo(real[name].radius * 5);
+    }
+    for (const name of ['steel', 'plastic', 'telecom'] as const) {
+      expect(lines[name].y).toBeCloseTo(real[name].y * 12);
+    }
+    // The tracer still rides on the plastic main.
+    const gap = lines.tracer.y - lines.tracer.radius - (lines.plastic.y + lines.plastic.radius);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThan(0.1 * 5);
+  });
+});
+
 describe.each(['wide', 'tall'] as const)("the %s view's layout", (kind) => {
   const layout = layoutFor(kind);
   const { hookup, terminals, leads, leadRadius } = layout;
   const k = EQUIPMENT_SIZE;
 
-  it('draws the ground as deep as the view asks, and the equipment larger than true', () => {
-    expect(layout.depth).toBe(VIEW_DEPTH[kind]);
-    expect(layout.under).toBe(VIEW_UNDER[kind]);
+  it('draws the ground as deep and the lines as thick as the view asks, and the equipment larger than true', () => {
+    expect(layout.depth).toBe(VIEW_GROUND[kind].depth);
+    expect(layout.under).toBe(VIEW_GROUND[kind].under);
+    expect(layout.thick).toBe(VIEW_GROUND[kind].thick);
     expect(layout.equipment).toBe(k);
-    expect(VIEW_DEPTH.tall).toBeGreaterThan(VIEW_DEPTH.wide);
+    expect(VIEW_GROUND.tall.thick).toBeGreaterThan(VIEW_GROUND.wide.thick);
   });
 
   it('runs every lead from its terminal on the transmitter to its clip', () => {
@@ -233,8 +250,8 @@ const CASES = [
   },
 ] as const;
 
-describe("the tall view's ground", () => {
-  const layout = layoutFor('tall');
+describe.each(['wide', 'tall'] as const)("the %s view's ground", (kind) => {
+  const layout = layoutFor(kind);
   const { strata, lines, trench, block, depth, under } = layout;
   const real = labLayout({ depth: 1 });
 
@@ -253,6 +270,15 @@ describe("the tall view's ground", () => {
   it('lets the lines lead the cut face, with well under half of it below the gas main', () => {
     const below = lines.steel.y - lines.steel.radius - block.bottom;
     expect(below / -block.bottom).toBeLessThan(0.4);
+  });
+
+  it('keeps every line buried, apart from the others, and in its trench', () => {
+    expect(lines.telecom.y + lines.telecom.radius).toBeLessThan(0);
+    expect(lines.telecom.y - lines.telecom.radius).toBeGreaterThan(
+      lines.steel.y + lines.steel.radius,
+    );
+    expect(lines.steel.y - lines.steel.radius).toBeGreaterThan(trench.bottom);
+    expect(-trench.zBack).toBeGreaterThan(lines.steel.radius * 1.5);
   });
 });
 
@@ -349,39 +375,51 @@ describe('views', () => {
 
 /**
  * The free area the page leaves the view at the sizes the lab is designed for: below the header
- * and above the console (or the open drawer), nothing else over it.
+ * and above the console (or the open drawer), nothing else over it. Where nothing but the console
+ * is open, the block fills it.
  */
 const ROOMS: {
   name: string;
   canvas: { width: number; height: number };
   area: VisibleArea;
   desktop?: boolean;
+  fills?: boolean;
 }[] = [
   {
     name: 'desktop',
     canvas: { width: 1440, height: 900 },
-    area: { x: 0, y: 58, width: 1440, height: 718 },
+    area: { x: 0, y: 58, width: 1440, height: 717 },
     desktop: true,
+    fills: true,
   },
   {
     name: 'desktop, guide open',
     canvas: { width: 1440, height: 900 },
-    area: { x: 0, y: 58, width: 1440, height: 340 },
+    area: { x: 0, y: 58, width: 1440, height: 348 },
   },
   {
     name: 'laptop',
+    canvas: { width: 1366, height: 768 },
+    area: { x: 0, y: 58, width: 1366, height: 585 },
+    fills: true,
+  },
+  {
+    name: 'small laptop',
     canvas: { width: 1024, height: 768 },
-    area: { x: 0, y: 58, width: 1024, height: 560 },
+    area: { x: 0, y: 58, width: 1024, height: 519 },
+    fills: true,
   },
   {
     name: 'tablet, upright',
     canvas: { width: 820, height: 1180 },
-    area: { x: 0, y: 58, width: 820, height: 950 },
+    area: { x: 0, y: 58, width: 820, height: 909 },
+    fills: true,
   },
   {
     name: 'phone',
     canvas: { width: 390, height: 844 },
-    area: { x: 0, y: 66, width: 390, height: 510 },
+    area: { x: 0, y: 58, width: 390, height: 519 },
+    fills: true,
   },
   {
     name: 'phone, sideways',
@@ -426,6 +464,18 @@ describe('framing at the sizes the lab is designed for', () => {
       if (room.desktop) {
         expect(face / (room.area.width * room.area.height)).toBeGreaterThanOrEqual(0.28);
       }
+    },
+  );
+
+  it.each(ROOMS.filter((r) => r.fills))(
+    '$name: the block fills the height between the header and the console, no band of sky under it',
+    (room) => {
+      const { view, px } = framed(room.canvas, room.area);
+      const ys = view.mustSee.map((p) => px(...p).y);
+      const above = Math.min(...ys) - room.area.y;
+      const under = room.area.y + room.area.height - Math.max(...ys);
+      expect(above / room.area.height, 'sky above').toBeLessThan(0.06);
+      expect(under / room.area.height, 'sky under').toBeLessThan(0.06);
     },
   );
 

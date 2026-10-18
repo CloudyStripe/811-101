@@ -4,10 +4,10 @@
  * street behind it (negative z).
  *
  * The block is a slab cut out of the ground, from the stake to the far end, and it's drawn deeper
- * than true: below ground every height is `depth` times its real value, and the lines are as many
- * times thicker, so the cut face reads as a broad band with the lines plain on it. The layers under
- * the gas main's trench, where nothing lies, may be drawn flatter (`under`), so the lines lead the
- * face instead of a deep band of soil below them. The locating
+ * than true: the ground the lines lie in is drawn `depth` times its real depth, and the lines
+ * `thick` times their real thickness, so the cut face reads as a broad band with the lines plain on
+ * it. The layers under the gas main's trench, where nothing lies, may be drawn flatter (`under`), so
+ * the lines lead the face instead of a deep band of soil below them. The locating
  * equipment (transmitter, stake, access point and leads) is drawn `equipment` times its size, so
  * it reads beside the long block. The key says it's not to scale. Everything else above ground is
  * true size. Nothing here touches three.js, so the layout can be checked in plain tests.
@@ -56,13 +56,15 @@ export interface Stratum {
 }
 
 export interface LabLayoutOptions {
-  /** How many times deeper than true the ground is drawn, and the lines thicker: 1 is to scale. */
+  /** How many times deeper than true the ground the lines lie in is drawn: 1 is to scale. */
   depth: number;
   /**
    * How many times deeper than true the layers under the gas main's trench are drawn: as deep as
    * the rest if left out. Fewer, and they're flattened under the lines.
    */
   under?: number;
+  /** How many times thicker than true the lines are drawn: as many as the ground is deep if left out. */
+  thick?: number;
   /** How many times its true size the locating equipment is drawn: 1 is to scale. */
   equipment?: number;
 }
@@ -71,16 +73,17 @@ export interface LabLayoutOptions {
 export type ViewKind = 'wide' | 'tall';
 
 /**
- * How deep each view draws the ground the lines lie in, and so how thick the lines: deeper in the
- * tall view, so they're drawn thick across a phone's narrow screen.
+ * How each view draws what's underground, in times true: the ground the lines lie in (`depth`),
+ * deep enough that the block fills the height between the header and the console; the layers under
+ * the trench, where nothing lies, flattened nearly to their true depth (`under`); and the lines
+ * (`thick`), thicker in the tall view, so they're drawn large across a phone's narrow screen.
  */
-export const VIEW_DEPTH: Readonly<Record<ViewKind, number>> = { wide: 3, tall: 7 };
-
-/**
- * How deep each view draws the layers under the gas main's trench: as deep as the rest from in
- * front, flattened in the tall view, so its thicker lines lead the cut face.
- */
-export const VIEW_UNDER: Readonly<Record<ViewKind, number>> = { wide: 3, tall: 2 };
+export const VIEW_GROUND: Readonly<
+  Record<ViewKind, Required<Omit<LabLayoutOptions, 'equipment'>>>
+> = {
+  wide: { depth: 13, under: 1.5, thick: 6 },
+  tall: { depth: 15, under: 1.5, thick: 9 },
+};
 
 /** How many times its true size the locating equipment is drawn, so it reads beside the block. */
 export const EQUIPMENT_SIZE = 2.5;
@@ -89,9 +92,12 @@ export const EQUIPMENT_SIZE = 2.5;
 const TRANSMITTER_TURN = -0.55;
 
 export interface LabLayout {
+  /** How many times deeper than true the ground the lines lie in is drawn. */
   depth: number;
   /** How many times deeper than true the layers under the gas main's trench are drawn. */
   under: number;
+  /** How many times thicker than true the lines are drawn. */
+  thick: number;
   /** Where a true height below ground, in feet, is drawn. */
   drawn: (y: number) => number;
   /** How many times its true size the locating equipment is drawn. */
@@ -155,22 +161,30 @@ export interface LabLayout {
 /** The far lawn, between the sidewalk and the back of the block. */
 const LAWN_Z = -37;
 
-/** The block's layout, drawn `depth` times deeper than true below ground, and `under` times below the trench. */
-export function labLayout({ depth, under = depth, equipment = 1 }: LabLayoutOptions): LabLayout {
+/**
+ * The block's layout: the ground the lines lie in drawn `depth` times deeper than true, the layers
+ * under the trench `under` times, and the lines `thick` times thicker.
+ */
+export function labLayout({
+  depth,
+  under = depth,
+  thick = depth,
+  equipment = 1,
+}: LabLayoutOptions): LabLayout {
   const d = (y: number) =>
     y >= TRENCH_FLOOR ? y * depth : TRENCH_FLOOR * depth + (y - TRENCH_FLOOR) * under;
   const k = equipment;
   const x1 = GEOMETRY.blockLengthFt.value + 6;
   const block = { x0: -34, x1, z0: -40, z1: 0, bottom: d(-10) };
   const strata = TRUE_STRATA.map((s) => ({ name: s.name, top: d(s.top), bottom: d(s.bottom) }));
-  const steel = { y: d(-3.6), radius: 0.42 * depth, x0: -0.8 };
-  const plastic = { y: d(-3.6), radius: 0.33 * depth, x0: -0.8 };
+  const steel = { y: d(-3.6), radius: 0.42 * thick, x0: -0.8 };
+  const plastic = { y: d(-3.6), radius: 0.33 * thick, x0: -0.8 };
   const lines = {
     steel,
     plastic,
-    tracer: { y: plastic.y + plastic.radius + 0.07 * depth, radius: 0.06 * depth, x0: -0.6 },
+    tracer: { y: plastic.y + plastic.radius + 0.07 * thick, radius: 0.06 * thick, x0: -0.6 },
     // Ends where it turns back to its pedestal, so the ground stake stands clear of every line.
-    telecom: { y: d(-2.3), radius: 0.18 * depth, x0: -13 },
+    telecom: { y: d(-2.3), radius: 0.18 * thick, x0: -13 },
   };
   // Wide enough to hold the gas main, however thick it's drawn.
   const trench = {
@@ -296,6 +310,8 @@ export function labLayout({ depth, under = depth, equipment = 1 }: LabLayoutOpti
   const mustSee: Point[] = [
     [block.x0, block.bottom, 0],
     [block.x1, block.bottom, 0],
+    [block.x0, 0.5, 0],
+    [block.x1, 0.5, 0],
     [block.x0, 0.5, block.z0],
     [block.x1, 0.5, block.z0],
     ...trees.map((t): Point => [t.x, t.height + 0.5, t.z]),
@@ -306,6 +322,7 @@ export function labLayout({ depth, under = depth, equipment = 1 }: LabLayoutOpti
   return {
     depth,
     under,
+    thick,
     drawn: d,
     equipment: k,
     block,
@@ -361,18 +378,19 @@ function slabView(
 
 /**
  * Wide screens: almost square to the cut face and a little above it, the lines running left to
- * right, turned a touch toward the hookup so the equipment stands clear of the face.
+ * right, turned a touch toward the hookup so the equipment stands clear of the face. A long lens,
+ * so perspective doesn't splay the deep face's top corners out past its foot.
  */
 export function wideView(layout: LabLayout): View {
-  return slabView(layout, -8, 15, { margin: 0.04, fov: 28 });
+  return slabView(layout, -8, 15, { margin: 0.04, fov: 20 });
 }
 
 /**
- * Tall screens: from the hookup end, at three-quarters, so the run recedes up the screen with the
- * hookup large at the bottom.
+ * Tall screens: from the hookup end and above, so the run recedes up the screen with the hookup
+ * large at the bottom, and the block fills a narrow screen's height.
  */
 export function tallView(layout: LabLayout): View {
-  return slabView(layout, -58, 20, { margin: 0.03, labelRoom: 18, fov: 50 });
+  return slabView(layout, -64, 26, { margin: 0.03, labelRoom: 18, fov: 50 });
 }
 
 /** A screen or free area this much taller than wide gets the tall view... */
@@ -415,5 +433,5 @@ export function viewFor(
 
 /** The layout each view is drawn with: the ground as deep as the view asks, the equipment large. */
 export function layoutFor(kind: ViewKind): LabLayout {
-  return labLayout({ depth: VIEW_DEPTH[kind], under: VIEW_UNDER[kind], equipment: EQUIPMENT_SIZE });
+  return labLayout({ ...VIEW_GROUND[kind], equipment: EQUIPMENT_SIZE });
 }

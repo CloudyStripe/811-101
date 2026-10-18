@@ -239,7 +239,7 @@ export function buildSetup(layout: LabLayout, setup: SetupId): Group {
           ...Array.from(
             { length: Math.floor((block.x1 - 20) / 40) + 1 },
             (_, i) => 20 + i * 40,
-          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02 * layout.depth, 0.05 * layout.depth)),
+          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02 * layout.thick, 0.05 * layout.thick)),
         ]),
         coating,
       ),

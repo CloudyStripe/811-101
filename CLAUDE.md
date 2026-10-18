@@ -54,9 +54,12 @@ An interactive learning site about buried utilities and line locating.
   tools and lines). The view is framed above whichever is open, so neither covers the lines; on
   short screens the drawer and console are a column beside the view. Nothing else sits over the
   view: the lesson's one line is in the guide, and the Key says the view isn't to scale.
-- **The lab's two views** (`layout.ts`): from in front on wide screens, the ground drawn 3× deep;
-  at three-quarters on tall ones, 7× deep so the lines are drawn thick, with the layers under the
-  gas main's trench flattened to 2× (`VIEW_UNDER`) so the lines lead the cut face.
+- **The lab's two views** (`layout.ts`): from in front on wide screens; on tall ones from the
+  hookup end and above. The ground the lines lie in is drawn deep (13×, 15× in the tall view:
+  `VIEW_GROUND`), so the block fills the height between the header and the console, with no band
+  of sky under it (tested); the layers under the gas main's trench, where nothing lies, are
+  flattened to 1.5×. The lines are drawn 6× thick (9× in the tall view), so they read on the deep
+  face without crowding it.
 - **3D labels** (`src/kit3d/labels.ts`; where they go is decided in `placement.ts`, a pure,
   tested function): the highest-priority labels show, up to a cap. They keep off the buried lines
   (`setKeepClear`) and each other's leaders, hanging further off a line, or further along it, on a
