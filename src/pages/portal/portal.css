@@ -1,7 +1,7 @@
 /*
- * The portal, about one screen on a desktop: the site's name and its line, a still of the diorama
- * the screen's whole width, and a large card for each lesson and for what's coming. The words
- * never sit on the picture, so they read the same in any theme.
+ * The portal, about one screen on a desktop: the whole diorama floating in its sky, the site's name
+ * and its line in the sky beside it, and a large card for each lesson and for what's coming, over
+ * the sky's foot. The ink reads clear on the sky in either theme, from its top down.
  */
 
 .portal {
@@ -11,20 +11,38 @@
   /* The content's width, and the gutter that centers it on wide screens, as the footer's is. */
   --measure: 76rem;
   --gutter: max(var(--page-pad), calc((100cqw - var(--measure)) / 2 + var(--page-pad)));
+  /* How far the cards come up over the hero's foot. */
+  --cards-up: 6rem;
   padding-bottom: var(--space-8);
 }
 
-/* The hero: the name and its line, below the site header, which floats over the page's top. */
+/*
+ * The hero: the diorama's own sky (the scene's gradient, from the tokens) across the screen's whole
+ * width, the model's still standing at its full height on the right, so the two skies meet with no
+ * edge, and the name in the sky on the left. It takes the height the rest of the screen leaves,
+ * so on a desktop the cards end on it, and leaves the name room beside the model. The site header
+ * floats over its top.
+ */
 .hero {
   display: grid;
-  gap: var(--space-5);
-  padding-top: calc(var(--header-h) + var(--space-4));
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+  height: clamp(22rem, min(100svh - 18rem, (100cqw - 23rem) / 1.216), 44rem);
+  padding: 0 var(--gutter);
+  background: linear-gradient(
+    var(--sky-zenith),
+    var(--sky-horizon) var(--sky-horizon-at),
+    var(--sky-below)
+  );
 }
 
+/* Level with the model, a little above the middle, clear of the cards over the foot. */
 .hero-text {
   display: grid;
   gap: var(--space-2);
-  padding: 0 var(--gutter);
+  padding-bottom: calc(var(--cards-up) / 2);
 }
 
 /* The site's name, set as its wordmark is: heavy and wide. */
@@ -39,23 +57,23 @@
 }
 
 .hero-line {
+  max-width: 26em;
   margin: 0;
-  color: var(--ink-2);
   font-size: var(--text-lede);
   line-height: 1.35;
   text-wrap: balance;
 }
 
 /*
- * The still: the diorama, the screen's whole width, in the reader's theme and the screen's shape.
- * Only the one that applies loads. It takes the height the rest of the screen leaves, so on a
- * desktop the cards end on it.
+ * The still, in the reader's theme and the screen's shape: only the one that applies loads. Its
+ * sides fade into the page's sky, which is the same, so no seam shows.
  */
 .hero-image {
   --hero: var(--hero-light-wide);
-  height: clamp(10rem, 100svh - 38rem, 24rem);
-  /* Cut more from the cut face than from the refinery's top, where the band is short. */
-  background: var(--hero) center 30% / cover no-repeat;
+  align-self: stretch;
+  aspect-ratio: 1642 / 1350;
+  background: var(--hero) center / cover no-repeat;
+  mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -68,12 +86,14 @@
   --hero: var(--hero-dark-wide);
 }
 
-/* The cards: three in a row on wide screens, then two, then one. */
+/* The cards, over the hero's foot: three in a row on wide screens, then two, then one. */
 .cards {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-5);
-  margin: var(--space-5) 0 0;
+  margin: calc(-1 * var(--cards-up)) 0 0;
   padding: 0 var(--gutter);
   list-style: none;
 }
@@ -298,19 +318,57 @@
   }
 }
 
-/* Phones: the still in a shape of its own. */
-@media (max-width: 760px) {
-  .hero {
-    gap: var(--space-4);
-    padding-top: calc(var(--header-h) + var(--space-3));
+/*
+ * Upright screens and phones: the name, then the model, then the cards. The name sits on a band of
+ * the sky's top color, where the model's still starts, so the two meet with no edge.
+ */
+@media (max-width: 760px), (max-width: 1023px) and (orientation: portrait) {
+  .portal {
+    --cards-up: 3rem;
   }
 
-  /* No taller than most of the screen, as on a phone held sideways. */
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0;
+    height: auto;
+    padding: 0;
+    background: var(--sky-zenith);
+  }
+
+  .hero-text {
+    padding: calc(var(--header-h) + var(--space-4)) var(--page-pad) var(--space-2);
+  }
+
+  .hero-image {
+    width: 100%;
+    mask-image: none;
+  }
+}
+
+/*
+ * Small phones: the model as a phone shows it, from the east, the name in the sky above it; then one
+ * card under another, what's coming as the lessons are.
+ */
+@media (max-width: 640px) {
+  .portal {
+    --cards-up: 1.5rem;
+  }
+
+  .hero-text,
+  .hero-image {
+    grid-area: 1 / 1;
+  }
+
+  .hero-text {
+    position: relative;
+    z-index: 1;
+    align-self: start;
+  }
+
   .hero-image {
     --hero: var(--hero-light-narrow);
-    height: auto;
-    max-height: 65svh;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 780 / 1240;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -322,10 +380,7 @@
   :root[data-theme='dark'] .hero-image {
     --hero: var(--hero-dark-narrow);
   }
-}
 
-/* Small phones: one card under another, what's coming as the lessons are. */
-@media (max-width: 640px) {
   .cards {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
@@ -345,14 +400,5 @@
     width: 34%;
     height: auto;
     max-height: 60%;
-  }
-}
-
-/* Short screens, as a phone held sideways: a slimmer band, so the cards start on the first screen. */
-@media (max-height: 500px) {
-  .hero-image {
-    height: 8rem;
-    max-height: none;
-    aspect-ratio: auto;
   }
 }

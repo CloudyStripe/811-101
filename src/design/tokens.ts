@@ -99,6 +99,12 @@ export interface Theme {
   scene: SceneTokens;
 }
 
+/**
+ * Where each of the sky's colors sits, from the top of the view (0) to the bottom (1): the 3D
+ * backdrop's gradient (src/kit3d/backdrop.ts), and the page's own sky around a still of it.
+ */
+export const SKY_STOPS = { zenith: 0, horizon: 0.62, below: 1 } as const;
+
 export const THEMES: Record<ThemeName, Theme> = {
   light: {
     chrome: {
@@ -435,10 +441,15 @@ function durations(moving: boolean): string {
   return `--dur-fast: ${ms(MOTION.micro)}; --dur: ${ms(MOTION.ui)}; --dur-slow: ${ms(MOTION.panel)};`;
 }
 
+/** The diorama's sky, so the page can carry it on around a still of the model (the portal). */
+function skyVars(s: SceneTokens): string {
+  return `--sky-zenith: ${s.skyZenith}; --sky-horizon: ${s.skyHorizon}; --sky-below: ${s.skyBelow};`;
+}
+
 /** CSS custom properties for both themes: OS preference by default, `data-theme` to override. */
 export function tokensCss(): string {
-  const light = chromeVars(THEMES.light.chrome, 'light');
-  const dark = chromeVars(THEMES.dark.chrome, 'dark');
+  const light = `${chromeVars(THEMES.light.chrome, 'light')} ${skyVars(THEMES.light.scene)}`;
+  const dark = `${chromeVars(THEMES.dark.chrome, 'dark')} ${skyVars(THEMES.dark.scene)}`;
   // --space-N is N × 4 px, for each step on the scale.
   const space = SPACE.map((px) => `--space-${String(px / 4)}: ${String(px)}px;`).join(' ');
   const type = Object.entries(TYPE_SCALE)
@@ -459,6 +470,7 @@ export function tokensCss(): string {
     `--ease: ${MOTION.ease}; --ease-in-out: ${MOTION.easeInOut};`,
     layers,
     `--panel-w: clamp(19rem, 27vw, 24rem);`,
+    `--sky-horizon-at: ${String(SKY_STOPS.horizon * 100)}%;`,
   ].join(' ');
   return [
     `:root { ${shared} ${light} }`,

@@ -22,15 +22,20 @@ An interactive learning site about buried utilities and line locating.
   the portal's hero and cards (icons included) into its HTML at build time. The portal is all
   static: its script only names a lesson's preview for the page change as the lesson opens. Pages'
   own HTML keeps only what's theirs; links in it use `%BASE%`.
-- **The portal:** about one screen on a desktop (tested at 1440 × 900): the site's name as the h1,
-  set as its wordmark, with its tagline under it; a still of the diorama the screen's whole width;
-  and a large card for each lesson, then one for each section still to come (811 Basics). A
-  lesson's card keeps its section's name and line, and a section's first card carries its id,
-  where a lesson's breadcrumb leads.
+- **The portal:** about one screen on a desktop (tested at 1440 × 900): the whole diorama floating
+  in its sky, with the site's name (the h1, set as its wordmark) and its tagline in the sky beside
+  it; then a large card for each lesson and one for each section still to come (811 Basics),
+  over the sky's foot. The page paints the diorama's own sky (`--sky-*`, from the scene tokens)
+  across the screen, and the model's still stands at the hero's full height, so the two skies
+  meet with no edge. On upright screens the name sits on a band of the sky's top color over the
+  model; on phones, in the sky above the model as a phone shows it. A lesson's card keeps its
+  section's name and line, and a section's first card carries its id, where a lesson's
+  breadcrumb leads.
 - **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme
   (and for the hero, per screen shape: a wide band, 4:3 on phones), named in `src/site/stills.ts`;
   only the reader's loads. `npm run thumbnails` makes them from the real 3D views: the hero is the
-  diorama's overview a step nearer, the Gas & Petroleum card its whole model.
+  diorama's overview two steps farther out, cut to the model and the sky's whole height (and the
+  phone's overview for phones); the Gas & Petroleum card is the refinery up close.
 - **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion. A
   lesson's preview carries on into its loader; a lesson page waits for the change to finish before
   replacing its static shell (`src/site/arrival.ts`), or the animation is cut short.
@@ -138,7 +143,7 @@ In the field, the color is the code.
 
 ## Tokens and design
 
-- **One source:** `src/design/tokens.ts` holds the chrome, scene palette, signal color, type stacks, and the type, spacing, motion, layer and elevation scales. The `virtual:tokens.css` module exposes them to CSS (`--text-*`, `--space-*`, `--dur*`, `--layer-*`, `--shadow-*`), and the 3D scene reads the same values.
+- **One source:** `src/design/tokens.ts` holds the chrome, scene palette, signal color, type stacks, and the type, spacing, motion, layer and elevation scales. The `virtual:tokens.css` module exposes them to CSS (`--text-*`, `--space-*`, `--dur*`, `--layer-*`, `--shadow-*`, and the diorama's sky, `--sky-*`), and the 3D scene reads the same values.
 - **Themes:** light and dark follow `prefers-color-scheme`, overridable with `data-theme`. Reduced motion follows the OS and `data-motion="reduce"`.
 - **The look:** a sunlit toy model. By day a blue sky and a low, warm sun with long shadows; by night a deep blue sky, moonlight, lit windows and street lamps. Up close in the diorama at night, the ground's cover (lawns, plants, paths, roads and pads, not built things or the cut face) is drawn dimmer, grayer and cooler, so the view reads as night and the lamps' pools show warm; the overview and the lab, where the model floats in the night sky, keep it as it is (`ground` in the scene tokens, `gradeAsGround` in `src/kit3d/materials.ts`, `nightGradeAt` in the diorama's `shots.ts`). The UI is white and cool near-black, with pill buttons and heavy type. Tests hold the sky blue, the grass green, the UI cool, and sunlight at least 2.5 times the shade; an e2e squint test checks the model stands clear of the sky in real frames.
 - **Finishes:** `FINISH` in `tokens.ts`: glossy paint with a clear coat on built things, matte on soil, grass, foliage, roofs and roads, and metal on steel.

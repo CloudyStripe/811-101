@@ -73,16 +73,16 @@ test('the portal’s cards show every lesson and section, and what’s coming', 
   }
 });
 
-test('the hero names the site and says what it is, over a still the screen’s whole width', async ({
+test('the hero names the site and says what it is, in the sky the screen’s whole width', async ({
   page,
 }) => {
   await openPortal(page);
   const hero = page.getByRole('region', { name: BRAND.name });
   await expect(hero.getByRole('heading', { level: 1 })).toHaveText(BRAND.name);
   await expect(hero).toContainText(BRAND.tagline);
-  const still = await hero.locator('.hero-image').boundingBox();
-  expect(still?.x).toBe(0);
-  expect(still?.width).toBe(page.viewportSize()?.width);
+  const sky = await hero.boundingBox();
+  expect(sky?.x).toBe(0);
+  expect(sky?.width).toBe(page.viewportSize()?.width);
 });
 
 test.describe('on a desktop', () => {
@@ -93,6 +93,18 @@ test.describe('on a desktop', () => {
     await loadImages(page);
     await expect(page.locator('#utilities')).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test('the name stands in the sky beside the whole model, clear of it', async ({ page }) => {
+    await openPortal(page);
+    const words = await page.locator('.hero-text').boundingBox();
+    const model = await page.locator('.hero-image').boundingBox();
+    if (!words || !model) throw new Error('no hero');
+    expect(words.x + words.width).toBeLessThanOrEqual(model.x);
+    // The model's still stands the hero's whole height, so its sky lines up with the page's.
+    const hero = await page.locator('.hero').boundingBox();
+    expect(model.y).toBe(hero?.y);
+    expect(model.height).toBeCloseTo(hero?.height ?? 0, 0);
   });
 
   test('the portal is one screen: everything but the footer shows without scrolling', async ({

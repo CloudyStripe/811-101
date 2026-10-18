@@ -3,7 +3,7 @@
  * lesson's look changes. It serves the site with Vite's dev server and opens each view with its
  * chrome hidden, then writes:
  * - the portal's stills, day and night (public/stills/): each lesson's preview, cropped to the
- *   scene, and the hero, a slice of the diorama, wide and narrow;
+ *   scene, and the hero, the whole diorama in its sky, wide and narrow;
  * - each 3D page's loader posters, day and night: small WebPs, shown blurred (public/posters/);
  * - share previews: 1200 × 630 JPEGs with the mark and the page's name (public/share/).
  * It stops without saving anything wrong: on a page error, a crop outside the 3D view, or an
@@ -69,16 +69,21 @@ async function dioramaReady(page: Page): Promise<void> {
   if (await close.isVisible()) await close.click();
 }
 
-/** The diorama's overview, a step nearer, by its own key: the hero's slice of the model. */
-async function dioramaNearer(page: Page): Promise<void> {
-  await dioramaReady(page);
-  const view = page.locator('canvas').first();
-  await view.focus();
-  await page.keyboard.press('+');
-  // Off the view again, or its focus ring would frame the still.
-  await view.blur();
-  // The move is a cut with reduced motion; give the view a frame or two to draw it.
-  await page.waitForTimeout(1500);
+/** The diorama, moved by its own keys: each move a cut, with reduced motion. */
+function dioramaMoved(keys: readonly string[]): (page: Page) => Promise<void> {
+  return async (page) => {
+    await dioramaReady(page);
+    const view = page.locator('canvas').first();
+    await view.focus();
+    for (const key of keys) {
+      await page.keyboard.press(key);
+      await page.waitForTimeout(300);
+    }
+    // Off the view again, or its focus ring would frame the still.
+    await view.blur();
+    // Give the view a frame or two to draw where it was moved to.
+    await page.waitForTimeout(1500);
+  };
 }
 
 const SHOTS: Shot[] = [
@@ -92,30 +97,37 @@ const SHOTS: Shot[] = [
   },
   {
     name: 'gas-petroleum',
-    path: 'utilities/gas-petroleum/?tier=high&capture',
-    ready: dioramaReady,
+    path: 'utilities/gas-petroleum/?stop=distillation&tier=high&capture',
+    ready: dioramaMoved(['+', '+']),
     hide: DIORAMA_CHROME,
-    // The whole model, from the core sample's column to the town, apart from the hero's slice.
-    crop: { x: 64, y: 100, width: 1136 },
+    // Close on the refinery, its wells and the gas station, apart from the hero's whole model.
+    crop: { x: 140, y: 120, width: 1040 },
   },
 ];
 
 /**
- * The portal's hero: the diorama's overview a step nearer, so a slice of the model fills the
- * screen's width, from its wells and the refinery to the gas station and the town. Captured at
- * 1600 × 900, one and a half times over (2400 × 1350 pixels), then cut: the wide band across the
- * middle, and for phones, 4:3 around the refinery.
+ * The portal's hero, the whole diorama in its sky. Wide: the overview two steps farther out, by
+ * its own key, at 1600 × 900 one and a half times over (2400 × 1350 pixels), cut to the model and
+ * a margin of sky either side, top to bottom. Narrow: the overview as a phone shows it, at
+ * 390 × 1000 twice over, so there's sky above the model for the site's name, cut under the model.
  */
-const HERO = {
-  path: 'utilities/gas-petroleum/?tier=high&capture',
-  ready: dioramaNearer,
-  hide: DIORAMA_CHROME,
-  viewport: { width: 1600, height: 900 },
-  scale: 1.5,
-};
-const HERO_CROPS = {
-  wide: { x: 0, y: 260, width: 2400, height: 640 },
-  narrow: { x: 600, y: 200, width: 1200, height: 900 },
+const HERO_SHOTS = {
+  wide: {
+    path: 'utilities/gas-petroleum/?tier=high&capture',
+    ready: dioramaMoved(['-', '-']),
+    hide: DIORAMA_CHROME,
+    viewport: { width: 1600, height: 900 },
+    scale: 1.5,
+    crop: { x: 342, y: 0, width: 1642, height: 1350 },
+  },
+  narrow: {
+    path: 'utilities/gas-petroleum/?tier=high&capture',
+    ready: dioramaReady,
+    hide: DIORAMA_CHROME,
+    viewport: { width: 390, height: 1000 },
+    scale: 2,
+    crop: { x: 0, y: 0, width: 780, height: 1240 },
+  },
 } as const;
 
 /** What each 3D page shows in its poster and share preview. */
@@ -343,13 +355,13 @@ try {
     }
   }
 
-  // The portal's hero, in each theme: the wide band, and for phones the narrow one, cut from
-  // the same capture.
+  // The portal's hero, in each theme and shape.
   for (const scheme of THEME_NAMES) {
-    const png = await still(browser, HERO, HERO.viewport, scheme, HERO.scale);
     for (const shape of HERO_SHAPES) {
+      const shot = HERO_SHOTS[shape];
+      const png = await still(browser, shot, shot.viewport, scheme, shot.scale);
       const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
-        encode(tab, png, HERO_SIZES[shape], 'image/webp', STILL_QUALITY, HERO_CROPS[shape]),
+        encode(tab, png, HERO_SIZES[shape], 'image/webp', STILL_QUALITY, shot.crop),
       );
       const path = `public/${heroPath(scheme, shape)}`;
       await writeFile(path, webp);

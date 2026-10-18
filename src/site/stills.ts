@@ -1,8 +1,8 @@
 /**
- * The portal's stills, in public/stills/ and made by `npm run thumbnails`: its hero, the diorama
- * in each theme, in a wide shape for the screen's whole width and a narrower one for phones; and
- * each lesson's preview, in each theme. Only one of each set loads: the reader's theme and screen
- * pick it.
+ * The portal's stills, in public/stills/ and made by `npm run thumbnails`: its hero, the whole
+ * diorama in its sky, in each theme, in a wide shape and a narrow one for phones; and each
+ * lesson's preview, in each theme. Only one of each set loads: the reader's theme and screen pick
+ * it.
  */
 import type { Lesson } from '../../content/portal.ts';
 import type { ThemeName } from '../design/tokens.ts';
@@ -14,12 +14,13 @@ export type HeroShape = 'wide' | 'narrow';
 export const HERO_SHAPES: readonly HeroShape[] = ['wide', 'narrow'];
 
 /**
- * The hero's shapes, in pixels: a band the screen's whole width, sharp on wide screens, its middle
- * kept on narrower ones; and 4:3 on phones.
+ * The hero's shapes, in pixels. Wide: the model from the south with a margin of sky either side,
+ * and the sky's whole height, top to bottom, so the page's own sky carries on from its edges.
+ * Narrow: the model as a phone shows it, from the east, with sky above it for the site's name.
  */
 export const HERO_SIZES: Readonly<Record<HeroShape, { width: number; height: number }>> = {
-  wide: { width: 2400, height: 640 },
-  narrow: { width: 800, height: 600 },
+  wide: { width: 1642, height: 1350 },
+  narrow: { width: 780, height: 1240 },
 };
 
 /** A lesson's preview, in pixels: 2:1, sharp at the portal's card size. */
