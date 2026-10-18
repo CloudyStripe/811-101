@@ -88,7 +88,7 @@ export const APWA: Record<ApwaCode, ApwaColor> = {
 };
 
 /** The APWA colors this lab uses. */
-export const LAB_APWA: readonly ApwaCode[] = ['yellow', 'orange', 'blue'];
+export const LAB_APWA: readonly ApwaCode[] = ['yellow', 'orange'];
 
 /** The colors the Gas & Petroleum diorama uses: both fuels are yellow, told apart by pattern. */
 export const DIORAMA_APWA: readonly ApwaCode[] = ['yellow'];

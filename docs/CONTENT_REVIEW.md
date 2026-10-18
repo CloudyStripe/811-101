@@ -202,4 +202,3 @@ On-screen approximations of the APWA colors the lessons use.
 |---|---|---|---|
 | `apwa.yellow` | Yellow means natural gas, oil, steam, petroleum or other gaseous or flammable material; shown on screen as #f5c400. | `fdf1c6de53` | Not reviewed |
 | `apwa.orange` | Orange means telecommunication, alarm or signal lines, cables or conduit; shown on screen as #f26a1b. | `95cdcef590` | Not reviewed |
-| `apwa.blue` | Blue means potable water; shown on screen as #2b6cd6. | `99d059c27d` | Not reviewed |

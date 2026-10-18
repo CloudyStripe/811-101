@@ -73,7 +73,7 @@ export const PAGES: readonly PageInfo[] = [
     description: BRAND.tagline,
     share: {
       image: 'portal.jpg',
-      alt: 'A street block cut away to show the gas main, telecom cable and water main under it.',
+      alt: 'A street block cut away to show the gas main and telecom cable under it.',
     },
     scene: false,
     footer: true,
@@ -138,7 +138,7 @@ export const PAGES: readonly PageInfo[] = [
     description: 'This page isn’t here. The lessons are listed on the home page.',
     share: {
       image: 'portal.jpg',
-      alt: 'A street block cut away to show the gas main, telecom cable and water main under it.',
+      alt: 'A street block cut away to show the gas main and telecom cable under it.',
     },
     scene: false,
     footer: true,
