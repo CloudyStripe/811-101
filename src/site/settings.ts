@@ -16,7 +16,10 @@ export interface Settings {
   theme: ThemeSetting;
   motion: MotionSetting;
   quality: QualitySetting;
-  /** The labels on the 3D views' tools, lines and parts: the diorama's stop markers always show. */
+  /**
+   * The names in the 3D views, on the lab's tools and lines and the diorama's stops and parts. Off,
+   * the diorama's stop markers still show, each named only while it's hovered or focused.
+   */
   labels: LabelsSetting;
 }
 
