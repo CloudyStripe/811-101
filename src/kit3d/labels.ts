@@ -164,7 +164,8 @@ export class LabelLayer {
       const line = document.createElementNS(SVG_NS, 'line');
       const dot = document.createElementNS(SVG_NS, 'circle');
       dot.setAttribute('r', '2.5');
-      // Which label it leads to, for tests to find where a label points.
+      // Which label it leads to, and (data-at) which of the label's places, for tests to find where
+      // a label points.
       group.dataset.for = label.id;
       group.classList.add('off');
       group.append(line, dot);
@@ -317,6 +318,8 @@ export class LabelLayer {
     this.lastKey.set(label.id, key);
     // From the whole label, or a named marker's badge.
     this.drawLeader(label.id, from ?? r, point);
+    const leader = this.leaders.get(label.id);
+    if (leader) leader.group.dataset.at = shownAt ? String(shownAt.at) : '';
     classList.toggle('off', state === 'off');
     classList.toggle('capped', state === 'capped');
     if (!r) return;

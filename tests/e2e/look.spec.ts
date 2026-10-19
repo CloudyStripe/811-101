@@ -133,8 +133,14 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto('training/frequency-lab/?capture&tier=medium&setup=steel&f=83000');
     await waitReady(page);
     await expect(page.locator('.scene-loader')).toBeHidden();
-    // Where the cable's label points, on the cable, and the stretch toward the hookup before it.
-    const dot = page.locator('.lbl-leaders g[data-for="telecom"] circle');
+    // Where the cable's label points, on the cable, and the stretch toward the hookup before it:
+    // at its first place, by the hookup, where the bleed-over is strongest.
+    const leader = page.locator('.lbl-leaders g[data-for="telecom"]');
+    await expect(leader, 'the telecom label at its first place, by the hookup').toHaveAttribute(
+      'data-at',
+      '0',
+    );
+    const dot = leader.locator('circle');
     await expect(dot).toHaveAttribute('cx', /\d/);
     const box = await page.locator('.labels').boundingBox();
     const cx = Number(await dot.getAttribute('cx'));
