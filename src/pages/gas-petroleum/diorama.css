@@ -68,6 +68,31 @@ body {
   box-shadow: var(--shadow-1);
 }
 
+/*
+ * The view's full-bleed stage runs under the guide, the dock and the camera's buttons, so the
+ * poster a lesson's preview carries in, as the page changes, would be drawn over them. Named while
+ * the view loads, each takes part in the change on its own, drawn over the poster as it is over the
+ * view.
+ */
+:root:not([data-scene-ready]) .gp-panel {
+  view-transition-name: gp-panel;
+}
+
+:root:not([data-scene-ready]) .gp-dock {
+  view-transition-name: gp-dock;
+}
+
+:root:not([data-scene-ready]) .gp-camera {
+  view-transition-name: gp-camera;
+}
+
+/* Arriving, they come in as the rest of the page does (base.css). */
+::view-transition-new(gp-panel),
+::view-transition-new(gp-dock),
+::view-transition-new(gp-camera) {
+  animation: var(--dur-slow) var(--ease) both page-in;
+}
+
 .stage-message {
   position: relative;
   z-index: 1;
@@ -159,11 +184,6 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* Until the view is built, the buttons hold their place out of sight, so it's framed clear of them. */
-.gp-camera:not([data-ready]) {
-  visibility: hidden;
 }
 
 /* Under the open sheet, as the view is: out of sight, and (inert) out of reach. */

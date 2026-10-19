@@ -178,6 +178,14 @@ test('every built page carries its head and shell before any JavaScript runs', a
     expect(html, info.id).toContain(`<title>${info.title.replaceAll('&', '&amp;')}</title>`);
     expect(html, info.id).toContain('<header class="site-header"');
     expect(html, info.id).not.toMatch(/%BRAND_|%BASE%/);
+    // Its own script holds the first paint, so its controls are in it, and a page change into it
+    // animates; and the first screen's fonts are the first thing it asks for, after the settings.
+    expect(html.match(/<script type="module" blocking="render"/g), info.id).toHaveLength(1);
+    const head = html.slice(html.indexOf(SETTINGS_KEY), html.indexOf('<title>'));
+    expect(
+      head.match(/<link rel="preload" as="font" type="font\/woff2" crossorigin/g),
+      info.id,
+    ).toHaveLength(4);
     // Share previews point to whole addresses, and the images are there.
     const image = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1];
     expect(image, info.id).toBe(`${SITE_URL}share/${info.share.image}`);

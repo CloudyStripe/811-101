@@ -10,6 +10,7 @@ import { Icon } from '../../design/icons.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { TAP_SLOP } from '../../kit3d/input.ts';
 import { parseTier } from '../../kit3d/quality.ts';
+import { revealed } from '../../site/arrival.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
@@ -252,6 +253,10 @@ export function App() {
     };
 
     void (async () => {
+      // Not while the page change into the diorama is still animating: building the view holds up
+      // the page, and the change with it; nor, for the same reason, saying it can't be built.
+      await revealed();
+      if (cancelled()) return;
       if (!document.createElement('canvas').getContext('webgl2')) {
         setFailed(NO_WEBGL);
         return;

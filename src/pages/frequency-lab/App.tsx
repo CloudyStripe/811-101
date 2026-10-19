@@ -13,6 +13,7 @@ import { Legend } from './Legend.tsx';
 import { SceneLabel } from './SceneLabel.tsx';
 import type { LabScene, Rect } from './scene/index.ts';
 import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
+import { revealed } from '../../site/arrival.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
@@ -146,6 +147,10 @@ export function App() {
     };
 
     void (async () => {
+      // Not while the page change into the lab is still animating: building the view holds up
+      // the page, and the change with it; nor, for the same reason, saying it can't be built.
+      await revealed();
+      if (cancelled()) return;
       // three needs WebGL 2; without it, say so rather than report a generic failure.
       if (!document.createElement('canvas').getContext('webgl2')) {
         setFailed(NO_WEBGL);

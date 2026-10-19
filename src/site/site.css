@@ -304,7 +304,11 @@
   view-transition-name: none;
 }
 
-.scene-loader-status {
+/*
+ * The tag over the poster. The poster a lesson's preview carries in, as the page changes, is drawn
+ * over the page; named while the view loads, the tag takes part on its own, drawn over the poster.
+ */
+:root:not([data-scene-ready]) .scene-loader-status {
   view-transition-name: scene-status;
 }
 

@@ -65,6 +65,25 @@ body {
   z-index: 1;
 }
 
+/*
+ * The stage runs under the console and the drawer, so the poster a lesson's preview carries in, as
+ * the page changes, would be drawn over them. Named while the view loads, each takes part in the
+ * change on its own, drawn over the poster as it is over the view, and comes in as the rest of the
+ * page does (base.css).
+ */
+:root:not([data-scene-ready]) .lab-console {
+  view-transition-name: lab-console;
+}
+
+:root:not([data-scene-ready]) .lab-drawer {
+  view-transition-name: lab-drawer;
+}
+
+::view-transition-new(lab-console),
+::view-transition-new(lab-drawer) {
+  animation: var(--dur-slow) var(--ease) both page-in;
+}
+
 .lab-canvas {
   display: block;
   width: 100%;
