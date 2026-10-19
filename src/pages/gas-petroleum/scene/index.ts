@@ -149,6 +149,13 @@ const TALL = 1.05;
 /** How long the establishing move takes to settle, in seconds: most of `MOTION.establish`. */
 const ESTABLISH_SETTLE = MOTION.establish / 1000 / 3;
 
+/**
+ * The establishing move has settled, to the eye, once what's left of it is this share of the
+ * camera's distance: a pixel or two at the view's edges. Its ease goes on for seconds more, too
+ * little to see, and the stops' names needn't wait for it.
+ */
+const ARRIVED_WITHIN = 0.002;
+
 /** Builds the scene. If building fails, the renderer it made is released before the error. */
 export async function createDioramaScene(o: DioramaSceneOptions): Promise<DioramaScene> {
   let runtime: SceneRuntime | null = null;
@@ -201,8 +208,18 @@ async function buildDiorama(
   } | null = null;
   /** The reader has moved the camera since the view was last framed for them. */
   let movedByReader = false;
-  /** The establishing move is under way: framed again meanwhile (the fonts in, say), it heads there. */
+  /**
+   * The establishing move is under way: framed again meanwhile (the fonts in, say), it heads there.
+   * Meanwhile the stops show by number alone, as names would come and go as the view closes in.
+   */
   let arriving = false;
+  /** Ends the establishing move's hold on the stops' names: they're placed again, now. */
+  function arrived() {
+    if (!arriving) return;
+    arriving = false;
+    labelsDirty = true;
+    redraw();
+  }
   /** Held where the establishing move starts (`arrival`, with capture): framed again, it stays there. */
   let heldArriving = false;
   /** The limits last told to the UI. */
@@ -360,9 +377,8 @@ async function buildDiorama(
       labelsDirty = true;
       tellLimits();
       markCamera();
-    } else {
-      arriving = false;
     }
+    if (!turning || (arriving && rig.remaining() < ARRIVED_WITHIN)) arrived();
     gradeGround();
     const following = moving && stops.some((s) => s.id === shown && s.follows);
     if (labelsDirty || lapsing || following) {
@@ -527,7 +543,7 @@ async function buildDiorama(
       },
       moved() {
         movedByReader = true;
-        arriving = false;
+        arrived();
         o.onMoved?.();
       },
     },
@@ -648,7 +664,8 @@ async function buildDiorama(
     // Every stop's marker shows. The open stop's is named however crowded; the rest are named in
     // the story's order where there's room, step by step, the path the view shows first after the
     // fork; a path faded back shows by number alone, and comes last. With the labels off, every
-    // marker shows by number alone, the open stop's too, but for one hovered or focused.
+    // marker shows by number alone, the open stop's too, but for one hovered or focused; and so
+    // while the view arrives, until it has settled, when the names come in.
     const first = filter === 'gasoline' ? 'gasoline' : 'gas';
     for (const label of labelList) {
       const stop = stops.find((s) => s.id === label.id);
@@ -659,8 +676,9 @@ async function buildDiorama(
       label.priority = (label.id === shown ? 1000 : 0) - rank - (faded ? 100 : 0);
       label.highlight = named && label.id === shown;
       label.hovered = label.id === hovered;
-      // Faded back, or with the labels off, by its badge alone, unless it's focused.
-      label.badgeOnly = faded || !named;
+      // Faded back, with the labels off or while the view arrives, by its badge alone, unless
+      // it's focused.
+      label.badgeOnly = faded || !named || arriving;
     }
     // A view too short for names, as on a phone with the guide open, shows them by number alone,
     // but for the open stop and a focused one.
@@ -714,6 +732,9 @@ async function buildDiorama(
       return rig.atLimits();
     },
     show(stop, options = {}) {
+      // Opened while the view arrives, as by a screen reader's click, which lands nothing first: the
+      // arrival ends, so the stop's marker is named and the view moves to it as to any stop.
+      arrived();
       // Leaving the formation, a time-lapse held at a step goes back to today.
       const lapse = timeLapse.current;
       if (stop !== 'formation' && lapse && !lapse.playing && lapse.state.progress < 1) {
@@ -816,7 +837,7 @@ async function buildDiorama(
       arriving = true;
     },
     land() {
-      arriving = false;
+      arrived();
       rig.land();
     },
     playTimeLapse() {

@@ -83,6 +83,8 @@ export class OrbitRig {
   private readonly position = new Vector3();
   private readonly target = new Vector3();
   private readonly spherical = new Spherical();
+  /** For `remaining`: where the camera stands and what it looks at, now and where headed. */
+  private readonly left = [new Vector3(), new Vector3(), new Vector3(), new Vector3()] as const;
   /** The limits set last: setting the same again leaves the view be. */
   private readonly polar: [number, number] = [0, 0];
   private readonly reach: [number, number] = [0, 0];
@@ -323,6 +325,21 @@ export class OrbitRig {
   /** How far the camera stands from what it looks at, now. */
   get distance(): number {
     return this.controls.distance;
+  }
+
+  /**
+   * How much of the move under way is left: the farther the camera or what it looks at has still
+   * to go, as a share of how far it stands from what it looks at. None at rest.
+   */
+  remaining(): number {
+    const c = this.controls;
+    const [position, positionEnd, target, targetEnd] = this.left;
+    c.getPosition(position, false);
+    c.getPosition(positionEnd, true);
+    c.getTarget(target, false);
+    c.getTarget(targetEnd, true);
+    const left = Math.max(position.distanceTo(positionEnd), target.distanceTo(targetEnd));
+    return left / Math.max(c.distance, 1e-6);
   }
 
   /**

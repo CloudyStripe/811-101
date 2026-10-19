@@ -538,6 +538,7 @@ test('a definition shows on hover, and the time-lapse plays on request', async (
 });
 
 type Arrival = Window & { zooms?: string[]; pressedAt?: number };
+type Named = Window & { seen?: { zoom: string; named: number }[] };
 
 test.describe('with motion', () => {
   test.use({ reducedMotion: 'no-preference' });
@@ -576,6 +577,46 @@ test.describe('with motion', () => {
     expect(Number(zooms[0]), `zooms ${zooms.join(' ')}`).toBeGreaterThan(1.3);
     expect(Number(zooms[pressedAt - 1]), `zooms ${zooms.join(' ')}`).toBeGreaterThan(1);
     expect(zooms.slice(pressedAt)).toEqual(['1.00']);
+  });
+
+  test('while the view arrives the stops show by number, and their names fade in once it has settled', async ({
+    page,
+  }) => {
+    // The whole arrival, frame by frame, in software: a smaller view draws its frames sooner.
+    test.slow();
+    await page.setViewportSize({ width: 960, height: 600 });
+    // Every zoom the view reports, with how many stops were named at it, noted as each changes
+    // (in the frame that changes it, before anything else can look).
+    await page.addInitScript(() => {
+      const seen: { zoom: string; named: number }[] = [];
+      (window as Named).seen = seen;
+      new MutationObserver(() => {
+        const zoom = document.querySelector<HTMLElement>('.gp-canvas')?.dataset.zoom;
+        const named = document.querySelectorAll('.mk:not(.off):not(.compact)').length;
+        const last = seen.at(-1);
+        if (zoom !== undefined && (last?.zoom !== zoom || last.named !== named)) {
+          seen.push({ zoom, named });
+        }
+      }).observe(document, { subtree: true, attributeFilter: ['class', 'data-zoom'] });
+    });
+    await page.goto('utilities/gas-petroleum/?tier=low');
+    await page.waitForFunction(() => (window as Named).seen?.some((s) => s.named > 0), null, {
+      timeout: 240_000,
+    });
+    const seen = await page.evaluate(() => (window as Named).seen ?? []);
+    const at = seen.findIndex((s) => s.named > 0);
+    const log = seen.map((s) => `${s.zoom}:${String(s.named)}`).join(' ');
+    // From farther out, by number alone all the way in, and named only at the overview.
+    expect(Number(seen[0]?.zoom), log).toBeGreaterThan(1.3);
+    expect(at, log).toBeGreaterThan(0);
+    expect(seen[at]?.zoom, log).toBe('1.00');
+    // Fading in: the name's own animation, begun as it came.
+    const name = page.locator('.mk:not(.off):not(.compact) .lbl-text').first();
+    expect(
+      await name.evaluate((el) =>
+        el.getAnimations().some((a) => a instanceof CSSAnimation && a.animationName === 'name-in'),
+      ),
+    ).toBe(true);
   });
 
   test('paused, the view draws while a drag moves it, then sleeps', async ({ page }) => {

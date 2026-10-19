@@ -1143,6 +1143,27 @@ nav.stepbar > :last-child {
   padding: 0 17px 0 9px;
 }
 
+/* A marker given its name, as the view settles or makes room for it, fades it in. */
+.mk:not(.compact) .lbl-text {
+  animation: var(--dur) var(--ease) both name-in;
+}
+
+@keyframes name-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .mk:not(.compact) .lbl-text {
+    animation: none;
+  }
+}
+
+:root[data-motion='reduce'] .mk:not(.compact) .lbl-text {
+  animation: none;
+}
+
 /* The stop the view is at: its name in ink, as its badge is. */
 .mk[data-tier='current'] .lbl-text {
   border-color: var(--ink);
