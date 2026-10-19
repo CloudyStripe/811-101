@@ -878,11 +878,11 @@ nav.stepbar > :last-child {
 .stepbar .button {
   padding: 0 var(--space-3);
   gap: 6px;
-  white-space: nowrap;
 }
 
 /* Next names where it goes, but where the bar is too narrow for the longest name on a row of its
-   own, it says Next alone. */
+   own, it says Next alone. (Wider text, as spacing set by the reader makes it, wraps in the
+   button rather than being cut off.) */
 @container stepbar (max-width: 17rem) {
   .stepbar-to {
     display: none;
@@ -1233,12 +1233,17 @@ nav.stepbar > :last-child {
     display: none;
   }
 
-  /* Closed, the guide is its title over the step bar, the way in without its note. */
+  /*
+   * Closed, the guide is its title over the step bar, the way in without its note, as wide as the
+   * wider of the two: so the bar is sized by its buttons, not a container, and Next says Next
+   * alone, as it does wherever the bar is narrow.
+   */
   .gp-panel[data-collapsed] .stepbar {
+    container-type: normal;
     border-top: 0;
   }
 
-  .gp-panel[data-collapsed] .stepbar-note {
+  .gp-panel[data-collapsed] :is(.stepbar-note, .stepbar-to) {
     display: none;
   }
 }

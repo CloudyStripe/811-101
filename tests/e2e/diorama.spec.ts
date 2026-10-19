@@ -666,6 +666,30 @@ test.describe('on a very narrow phone', () => {
   });
 });
 
+test.describe('with the guide closed beside the view', () => {
+  test.use({ reducedMotion: 'reduce', viewport: { width: 1024, height: 768 } });
+
+  test('the closed guide keeps its step bar on one row, Next alone, and opened, Next names its stop', async ({
+    page,
+  }) => {
+    // A long title, and a stop whose Next would need more room than the title gives it.
+    await page.goto('utilities/gas-petroleum/?tier=low&stop=gas-plant');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    const panel = page.locator('.gp-panel');
+    await expect(panel).toHaveAttribute('data-collapsed', '');
+    const next = panel.getByRole('button', { name: 'Next: Pipeline', exact: true });
+    await expect(next).toHaveText('Next', { useInnerText: true });
+    const back = panel.getByRole('button', { name: 'Back', exact: true });
+    const [nextBox, backBox] = await Promise.all([next.boundingBox(), back.boundingBox()]);
+    if (!nextBox || !backBox) throw new Error('no step bar');
+    expect(Math.abs(nextBox.y - backBox.y), 'Next on the row Back is on').toBeLessThan(4);
+    await panel.getByRole('button', { name: 'Open the guide' }).click();
+    await expect(next).toHaveText('Next: Pipeline', { useInnerText: true });
+  });
+});
+
 test.describe('with room', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
 
