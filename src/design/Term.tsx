@@ -12,8 +12,8 @@ const EDGE = 8;
 
 /**
  * The box a tip must stay inside: the nearest scrolling ancestor, less the room it keeps clear at
- * its foot (its scroll padding, as the lab's drawer keeps for its fade and More button), or the
- * window.
+ * its foot (its scroll padding, as a ScrollMore keeps for its fade and More button: the lab's
+ * drawer and the diorama's guide), or the window.
  */
 function boundsOf(el: Element): { left: number; right: number; top: number; bottom: number } {
   for (let p = el.parentElement; p; p = p.parentElement) {

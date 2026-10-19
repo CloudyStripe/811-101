@@ -247,6 +247,65 @@
 }
 
 /*
+ * A scrolling body that shows when there's more of it below (ScrollMore.tsx): its foot fades out,
+ * but not its scrollbar, where it has one (--scrollbar, its width), and a More button sits there.
+ * Focus moving onto something in the fade scrolls it up clear of it, as the terms' tips keep clear
+ * of it. The body takes the room its box has; the owner gives it its padding.
+ */
+.scroll-more {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll-more > :first-child {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.scroll-more > [data-more] {
+  scroll-padding-bottom: 4.5rem;
+  mask-image:
+    linear-gradient(to bottom, #000 calc(100% - 4.5rem), transparent calc(100% - 1rem)),
+    linear-gradient(#000, #000);
+  mask-position:
+    left top,
+    right top;
+  mask-repeat: no-repeat;
+  mask-size:
+    calc(100% - var(--scrollbar, 0px)) 100%,
+    var(--scrollbar, 0px) 100%;
+}
+
+/* Focus handed to the body by More, at its end: a ring inside it, which its box would clip. */
+.scroll-more > :first-child:focus-visible {
+  outline-offset: -4px;
+  box-shadow: none;
+}
+
+.scroll-more-button {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 50%;
+  min-height: 36px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  box-shadow: var(--shadow-1);
+  transform: translateX(-50%);
+}
+
+.scroll-more-button:active {
+  transform: translate(-50%, 1px);
+}
+
+.scroll-more-button[hidden] {
+  display: none;
+}
+
+/*
  * 3D labels. The label layer positions `.lbl` and toggles `off`, `capped` and `compact` on it,
  * and `lit` while something else points at it.
  */

@@ -312,6 +312,50 @@ test.describe('on a phone', () => {
       'true',
     );
   });
+
+  test('the open guide, with more below, shows it, and More scrolls on to the end, focus kept in it', async ({
+    page,
+  }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Details' }).click();
+    const body = guide(page).locator('#gp-body');
+    const more = guide(page).getByRole('button', { name: 'More of the guide' });
+    // More of the overview's guide below than shows: its foot fades, and More sits there.
+    await expect(body).toHaveAttribute('data-more', '');
+    await expect(more).toBeVisible();
+    await more.tap();
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    // By keys to the end, where More goes: focus stays in the guide, so the arrows scroll it.
+    await more.focus();
+    await expect(async () => {
+      await page.keyboard.press('Enter');
+      await expect(more).toBeHidden({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+    await expect(body).not.toHaveAttribute('data-more');
+    await expect(body).toBeFocused();
+  });
+
+  test('stepping on from the guide’s words, where More leaves focus, moves focus to the new view’s heading', async ({
+    page,
+  }) => {
+    await open(page, '&stop=formation');
+    await page.getByRole('button', { name: 'Details' }).click();
+    const body = guide(page).locator('#gp-body');
+    const more = guide(page).getByRole('button', { name: 'More of the guide' });
+    await more.focus();
+    await expect(async () => {
+      await page.keyboard.press('Enter');
+      await expect(more).toBeHidden({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+    await expect(body).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(guide(page)).toContainText('Step 2 of 4');
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.activeElement?.matches('#gp-title, .sheet-summary') ?? false),
+      )
+      .toBe(true);
+  });
 });
 
 test("the view's labels hide and show from the dock, and the stops' markers stay", async ({

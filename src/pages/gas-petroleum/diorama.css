@@ -422,11 +422,8 @@ body {
   font-weight: 800;
 }
 
+/* The guide's body scrolls in its ScrollMore (components.css), which shows when there's more. */
 .gp-panel .panel-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
@@ -1270,7 +1267,7 @@ nav.stepbar > :last-child {
     gap: var(--space-3);
   }
 
-  .gp-panel[data-collapsed] .panel-body {
+  .gp-panel[data-collapsed] .scroll-more {
     display: none;
   }
 
@@ -1368,7 +1365,7 @@ nav.stepbar > :last-child {
     cursor: pointer;
   }
 
-  .gp-panel:not([data-open]) .panel-body {
+  .gp-panel:not([data-open]) .scroll-more {
     display: none;
   }
 

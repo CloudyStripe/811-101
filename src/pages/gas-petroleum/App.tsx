@@ -7,6 +7,7 @@ import {
   type StopId,
 } from '../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../design/icons.tsx';
+import { ScrollMore } from '../../design/ScrollMore.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { TAP_SLOP } from '../../kit3d/input.ts';
 import { parseTier } from '../../kit3d/quality.ts';
@@ -515,16 +516,19 @@ export function App() {
 
   // A control in the guide that changes the view is often gone with the old view: a stop on the
   // map, the button to the next stop. Then focus moves to the new view's heading (or, on phones,
-  // the sheet's summary), so the reader hears where they are and keeps their place.
+  // the sheet's summary), so the reader hears where they are and keeps their place. So it does
+  // from the guide's words themselves, or their More button, where More leaves focus.
   const viewKey = `${stop ?? ''}/${journey?.quiz ? (journey.path ?? '') : ''}`;
   const shownView = useRef(viewKey);
   useEffect(() => {
     if (shownView.current === viewKey) return;
     shownView.current = viewKey;
     // A new view's words start at their top, wherever the last one's were read to.
-    document.getElementById('gp-body')?.scrollTo({ top: 0 });
+    const body = document.getElementById('gp-body');
+    body?.scrollTo({ top: 0 });
     const active = document.activeElement;
-    if (active && active !== document.body) return;
+    const onWords = active !== null && (active === body || active === body?.nextElementSibling);
+    if (active && active !== document.body && !onWords) return;
     const heading = [
       ...document.querySelectorAll<HTMLElement>('#gp-title, .gp-panel .sheet-summary'),
     ].find((el) => el.offsetParent !== null);
@@ -734,7 +738,7 @@ export function App() {
         </button>
       </div>
       {sheet && stepBar}
-      <div class="panel-body" id="gp-body">
+      <ScrollMore class="panel-body" id="gp-body" label="More of the guide">
         {quizPath ? (
           <QuizPanel
             path={quizPath}
@@ -765,7 +769,7 @@ export function App() {
             onOpen={open}
           />
         )}
-      </div>
+      </ScrollMore>
       {!sheet && stepBar}
     </aside>
   );

@@ -77,7 +77,9 @@ An interactive learning site about buried utilities and line locating.
   terms, dialogs and 3D labels. Hover styles go inside `@media (hover: hover)`.
 - **Shared controls:** `Segmented` is a radio group built on `useRadioGroup` (one tab stop,
   arrows, Home and End): the lab's setup and its four frequency buttons, and the diorama's path
-  switch.
+  switch. `ScrollMore` is a scrolling body that shows when there's more of it below than shows:
+  its foot fades, and a More button scrolls on, handing focus to the body at the end: the lab's
+  drawer and the diorama's guide.
 - **The lab's layout:** the view, then a drawer (the guide or the key, one at a time, opened from
   the console and closed by its button or Escape; while there's more of it below than shows, its
   foot fades and a More button scrolls on, handing focus to its body at the end), then the

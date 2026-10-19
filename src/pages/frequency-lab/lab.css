@@ -270,56 +270,14 @@ body {
   font-weight: 800;
 }
 
+/* The drawer's body scrolls in its ScrollMore (components.css), which shows when there's more. */
 .drawer-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
-/* Focus handed to the body by More, at its end: a ring inside the drawer, which clips outside it. */
+/* Focus handed to the body by More, at its end (components.css), within the drawer's corners. */
 .drawer-body:focus-visible {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  outline-offset: -4px;
-  box-shadow: none;
-}
-
-/*
- * More below: the words fade out at the drawer's foot, where the More button sits, but not its
- * scrollbar, where it has one (--scrollbar, its width). Focus moving onto something in the fade
- * scrolls it up clear of it, as the terms' tips keep clear of it.
- */
-.drawer-body[data-more] {
-  scroll-padding-bottom: 4.5rem;
-  mask-image:
-    linear-gradient(to bottom, #000 calc(100% - 4.5rem), transparent calc(100% - 1rem)),
-    linear-gradient(#000, #000);
-  mask-position:
-    left top,
-    right top;
-  mask-repeat: no-repeat;
-  mask-size:
-    calc(100% - var(--scrollbar, 0px)) 100%,
-    var(--scrollbar, 0px) 100%;
-}
-
-.drawer-more {
-  position: absolute;
-  bottom: var(--space-2);
-  left: 50%;
-  min-height: 36px;
-  padding: 0 var(--space-3) 0 var(--space-4);
-  box-shadow: var(--shadow-1);
-  transform: translateX(-50%);
-}
-
-.drawer-more:active {
-  transform: translate(-50%, 1px);
-}
-
-.drawer-more[hidden] {
-  display: none;
 }
 
 /* The guide: its sections side by side where there's room, one under another where there isn't. */
