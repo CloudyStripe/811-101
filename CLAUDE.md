@@ -35,10 +35,40 @@ An interactive learning site about buried utilities and line locating.
 - **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme,
   named in `src/site/stills.ts`; only the reader's loads. `npm run thumbnails` makes them from the
   real 3D views: the hero is the diorama's overview two steps farther out, cut to the model and
-  the sky's whole height; the Gas & Petroleum card is the refinery up close.
-- **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion. A
-  lesson's preview carries on into its loader; a lesson page waits for the change to finish before
-  replacing its static shell (`src/site/arrival.ts`), or the animation is cut short.
+  the sky's whole height; the Gas & Petroleum card is the refinery up close. It makes each 3D
+  page's loader posters too, one per theme and shape (`posterPath`): the view itself as it first
+  draws (the diorama's where its arrival starts, `?arrival`), cut to its own box, at 1440 × 900
+  (wide) and 390 × 844 (tall, for upright screens), shown under only a light blur so they look like
+  the view about to start: at those sizes the view takes over from them with no jump, and on other
+  screens they're cut to the stage, so it's close.
+- **Nothing blank, nothing late:** the first screen's pictures are fetched with the page, in the
+  reader's theme (and a poster in the screen's shape), by a script in its head (`picturesScript`),
+  not once its styles are read; each stands over a tiny copy of itself, inline
+  (`src/site/placeholders.ts`, made by `scripts/placeholders.ts`, which notes the version of each
+  picture it was made from, so a test fails when one is stale), from the first paint until it
+  lands; under a lesson's poster, the loader shows the copy too (a lesson's own loader keeps its
+  shell's, so its code doesn't carry them). Once the portal is in, it prefetches its 3D lessons'
+  posters, so a lesson opened from it has its poster at its first paint. The fonts the first
+  screen uses (`FIRST_SCREEN_FONTS`, the same on every page) are preloaded first in the head, so
+  on a page change or a return they're in before text shows; on a first-ever visit over a slow
+  connection, the display face can still land just after the first paint (the browser can't hold
+  the paint for a font). And each page's own script holds its first paint until it runs
+  (`blocking="render"`, `firstPaint` in `src/site/vite.ts`, which stops the build if a page misses
+  it or a font), so a lesson shows its console or dock, and the header its settings button, in its
+  first paint; its 3D code loads after, at low priority, and it builds its view only once it's
+  been revealed and any page change into it has finished (`revealed` in `src/site/arrival.ts`). A
+  test loads each page throttled like a phone (CPU 4×, 1.6 Mbps, 150 ms), its pictures held back
+  until it has painted, and fails if its stage or a first-screen picture is blank
+  (`tests/e2e/first-paint.spec.ts`).
+- **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion.
+  Chromium skips one into a page revealed while its script is still loading, which is why each
+  page's script holds its first paint. A lesson's preview carries on into its loader's poster once
+  the poster is in (`data-poster`, set as it lands), and not into a tiny copy of it. The carried
+  poster is drawn over the page, so while the view loads, what stands over the stage (the lab's
+  console and drawer, the diorama's guide, dock and camera buttons, the loader's tag) takes part in
+  the change on its own, drawn over it. A lesson page waits for a change under way to finish
+  before replacing its static shell (`arrived`), or the animation is cut short (in a browser that
+  paints before the script runs).
 - **Every page starts with** `src/site/boot.ts`: tokens, fonts, `base.css`, `components.css`,
   `site.css`, and the header's settings menu. Settings live in one store (`src/site/settings.ts`,
   `useSettings`), shared by the menu and the page: theme, motion and quality in the menu, and
@@ -97,25 +127,28 @@ An interactive learning site about buried utilities and line locating.
   and `docs/PLAN.md` are **local-only** (gitignored).
 - Never commit them, and never quote them in public text: commit messages, PR descriptions,
   code comments and content sign-offs stay free of business, product or customer details.
-- Push nothing until the owner has tried the build and said OK.
+- Push nothing until the owner has tried the build and said OK. The owner tries it on the
+  production build, `npm run review` (http://localhost:5173/811-101/), never the dev server.
 
 ## Commands
 
-| Command              | What it does                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `npm run dev`        | Dev server: http://localhost:5173/811-101/ (the portal)                                                |
-| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass.        |
-| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                              |
-| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                         |
-| `npm run budgets`    | Load budgets for each page, against the last build                                                     |
-| `npm run thumbnails` | Re-capture the portal's stills, loader posters and share previews; run it when a lesson's look changes |
-| `npm run icons`      | Regenerate the icon data from Phosphor and re-render the favicons from the wordmark                    |
-| `npm run credits`    | Rewrite `public/credits.txt` from the installed packages                                               |
+| Command              | What it does                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `npm run dev`        | Dev server, for working on the code; the owner reviews the production build (`npm run review`)              |
+| `npm run review`     | Build into `dist-review/` and serve it at http://localhost:5173/811-101/: the copy the owner reviews        |
+| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass.             |
+| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                                   |
+| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                              |
+| `npm run budgets`    | Load budgets for each page, against the last build                                                          |
+| `npm run thumbnails` | Re-capture the stills, loader posters, share previews and placeholders; run it when a lesson's look changes |
+| `npm run icons`      | Regenerate the icon data from Phosphor and re-render the favicons from the wordmark                         |
+| `npm run credits`    | Rewrite `public/credits.txt` from the installed packages                                                    |
 
 Useful URL parameters on the 3D pages:
 
 - Lab: `?setup=steel|plastic` and `&f=512|8000|33000|83000` set the starting state.
-- Diorama: `?stop=<id>` opens a stop (ids in `content/utilities/gas-petroleum.ts`).
+- Diorama: `?stop=<id>` opens a stop (ids in `content/utilities/gas-petroleum.ts`), and with
+  `?capture`, `&arrival` holds the view where its arrival starts (as its loader's posters show it).
 - Both: `?tier=low|medium|high` forces a quality tier, `?perf` shows the performance HUD, and
   `?capture` gives deterministic frames for screenshots.
 
@@ -189,7 +222,7 @@ In the field, the color is the code.
 
 - **The journey** (`src/pages/gas-petroleum/journey.ts`) is a pure state machine with its own tests: Start walks the shared stops to the fork, where the reader chooses a path; that path's stops follow, then its quiz; the end offers the other path from the fork. A stop opened on its own, from its marker or the map, starts a journey there along its path (`journeyAt`; a shared stop, along the path the view shows, or with the choice still to come), unless it's on the way of the one under way.
 - **The step bar** (`ui/StepBar.tsx`) is the one set of step controls: Start at the beginning in the overview; at a stop, the overview and back (round buttons), "Step 6 of 9" over a strip of its stops, and Next, naming the stop it goes to ("Next: Using natural gas"; "Next" alone where the bar is too narrow for the name, which screen readers still hear), or Quiz at a path's end, or at the fork with no path chosen, Choose a path; in a quiz, back and Finish. It sits at the foot of the guide beside the view (under its title while it's closed) and under the sheet's bar on phones; where the guide is too narrow for all of it in a row, its way on takes a row of its own. ← and → step as it does (in a quiz, ← only).
-- **The camera** (`src/kit3d/orbit.ts`, wrapping camera-controls): a drag turns the model all the way round, a right-drag or two fingers pan, the wheel or a pinch zooms toward the pointer, and a double-click or double-tap centers the view on that spot. It tilts between 3° and 78° from overhead, pans within the model (and just in front of its cut face), comes no nearer than what it looks at allows (nearer the higher that is, so tilted flat it still clears the grass: `nearestAt`, held by the rig every frame), and zooms out to a little past where the whole model shows from any side (`ORBIT` in `shots.ts`). On the focused model the arrows turn and tilt, + and − zoom, Shift and the arrows pan, and Home sets it back; elsewhere on the page ← and → step back and on. The cluster in the view's lower right corner (`ui/ViewControls.tsx`) does the same by buttons, which say when they're at a limit and, held, go on moving; beside the view (761 px and wider) they sit in the dock's row (beside the open guide, from 1,024 px; narrower, above the dock), and on phones and short screens they're smaller, in one row where the view is wide enough. The view is framed above them, as beside the guide, so nothing it frames sits under them (where controls still sit over a corner, the overview slides the picture clear: `slide` on a view, in `src/kit3d/fit.ts`); under the open sheet the buttons are hidden and inert, as the view is, and on a phone held sideways the open sheet takes the view's column while the view, and its buttons, move to the column it leaves. The view draws only while something moves; the arrival settles in, and any input lands it. The canvas carries where the camera stands (`data-heading`, `data-tilt`, `data-zoom`, `data-at`) for tests.
+- **The camera** (`src/kit3d/orbit.ts`, wrapping camera-controls): a drag turns the model all the way round, a right-drag or two fingers pan, the wheel or a pinch zooms toward the pointer, and a double-click or double-tap centers the view on that spot. It tilts between 3° and 78° from overhead, pans within the model (and just in front of its cut face), comes no nearer than what it looks at allows (nearer the higher that is, so tilted flat it still clears the grass: `nearestAt`, held by the rig every frame), and zooms out to a little past where the whole model shows from any side (`ORBIT` in `shots.ts`). On the focused model the arrows turn and tilt, + and − zoom, Shift and the arrows pan, and Home sets it back; elsewhere on the page ← and → step back and on. The cluster in the view's lower right corner (`ui/ViewControls.tsx`) does the same by buttons, which say when they're at a limit and, held, go on moving (they're there from the first paint, each disabled until the view is built); beside the view (761 px and wider) they sit in the dock's row (beside the open guide, from 1,024 px; narrower, above the dock), and on phones and short screens they're smaller, in one row where the view is wide enough. The view is framed above them, as beside the guide, so nothing it frames sits under them (where controls still sit over a corner, the overview slides the picture clear: `slide` on a view, in `src/kit3d/fit.ts`); under the open sheet the buttons are hidden and inert, as the view is, and on a phone held sideways the open sheet takes the view's column while the view, and its buttons, move to the column it leaves. The view draws only while something moves; the arrival settles in, and any input lands it. The canvas carries where the camera stands (`data-heading`, `data-tilt`, `data-zoom`, `data-at`) for tests.
 - **Stop shots** (`stopShot` in `shots.ts`): each stop's subject (its parts, their details and its label) sits at the middle of the view at about a third of it (`STOP_SHOT.margin`), seen from at least 15° above level, with the marker of the stop it leads to on screen (`stopsInSight` in `journey.ts`: the next stop, both at the fork, the one before at a path's end). The camera stands back along its line as far as that takes, the subject still centered; a tall subject takes more than a third rather than send the camera past `STOP_SHOT.reach` of the overview's distance. The city gate is framed alone (`alone` on its view): it looks past its station east to the town, whose marker, high over the power plant, can't show behind the station with it at a third, so the station has the view (the step bar's Next goes on to it). Tall screens see the overview from the east.
 - **Markers:** all thirteen stops show on the model as numbered markers in their path's mark (`ui/StopMarker.tsx`), each a button that opens its stop, with its path's icon on a tab. Each is named beside its badge where there's room, in the story's order, the path the view shows first after the fork, and by number alone where there isn't, or in a view too short for names (`LABEL_LIMITS.iconsBelow`, as under a phone's open sheet). The guide's map (`ui/RouteMap.tsx`) names every stop. The open stop's is named and filled in ink, its name placed with its badge, before the others, which keep clear of both; a focused or hovered one shows its name, and stays where it was, in the free part of the view; one on a path the view fades back shows by number, its ring and tab faded; one whose point is out of view, or under a control, steps out of sight. Badges keep off each other's points, and names off every point, so every leader shows. Their points show from every side (none hangs on a face), and the shared start's four sit at least 36 px apart in a tall phone's overview (tested). The small labels on an open stop's parts (`scene/details.ts`) hang beside the points they name, on leaders, so the parts show; the dock's labels toggle (the same `labels` setting as the lab's) hides every name in the view: these, and the stops' names, which then show only on a marker that's hovered or focused. The numbered markers stay, since they're how to get around; the step bar, the guide and its map are controls and keep their names (tested in each lesson, `tests/e2e/labels.spec.ts`).
 - **Motion in tests:** e2e tests count frames (`countFrames`, `isMoving`, `waitStill` in `tests/e2e/fixtures.ts`), never screenshots of a moving canvas; one late frame after a pause isn't motion, and stillness waits out the longest of the last few gaps between frames, as one slow software frame isn't stillness.
