@@ -3,10 +3,11 @@
  * LabCamera into the room the guide, the dock and the camera's buttons leave, then projected to CSS
  * pixels. What each shot must show lands in that room and out from under the controls. Every stop's
  * subject sits at the middle of the room at about a third of it, with the marker of the stop it
- * leads to in view, near enough for the ground's night grade, which the overview never gets. The
- * phone's overview fills its width. However the reader moves it, the camera stays above the grass.
+ * leads to in view (the city gate's station, framed alone, has the view to itself), near enough
+ * for the ground's night grade, which the overview never gets. The phone's overview fills its
+ * width. However the reader moves it, the camera stays above the grass.
  */
-import { PerspectiveCamera, Spherical, Vector3 } from 'three';
+import { Box3, MathUtils, PerspectiveCamera, Spherical, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { LabCamera, type View, type VisibleArea } from '../../../kit3d/camera.ts';
 import { fitLimits } from '../../../kit3d/fit.ts';
@@ -204,10 +205,10 @@ describe('stop shots', () => {
         expect(Math.abs(x0 + x1) / 2, 'across').toBeLessThan(0.02);
         expect(Math.abs(y0 + y1) / 2, 'up and down').toBeLessThan(0.02);
         // ...with the markers of the stops it leads to on screen, inside their margin and out
-        // from under the controls...
+        // from under the controls, but for a stop framed alone...
         const edge = 1 - STOP_SHOT.nextMargin;
         const next = onCanvas(shot, layout, shot.alsoSee ?? []).map((q) => ({ q, ...inRoom(q) }));
-        expect(next.length).toBeGreaterThan(0);
+        expect(next.length > 0, 'where it leads in sight').toBe(model.view.alone !== true);
         for (const n of next) {
           const at = `next marker at ${n.x.toFixed(2)},${n.y.toFixed(2)}`;
           expect(n.q.inFront, at).toBe(true);
@@ -237,6 +238,27 @@ describe('stop shots', () => {
       },
     );
   }
+
+  it('looks past the city gate toward the town it feeds, framed for the station alone', () => {
+    const gate = models.find((m) => m.id === 'city-gate');
+    const town = models.find((m) => m.id === 'gas-uses');
+    if (!gate || !town) throw new Error('no city gate or town');
+    const { from, to } = stopAim(gate);
+    const look = new Vector3(...to)
+      .sub(new Vector3(...from))
+      .setY(0)
+      .normalize();
+    const middle = town.hits
+      .reduce((box, hit) => box.union(hit), new Box3())
+      .getCenter(new Vector3());
+    const way = middle
+      .sub(new Vector3(...to))
+      .setY(0)
+      .normalize();
+    expect(MathUtils.radToDeg(look.angleTo(way))).toBeLessThan(30);
+    // The one stop framed alone: elsewhere, where a stop leads is in sight.
+    expect(models.filter((m) => m.view.alone).map((m) => m.id)).toEqual(['city-gate']);
+  });
 
   it('looks at every stop from at least 15° above level, aimed within the bounds the reader pans in', () => {
     const bounds = orbitBounds();

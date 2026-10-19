@@ -15,11 +15,11 @@ import {
   SRGBColorSpace,
 } from 'three';
 import { hexToRgb } from '../design/color.ts';
-import type { SceneTokens } from '../design/tokens.ts';
+import { SKY_STOPS, type SceneTokens } from '../design/tokens.ts';
 import { inversePbrNeutral } from './tonemap.ts';
 
 /** Where each of the sky's colors sits, from the top of the view (0) to the bottom (1). */
-export const BACKDROP_STOPS = { zenith: 0, horizon: 0.62, below: 1 } as const;
+export const BACKDROP_STOPS = SKY_STOPS;
 
 const ROWS = 256;
 

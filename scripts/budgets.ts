@@ -15,7 +15,7 @@ import {
   type PageId,
   type PageInfo,
 } from '../src/site/pages.ts';
-import { HERO_SHAPES, THEME_NAMES, heroPath, previewPath } from '../src/site/stills.ts';
+import { THEME_NAMES, heroPath, previewPath } from '../src/site/stills.ts';
 
 interface ManifestChunk {
   file: string;
@@ -153,17 +153,15 @@ const NAMES: Record<PageId, string> = {
 };
 
 /**
- * The portal's stills (dist/stills/), as one visit loads them: the hero in the reader's theme and
- * the screen's shape, and each lesson's preview in the reader's theme. Each set counts its largest.
+ * The portal's stills (dist/stills/), as one visit loads them: the hero in the reader's theme (on
+ * a phone, none), and each lesson's preview in the reader's theme. Each set counts its largest.
  */
 async function stillsBytes(): Promise<number> {
   const largest = async (paths: string[]) =>
     Math.max(
       ...(await Promise.all(paths.map(async (path) => (await stat(resolve(dist, path))).size))),
     );
-  let bytes = await largest(
-    THEME_NAMES.flatMap((theme) => HERO_SHAPES.map((shape) => heroPath(theme, shape))),
-  );
+  let bytes = await largest(THEME_NAMES.map((theme) => heroPath(theme)));
   for (const lesson of SECTIONS.flatMap((section) => section.lessons)) {
     bytes += await largest(THEME_NAMES.map((theme) => previewPath(lesson.image, theme)));
   }

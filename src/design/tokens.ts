@@ -99,6 +99,12 @@ export interface Theme {
   scene: SceneTokens;
 }
 
+/**
+ * Where each of the sky's colors sits, from the top of the view (0) to the bottom (1): the 3D
+ * backdrop's gradient (src/kit3d/backdrop.ts), and the page's own sky around a still of it.
+ */
+export const SKY_STOPS = { zenith: 0, horizon: 0.62, below: 1 } as const;
+
 export const THEMES: Record<ThemeName, Theme> = {
   light: {
     chrome: {
@@ -342,8 +348,10 @@ export const TYPE = {
  * between, so there are no jumps at breakpoints.
  */
 export const TYPE_SCALE = {
-  /** The portal's statement. 36 to 64 px. */
+  /** The portal's name, set as the wordmark. 36 to 64 px. */
   display: 'clamp(2.25rem, 1.5rem + 3.2vw, 4rem)',
+  /** The portal's line under its name. 17 to 22 px. */
+  lede: 'clamp(1.0625rem, 0.95rem + 0.5vw, 1.375rem)',
   /** A page's title. 22 to 28 px. */
   h1: 'clamp(1.375rem, 1.2rem + 0.75vw, 1.75rem)',
   /** Sections. 20 to 22 px. */
@@ -433,10 +441,15 @@ function durations(moving: boolean): string {
   return `--dur-fast: ${ms(MOTION.micro)}; --dur: ${ms(MOTION.ui)}; --dur-slow: ${ms(MOTION.panel)};`;
 }
 
+/** The diorama's sky, so the page can carry it on around a still of the model (the portal). */
+function skyVars(s: SceneTokens): string {
+  return `--sky-zenith: ${s.skyZenith}; --sky-horizon: ${s.skyHorizon}; --sky-below: ${s.skyBelow};`;
+}
+
 /** CSS custom properties for both themes: OS preference by default, `data-theme` to override. */
 export function tokensCss(): string {
-  const light = chromeVars(THEMES.light.chrome, 'light');
-  const dark = chromeVars(THEMES.dark.chrome, 'dark');
+  const light = `${chromeVars(THEMES.light.chrome, 'light')} ${skyVars(THEMES.light.scene)}`;
+  const dark = `${chromeVars(THEMES.dark.chrome, 'dark')} ${skyVars(THEMES.dark.scene)}`;
   // --space-N is N × 4 px, for each step on the scale.
   const space = SPACE.map((px) => `--space-${String(px / 4)}: ${String(px)}px;`).join(' ');
   const type = Object.entries(TYPE_SCALE)
@@ -457,6 +470,7 @@ export function tokensCss(): string {
     `--ease: ${MOTION.ease}; --ease-in-out: ${MOTION.easeInOut};`,
     layers,
     `--panel-w: clamp(19rem, 27vw, 24rem);`,
+    `--sky-horizon-at: ${String(SKY_STOPS.horizon * 100)}%;`,
   ].join(' ');
   return [
     `:root { ${shared} ${light} }`,

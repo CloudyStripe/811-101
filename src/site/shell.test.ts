@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
 import { SECTIONS } from '../../content/portal.ts';
 import { PAGES, lessonPage, lessonTransition, pageById, posterPath } from './pages.ts';
-import { BANDS_SLOT, BOOT, HERO_SLOT, LOADER_SLOT, renderPage } from './shell.ts';
-import { HERO_SHAPES, THEME_NAMES, heroPath, previewPath } from './stills.ts';
+import { BOOT, CARDS_NAME, CARDS_SLOT, HERO_SLOT, LOADER_SLOT, renderPage } from './shell.ts';
+import { THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 const render = (page: (typeof PAGES)[number]) => renderPage(readFileSync(page.html, 'utf8'), page);
 const count = (html: string, pattern: RegExp) => [...html.matchAll(pattern)].length;
@@ -71,33 +71,39 @@ describe('renderPage', () => {
     }
     expect(html).not.toContain(LOADER_SLOT);
     expect(html).not.toContain(HERO_SLOT);
-    expect(html).not.toContain(BANDS_SLOT);
+    expect(html).not.toContain(CARDS_SLOT);
     expect(html).not.toMatch(/%BRAND_|%BASE%/);
   });
 
-  it('the portal: its hero, linking each section, with its stills for each theme and shape', () => {
+  it('the portal: its hero, the name and its line, with its stills for each theme and shape', () => {
     const html = render(pageById('portal'));
     expect(count(html, /<section class="hero"/g)).toBe(1);
-    expect(html).toContain(`<span class="hero-name">${escapeHtml(BRAND.name)}</span>`);
-    expect(html).toContain(`<span class="hero-line">${escapeHtml(BRAND.tagline)}</span>`);
-    for (const section of SECTIONS) expect(html).toContain(`href="#${section.id}"`);
+    expect(html).toContain(`<h1 id="hero-title" class="hero-title">${escapeHtml(BRAND.name)}</h1>`);
+    expect(html).toContain(`<p class="hero-line">${escapeHtml(BRAND.tagline)}</p>`);
     for (const theme of THEME_NAMES) {
-      for (const shape of HERO_SHAPES) {
-        expect(html).toContain(`--hero-${theme}-${shape}: url('/${heroPath(theme, shape)}')`);
-      }
+      expect(html).toContain(`--hero-${theme}: url('/${heroPath(theme)}')`);
     }
   });
 
-  it('the portal: a band for each section, each lesson a tile with its preview in each theme', () => {
-    const html = render(pageById('portal'));
+  it('the portal: a card for each lesson, with its preview in each theme, then what’s coming', () => {
+    const page = render(pageById('portal'));
+    // The cards' list alone, not the footer's lessons.
+    const start = page.indexOf(`<ul class="cards" aria-label="${escapeHtml(CARDS_NAME)}">`);
+    const html = page.slice(start, page.indexOf('</ul>', start));
+    expect(start).toBeGreaterThan(0);
+    // Each section's first card carries its id: the lessons' first, then what's coming.
+    const ids = [...html.matchAll(/<li id="([^"]+)" class="card/g)].map(([, id]) => id);
+    const live = SECTIONS.filter((s) => s.lessons.length > 0);
+    const soon = SECTIONS.filter((s) => s.lessons.length === 0);
+    expect(ids).toEqual([...live, ...soon].map((s) => s.id));
     for (const section of SECTIONS) {
-      const soon = section.lessons.length === 0;
-      expect(html).toContain(`<section id="${section.id}" class="band${soon ? ' band-soon' : ''}"`);
+      expect(html).toContain(escapeHtml(section.title));
+      expect(html).toContain(escapeHtml(section.summary));
       for (const lesson of section.lessons) {
         // Named as its lesson's loader is, so one carries on into the other.
-        expect(html).toContain(
-          `<li class="tile" data-transition="${lessonTransition(lessonPage(lesson).id)}">`,
-        );
+        expect(html).toContain(`data-transition="${lessonTransition(lessonPage(lesson).id)}"`);
+        expect(html).toContain(`href="${BASE_PATH}${lesson.href}">${escapeHtml(lesson.title)}</a>`);
+        expect(html).toContain(escapeHtml(lesson.summary));
         for (const theme of THEME_NAMES) {
           expect(html).toContain(
             `data-theme-image="${theme}" src="/${previewPath(lesson.image, theme)}"`,
@@ -105,8 +111,12 @@ describe('renderPage', () => {
         }
       }
     }
+    for (const section of soon) {
+      expect(html).toContain(`<li id="${section.id}" class="card card-soon">`);
+    }
+    expect(count(html, /<p class="soon-label">Coming soon<\/p>/g)).toBe(soon.length);
     // Every preview waits until it's near the screen, so the other theme's never loads.
-    const previews = [...html.matchAll(/<img class="tile-image"[^>]*>/g)].map(([tag]) => tag);
+    const previews = [...html.matchAll(/<img class="card-image"[^>]*>/g)].map(([tag]) => tag);
     expect(previews.length).toBeGreaterThan(0);
     for (const tag of previews) expect(tag).toContain('loading="lazy"');
   });

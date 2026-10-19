@@ -1,11 +1,11 @@
 /**
- * The portal and the ways between pages: the home page's hero links to each section, and the
- * sections show every lesson, with previews in the reader's theme, and say what's coming; a
- * lesson's preview and its loader share a transition; each page has the site header, which leads
- * home and back to the section; a missing address shows the site's 404 page. The built pages carry
- * their title, share preview, favicons and the settings script before any of their JavaScript
- * runs. Plus axe on the portal and the 404 page, in both themes, with the one hero still each
- * screen loads.
+ * The portal and the ways between pages: the home page names the site and says what it is, over a
+ * still of the diorama, and its cards show every lesson, with previews in the reader's theme, and
+ * say what's coming, all on one desktop screen; a lesson's preview and its loader share a
+ * transition; each page has the site header, which leads home and back to the lesson's card; a
+ * missing address shows the site's 404 page. The built pages carry their title, share preview,
+ * favicons and the settings script before any of their JavaScript runs. Plus axe on the portal
+ * and the 404 page, in both themes, with the one hero still each screen loads.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -13,6 +13,7 @@ import { BRAND, SITE_URL } from '../../config/brand.ts';
 import { SECTIONS, type Lesson } from '../../content/portal.ts';
 import { THEMES } from '../../src/design/tokens.ts';
 import { PAGES, lessonPage, lessonTransition, pageById } from '../../src/site/pages.ts';
+import { CARDS_NAME } from '../../src/site/shell.ts';
 import { SETTINGS_KEY } from '../../src/site/settings.ts';
 import { PREVIEW_SIZE, heroPath, previewPath } from '../../src/site/stills.ts';
 import { expect, loadImages, test, waitReady } from './fixtures.ts';
@@ -36,59 +37,98 @@ async function expectNoViolations(page: Page) {
   ).toEqual([]);
 }
 
-test('the portal shows every section, its lessons, and what’s coming', async ({ page }) => {
+test('the portal’s cards show every lesson and section, and what’s coming', async ({ page }) => {
   await openPortal(page);
   await expect(page).toHaveTitle(BRAND.name);
+  const cards = page.getByRole('list', { name: CARDS_NAME }).getByRole('listitem');
+  const lessons = SECTIONS.flatMap((section) => section.lessons);
+  const coming = SECTIONS.filter((section) => section.lessons.length === 0);
+  await expect(cards).toHaveCount(lessons.length + coming.length);
+  // The lessons first, then what's coming.
+  await expect(cards.getByRole('heading', { level: 2 })).toHaveText([
+    ...lessons.map((lesson) => lesson.title),
+    ...coming.map((section) => section.title),
+  ]);
   for (const section of SECTIONS) {
-    const card = page.getByRole('region', { name: section.title });
+    // A section's first card carries its id, where a lesson's breadcrumb leads.
+    const card = page.locator(`#${section.id}`);
     await expect(card).toBeVisible();
+    await expect(card).toContainText(section.title);
     await expect(card).toContainText(section.summary);
-    const links = card.getByRole('link');
-    await expect(links).toHaveCount(section.lessons.length);
-    if (section.lessons.length === 0) await expect(card).toContainText('Coming soon');
+    if (section.lessons.length === 0) {
+      await expect(card).toContainText('Coming soon');
+      await expect(card.getByRole('link')).toHaveCount(0);
+    }
     for (const lesson of section.lessons) {
-      const link = card.getByRole('link', { name: lesson.title, exact: true });
-      await expect(link).toHaveAttribute('href', `/811-101/${lesson.href}`);
+      const card = cards.filter({
+        has: page.getByRole('link', { name: lesson.title, exact: true }),
+      });
+      await expect(card).toContainText(lesson.summary);
+      await expect(card.getByRole('link')).toHaveAttribute('href', `/811-101/${lesson.href}`);
     }
   }
   // The previews are real images, not broken ones.
-  for (const img of await page.locator('img.tile-image').all()) {
+  for (const img of await page.locator('img.card-image').all()) {
     expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(PREVIEW_SIZE.width);
   }
 });
 
-test('the hero states what the site is and leads to each section, live ones first', async ({
+test('the hero names the site and says what it is, in the sky the screen’s whole width', async ({
   page,
 }) => {
   await openPortal(page);
   const hero = page.getByRole('region', { name: BRAND.name });
-  await expect(hero.getByRole('heading', { level: 1 })).toHaveText(
-    `${BRAND.name} ${BRAND.tagline}`,
-  );
-  const links = hero.getByRole('navigation', { name: 'Sections' }).getByRole('link');
-  const ready = SECTIONS.filter((s) => s.lessons.length > 0);
-  const coming = SECTIONS.filter((s) => s.lessons.length === 0);
-  await expect(links).toHaveText([
-    ...ready.map((s) => s.title),
-    ...coming.map((s) => `${s.title} Coming soon`),
-  ]);
-  for (const section of [...ready, ...coming]) {
-    await expect(hero.getByRole('link', { name: section.title })).toHaveAttribute(
-      'href',
-      `#${section.id}`,
-    );
-  }
-  // Each one jumps to its section.
-  await hero.getByRole('link', { name: 'Utility Education' }).click();
-  await expect(page.getByRole('region', { name: 'Utility Education' })).toBeInViewport();
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText(BRAND.name);
+  await expect(hero).toContainText(BRAND.tagline);
+  const sky = await hero.boundingBox();
+  expect(sky?.x).toBe(0);
+  expect(sky?.width).toBe(page.viewportSize()?.width);
 });
 
-/** The preview a lesson's tile shows: the one in the reader's theme, of the two it holds. */
+test.describe('on a desktop', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('a lesson’s breadcrumb lands on its card, the page still at its top', async ({ page }) => {
+    await page.goto('./#utilities');
+    await loadImages(page);
+    await expect(page.locator('#utilities')).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test('the name stands in the sky beside the whole model, clear of it', async ({ page }) => {
+    await openPortal(page);
+    const words = await page.locator('.hero-text').boundingBox();
+    const model = await page.locator('.hero-image').boundingBox();
+    if (!words || !model) throw new Error('no hero');
+    expect(words.x + words.width).toBeLessThanOrEqual(model.x);
+    // The model's still stands the hero's whole height, so its sky lines up with the page's.
+    const hero = await page.locator('.hero').boundingBox();
+    expect(model.y).toBe(hero?.y);
+    expect(model.height).toBeCloseTo(hero?.height ?? 0, 0);
+  });
+
+  test('the portal is one screen: everything but the footer shows without scrolling', async ({
+    page,
+  }) => {
+    await openPortal(page);
+    const screen = page.viewportSize()?.height ?? 0;
+    for (const part of [
+      page.getByRole('heading', { level: 1 }),
+      page.locator('.hero-image'),
+      ...(await page.getByRole('list', { name: CARDS_NAME }).getByRole('listitem').all()),
+    ]) {
+      const box = await part.boundingBox();
+      expect((box?.y ?? Infinity) + (box?.height ?? 0)).toBeLessThanOrEqual(screen);
+    }
+  });
+});
+
+/** The preview a lesson's card shows: the one in the reader's theme, of the two it holds. */
 function shownPreview(page: Page, lesson: Lesson) {
   return page
     .getByRole('listitem')
     .filter({ has: page.getByRole('link', { name: lesson.title, exact: true }) })
-    .locator('img.tile-image:visible');
+    .locator('img.card-image:visible');
 }
 
 test('a preview shows in the reader’s theme, and carries on into its lesson’s loader', async ({
@@ -101,10 +141,10 @@ test('a preview shows in the reader’s theme, and carries on into its lesson’
       'src',
       `/811-101/${previewPath(lesson.image, 'light')}`,
     );
-    // The tile and the lesson's own loader, in its static page, share a name.
+    // The card and the lesson's own loader, in its static page, share a name.
     const name = lessonTransition(lessonPage(lesson).id);
-    const tile = page.locator(`.tile[data-transition="${name}"]`);
-    await expect(tile).toHaveCount(1);
+    const card = page.locator(`.card[data-transition="${name}"]`);
+    await expect(card).toHaveCount(1);
     const html = await (await page.request.get(lesson.href)).text();
     expect(html).toContain(`--lesson-transition: ${name}`);
   }
@@ -199,10 +239,10 @@ test('the portal opens the Frequency Lab, and the header leads back', async ({ p
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
     timeout: 60_000,
   });
-  // The breadcrumb leads to the lab's section on the portal...
+  // The breadcrumb leads to the lab's card on the portal...
   await page.getByRole('link', { name: 'Locator Training' }).click();
   await expect(page).toHaveURL(/\/811-101\/#training$/);
-  await expect(page.getByRole('region', { name: 'Locator Training' })).toBeInViewport();
+  await expect(page.locator('#training')).toBeInViewport();
   // ...and the wordmark, home.
   await page.goto('training/frequency-lab/?tier=low');
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
@@ -267,16 +307,20 @@ for (const theme of ['light', 'dark'] as const) {
         reducedMotion: 'reduce',
       });
 
-      test('the portal passes axe, loads its one hero still, and nothing runs off', async ({
+      test('the portal passes axe, loads its hero only beside the name, and nothing runs off', async ({
         page,
       }) => {
-        // Of the hero's stills, only the one for this theme and screen loads.
+        // On a desktop the hero's still for this theme loads; on a phone, where the hero stacks,
+        // none does.
         const heroes: string[] = [];
         page.on('request', (req) => {
           if (req.url().includes('/stills/hero-')) heroes.push(new URL(req.url()).pathname);
         });
         await openPortal(page);
-        expect(heroes).toEqual([`/811-101/${heroPath(theme, vp.mobile ? 'square' : 'wide')}`]);
+        expect(heroes).toEqual(vp.mobile ? [] : [`/811-101/${heroPath(theme)}`]);
+        // The name and its line on the sky, then the cards, the first on the first screen.
+        const first = await page.locator('.card').first().boundingBox();
+        expect(first?.y ?? Infinity).toBeLessThan(vp.height - 120);
         await expectNoViolations(page);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

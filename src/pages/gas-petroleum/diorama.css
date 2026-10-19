@@ -1244,6 +1244,11 @@ nav.stepbar > :last-child {
   .gp-grid[data-panel='closed'] {
     grid-template-columns: minmax(0, 1fr) auto;
   }
+
+  /* The dock has the row's whole width under the guide's title, as the camera's buttons do. */
+  .gp-grid[data-panel='closed'] .gp-dock {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Phones, and short screens such as phones held sideways: the guide is a sheet. */
@@ -1335,10 +1340,11 @@ nav.stepbar > :last-child {
 }
 
 /*
- * The narrowest phones: the path switch by its words alone, and closer, so the dock keeps to one
- * line down to about 360 px; below that, a name may take two lines in its button.
+ * The narrowest phones, and short screens, where the dock has the column beside the view: the path
+ * switch by its words alone, and closer, so the dock keeps to one line (on phones, down to about
+ * 360 px; below that, a name may take two lines in its button).
  */
-@media (max-width: 380px) {
+@media (max-width: 380px), (max-height: 580px) and (min-width: 561px) {
   .gp-dock .dock-filter .icon {
     display: none;
   }

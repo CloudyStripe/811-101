@@ -32,8 +32,12 @@ export interface StopModel {
   hits: Box3[];
   /** Hit volumes on moving parts, in their own space. */
   followHits?: { box: Box3; follow: Object3D }[];
-  /** The camera's direction at this stop: from where, at what. The fit sets the distance. */
-  view: { from: Point; to: Point };
+  /**
+   * The camera's direction at this stop: from where, at what. The fit sets the distance. `alone`:
+   * framed for its subject alone, at a third of the view, with the stop it leads to in sight only
+   * where it fits then (the step bar's Next goes on to it).
+   */
+  view: { from: Point; to: Point; alone?: boolean };
   /** What must be in view at this stop, beyond its hit volumes and details. */
   focus: Point[];
   label: { at: Point; facing?: Point };
