@@ -85,6 +85,10 @@ uniform float uTaper;
 uniform float uBase;
 // Band sharpness: wider pulses on lines, short dashes on soil return paths.
 uniform float uSharp;
+// 1: a band covers the line under it however weak the signal, so a weak one shows dimmer but in
+// the signal's own color, as on the telecom cable, rather than mixed with the line's into white.
+// 0: it covers the line only as far as it's bright.
+uniform float uCover;
 varying float vDist;
 varying vec3 vNormalV;
 varying vec3 vViewDir;
@@ -113,9 +117,18 @@ void main() {
   float band = pow(0.5 + 0.5 * cos(6.2831853 * phase), uSharp);
   float rim = mix(1.0, 0.55, abs(dot(vNormalV, vViewDir)));
   float ends = smoothstep(uStart, uStart + 2.0, vDist) * (1.0 - smoothstep(uEnd - uTaper, uEnd, vDist));
-  float glow = (uBase + (1.0 - uBase) * band) * b * ends * rim;
+  float shape = (uBase + (1.0 - uBase) * band) * ends * rim;
+  float glow = shape * b;
+  // Covering, a band fades by narrowing, not by letting the line show through, so it keeps the
+  // signal's own color to the last; where it covers it's at least that color, brighter as it's
+  // stronger. None for a mere trace; as wide as the band by the strength the telecom cable gets at
+  // the highest frequency.
+  float edge = 1.0 - 0.95 * clamp((b - 0.02) / 0.18, 0.0, 1.0);
+  float stripe = smoothstep(edge, edge + 0.08, band) * ends;
+  float cover = mix(glow, stripe, uCover);
+  float lit = mix(uIntensity * glow, stripe * max(1.0, uIntensity * glow), uCover);
   // Premultiplied: bright bands read as pure signal color, and the line keeps its own color between them.
-  gl_FragColor = vec4(uColor * uIntensity * glow, clamp(glow * 1.8, 0.0, 1.0));
+  gl_FragColor = vec4(uColor * lit, clamp(cover * 1.8, 0.0, 1.0));
 }`;
 
 type Uniforms = Record<string, IUniform>;
@@ -204,6 +217,7 @@ export class SignalEffects {
         uTaper: { value: 2 },
         uBase: { value: 0.05 },
         uSharp: { value: 6 },
+        uCover: { value: 0 },
         ...extra,
       },
       vertexShader: VERTEX,
@@ -295,10 +309,13 @@ export class SignalEffects {
       uBase: { value: 0.012 },
     });
     const t = lines.telecom;
+    // The signal that bleeds onto the cable is the same signal, only weaker: its bands cover the
+    // cable's orange, dimmer, rather than mix with it into white.
     const telecomSleeve = this.sleeve(t.x0, block.x1, t.y, t.radius, {
       uDir: { value: -1 },
       uMinX: { value: hookup.pedestal.x },
       uTaper: { value: 0.3 },
+      uCover: { value: 1 },
     });
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.

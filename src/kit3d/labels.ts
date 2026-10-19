@@ -164,6 +164,8 @@ export class LabelLayer {
       const line = document.createElementNS(SVG_NS, 'line');
       const dot = document.createElementNS(SVG_NS, 'circle');
       dot.setAttribute('r', '2.5');
+      // Which label it leads to, for tests to find where a label points.
+      group.dataset.for = label.id;
       group.classList.add('off');
       group.append(line, dot);
       this.svg.append(group);

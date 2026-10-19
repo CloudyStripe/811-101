@@ -119,3 +119,70 @@ for (const view of VIEWS) {
     });
   }
 }
+
+/**
+ * The signal that bleeds onto the telecom cable is the same signal as on the gas main, only
+ * weaker: at 83 kHz, by the hookup, its bands on the cable are the signal's cyan, never washed out
+ * to white over the cable's orange.
+ */
+for (const theme of ['light', 'dark'] as const) {
+  test(`lab, ${theme}: the signal on the telecom cable is the signal's own color`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.goto('training/frequency-lab/?capture&tier=medium&setup=steel&f=83000');
+    await waitReady(page);
+    await expect(page.locator('.scene-loader')).toBeHidden();
+    // Where the cable's label points, on the cable, and the stretch toward the hookup before it.
+    const dot = page.locator('.lbl-leaders g[data-for="telecom"] circle');
+    await expect(dot).toHaveAttribute('cx', /\d/);
+    const box = await page.locator('.labels').boundingBox();
+    const cx = Number(await dot.getAttribute('cx'));
+    const cy = Number(await dot.getAttribute('cy'));
+    if (!box) throw new Error('no labels layer');
+    const clip = {
+      x: Math.max(0, box.x + cx - 320),
+      y: Math.max(0, box.y + cy - 14),
+      width: 320,
+      height: 28,
+    };
+    const png = await page.screenshot({
+      clip,
+      style: '.labels, .site-header, [data-chrome] { visibility: hidden !important; }',
+    });
+    const counts = await page.evaluate(async (data) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${data}`;
+      await img.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no 2d context');
+      ctx.drawImage(img, 0, 0);
+      const { data: px } = ctx.getImageData(0, 0, img.width, img.height);
+      let cyan = 0;
+      let white = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        const [r, g, b] = [(px[i] ?? 0) / 255, (px[i + 1] ?? 0) / 255, (px[i + 2] ?? 0) / 255];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const s = max === 0 ? 0 : (max - min) / max;
+        let h = 0;
+        if (max !== min) {
+          if (max === r) h = (60 * ((g - b) / (max - min)) + 360) % 360;
+          else if (max === g) h = 60 * ((b - r) / (max - min)) + 120;
+          else h = 60 * ((r - g) / (max - min)) + 240;
+        }
+        if (h >= 170 && h <= 205 && s > 0.35 && max > 0.45) cyan++;
+        else if (s < 0.18 && max > 0.75) white++;
+      }
+      return { cyan, white };
+    }, png.toString('base64'));
+    // Washed out, as they were, the bands give about a quarter of this cyan, and much of it white.
+    expect(counts.cyan, 'cyan bands on the cable').toBeGreaterThan(150);
+    expect(counts.white, `washed-out bands (cyan ${String(counts.cyan)})`).toBeLessThan(
+      counts.cyan / 8,
+    );
+  });
+}
