@@ -254,6 +254,23 @@ describe('placeLabels', () => {
     expect(holds(stake, { x: 440, y: 300 }), 'the stake over the transmitter').toBe(false);
   });
 
+  it('keeps every label a gutter from the edges of the view, sliding in along its row', () => {
+    const placed = shown(
+      place([
+        label('left', { x: 20, y: 300 }),
+        label('right', { x: 790, y: 120 }),
+        label('top', { x: 400, y: 20 }, { below: false }),
+      ]),
+    );
+    for (const p of placed) {
+      expect(p.rect.x, p.id).toBeGreaterThanOrEqual(16);
+      expect(p.rect.y, p.id).toBeGreaterThanOrEqual(16);
+      expect(p.rect.x + p.rect.w, p.id).toBeLessThanOrEqual(800 - 16);
+      expect(p.rect.y + p.rect.h, p.id).toBeLessThanOrEqual(600 - 16);
+    }
+    expect(placed.map((p) => p.id).sort()).toEqual(['left', 'right', 'top']);
+  });
+
   it('hangs a label on the other side of its point when its own side has no room, before it gives way', () => {
     // Controls over everything above the point, and to either side of it, as under a header.
     const above = { x: 0, y: 0, w: 800, h: 290 };
@@ -345,7 +362,8 @@ describe('placeLabels', () => {
       const placed = placeLabels([label('lit', at, { focused: true })], room(), last);
       const p = placed[0];
       rect = p?.rect ?? null;
-      if (i === 0) expect(rect?.x, 'pulled into view').toBe(800 - 4 - 100);
+      // Pulled into view, a gutter in from its edge.
+      if (i === 0) expect(rect?.x, 'pulled into view').toBe(800 - 16 - 100);
       last = new Map(p?.shownAt ? [['lit', p.shownAt]] : []);
     }
     expect(rect).toEqual({ x: 350, y: 258, w: 100, h: 28 });
@@ -486,6 +504,26 @@ describe('placeMarkers', () => {
     if (!now?.rect) throw new Error('not shown');
     expect(badgeOf({ ...now, rect: now.rect })).toEqual(badgeOf({ ...was, rect: was.rect }));
   });
+  it('keeps every marker, its icon tab and its name a gutter from the edges of the view', () => {
+    // Points by each edge, as a far stop can sit at the edge of a phone's overview.
+    const placed = shown(
+      placeAll([
+        marker('w', { x: 6, y: 300 }),
+        marker('e', { x: 796, y: 300 }),
+        marker('n', { x: 400, y: 4 }),
+        marker('s', { x: 400, y: 598 }),
+      ]),
+    );
+    expect(placed).toHaveLength(4);
+    for (const p of placed) {
+      // The tab stands 7 px out of the badge to the side and 6 px up.
+      expect(p.rect.x, p.id).toBeGreaterThanOrEqual(16 + 7);
+      expect(p.rect.y, p.id).toBeGreaterThanOrEqual(16 + 6);
+      expect(p.rect.x + p.rect.w, p.id).toBeLessThanOrEqual(800 - 16 - 7);
+      expect(p.rect.y + p.rect.h, p.id).toBeLessThanOrEqual(600 - 16);
+    }
+  });
+
   it('keeps a focused or hovered marker named on the side it was shown on, the others named as before', () => {
     // In a view 600 wide, C's name takes its right, so B, left of it, is named on its left.
     const r = room({ width: 600, bounds: { x: 0, y: 0, w: 600, h: 600 } });

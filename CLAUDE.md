@@ -63,7 +63,8 @@ An interactive learning site about buried utilities and line locating.
   trench, where nothing lies, are flattened to 1.5×; the lines keep one thickness (6×, 9× in the
   tall view). A new view or depth builds the block again (a resized window, once it holds still).
 - **3D labels** (`src/kit3d/labels.ts`; where they go is decided in `placement.ts`, a pure,
-  tested function): the highest-priority labels show, up to a cap. They keep off the buried lines
+  tested function): the highest-priority labels show, up to a cap. They keep a gutter (16 px) from
+  the view's edges, room around the controls and the header, and off the buried lines
   (`setKeepClear`) and each other's points and leaders, hanging further off a line, or further
   along it, on a longer leader, and with no room on their own side of their point, on the other.
   In a short view (`LABEL_LIMITS.iconsBelow`) they show as icons, and an icon shows its name, over

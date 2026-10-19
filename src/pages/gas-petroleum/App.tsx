@@ -74,14 +74,15 @@ const FREE: AtLimits = { tiltUp: false, tiltDown: false, zoomIn: false, zoomOut:
 
 const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 
+/** A control over the view, in the view's own pixels, with room around it the labels keep clear of. */
 function rectWithin(el: Element, container: DOMRect): Rect | null {
   const r = el.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return null;
   return {
-    x: r.left - container.left - 6,
-    y: r.top - container.top - 6,
-    w: r.width + 12,
-    h: r.height + 12,
+    x: r.left - container.left - 10,
+    y: r.top - container.top - 10,
+    w: r.width + 20,
+    h: r.height + 20,
   };
 }
 

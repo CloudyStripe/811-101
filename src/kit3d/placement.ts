@@ -125,8 +125,15 @@ export const ICON = { w: 30, h: 30 };
 const ICON_SHIFT = 1;
 /** Room between a label and its anchor, for the leader. */
 const GAP = 14;
-/** Room kept between labels and the view's edges. */
+/** Room kept between a label and what it's moved clear of. */
 const MARGIN = 4;
+/** Room kept between labels and the view's edges, and the free part's: the page's own gutter. */
+const EDGE = 16;
+/**
+ * How far a marker's icon tab stands out of its badge, to the side and up: the edges keep clear of
+ * it too.
+ */
+const TAB = { x: 7, y: 6 };
 
 /**
  * A spot by a label's anchor, in steps of about its own size, or beside it, level with it, or
@@ -264,7 +271,7 @@ function leaderOf(r: Rect, point: Point | null): Band | null {
 function clearOf(r: Rect, blocks: readonly Rect[], width: number, height: number): Rect {
   if (!overlaps(r, blocks)) return r;
   const within = (c: Rect) =>
-    c.x >= MARGIN && c.y >= MARGIN && c.x + c.w <= width - MARGIN && c.y + c.h <= height - MARGIN;
+    c.x >= EDGE && c.y >= EDGE && c.x + c.w <= width - EDGE && c.y + c.h <= height - EDGE;
   let best = r;
   let bestMove = Infinity;
   for (const q of blocks) {
@@ -320,7 +327,7 @@ function spotsBy(
           : spot[0] === 'other'
             ? { ...first, x: first.x + spot[1] * dx, y: over(at, size, !c.below).y }
             : { ...first, x: first.x + spot[0] * dx, y: first.y + spot[1] * dy };
-    const x = Math.min(Math.max(r.x, MARGIN), width - MARGIN - r.w);
+    const x = Math.min(Math.max(r.x, EDGE), width - EDGE - r.w);
     return Math.abs(x - r.x) <= r.w * 0.6 ? [{ ...r, x }] : [];
   });
 }
@@ -340,11 +347,11 @@ export function placeLabels(
   const shownRects: Rect[] = [];
 
   const inside = (r: Rect) =>
-    r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= width - MARGIN && r.y + r.h <= height - MARGIN;
+    r.x >= EDGE && r.y >= EDGE && r.x + r.w <= width - EDGE && r.y + r.h <= height - EDGE;
   const clamp = (r: Rect): Rect => ({
     ...r,
-    x: Math.min(Math.max(r.x, bounds.x + MARGIN), bounds.x + bounds.w - MARGIN - r.w),
-    y: Math.min(Math.max(r.y, bounds.y + MARGIN), bounds.y + bounds.h - MARGIN - r.h),
+    x: Math.min(Math.max(r.x, bounds.x + EDGE), bounds.x + bounds.w - EDGE - r.w),
+    y: Math.min(Math.max(r.y, bounds.y + EDGE), bounds.y + bounds.h - EDGE - r.h),
   });
   /** Where the labels that show point, so none sits over another's point and its leader. */
   let points: readonly { id: string; point: Point }[] = [];
@@ -536,12 +543,16 @@ export function placeMarkers(
 ): Placement[] {
   const { width, height, bounds, noGo } = room;
   const view = { x: 0, y: 0, w: width, h: height };
+  // Clear of the edges by the gutter, and of the icon tab standing out of the badge.
   const inside = (r: Rect) =>
-    r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= width - MARGIN && r.y + r.h <= height - MARGIN;
+    r.x >= EDGE + TAB.x &&
+    r.y >= EDGE + TAB.y &&
+    r.x + r.w <= width - EDGE - TAB.x &&
+    r.y + r.h <= height - EDGE;
   const within = (r: Rect, b: Rect): Rect => ({
     ...r,
-    x: Math.min(Math.max(r.x, b.x + MARGIN), b.x + b.w - MARGIN - r.w),
-    y: Math.min(Math.max(r.y, b.y + MARGIN), b.y + b.h - MARGIN - r.h),
+    x: Math.min(Math.max(r.x, b.x + EDGE + TAB.x), b.x + b.w - EDGE - TAB.x - r.w),
+    y: Math.min(Math.max(r.y, b.y + EDGE + TAB.y), b.y + b.h - EDGE - r.h),
   });
   const inSight = (c: Candidate) =>
     c.visible &&

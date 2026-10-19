@@ -120,8 +120,10 @@ export function labelPlaces(layout: LabLayout, kind: ViewKind): Record<LabelId, 
   const caseTop = 0.12 + 0.92 * k;
   const handleTop = 0.12 + 1.39 * k;
   return {
+    // As high as the test station's, over its post, so the two stand side by side over the hookup
+    // rather than one covering the other's point and pushing the stake's into the corner.
     transmitter: {
-      anchor: same([tx.x, handleTop + 0.05 * k, tx.z]),
+      anchor: same([tx.x, Math.max(handleTop + 0.05 * k, 3 * k + 0.5), tx.z]),
       point: same([tx.x, caseTop, tx.z]),
     },
     stake: {
