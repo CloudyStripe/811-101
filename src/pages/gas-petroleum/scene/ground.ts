@@ -1,6 +1,5 @@
 /**
- * The ground: the block of rock layers the model is cut from, floating in the sky with its shadow
- * under it; the lawn, roads, paths, shrubs, trees and street lights on its top; and the harbor
+ * The ground: the block of rock layers the model is cut from, floating in the sky; the lawn, roads, paths, shrubs, trees and street lights on its top; and the harbor
  * behind it. The layers show on every face of the block, each with its own grain. The lawn has
  * patches and wears thin around pads, roads and paths, so it never looks mown flat. At night the
  * ground's cover is graded dimmer and cooler, and the lamps throw warm pools of light on it.
@@ -11,7 +10,6 @@ import {
   Group,
   Mesh,
   PlaneGeometry,
-  ShadowMaterial,
   Shape,
   type Material,
 } from 'three';
@@ -256,15 +254,8 @@ export function buildGround(pads: readonly GroundRect[] = []): Ground {
     }),
   );
 
-  // No floor: the block floats in the sky, and only its soft shadow shows under it. The shadow
-  // writes no depth, so nothing traces its edge across the sky.
-  const shadow = new Mesh(
-    new PlaneGeometry(240, 200).rotateX(-Math.PI / 2),
-    new ShadowMaterial({ opacity: 0.14, depthWrite: false }),
-  );
-  shadow.position.y = BLOCK.bottom - 0.01;
-  shadow.receiveShadow = true;
-  group.add(shadow);
+  // No floor, and nothing under the block to catch a shadow: the block floats in the sky, which no
+  // shadow of it or its buildings falls across.
 
   // The harbor behind the block: the seabed, and the sea over it.
   const harborW = HARBOR.x1 - HARBOR.x0;
