@@ -9,7 +9,7 @@
  */
 import { Vector3, type PerspectiveCamera } from 'three';
 import { DETAILS, type StopId } from '../../../../content/utilities/gas-petroleum.ts';
-import { leaderStart } from '../../../kit3d/placement.ts';
+import { EDGE, leaderStart } from '../../../kit3d/placement.ts';
 import type { DetailSpec, StopModel } from './stop.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -166,8 +166,9 @@ export class DetailLayer {
       .filter(([item]) => item !== this.clock)
       .map(([, p]) => ({ x: p.x - POINT / 2, y: p.y - POINT / 2, w: POINT, h: POINT }));
     const placed: Rect[] = [...noGo];
+    // A gutter from the view's edges, as every label in the view keeps.
     const inside = (r: Rect) =>
-      r.x >= 2 && r.y >= 2 && r.x + r.w <= width - 2 && r.y + r.h <= height - 2;
+      r.x >= EDGE && r.y >= EDGE && r.x + r.w <= width - EDGE && r.y + r.h <= height - EDGE;
     for (const item of [this.clock, ...this.items]) {
       const p = points.get(item);
       if (!p) {

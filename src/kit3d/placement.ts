@@ -128,12 +128,38 @@ const GAP = 14;
 /** Room kept between a label and what it's moved clear of. */
 const MARGIN = 4;
 /** Room kept between labels and the view's edges, and the free part's: the page's own gutter. */
-const EDGE = 16;
+export const EDGE = 16;
 /**
  * How far a marker's icon tab stands out of its badge, to the side and up: the edges keep clear of
  * it too.
  */
 const TAB = { x: 7, y: 6 };
+
+/** How far something placed keeps from each of the view's edges. */
+interface Inset {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+const LABEL_INSET: Inset = { left: EDGE, top: EDGE, right: EDGE, bottom: EDGE };
+/** A marker's badge keeps its icon tab clear of the edges too, on whichever side it stands. */
+const MARKER_INSET: Inset = {
+  left: EDGE + TAB.x,
+  top: EDGE + TAB.y,
+  right: EDGE + TAB.x,
+  bottom: EDGE,
+};
+
+/** Whether a rectangle keeps its inset from the edges of a view this size. */
+function insideBy(r: Rect, inset: Inset, width: number, height: number): boolean {
+  return (
+    r.x >= inset.left &&
+    r.y >= inset.top &&
+    r.x + r.w <= width - inset.right &&
+    r.y + r.h <= height - inset.bottom
+  );
+}
 
 /**
  * A spot by a label's anchor, in steps of about its own size, or beside it, level with it, or
@@ -265,13 +291,19 @@ function leaderOf(r: Rect, point: Point | null): Band | null {
 }
 
 /**
- * Moves a rectangle out from under the given ones by as little as it can, within the view: a
- * focused label that would sit under a control shows beside it instead (WCAG 2.4.11).
+ * Moves a rectangle out from under the given ones by as little as it can, within the view, its
+ * inset from the edges kept: a focused label that would sit under a control shows beside it
+ * instead (WCAG 2.4.11).
  */
-function clearOf(r: Rect, blocks: readonly Rect[], width: number, height: number): Rect {
+function clearOf(
+  r: Rect,
+  blocks: readonly Rect[],
+  width: number,
+  height: number,
+  inset: Inset = LABEL_INSET,
+): Rect {
   if (!overlaps(r, blocks)) return r;
-  const within = (c: Rect) =>
-    c.x >= EDGE && c.y >= EDGE && c.x + c.w <= width - EDGE && c.y + c.h <= height - EDGE;
+  const within = (c: Rect) => insideBy(c, inset, width, height);
   let best = r;
   let bestMove = Infinity;
   for (const q of blocks) {
@@ -305,7 +337,7 @@ function over(at: Point, size: { w: number; h: number }, below: boolean): Rect {
 /**
  * Where a label this size may sit by a place of its, nearest first, in a view this wide. Near an
  * edge, it may slide inward along its row, up to a little over half its width, so it stays
- * readable and still sits by its place.
+ * readable and still sits by its place, as far in from the side edges as it keeps (`edge`).
  */
 function spotsBy(
   at: Point,
@@ -313,6 +345,7 @@ function spotsBy(
   c: Pick<Candidate, 'below' | 'offLine'>,
   width: number,
   list: readonly Spot[] = c.offLine ? OFF_LINE_SPOTS : SPOTS,
+  edge = EDGE,
 ): Rect[] {
   const first = over(at, size, c.below);
   const dx = size.w / 2 + 10;
@@ -327,7 +360,7 @@ function spotsBy(
           : spot[0] === 'other'
             ? { ...first, x: first.x + spot[1] * dx, y: over(at, size, !c.below).y }
             : { ...first, x: first.x + spot[0] * dx, y: first.y + spot[1] * dy };
-    const x = Math.min(Math.max(r.x, EDGE), width - EDGE - r.w);
+    const x = Math.min(Math.max(r.x, edge), width - edge - r.w);
     return Math.abs(x - r.x) <= r.w * 0.6 ? [{ ...r, x }] : [];
   });
 }
@@ -346,8 +379,7 @@ export function placeLabels(
   // The labels placed, which no leader may pass under.
   const shownRects: Rect[] = [];
 
-  const inside = (r: Rect) =>
-    r.x >= EDGE && r.y >= EDGE && r.x + r.w <= width - EDGE && r.y + r.h <= height - EDGE;
+  const inside = (r: Rect) => insideBy(r, LABEL_INSET, width, height);
   const clamp = (r: Rect): Rect => ({
     ...r,
     x: Math.min(Math.max(r.x, bounds.x + EDGE), bounds.x + bounds.w - EDGE - r.w),
@@ -544,15 +576,11 @@ export function placeMarkers(
   const { width, height, bounds, noGo } = room;
   const view = { x: 0, y: 0, w: width, h: height };
   // Clear of the edges by the gutter, and of the icon tab standing out of the badge.
-  const inside = (r: Rect) =>
-    r.x >= EDGE + TAB.x &&
-    r.y >= EDGE + TAB.y &&
-    r.x + r.w <= width - EDGE - TAB.x &&
-    r.y + r.h <= height - EDGE;
+  const inside = (r: Rect) => insideBy(r, MARKER_INSET, width, height);
   const within = (r: Rect, b: Rect): Rect => ({
     ...r,
-    x: Math.min(Math.max(r.x, b.x + EDGE + TAB.x), b.x + b.w - EDGE - TAB.x - r.w),
-    y: Math.min(Math.max(r.y, b.y + EDGE + TAB.y), b.y + b.h - EDGE - r.h),
+    x: Math.min(Math.max(r.x, b.x + MARKER_INSET.left), b.x + b.w - MARKER_INSET.right - r.w),
+    y: Math.min(Math.max(r.y, b.y + MARKER_INSET.top), b.y + b.h - MARKER_INSET.bottom - r.h),
   });
   const inSight = (c: Candidate) =>
     c.visible &&
@@ -617,20 +645,26 @@ export function placeMarkers(
     if (!seen) {
       // Focused with its point out of sight: pulled into the free part of the view, and where it
       // was shown kept for when its point comes back.
-      badge = clearOf(within(over(c.at, MARKER, c.below), bounds), noGo, width, height);
+      badge = clearOf(
+        within(over(c.at, MARKER, c.below), bounds),
+        noGo,
+        width,
+        height,
+        MARKER_INSET,
+      );
       shownAt = was ?? null;
     } else if (c.focused && was?.at === 0) {
       // Focused, it stays where it was, so the reader's eye and pointer find it there, but kept in
       // the free part of the view, out from under the controls.
       const kept = { x: c.at.x + was.dx, y: c.at.y + was.dy, ...MARKER };
-      badge = clearOf(within(kept, bounds), noGo, width, height);
+      badge = clearOf(within(kept, bounds), noGo, width, height, MARKER_INSET);
       shownAt = was;
     } else {
-      const spots = spotsBy(c.at, MARKER, c, width, MARKER_SPOTS);
+      const spots = spotsBy(c.at, MARKER, c, width, MARKER_SPOTS, MARKER_INSET.left);
       badge =
         spots.find(free(c, point)) ??
         spots.find(roomy) ??
-        clearOf(within(over(c.at, MARKER, c.below), view), noGo, width, height);
+        clearOf(within(over(c.at, MARKER, c.below), view), noGo, width, height, MARKER_INSET);
       shownAt = { at: 0, dx: badge.x - c.at.x, dy: badge.y - c.at.y, icon: true };
     }
     if (c.lit) {

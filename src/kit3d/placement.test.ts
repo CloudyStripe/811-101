@@ -524,6 +524,20 @@ describe('placeMarkers', () => {
     }
   });
 
+  it('slides a marker by a side edge in over its point, its tab clear, rather than a step aside', () => {
+    // Points a little in from each side edge: each badge slides in just far enough to keep its tab
+    // a gutter from the edge, and stays over its point.
+    const placed = placeAll([marker('w', { x: 30, y: 300 }), marker('e', { x: 770, y: 300 })]);
+    const [w, e] = [placed.get('w'), placed.get('e')];
+    if (!w?.rect || !e?.rect) throw new Error('not shown');
+    const west = badgeOf({ ...w, rect: w.rect });
+    const east = badgeOf({ ...e, rect: e.rect });
+    expect(west.x).toBe(16 + 7);
+    expect(east.x + east.w).toBe(800 - 16 - 7);
+    expect(Math.abs(west.x + west.w / 2 - 30)).toBeLessThanOrEqual(MARKER.w / 2);
+    expect(Math.abs(east.x + east.w / 2 - 770)).toBeLessThanOrEqual(MARKER.w / 2);
+  });
+
   it('keeps a focused or hovered marker named on the side it was shown on, the others named as before', () => {
     // In a view 600 wide, C's name takes its right, so B, left of it, is named on its left.
     const r = room({ width: 600, bounds: { x: 0, y: 0, w: 600, h: 600 } });
