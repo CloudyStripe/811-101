@@ -2,7 +2,9 @@
  * The locate signal, as one loop: out along the signal lead and down to the target, along the
  * target as luminous bands, into the soil and back to the ground stake, and up the ground lead.
  * Band spacing stands in for frequency. Brightness shows strength: on the target it fades out where
- * the signal gets too weak to trace (see glow.ts), and bleed-over glows as a share of the target.
+ * the signal gets too weak to trace (see glow.ts), and bleed-over glows as a share of the target;
+ * on the telecom cable, where it has to read as the same signal over the cable's orange, its bands
+ * keep the signal's color and narrow as it weakens.
  * The shaders use the model's current formula (src/signal/model.ts), so the view and the text
  * agree.
  */
@@ -85,8 +87,8 @@ uniform float uTaper;
 uniform float uBase;
 // Band sharpness: wider pulses on lines, short dashes on soil return paths.
 uniform float uSharp;
-// 1: a band covers the line under it however weak the signal, so a weak one shows dimmer but in
-// the signal's own color, as on the telecom cable, rather than mixed with the line's into white.
+// 1: a band covers the line under it in the signal's own color however weak the signal, and a
+// weaker one shows narrower, rather than mixed with the line's color into white: the telecom cable.
 // 0: it covers the line only as far as it's bright.
 uniform float uCover;
 varying float vDist;
