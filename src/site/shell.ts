@@ -29,6 +29,11 @@ export const BOOT = BOOT_SCRIPT;
 /** Share images are 1200 × 630, the size every preview uses. */
 export const SHARE_SIZE = { width: 1200, height: 630 } as const;
 
+/** Marks the pictures script in a page's head, so the build can put the fonts after it. */
+export const PICTURES_ATTR = 'data-first-pictures';
+/** A page's viewport tag: what measures the screen in its head goes after it. */
+export const VIEWPORT = /<meta name="viewport"[^>]*>/i;
+
 /** Where the loader goes in a 3D page's static shell. */
 export const LOADER_SLOT = '<!-- scene-loader -->';
 
@@ -65,13 +70,26 @@ export function loaderStyle(page: PageInfo): string {
 }
 
 /**
- * A script for a page's head that starts fetching the pictures its first screen shows, in the
- * reader's theme (the one the settings script has just put on <html>, or the device's), with the
- * page itself rather than once its styles are read: a 3D page's loader poster, in the screen's
- * shape, which marks the page (`data-poster`) once it's in, so a lesson's preview carries on
- * into it only then; the portal's hero, where it stands beside the name, and its lessons'
- * previews. Once the portal is in, it fetches its lessons' posters too, for later, so a lesson
- * opened from it has its poster at its first paint. None for any other page.
+ * Whether the reader came from another page of the site, as a script's expression: then the page's
+ * pictures and fonts are most likely in the browser's cache, so asking for them up front costs
+ * little and has them in for the first paint. From anywhere else it's taken as a first visit, whose
+ * first paint asking for them up front would hold up: the page asks only for what it needs to
+ * paint, and they come right after it, as its styles find them, the pictures over their tiny
+ * copies. It's a guess, as the site keeps nothing but display settings: a reader back from a
+ * bookmark has them cached but gets the first visit's order, and one who opened a lesson first has
+ * the portal's pictures asked for up front, though they've yet to be fetched.
+ */
+export const FROM_THE_SITE = `document.referrer.indexOf(location.origin + ${JSON.stringify(BASE_PATH)}) === 0`;
+
+/**
+ * A script for a page's head that, when the reader comes from another page of the site, starts
+ * fetching the pictures its first screen shows, in the reader's theme (the one the settings script
+ * has just put on <html>, or the device's), with the page itself rather than once its styles are
+ * read: a 3D page's loader poster, in the screen's shape, which marks the page (`data-poster`) once
+ * it's in, so a lesson's preview carries on into it only then; the portal's hero, where it stands
+ * beside the name, and its lessons' previews. On a first visit they come once the page's styles
+ * find them (FROM_THE_SITE). And once the portal is in, it fetches its lessons' posters, for later,
+ * so a lesson opened from it has its poster at its first paint. None for any other page.
  */
 export function picturesScript(page: PageInfo): string | null {
   const both = (path: (theme: 'light' | 'dark') => string) =>
@@ -85,12 +103,14 @@ export function picturesScript(page: PageInfo): string | null {
   };
   const fetches: string[] = [];
   if (page.scene) {
-    fetches.push(`get(${posters(page)}, function () { root.dataset.poster = 'ready'; });`);
+    fetches.push(
+      `if (within) get(${posters(page)}, function () { root.dataset.poster = 'ready'; });`,
+    );
   } else if (page.id === 'portal') {
     const lessons = SECTIONS.flatMap((section) => section.lessons);
     fetches.push(
-      `if (!matchMedia(${JSON.stringify(HERO_STACKS)}).matches) get(${both(heroPath)});`,
-      ...lessons.map((lesson) => `get(${both((t) => previewPath(lesson.image, t))});`),
+      `if (within && !matchMedia(${JSON.stringify(HERO_STACKS)}).matches) get(${both(heroPath)});`,
+      ...lessons.map((lesson) => `if (within) get(${both((t) => previewPath(lesson.image, t))});`),
       // Only a lesson with a 3D view has a poster.
       `addEventListener('load', function () { [${lessons
         .map(lessonPage)
@@ -106,6 +126,7 @@ export function picturesScript(page: PageInfo): string | null {
     '  var root = document.documentElement;',
     "  var theme = root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');",
     `  var shape = matchMedia(${JSON.stringify(POSTER_TALL)}).matches ? 'tall' : 'wide';`,
+    `  var within = ${FROM_THE_SITE};`,
     '  // For this page: now, first.',
     '  function get(urls, done) {',
     "    var el = document.createElement('link');",
@@ -160,7 +181,6 @@ export function headTags(page: PageInfo): string {
     `<meta name="theme-color" content="${THEMES.dark.chrome.bg}" media="(prefers-color-scheme: dark)" />`,
     // With no script, a 3D view never loads, so its loader shouldn't promise one.
     ...(page.scene ? ['<noscript><style>.scene-loader { display: none; }</style></noscript>'] : []),
-    ...[picturesScript(page)].flatMap((script) => (script ? [`<script>${script}</script>`] : [])),
   ].join('\n    ');
 }
 
@@ -313,9 +333,21 @@ export function renderPage(html: string, page: PageInfo): string {
   let out = html.replaceAll('%BASE%', () => BASE_PATH);
   // The settings script runs before any style, so a saved theme never flashes; it follows the
   // charset, which must come within the page's first 1024 bytes.
+  const boot = `<script>${BOOT}</script>`;
   out = /<meta charset=[^>]*>/i.test(out)
-    ? out.replace(/<meta charset=[^>]*>/i, (meta) => `${meta}\n    <script>${BOOT}</script>`)
-    : out.replace(/<head>/, (head) => `${head}\n    <script>${BOOT}</script>`);
+    ? out.replace(/<meta charset=[^>]*>/i, (meta) => `${meta}\n    ${boot}`)
+    : out.replace(/<head>/, (head) => `${head}\n    ${boot}`);
+  // Then, coming from the site, the first screen's pictures are the first thing asked for (the
+  // build puts the fonts after them), so a lesson's poster is in, from the cache, by the time the
+  // page change reveals the page. After the viewport tag, as the script measures the screen: until
+  // a phone reads that tag, it lays the page out 980 px wide.
+  const pictures = picturesScript(page);
+  if (pictures) {
+    const script = `<script ${PICTURES_ATTR}>${pictures}</script>`;
+    out = VIEWPORT.test(out)
+      ? out.replace(VIEWPORT, (meta) => `${meta}\n    ${script}`)
+      : out.replace(boot, () => `${boot}\n    ${script}`);
+  }
   out = out.replace(/\s*<\/head>/, () => `\n    ${headTags(page)}\n  </head>`);
   out = out.replace(/<body([^>]*)>/, (body) => `${body}\n    ${headerHtml(page)}`);
   if (page.footer) out = out.replace(/\s*<\/body>/, () => `\n    ${footerHtml()}\n  </body>`);

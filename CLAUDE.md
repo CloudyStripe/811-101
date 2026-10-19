@@ -41,25 +41,28 @@ An interactive learning site about buried utilities and line locating.
   (wide) and 390 × 844 (tall, for upright screens), shown under only a light blur so they look like
   the view about to start: at those sizes the view takes over from them with no jump, and on other
   screens they're cut to the stage, so it's close.
-- **Nothing blank, nothing late:** the first screen's pictures are fetched with the page, in the
-  reader's theme (and a poster in the screen's shape), by a script in its head (`picturesScript`),
-  not once its styles are read; each stands over a tiny copy of itself, inline
-  (`src/site/placeholders.ts`, made by `scripts/placeholders.ts`, which notes the version of each
-  picture it was made from, so a test fails when one is stale), from the first paint until it
-  lands; under a lesson's poster, the loader shows the copy too (a lesson's own loader keeps its
-  shell's, so its code doesn't carry them). Once the portal is in, it prefetches its 3D lessons'
-  posters, so a lesson opened from it has its poster at its first paint. The fonts the first
-  screen uses (`FIRST_SCREEN_FONTS`, the same on every page) are preloaded first in the head, so
-  on a page change or a return they're in before text shows; on a first-ever visit over a slow
-  connection, the display face can still land just after the first paint (the browser can't hold
-  the paint for a font). And each page's own script holds its first paint until it runs
-  (`blocking="render"`, `firstPaint` in `src/site/vite.ts`, which stops the build if a page misses
-  it or a font), so a lesson shows its console or dock, and the header its settings button, in its
-  first paint; its 3D code loads after, at low priority, and it builds its view only once it's
-  been revealed and any page change into it has finished (`revealed` in `src/site/arrival.ts`). A
-  test loads each page throttled like a phone (CPU 4×, 1.6 Mbps, 150 ms), its pictures held back
-  until it has painted, and fails if its stage or a first-screen picture is blank
-  (`tests/e2e/first-paint.spec.ts`).
+- **Nothing blank, nothing late:** each of the first screen's pictures stands over a tiny copy of
+  itself, inline (`src/site/placeholders.ts`, made by `scripts/placeholders.ts`, which notes the
+  version of each picture it was made from, so a test fails when one is stale), from the first paint
+  until it lands; under a lesson's poster, the loader shows the copy too (a lesson's own loader
+  keeps its shell's, so its code doesn't carry them). Coming from another page of the site
+  (`FROM_THE_SITE`, by the referrer: a guess at what's cached, so a reader back from a bookmark gets
+  a first visit's order), a page asks first thing in its head, after its viewport tag, for its first
+  screen's pictures, in the reader's theme and a poster in the screen's shape (`picturesScript`),
+  then for the fonts the first screen uses (`FIRST_SCREEN_FONTS`, the same on every page), so
+  they're in from the cache before it shows. On a first visit it asks for neither up front, so it
+  paints as soon as its styles and script are in: its pictures come once its styles find them, over
+  their tiny copies, and the fonts once its text is laid out, so the display face can land just
+  after the first paint. Once the portal is in, it prefetches its 3D lessons' posters, on a first
+  visit too, so a lesson opened from it has its poster at its first paint (on the review server,
+  which has every file asked for again, sometimes just after). And each page's own script holds its
+  first paint until it runs (`blocking="render"`, `firstPaint` in `src/site/vite.ts`, which stops
+  the build if a page misses it or a font), so a lesson shows its console or dock, and the header
+  its settings button, in its first paint; its 3D code loads after, at low priority, and it builds
+  its view only once it's been revealed and any page change into it has finished (`revealed` in
+  `src/site/arrival.ts`). A test loads each page throttled like a phone (CPU 4×, 1.6 Mbps, 150 ms),
+  its pictures held back until it has painted, and fails if its stage or a first-screen picture is
+  blank (`tests/e2e/first-paint.spec.ts`).
 - **Page changes:** cross-document view transitions (`base.css`), instant with reduced motion.
   Chromium skips one into a page revealed while its script is still loading, which is why each
   page's script holds its first paint. A lesson's preview carries on into its loader's poster once

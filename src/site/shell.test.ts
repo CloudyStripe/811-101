@@ -19,6 +19,8 @@ import {
   CARDS_SLOT,
   HERO_SLOT,
   LOADER_SLOT,
+  PICTURES_ATTR,
+  VIEWPORT,
   picturesScript,
   renderPage,
 } from './shell.ts';
@@ -27,12 +29,24 @@ import { HERO_STACKS, THEME_NAMES, heroPath, previewPath } from './stills.ts';
 const render = (page: (typeof PAGES)[number]) => renderPage(readFileSync(page.html, 'utf8'), page);
 const count = (html: string, pattern: RegExp) => [...html.matchAll(pattern)].length;
 
+/**
+ * The script straight after a page's viewport tag. The pictures script goes there: before the
+ * fonts, styles and scripts, so it's asked for first, and after the tag a phone measures by.
+ */
+function afterViewport(html: string): string {
+  const viewport = VIEWPORT.exec(html);
+  if (!viewport) throw new Error('no viewport tag');
+  const rest = html.slice(viewport.index + viewport[0].length).trimStart();
+  return rest.slice(0, rest.indexOf('</script>') + '</script>'.length);
+}
+
 /** A tiny copy, inline, as the shell writes it. */
 const TINY = "url('data:image/webp;base64,";
 
 /**
  * Runs a page's pictures script against a stand-in document: a saved theme (or none), the device's
- * theme, whether the screen is upright, and whether the portal's hero stacks. Returns what it
+ * theme, whether the screen is upright, whether the portal's hero stacks, and whether the reader
+ * came from another page of the site (`fromSite`; else it's a first visit). Returns what it
  * fetches for the page now (`hrefs`, at `priorities`), what it fetches once the page has loaded,
  * for later (`later`), and what it marks the page with as each lands.
  */
@@ -43,7 +57,14 @@ function runPictures(
     dark,
     stacks = false,
     tall = false,
-  }: { saved?: 'light' | 'dark'; dark: boolean; stacks?: boolean; tall?: boolean },
+    fromSite = true,
+  }: {
+    saved?: 'light' | 'dark';
+    dark: boolean;
+    stacks?: boolean;
+    tall?: boolean;
+    fromSite?: boolean;
+  },
 ) {
   interface Link {
     rel?: string;
@@ -55,8 +76,10 @@ function runPictures(
   const links: Link[] = [];
   const loaded: (() => void)[] = [];
   const root = { dataset: (saved ? { theme: saved } : {}) as Record<string, string> };
+  const origin = 'https://example.test';
   const document = {
     documentElement: root,
+    referrer: fromSite ? `${origin}${BASE_PATH}` : 'https://elsewhere.test/',
     head: {
       appendChild: (link: Link) => {
         // A preload starts at once, so it must be set up before it's put in.
@@ -78,12 +101,13 @@ function runPictures(
   };
   // The script as a page runs it, with the stand-ins for the page's globals.
   // eslint-disable-next-line @typescript-eslint/no-implied-eval -- running the page's own script
-  const run = new Function('document', 'matchMedia', 'addEventListener', script) as (
+  const run = new Function('document', 'matchMedia', 'addEventListener', 'location', script) as (
     doc: typeof document,
     media: typeof matchMedia,
     listen: typeof addEventListener,
+    where: { origin: string },
   ) => void;
-  run(document, matchMedia, addEventListener);
+  run(document, matchMedia, addEventListener, { origin });
   const now = [...links];
   for (const link of now) link.onload?.();
   for (const listener of loaded) listener();
@@ -237,7 +261,9 @@ describe('renderPage', () => {
     (page) => {
       const script = picturesScript(page);
       if (!script) throw new Error('no pictures script');
-      expect(render(page)).toContain(`<script>${script}</script>`);
+      expect(afterViewport(render(page)), 'straight after the viewport tag').toBe(
+        `<script ${PICTURES_ATTR}>${script}</script>`,
+      );
       const url = (theme: 'light' | 'dark', shape: 'wide' | 'tall') =>
         `${BASE_PATH}${posterPath(page, theme, shape)}`;
       expect(runPictures(script, { dark: false }).hrefs).toEqual([url('light', 'wide')]);
@@ -254,12 +280,17 @@ describe('renderPage', () => {
       const run = runPictures(script, { dark: false });
       expect(run.priorities).toEqual(['high']);
       expect(run.root.dataset.poster).toBe('ready');
+      // A first visit asks only for what it needs to paint: its styles find the poster after.
+      expect(runPictures(script, { dark: false, fromSite: false }).hrefs).toEqual([]);
     },
   );
 
   it('the portal: its head fetches the hero, where it shows, and the previews, in the reader’s theme', () => {
     const script = picturesScript(pageById('portal'));
     if (!script) throw new Error('no pictures script');
+    expect(afterViewport(render(pageById('portal'))), 'straight after the viewport tag').toBe(
+      `<script ${PICTURES_ATTR}>${script}</script>`,
+    );
     const lessons = SECTIONS.flatMap((section) => section.lessons);
     const previews = (theme: 'light' | 'dark') =>
       lessons.map((lesson) => `${BASE_PATH}${previewPath(lesson.image, theme)}`);
@@ -273,11 +304,17 @@ describe('renderPage', () => {
     ]);
     // Where the hero stacks, it shows no model, so its still isn't fetched.
     expect(runPictures(script, { dark: false, stacks: true }).hrefs).toEqual(previews('light'));
-    // Once it's in, each lesson's poster, in the theme and the screen's shape, for later.
+    // A first visit asks only for what it needs to paint: its styles find the pictures after.
+    expect(runPictures(script, { dark: false, fromSite: false }).hrefs).toEqual([]);
+    // Once it's in, each lesson's poster, in the theme and the screen's shape, for later, on a
+    // first visit too.
     const posters = (theme: 'light' | 'dark', shape: 'wide' | 'tall') =>
       lessons.map((lesson) => `${BASE_PATH}${posterPath(lessonPage(lesson), theme, shape)}`);
     expect(runPictures(script, { dark: false }).later).toEqual(posters('light', 'wide'));
     expect(runPictures(script, { dark: true, tall: true }).later).toEqual(posters('dark', 'tall'));
+    expect(runPictures(script, { dark: false, fromSite: false }).later).toEqual(
+      posters('light', 'wide'),
+    );
     expect(readFileSync('src/pages/portal/portal.css', 'utf8')).toContain(
       `@media ${HERO_STACKS} {`,
     );

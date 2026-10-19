@@ -6,8 +6,8 @@
  *   preview servers as on GitHub Pages.
  * - `preloadScenes`: a 3D page starts fetching its scene code with the page itself, after what
  *   its first paint needs.
- * - `firstPaint`: each page's own script holds its first paint until it runs, and the fonts its
- *   first screen sets text in start loading with the page.
+ * - `firstPaint`: each page's own script holds its first paint until it runs, and, coming from the
+ *   site, the fonts its first screen sets text in start loading with the page.
  */
 import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -16,7 +16,7 @@ import { relative, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { tokensCss } from '../design/tokens.ts';
 import { pageById, pageForHtml } from './pages.ts';
-import { BOOT, renderPage } from './shell.ts';
+import { BOOT, FROM_THE_SITE, PICTURES_ATTR, VIEWPORT, renderPage } from './shell.ts';
 
 export function siteTokens(): Plugin {
   const id = 'virtual:tokens.css';
@@ -233,8 +233,10 @@ export const FIRST_SCREEN_FONTS = [
  *   (a lesson's console or dock, the header's settings button) shows them in its first paint, and
  *   a page change into it animates: Chromium skips the change's animation into a page revealed
  *   while its script is still loading. Browsers that don't know the attribute paint as before.
- * - The fonts its first screen uses load with the page, not once its styles are read and its text
- *   laid out, so they're in before text shows (from the cache on a return, at once).
+ * - Coming from another page of the site, the fonts its first screen uses are asked for first,
+ *   not once its styles are read and its text laid out, so they're in (from the cache) before text
+ *   shows. On a first visit they come once its text is laid out, after what it needs to paint,
+ *   rather than hold its first paint up (FROM_THE_SITE in shell.ts).
  */
 export function firstPaint(): Plugin {
   let base = '/';
@@ -282,24 +284,37 @@ export function firstPaint(): Plugin {
               FIRST_SCREEN_FONTS.some((font) => name.startsWith(font))
             );
           })
-          .map(
-            (file) =>
-              `<link rel="preload" as="font" type="font/woff2" crossorigin href="${base}${file.fileName}" />`,
-          );
+          .map((file) => `${base}${file.fileName}`);
         if (built && fonts.length !== FIRST_SCREEN_FONTS.length) {
           throw new Error(
             `${ctx.filename}: ${String(fonts.length)} of the ${String(FIRST_SCREEN_FONTS.length)} first-screen fonts found to preload`,
           );
         }
         if (fonts.length === 0) return out;
-        // Straight after the settings script, so they're asked for first, before the pictures,
-        // styles and scripts: the pictures have their tiny copies to show meanwhile, and text has
-        // nothing but its own face.
+        // After the pictures script (on a page with none, the viewport tag), so, coming from the
+        // site, they're asked for before the styles and scripts: the pictures first, as a lesson's
+        // poster is what a page change carries a preview into, then the fonts.
+        const ask = [
+          `<script data-first-fonts>if (${FROM_THE_SITE}) ${JSON.stringify(fonts)}.forEach(function (href) {`,
+          "  var el = document.createElement('link');",
+          "  el.rel = 'preload';",
+          "  el.as = 'font';",
+          "  el.type = 'font/woff2';",
+          "  el.crossOrigin = 'anonymous';",
+          '  el.href = href;',
+          '  document.head.appendChild(el);',
+          '});</script>',
+        ].join('\n');
         const boot = `<script>${BOOT}</script>`;
-        const at = out.indexOf(boot);
-        if (at < 0) throw new Error(`${ctx.filename}: no settings script to put the fonts after`);
-        const after = at + boot.length;
-        return `${out.slice(0, after)}\n    ${fonts.join('\n    ')}${out.slice(after)}`;
+        let after = out.indexOf(boot);
+        if (after < 0)
+          throw new Error(`${ctx.filename}: no settings script to put the fonts after`);
+        after += boot.length;
+        const pictures = out.indexOf(`<script ${PICTURES_ATTR}>`, after);
+        const viewport = VIEWPORT.exec(out.slice(after));
+        if (pictures >= 0) after = out.indexOf('</script>', pictures) + '</script>'.length;
+        else if (viewport) after += viewport.index + viewport[0].length;
+        return `${out.slice(0, after)}\n    ${ask}${out.slice(after)}`;
       },
     },
   };
