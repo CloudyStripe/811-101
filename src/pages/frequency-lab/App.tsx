@@ -45,6 +45,10 @@ const DRAWER_CLOSE: Record<DrawerId, string> = {
   guide: 'Close the lab guide',
   key: 'Close the key',
 };
+const DRAWER_MORE: Record<DrawerId, string> = {
+  guide: 'More of the lab guide',
+  key: 'More of the key',
+};
 
 /** A control over the view, in the view's own pixels, with room around it the labels keep clear of. */
 function rectWithin(el: Element, container: DOMRect): Rect | null {
@@ -333,6 +337,7 @@ export function App() {
         id={DRAWER_ID}
         title={drawer ? DRAWER_TITLES[drawer] : null}
         closeLabel={drawer ? DRAWER_CLOSE[drawer] : ''}
+        moreLabel={drawer ? DRAWER_MORE[drawer] : ''}
         onClose={closeDrawer}
       >
         {drawer === 'guide' && (

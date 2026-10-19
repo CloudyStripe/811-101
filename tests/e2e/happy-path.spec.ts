@@ -210,6 +210,31 @@ test.describe('on a phone', () => {
     await expect(page.getByRole('heading', { name: "What's happening" })).toBeInViewport();
     expect(await scrolled()).toBe(0);
   });
+
+  test('a drawer with more below shows it, and More scrolls on to the end, focus kept in it', async ({
+    page,
+  }) => {
+    await open(page);
+    await toggle(page, 'Guide').tap();
+    const body = drawer(page).locator('.drawer-body');
+    const more = drawer(page).getByRole('button', { name: 'More of the lab guide' });
+    // More of the guide below than shows: its foot fades, and More sits there.
+    await expect(body).toHaveAttribute('data-more', '');
+    await expect(more).toBeVisible();
+    await more.tap();
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    // By keys to the end, where More goes: focus stays in the drawer, so the arrows scroll it and
+    // Escape still closes it.
+    await more.focus();
+    await expect(async () => {
+      await page.keyboard.press('Enter');
+      await expect(more).toBeHidden({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+    await expect(body).not.toHaveAttribute('data-more');
+    await expect(body).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(drawer(page)).toBeHidden();
+  });
 });
 
 test('only one definition shows at a time, and Escape closes it from anywhere', async ({

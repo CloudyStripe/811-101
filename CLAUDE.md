@@ -49,11 +49,13 @@ An interactive learning site about buried utilities and line locating.
   arrows, Home and End): the lab's setup and its four frequency buttons, and the diorama's path
   switch.
 - **The lab's layout:** the view, then a drawer (the guide or the key, one at a time, opened from
-  the console and closed by its button or Escape), then the console (the summary of what the view
-  shows, setup, frequency, pause, Guide, Key, and Labels, which shows or hides every label on the
-  tools and lines). The view is framed above whichever is open, so neither covers the lines; on
-  short screens the drawer and console are a column beside the view. Nothing else sits over the
-  view: the lesson's one line is in the guide, and the Key says the view isn't to scale.
+  the console and closed by its button or Escape; while there's more of it below than shows, its
+  foot fades and a More button scrolls on, handing focus to its body at the end), then the
+  console (the summary of what the view shows, setup, frequency, pause, Guide, Key, and Labels,
+  which shows or hides every label on the tools and lines). The view is framed above whichever is
+  open, so neither covers the lines; on short screens the drawer and console are a column beside
+  the view. Nothing else sits over the view: the lesson's one line is in the guide, and the Key
+  says the view isn't to scale.
 - **The lab's two views** (`layout.ts`): from in front on wide screens, and from the hookup end and
   above on tall ones. The ground the lines lie in is drawn as deep as it takes for the block to
   fill the height between the header and the console (`depthFor` in `fill.ts`, within each view's

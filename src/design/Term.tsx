@@ -10,11 +10,18 @@ const GAP = 6;
 const LEADING_PUNCTUATION = /^[.,;:!?)]+/;
 const EDGE = 8;
 
-/** The box a tip must stay inside: the nearest scrolling ancestor, or the window. */
+/**
+ * The box a tip must stay inside: the nearest scrolling ancestor, less the room it keeps clear at
+ * its foot (its scroll padding, as the lab's drawer keeps for its fade and More button), or the
+ * window.
+ */
 function boundsOf(el: Element): { left: number; right: number; top: number; bottom: number } {
   for (let p = el.parentElement; p; p = p.parentElement) {
-    const { overflowY } = getComputedStyle(p);
-    if (overflowY === 'auto' || overflowY === 'scroll') return p.getBoundingClientRect();
+    const style = getComputedStyle(p);
+    if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+      const { left, right, top, bottom } = p.getBoundingClientRect();
+      return { left, right, top, bottom: bottom - (parseFloat(style.scrollPaddingBottom) || 0) };
+    }
   }
   return { left: 0, right: innerWidth, top: 0, bottom: innerHeight };
 }
