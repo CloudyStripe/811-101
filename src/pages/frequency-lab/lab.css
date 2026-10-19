@@ -221,6 +221,7 @@ body {
  * never takes more than its share of the screen.
  */
 .lab-drawer {
+  position: relative;
   grid-area: drawer;
   display: flex;
   flex-direction: column;
@@ -256,6 +257,29 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+/* More below: the words fade out at the drawer's foot, where the More button sits. */
+.drawer-body[data-more] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 4.5rem), transparent calc(100% - 1rem));
+}
+
+.drawer-more {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 50%;
+  min-height: 36px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  box-shadow: var(--shadow-1);
+  transform: translateX(-50%);
+}
+
+.drawer-more:active {
+  transform: translate(-50%, 1px);
+}
+
+.drawer-more[hidden] {
+  display: none;
 }
 
 /* The guide: its sections side by side where there's room, one under another where there isn't. */
