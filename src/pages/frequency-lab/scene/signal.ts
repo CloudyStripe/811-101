@@ -4,7 +4,7 @@
  * Band spacing stands in for frequency. Brightness shows strength: on the target it fades out where
  * the signal gets too weak to trace (see glow.ts), and bleed-over glows as a share of the target;
  * on the telecom cable, where it has to read as the same signal over the cable's orange, its bands
- * keep the signal's color and narrow as it weakens.
+ * keep the signal's color, narrower and dimmer as it weakens.
  * The shaders use the model's current formula (src/signal/model.ts), so the view and the text
  * agree.
  */
@@ -88,7 +88,7 @@ uniform float uBase;
 // Band sharpness: wider pulses on lines, short dashes on soil return paths.
 uniform float uSharp;
 // 1: a band covers the line under it in the signal's own color however weak the signal, and a
-// weaker one shows narrower, rather than mixed with the line's color into white: the telecom cable.
+// weaker one shows narrower and dimmer, not mixed with the line's color into white: the telecom cable.
 // 0: it covers the line only as far as it's bright.
 uniform float uCover;
 varying float vDist;
@@ -121,14 +121,24 @@ void main() {
   float ends = smoothstep(uStart, uStart + 2.0, vDist) * (1.0 - smoothstep(uEnd - uTaper, uEnd, vDist));
   float shape = (uBase + (1.0 - uBase) * band) * ends * rim;
   float glow = shape * b;
-  // Covering, a band fades by narrowing, not by letting the line show through, so it keeps the
-  // signal's own color to the last; where it covers it's at least that color, brighter as it's
-  // stronger. None for a mere trace; as wide as the band by the strength the telecom cable gets at
-  // the highest frequency.
-  float edge = 1.0 - 0.95 * clamp((b - 0.02) / 0.18, 0.0, 1.0);
-  float stripe = smoothstep(edge, edge + 0.08, band) * ends;
-  float cover = mix(glow, stripe, uCover);
-  float lit = mix(uIntensity * glow, stripe * max(1.0, uIntensity * glow), uCover);
+  // Covering, a band is a stripe of the signal's own color, never letting the line show through:
+  // as wide and as bright as the signal is strong, from a thin, dimmer line for a little bleed-over
+  // to most of the band, and bright, at the most the telecom cable gets (the highest frequency, by
+  // the hookup). None for a mere trace, as at the lowest frequency. Measured from the band's
+  // middle, with its edge a pixel soft, so even the thinnest keeps the signal's color.
+  float cover = glow;
+  float lit = uIntensity * glow;
+  if (uCover > 0.5) {
+    float strength = clamp((b - 0.005) / 0.175, 0.0, 1.0);
+    float fromMiddle = abs(fract(phase + 0.5) - 0.5);
+    // A pixel, in bands; never none (a line seen end on), which would leave the edge undefined.
+    float pixel = max(fwidth(phase), 1e-4);
+    float halfWidth = max(mix(0.035, 0.18, strength), 0.75 * pixel);
+    float stripe = (1.0 - smoothstep(halfWidth - 0.5 * pixel, halfWidth + 0.5 * pixel, fromMiddle))
+      * ends * smoothstep(0.005, 0.0065, b);
+    cover = stripe;
+    lit = stripe * max(mix(0.5, 1.0, strength), uIntensity * glow);
+  }
   // Premultiplied: bright bands read as pure signal color, and the line keeps its own color between them.
   gl_FragColor = vec4(uColor * lit, clamp(cover * 1.8, 0.0, 1.0));
 }`;
