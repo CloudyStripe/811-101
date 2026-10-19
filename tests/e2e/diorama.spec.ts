@@ -104,8 +104,10 @@ for (const key of ['gas', 'gasoline'] as const) {
         stopById(id).title.text,
       );
       await expect(status(page)).toHaveText(stopSummary(id));
-      const next = i === tour.stops.length - 1 ? 'Take the quiz' : 'Next step';
-      await guide(page).getByRole('button', { name: next }).click();
+      // Next names the stop it goes to, and the last one, the quiz.
+      const on = tour.stops[i + 1];
+      const next = on ? `Next: ${stopById(on).label}` : 'Take the quiz';
+      await guide(page).getByRole('button', { name: next, exact: true }).click();
     }
     await expect(guide(page).getByRole('heading', { level: 2 })).toHaveText(
       'Quick check: 3 questions',
@@ -149,12 +151,14 @@ test('Start walks the shared start to the fork, where the way on is the choice o
   await guide(page).getByRole('button', { name: 'Start at the beginning' }).click();
   for (const step of [1, 2, 3]) {
     await expect(guide(page)).toContainText(`Step ${String(step)} of 4`);
-    await guide(page).getByRole('button', { name: 'Next step' }).click();
+    await guide(page)
+      .getByRole('button', { name: /^Next: / })
+      .click();
   }
   // The fork: the step bar's way on is the choice of path.
   await expect(guide(page)).toContainText('Step 4 of 4');
   await expect(status(page)).toHaveText(stopSummary('lifting'));
-  await expect(guide(page).getByRole('button', { name: 'Next step' })).toHaveCount(0);
+  await expect(guide(page).getByRole('button', { name: /^Next/ })).toHaveCount(0);
   await expect(filterChecked(page)).toHaveText('Both');
   await guide(page).getByRole('button', { name: 'Choose a path' }).click();
   await expect(guide(page).getByRole('button', { name: /Natural gas path/ })).toBeFocused();
@@ -170,7 +174,9 @@ test('Start walks the shared start to the fork, where the way on is the choice o
   // Back at the fork, the path chosen is marked, and Next goes on along it.
   await guide(page).getByRole('button', { name: 'Back', exact: true }).click();
   await expect(guide(page).getByRole('button', { name: /Gasoline path.*your path/ })).toBeVisible();
-  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await guide(page)
+    .getByRole('button', { name: /^Next: / })
+    .click();
   await expect(status(page)).toHaveText(stopSummary('crude-transport'));
 });
 
@@ -181,13 +187,17 @@ test('a stop opened from its marker steps along its own path; a shared one waits
   // A stop of a path: its path's steps, counting the shared start, on to its quiz.
   await openMarker(page, 'distillation');
   await expect(guide(page)).toContainText(`Step 6 of ${String(TOURS.gasoline.stops.length)}`);
-  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await guide(page)
+    .getByRole('button', { name: /^Next: / })
+    .click();
   await expect(status(page)).toHaveText(stopSummary('delivery'));
   // A stop of the shared start, with both paths showing: the choice waits at the fork.
   await guide(page).getByRole('button', { name: 'Overview', exact: true }).click();
   await openMarker(page, 'drilling');
   await expect(guide(page)).toContainText('Step 3 of 4');
-  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await guide(page)
+    .getByRole('button', { name: /^Next: / })
+    .click();
   await guide(page).getByRole('button', { name: 'Choose a path' }).click();
   await expect(guide(page).getByRole('button', { name: /Natural gas path/ })).toBeFocused();
   // Opening the gas plant from its marker goes down the natural gas path, which the view shows.
@@ -629,4 +639,45 @@ test('losing the graphics context: a clear message, then a clean recovery', asyn
   await expect(message).toBeHidden();
   // The view is drawn again, not left blank.
   await expect.poll(() => frames(), { message: 'drawn again' }).toBeGreaterThan(before);
+});
+
+test.describe('on a very narrow phone', () => {
+  test.use({
+    reducedMotion: 'reduce',
+    viewport: { width: 300, height: 640 },
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  test('Next says Next alone where the step bar has no room for the name, and still names it to screen readers', async ({
+    page,
+  }) => {
+    await page.goto('utilities/gas-petroleum/?tier=low&stop=pipeline');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    const next = page.locator('.gp-panel').getByRole('button', {
+      name: 'Next: Storage & shipping',
+      exact: true,
+    });
+    await expect(next).toBeVisible();
+    // What shows: the stop's name, hidden for want of room, isn't read by the eye.
+    await expect(next).toHaveText('Next', { useInnerText: true });
+  });
+});
+
+test.describe('with room', () => {
+  test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
+
+  test('Next names the stop it goes to', async ({ page }) => {
+    await page.goto('utilities/gas-petroleum/?tier=low&stop=pipeline');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    await expect(
+      page
+        .locator('.gp-panel')
+        .getByRole('button', { name: 'Next: Storage & shipping', exact: true }),
+    ).toHaveText('Next: Storage & shipping', { useInnerText: true });
+  });
 });

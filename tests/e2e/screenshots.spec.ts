@@ -208,7 +208,10 @@ const DIORAMA: State[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Gasoline tour' }).click();
       for (let i = 0; i < 7; i++) {
-        await page.locator('.gp-panel').getByRole('button', { name: 'Next step' }).click();
+        await page
+          .locator('.gp-panel')
+          .getByRole('button', { name: /^Next: / })
+          .click();
       }
       await page.locator('.gp-panel').getByRole('button', { name: 'Take the quiz' }).click();
       for (const q of await page.locator('.q').all()) {

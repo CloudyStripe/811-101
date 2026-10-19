@@ -861,6 +861,7 @@ body {
  * the guide is too narrow for all of it in a row, its way on takes a row of its own, on the right.
  */
 .stepbar {
+  container: stepbar / inline-size;
   display: flex;
   flex: none;
   flex-wrap: wrap;
@@ -877,6 +878,15 @@ nav.stepbar > :last-child {
 .stepbar .button {
   padding: 0 var(--space-3);
   gap: 6px;
+  white-space: nowrap;
+}
+
+/* Next names where it goes, but where the bar is too narrow for the longest name on a row of its
+   own, it says Next alone. */
+@container stepbar (max-width: 17rem) {
+  .stepbar-to {
+    display: none;
+  }
 }
 
 .stepbar-overview,

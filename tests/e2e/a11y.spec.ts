@@ -106,7 +106,7 @@ for (const theme of ['light', 'dark'] as const) {
       await openDiorama(page);
       await page.getByRole('button', { name: 'Natural gas tour' }).click();
       const guide = page.locator('.gp-panel');
-      for (let i = 0; i < 8; i++) await guide.getByRole('button', { name: 'Next step' }).click();
+      for (let i = 0; i < 8; i++) await guide.getByRole('button', { name: /^Next: / }).click();
       await guide.getByRole('button', { name: 'Take the quiz' }).click();
       await page.locator('.q').first().getByRole('button').first().click();
       await scan(page, `${theme} diorama quiz`);
