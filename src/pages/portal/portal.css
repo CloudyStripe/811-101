@@ -65,25 +65,31 @@
 }
 
 /*
- * The still, in the reader's theme and the screen's shape: only the one that applies loads. Its
- * sides fade into the page's sky, which is the same, so no seam shows.
+ * The still, in the reader's theme and the screen's shape: only the one that applies loads, and
+ * over a tiny copy of it, inline, until it lands. Its sides fade into the page's sky, which is the
+ * same, so no seam shows.
  */
 .hero-image {
   --hero: var(--hero-light);
+  --hero-tiny: var(--hero-light-tiny);
   align-self: stretch;
   aspect-ratio: 1642 / 1350;
-  background: var(--hero) center / cover no-repeat;
+  background:
+    var(--hero, none) center / cover no-repeat,
+    var(--hero-tiny, none) center / cover no-repeat;
   mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .hero-image {
     --hero: var(--hero-dark);
+    --hero-tiny: var(--hero-dark-tiny);
   }
 }
 
 :root[data-theme='dark'] .hero-image {
   --hero: var(--hero-dark);
+  --hero-tiny: var(--hero-dark-tiny);
 }
 
 /* The cards, over the hero's foot: three in a row on wide screens, then two, then one. */
@@ -152,8 +158,12 @@
   background: var(--surface-2);
 }
 
+/* Over a tiny copy of the preview (`--tiny`, inline), until the preview lands. */
 .card-image {
   object-fit: cover;
+  background:
+    var(--tiny, none) center / cover no-repeat,
+    var(--surface-2);
 }
 
 /* Each card holds its preview in both themes; the other theme's isn't shown, so it never loads. */
@@ -323,6 +333,7 @@
  * the sky, then the cards. The model shows only beside the name: here it isn't drawn, and with no
  * picture set, it's never fetched.
  */
+/* The same query as the hero's still's fetch (HERO_STACKS in src/site/stills.ts). */
 @media (max-width: 760px), (max-width: 1023px) and (orientation: portrait), (max-height: 500px) {
   .portal {
     --cards-up: 2rem;

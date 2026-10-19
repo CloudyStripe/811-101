@@ -44,6 +44,8 @@ const STOP_IDS = STOPS.map((s) => s.id);
 const INITIAL_STOP: StopId | null = STOP_IDS.find((id) => id === params.get('stop')) ?? null;
 const TIER_PARAM = parseTier(params.get('tier'));
 const CAPTURE = params.has('capture');
+/** With capture, the view held where its arrival starts, as the loader's poster shows it. */
+const ARRIVAL = params.has('arrival');
 const PERF = params.has('perf');
 /** What lands the establishing move: any input at all. */
 const LAND_ON = ['pointerdown', 'keydown', 'wheel'] as const;
@@ -269,6 +271,7 @@ export function App() {
           theme: resolvedTheme(),
           reducedMotion: reducesMotion(s.motion, reducedMotionQuery.matches),
           capture: CAPTURE,
+          arrival: ARRIVAL,
           perf: PERF,
           visibleArea,
           noGo,

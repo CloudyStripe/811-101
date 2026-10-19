@@ -1,0 +1,58 @@
+// Made by scripts/placeholders.ts from the pictures in public/ (npm run thumbnails): not by hand.
+
+/**
+ * A tiny copy of each picture the pages show first, by its address under the site’s base path,
+ * inline, to stand in its place until the picture lands: the portal’s stills, then the 3D
+ * pages’ loader posters.
+ */
+export const STILL_PLACEHOLDERS: Readonly<Record<string, string>> = {
+  'stills/frequency-lab-dark.webp':
+    'data:image/webp;base64,UklGRu4AAABXRUJQVlA4IOIAAABQBgCdASowABgAPtFWokuoJKMhtVQIAQAaCUATpl89Rs2hORi35O0FERwsjqgMOrn94QajkHgdlFPnAAD+8ybM2WQFranxuyvy+6RnPL9tXagQOHXWmkBR1bTmKLwO5CBOqEhJKCzzME5DoPh3VmTvCzudRPtZwoTQ++HsDUGBNonGn8OIPWQ81Mnb0+N7lxMKE7MEwsUHmvC8iHIdLJWezpKh5jYf/8HJutacY3wUQIVRaXGQJ7Ixl4ie8EDFyj6nQS3qadsquoiV2dIb2D2DMESAsDIGFmNA4BAbSa8SAAAA',
+  'stills/frequency-lab-light.webp':
+    'data:image/webp;base64,UklGRvgAAABXRUJQVlA4IOwAAABQBgCdASowABgAPsVMo0unpCMhsBqtUPAYiWIApczBes+eqAUVfzG0DTbSiZZM1heK6Ae9sGfhyNgAAAD2vk4vZE8Dv+poqCIpR3wI/MPCI1zXguUM4c+Fd71H5GwdN0jecyPO/JYLPiKlWqjHAvYvLSukfGi2TwFndmrZg4Dr5YiFVaLM/+Wo+feWc8+oG/3UBsG4IDokIc7uZitS0qpwHOvY2sg8MCoVCMX8P+OQM2kYkekIlAvoeuXlNU+qRaGUNkRl7u9Z4eyg9f1d4QSMK+RF2J2C1ymz/9SiTR5i4VfvITpUBJS15OAAAA==',
+  'stills/gas-petroleum-dark.webp':
+    'data:image/webp;base64,UklGRkQBAABXRUJQVlA4IDgBAADwBgCdASowABgAPslQoUunpKMhsBqtUPAZCUAWI9/X6qYB1+SuHxEK0O8tl5yJ1rQ905OVAQygS5Hx/L+fTT8wAP7ymMpqx0delHm5NHdLPHIxI24QO30c5dL846rAyuGMJtBYjrWY5c/nXe3q+FgnuVk4UWL4QY4jCe5U9CksUCan0svsMYFQTIk+RWCE4nBOWjWi7ESzMB/Qcg8xoLs4/bYgGNk3vAXZ/ALmXyZ64ZzSjseXc/H/vd8IjgCz7KMrTVF7Mibt05m97uEJ5vm7ixkjcKrhXbTr6v4wp16a9njyL7Of81CJhLYnVlkmP43jn9X7la1kUg4R6KKHdjJQzVwvD4MEk+FADo/rmgjWrh2IBesJb84ye8ba5gAg71oMCDuP1gw2lhYC9WdjHKbrvHJzxNHqYAA=',
+  'stills/gas-petroleum-light.webp':
+    'data:image/webp;base64,UklGRmwBAABXRUJQVlA4IGABAAAQCACdASowABgAPtFaokuoJaMhsBqqqQAaCWwAnTLLvRAWV+nvMcWLf/IYLRGmoiO3TbRYh+glRRB0POokr77CdyerehCIm9QAAP5YrGOnm8n96vtc6HqjqQr91ugJkwvhYv1yOO4VkUaEoXndLZ5Uz1m2q+LL8Z9DqTpiQhEOTa+fWUN/c2UqNA5ase5luazIBAtlOuKiTqcrmLPE49bDA1rhoiiqRo6IyWpDbI9Sl3Dp5tR3l8XDgD/j6u8jkgRWx+/GP1i+OuXI4hnKqRPT6QQAOetI7YdQ1njS/0P997zVEZzn2zdSKXjOCBauKL4N0+4p2boB/XbLJ0CkvZX2286G5BIfiX4dcwJgeFqEppJu6hird67DeaMDtn/mN3byO/uIZkWH2moLe6++MekMq5uHNRetueMEkDdUXPnJ5VtEAwraQP7qQIW4SaN5/GNmrzt2rMRNmIVbx75zbwAA',
+  'stills/hero-dark.webp':
+    'data:image/webp;base64,UklGRuQAAABXRUJQVlA4INgAAAAwBgCdASowACcAPs1Wo0unpKMhtVVYAPAZiWQAtsg9h/sOWnX0z8NMEKnM08PdQLDsSjAjShGAz6pwAP72gTYHJLprklPdLCG2Vx4EP+UBsTcDrnVvU82P+g8D9DBkGe7KwQVjKQ81iyvA6y3wZ5hwy2gQrLXzUCNxYh78APJn8cuPzoXscCxY0bEIa6XGC/81WV6JJcbr9skJBe1H7ryNwysHUA/V/P3RaNc79eyzSZ00WkMqApOUOSMAJBbGu1gGB+WGBEvbC/hQEjAW8hmyuR6xOA4AAAA=',
+  'stills/hero-light.webp':
+    'data:image/webp;base64,UklGRhYBAABXRUJQVlA4IAoBAACwBwCdASowACcAPslYokunpaMhtVVYAPAZCWYAgzJgcsY3Tn4GaC3a4wBpHAHWGsYttkH3ConeXQv18juQKQAyH016/32AANYphOYKiNsNlOBzeCtu//rKW21hLDIFJNfn//G9lg4lpYY3NgjZUV87quZHslqr8o7XRyT5dsEzS5UuZ6pnF85pUxDOrdDtOWxabpCMsW4UPQ7wd5gKRdP/TjTLvj+uU/YRLEfVk7n9tG4EOJTgMLjkC+tbFVuBXs37TOGf8N5ddHmrpL6qmCkAwD4mDJqaSKbdOpWL0hnaraRgB7DypzZ3MvKlWdAfrdmUjnzBR0hOS3perjoAfgX8ya+qAr0kD7AAAA==',
+};
+
+export const POSTER_PLACEHOLDERS: Readonly<Record<string, string>> = {
+  'posters/frequency-lab-dark-tall.webp':
+    'data:image/webp;base64,UklGRsIBAABXRUJQVlA4ILYBAABwCwCdASowAGgAPtFWpk8oJCMiKrSbaQAaCWIAwjyAzQjncHek0hsBrbFyrdSnGC7Ftb15D3H1//HFBjslQ2dwlJdobrD8cHQ0jKIZN33j9RRdqB7NTWrXRg5OqDDojsibIW5wAP70kBb3Y7PYcp97N/EkHA4ICEmdXKv4kHdOVKVrNjpLWwRZPFaUON6zjnkf27LEJFpgITiWte7cYiZxPimMPNH4RtfFQQ91oZdV0WN8Mo+oderzcD0facsmGdYYgSucOg8qXJjlXvnW/iwghTM8VHoInmgVeWF7PMX/h0/YDqY1K1QVTn+QdYhxYUebTlwWJsxmSbwPZ3DyULLpi0fGGmJN6VD0LAWZylgzJtjSh2vj5Vu3Dfjh0oQyyyMtoo4qEOlIxLkqz6xmj/SKRx+R9ZOiL5jpBAY6LD0sKZ/sKFN+aozbRaxGzFABD5ciYNS7exoyi/MciT4KNH3fWEjraCIVtzMfNPq7ocFCYoHPkFpOS/UmbiFt9j+agOF8/fLH/TI0R4pkF4EYMO80RgjIv7ptH0Xx10l126f095voJ/yeB7HHdjT594g4A0vi0BjCAAA=',
+  'posters/frequency-lab-dark-wide.webp':
+    'data:image/webp;base64,UklGRlICAABXRUJQVlA4IEYCAADwDgCdASpgADwAPtFSoUuoJKMhs/VaqQAaCUAXZ29q7cPNBJPT6TtvNzwmmRbuFHYYREaarEcgpaLKFw18VSsal+NrnN8lqwDQ/Rq8ElBpjo6CirExXp560tNMMnjFb7D1y1beI6CTa3jwOfrGlqP7flBdlgXkUDDYWgYOaDmywAD+93FtEBj48k2f7sp12s+tw/1f4AAM4Ug0yTlh0/oP+08cqJ/NGn2cI0aOfuRxBvWBndDCIFvOYRnTQeS+8BMTxgYW31GmBWSXEyOhj6d1FOt6QN3wcdtlznRC2czBnkypwwtXLtU3aW4HhjJEkx1oAR3hEWdP9HU7CbQ1OxDdb+Lq/6TmUIyhxhrYMXSg8b2M4zo3F2Z1mqmILINoQjW44IiK0+3qLw/bVzInUjtvrR39u7+TPJM86IuibtKLivm/8E+6Ds4ymlXYNr3/hIE/dNB/i7XBslE98JHDTkxzYkl0xpZGCgvWpgKul5mvCJhKAijVdj69HcA+BpROV/bCMq9k0CWrCcZxET0og/XENANjvVh1jX61rRNk0jayZAxTffDlvaioIOH0Gmad6QtPhX810/2RHQqg36bWcmFOS236atGQ3kRvwzLPUI0FZ67Zjdm2p80Gt8s+BEaUqZEtODdq5dKEkRT6U25oRY4bEp1zPc2xImMJOTr8aPavqSvbqiIOGZpzFcAPgGx0OWHAyxea8lN7yGzwiS1hi9MmI5WVl8y5nXnQyLw41o0QfVQ/NULE4X7HKEzdGO0FJ9/ddWboAAA=',
+  'posters/frequency-lab-light-tall.webp':
+    'data:image/webp;base64,UklGRjwCAABXRUJQVlA4IDACAAAQDQCdASowAGgAPtFeqE6oJTUiJjQMsqAaCWgAycEAOj0PfkWAXPVSzAoKVxmqT99flDIoVgpeNYc3SPyNZNxw//DCyPH7ipjnImDWDNuMe2XXTgYtiUEmITylqAF13jdjnGxHT6tRtuUCknNnOYwUAAD+p9+6AJH8e5crjXB3NhuDSNhHD0OVytVQYcCkFM5c+k/VJel6tfukSeiX6rjV2YRhgj6rZoP2ksfFRYn52Ob+HN3YixlMITSS2d9rp5KiWCrlNK14Dyrh1EjzjfSFze56tlUSiXi4DgdiKQwUWB0EbZtMO6R4s71fRxsdiiyT30pYfOWpTt6XhVY/cxw8qmr5yDl2GJJkznOsuHgVcnANUZbEAm+V7X9J+QamUJ4nR1EEQbfE+udWohgXP5cFNwZC1iLgwfk9WF3vqPX7u4TzBg9kCGm7jEonYBkDa4qGYWRCZWtFBnP0fpkRE6wimei3rw40Bu49SW40yyJI/TWVP6FqPRXJTSNYdkt+W5ZE3/Hxi/SzCbbvqZfuAh0ngUCZ94HM4C1Q0fGLBCGB3rCVujhKjj9Rh8jTm8YSqaOx+BVSpfrlr6Y8w9wXGulNYfc68Hk99A/d+p9zMvW6GzWqkA8PxRTcr/xzBxKYAuyh+fS0OBQ2kwLQGgC/ZwfdvfrTOriVFne0tvKhJwRKlqy6YeMylVvByLnW/ZZz57B5/IXGeWSGmAn21CmlyYwHl9ZcqCgTgLJnRqy+snSgAA==',
+  'posters/frequency-lab-light-wide.webp':
+    'data:image/webp;base64,UklGRsICAABXRUJQVlA4ILYCAACQDwCdASpgADwAPr1QoUunJSOhtVn8AOAXiWQAuOIBW/6xEO4E9mj0ZbbbnhPPA3yvdrmC3OZQlgmgZEnXwlkRlWNJH3/mOK45tEPh541dDk2166h5/ucQAmj1jLdQGtwT3abh5qBNB3Z8Md+xZJVIsB1kRZzFUSChgl3NS9qKNKRLt6gAAF56nLaK5tnyhi+m9Vj/z96/LO4OwOFYnM7rBW0eUAqnc3Yg1JUH1azS1EgYvM9D7aM3Q7F06N5FIj/ozViFwOMCfDiT8/6v8BUMWNZsV4EHnuojuxPUv3kSK6pvAxEg+BRCgcR5Nn2YMR4i7Hlwlw2E3h04/c+pkb/e1r+9m41ToIc2dZM5yPS/NAZ4RPnPSx4ArbIkS/yAncepXKfWTVsOXzfvHSEDD+4MIBirZMQhqNzpivIAZAZzV+i+kOIZMzG62daZHQJ2NCQwDeBFZ8nYKiukK0viOsKc15xJbcgXBTFmFKFhqaG7UsoGIZWkbCjBix6o+oJAuTosU1RfAIlma4AJL80SOCB2prF/FFYbDmAsC7kkBTfU/SE6uu6Dg0fe6k2bDx8OT0Gv4CP5WsTF++PiZTLTfGb8at5r6BWgqVsv/iD9MpgcLVHsQE7LmCG9WaZtxRRCWN0zHl5eLtSRwx/eO+HIfjKJ2OHehNDCiCOc5M4iH8k/NHsB47COqL8sbass/+/i4eGPh9Y1S2cLWdwJ/3UeGH+HxMnmegTOO+acWHbInSoRUMgZdR+NM7cFN2xOg28es1U7xAWUXtCYkwgNcWhVvBbrsLy4eK1smF3D2sZh0e7SGoaOJJEjSl0yBt3ZFz7XcmPBN5+1DByfTtPQmTMZQ8Q1OmT3HaD1XiW84e66xe4ll3PJxFAsipleI/ooIm75602BxhVAflUFnDdJ2AiHaoMlBD/AAAAA',
+  'posters/gas-petroleum-dark-tall.webp':
+    'data:image/webp;base64,UklGRt4AAABXRUJQVlA4INIAAABwBgCdASowAGgAPtFgq1EoJSOioxgKGQAaCWMAysIgACsdRR/u7AVO0cggOnCJWtM4s+fxpEJBsfYwcqAA/vKpfzttFpfKuT9XyBNLACN0hXfnE6hzkWxgGmnM7Qd1+d3hDRsDkXP6s6f2ovJ5Tp5rVY9Ov634y4WR7Z9JTIDZa/5oNgtwhsOuylKudQ2aB4p5UBsMOB4QB89pjuc5Gt/hx3VInY6Z9M8vwO9xdM+QCIYaXV0lmkQTTum1cPWfqIf0cTZF5rOA3AL9TR//f4gAAAA=',
+  'posters/gas-petroleum-dark-wide.webp':
+    'data:image/webp;base64,UklGRsYAAABXRUJQVlA4ILoAAABwBgCdASpgADwAPtFmrVCoJaQipXgJMQAaCWMAyvAjghj7PcQTgsESD2c3TFkN3xQ5bRKMz9wy6UL/RYAA/vFXv+6T9aXyrk/VnQeqwU1PiydwMqEnmEvbrmB/4/MSlj4PuuoIWQPdV+ojivSxJ7xzPG45BGn0cuz2ueSCwjt/56uUi6J4yWLCje1j4F5DWnCoKJIKEYY81hGYGk2jBbHE0b5XmSet67WnsT/ikPcxVKvVqBt7iGAAAAA=',
+  'posters/gas-petroleum-light-tall.webp':
+    'data:image/webp;base64,UklGRiQBAABXRUJQVlA4IBgBAACwBwCdASowAGgAPtFkq1CoJTajoxgK8tAaCUAZhiF5VADvqn8zgCSoM//4Oi3QUdMVd45FHh3mEBA6t74V2mtAZtj9yvVYAP6n37oAkf/uD9Qfk6pn/rb6K/Jkc+So6lxDQTeYE7mPORXs5cbqHCHxYfVjJ0GHAA4G5/ij7LhBHGovhv27mbCRWcp9CBsUdfX37IRb9cLBGNP+wpPF7DCUHEFfOQdxi1O0Z7jdmw58KA+32GuXHm7FQ/CbJe9wC4PACN/K5eNBlUsVKgmsaM3mLKO5Fog5qPosI5iVSiZAx9LUqjlfhxTK4qHcmt8ZTMJlNedmMODnm4ITFNypFbcyO0MtHlPh+aLTnw9DT8jzqP8vp/tybIgA',
+  'posters/gas-petroleum-light-wide.webp':
+    'data:image/webp;base64,UklGRjIBAABXRUJQVlA4ICYBAADQBwCdASpgADwAPtFiqU+oP7+iKBVZy/AaCUWwAULFNoLsac+TDqW3E5282+EjakldF4lFcPZb0MEwvOvrx1Ze568o0RarAAD+z0H6cN6Iv7U/KzzWB/+6Hvq6djgeRKqnLAz7jJAPZWfzk1aLv0uv67Q+kgyLD3yRyjmJKCh1EFWFDdEnP/DnDNP+AHGQmm5v6zMnKbX7PLRxoJA/7knRklFzJb6RYjdUBhOG5BKDjVpb4eQ/tmQG2WCPXgqqzhvLwZi5XY3leYKeoZ5IFmRjHVz/pde8fbtGPIda3aUbxkG9/zXJbbCMOKSp5wcH2e/jCP+36pCR5312MJa22p+1XS4hbOFuOIqAOFEeQ2110PfEDrFlrJ3FQ5bpb8pxtrEKiZ1AAAA=',
+};
+
+/** The version of each picture its copy was made from (`pictureHash`, scripts/placeholders.ts). */
+export const PLACEHOLDER_SOURCES: Readonly<Record<string, string>> = {
+  'posters/frequency-lab-dark-tall.webp': '0ec41c1e529416ea',
+  'posters/frequency-lab-dark-wide.webp': 'd449dd824ae023b9',
+  'posters/frequency-lab-light-tall.webp': 'e4d467e71f4742af',
+  'posters/frequency-lab-light-wide.webp': 'abf4d40124e46d91',
+  'posters/gas-petroleum-dark-tall.webp': '22ba3d326b36dbb0',
+  'posters/gas-petroleum-dark-wide.webp': '2b9e5a60b40cafb0',
+  'posters/gas-petroleum-light-tall.webp': 'a71a883fb9cc22f7',
+  'posters/gas-petroleum-light-wide.webp': '7ec1e3cba60bf733',
+  'stills/frequency-lab-dark.webp': '99e91968b9e04e75',
+  'stills/frequency-lab-light.webp': 'd5858a55a5b18371',
+  'stills/gas-petroleum-dark.webp': '4a67fa3773b8913d',
+  'stills/gas-petroleum-light.webp': '4b06472f21fcbc72',
+  'stills/hero-dark.webp': '1d19df42c3cad9ca',
+  'stills/hero-light.webp': 'acedb3290773ac32',
+};

@@ -63,6 +63,11 @@ export interface DioramaSceneOptions {
   theme: ThemeName;
   reducedMotion: boolean;
   capture: boolean;
+  /**
+   * With `capture`: the view held where the establishing move starts, as the loader's poster shows
+   * it, so the view takes over from the poster with no jump (`npm run thumbnails` shoots it so).
+   */
+  arrival?: boolean;
   perf: boolean;
   /** The part of the canvas the panel and controls leave free, in CSS pixels. */
   visibleArea: () => VisibleArea;
@@ -198,6 +203,8 @@ async function buildDiorama(
   let movedByReader = false;
   /** The establishing move is under way: framed again meanwhile (the fonts in, say), it heads there. */
   let arriving = false;
+  /** Held where the establishing move starts (`arrival`, with capture): framed again, it stays there. */
+  let heldArriving = false;
   /** The limits last told to the UI. */
   let toldLimits = '';
   const timeLapse: { current: TimeLapse | null } = { current: null };
@@ -580,6 +587,19 @@ async function buildDiorama(
   /** Camera moves are cuts with motion reduced, and in capture mode. */
   const instantMoves = () => reducedMotion || o.capture;
 
+  /** Where the establishing move into a pose starts: farther out and higher, looking the same way. */
+  function arrivalFrom(to: CameraPose): CameraPose {
+    const out = to.position.clone().sub(to.target).multiplyScalar(1.8);
+    return {
+      position: to.target
+        .clone()
+        .add(out)
+        .add(new Vector3(0, 30, 0)),
+      target: to.target.clone(),
+      fov: to.fov,
+    };
+  }
+
   /**
    * Frames the open view in the room the view has now: the camera moves to the view's framing in
    * it (a cut, unless `move`), and the area and the picture's slide glide there along with it
@@ -607,7 +627,8 @@ async function buildDiorama(
     rig.setLimits(limitsIn(area));
     if (pose) {
       movedByReader = false;
-      if (arriving) rig.lookAt(pose, true, ESTABLISH_SETTLE);
+      if (heldArriving) rig.lookAt(arrivalFrom(pose), false);
+      else if (arriving) rig.lookAt(pose, true, ESTABLISH_SETTLE);
       else rig.lookAt(pose, move);
     }
     tellLimits();
@@ -780,19 +801,17 @@ async function buildDiorama(
       return best;
     },
     establish() {
-      if (instantMoves() || shown !== null || !shownArea) return;
+      const held = o.capture && o.arrival === true;
+      if ((instantMoves() && !held) || shown !== null || !shownArea) return;
       // From farther out and higher, looking the same way: the whole site comes into view.
       const to = rig.pose(camera.fov, true);
-      const out = to.position.clone().sub(to.target).multiplyScalar(1.8);
-      const from = {
-        position: to.target
-          .clone()
-          .add(out)
-          .add(new Vector3(0, 30, 0)),
-        target: to.target.clone(),
-        fov: to.fov,
-      };
-      rig.lookAt(from, false);
+      rig.lookAt(arrivalFrom(to), false);
+      // Held where it starts, for the poster: the move's first frame.
+      if (held) {
+        heldArriving = true;
+        redraw();
+        return;
+      }
       rig.lookAt(to, true, ESTABLISH_SETTLE);
       arriving = true;
     },

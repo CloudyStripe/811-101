@@ -45,9 +45,22 @@ export interface PageInfo {
   budgets?: PageBudgets;
 }
 
-/** Each 3D page's poster, in public/, shown blurred while its view loads; one per theme. */
-export const posterPath = (page: PageInfo, theme: 'light' | 'dark'): string =>
-  `posters/${page.id}-${theme}.webp`;
+/**
+ * A poster's shape: the view as it first draws on a wide screen (shot at 1440 × 900) or a tall one
+ * (390 × 844), so the poster it stands in for it with looks like it.
+ */
+export type PosterShape = 'wide' | 'tall';
+export const POSTER_SHAPES: readonly PosterShape[] = ['wide', 'tall'];
+
+/** Where the tall poster stands in: an upright screen. site.css uses the same query. */
+export const POSTER_TALL = '(orientation: portrait)';
+
+/**
+ * Each 3D page's poster, in public/, shown lightly blurred while its view loads: one per theme and
+ * shape.
+ */
+export const posterPath = (page: PageInfo, theme: 'light' | 'dark', shape: PosterShape): string =>
+  `posters/${page.id}-${theme}-${shape}.webp`;
 
 /**
  * The name a lesson's preview on the portal and its loader's poster share, so one carries on into

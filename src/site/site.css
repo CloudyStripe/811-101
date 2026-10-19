@@ -231,15 +231,26 @@
 }
 
 /*
- * The 3D loader: the view's poster, blurred, in the reader's theme, and a hairline that steps on
- * as the view loads (`data-scene-stage` on <html>). It fades once the view draws.
+ * The 3D loader: the view's poster, lightly blurred, in the reader's theme, over a tiny copy of it,
+ * inline, that shows from the first paint until the poster lands; and a hairline that steps on as
+ * the view loads (`data-scene-stage` on <html>). It fades once the view draws.
  */
 .scene-loader {
-  --poster: var(--poster-light);
+  /* The reader's theme's posters, wide and tall, with their tiny copies: the screen picks one. */
+  --poster-wide: var(--poster-light-wide);
+  --poster-tall: var(--poster-light-tall);
+  --poster-wide-tiny: var(--poster-light-wide-tiny);
+  --poster-tall-tiny: var(--poster-light-tall-tiny);
+  --poster: var(--poster-wide);
+  --poster-tiny: var(--poster-wide-tiny);
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: var(--bg);
+  /* The tiny copy under the poster too: as a lesson's preview carries on into the poster, the
+     poster is lifted out of the page, and the stage under it still shows the view. */
+  background:
+    var(--poster-tiny, none) center / cover no-repeat,
+    var(--bg);
   transition:
     opacity var(--dur-slow) var(--ease),
     visibility 0s linear var(--dur-slow);
@@ -247,27 +258,58 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .scene-loader {
-    --poster: var(--poster-dark);
+    --poster-wide: var(--poster-dark-wide);
+    --poster-tall: var(--poster-dark-tall);
+    --poster-wide-tiny: var(--poster-dark-wide-tiny);
+    --poster-tall-tiny: var(--poster-dark-tall-tiny);
   }
 }
 
 :root[data-theme='dark'] .scene-loader {
-  --poster: var(--poster-dark);
+  --poster-wide: var(--poster-dark-wide);
+  --poster-tall: var(--poster-dark-tall);
+  --poster-wide-tiny: var(--poster-dark-wide-tiny);
+  --poster-tall-tiny: var(--poster-dark-tall-tiny);
+}
+
+/* An upright screen: the poster shot on one (POSTER_TALL in src/site/pages.ts). */
+@media (orientation: portrait) {
+  .scene-loader {
+    --poster: var(--poster-tall);
+    --poster-tiny: var(--poster-tall-tiny);
+  }
 }
 
 .scene-loader-poster {
   position: absolute;
-  inset: -32px;
-  background: var(--poster) center / cover no-repeat;
-  filter: blur(16px) saturate(0.85);
-  opacity: 0.9;
+  /* A little past the stage, so the blur's soft edge falls outside it. */
+  inset: -6px;
+  background:
+    var(--poster, none) center / cover no-repeat,
+    var(--poster-tiny, none) center / cover no-repeat;
+  /* Lightly: the view about to start, not out of focus. */
+  filter: blur(2px);
   /* The lesson's preview on the portal carries on into it, opening the lesson. */
   view-transition-name: var(--lesson-transition, none);
+}
+
+/* Until the poster is in (`data-poster`, set as it lands), there's only its tiny copy to carry on
+   into, so the preview doesn't. */
+:root:not([data-poster='ready']) .scene-loader-poster {
+  view-transition-name: none;
 }
 
 /* Once the view draws, the poster has gone: leaving, it has nothing to carry on into. */
 :root[data-scene-ready] .scene-loader-poster {
   view-transition-name: none;
+}
+
+.scene-loader-status {
+  view-transition-name: scene-status;
+}
+
+::view-transition-new(scene-status) {
+  animation: var(--dur-slow) var(--ease) both page-in;
 }
 
 .scene-loader-status {

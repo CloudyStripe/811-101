@@ -9,9 +9,19 @@ import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
 import { SECTIONS, type Lesson, type Section } from '../../content/portal.ts';
 import { iconSvg, type IconName } from '../design/icon-svg.ts';
 import { THEMES } from '../design/tokens.ts';
-import { lessonPage, lessonTransition, posterPath, sectionOf, type PageInfo } from './pages.ts';
+import {
+  POSTER_SHAPES,
+  POSTER_TALL,
+  lessonPage,
+  lessonTransition,
+  posterPath,
+  sectionOf,
+  type PageInfo,
+} from './pages.ts';
+import { posterStyle } from './loader.ts';
+import { POSTER_PLACEHOLDERS, STILL_PLACEHOLDERS } from './placeholders.ts';
 import { BOOT_SCRIPT } from './settings.ts';
-import { PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from './stills.ts';
+import { HERO_STACKS, PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 /** The settings script every page runs first. */
 export const BOOT = BOOT_SCRIPT;
@@ -32,6 +42,91 @@ export const CARDS_SLOT = '<!-- portal-cards -->';
 export const CARDS_NAME = 'Lessons, and what’s coming';
 
 const attr = escapeHtml;
+
+/**
+ * A picture's tiny copy, inline, as a CSS image, from the given set of them; none while it has
+ * none (as while `npm run thumbnails` makes the pictures it's made from). The shell's tests hold
+ * every picture to having one.
+ */
+export function placeholderUrl(set: Readonly<Record<string, string>>, path: string): string {
+  const uri = set[path];
+  return uri ? `url('${uri}')` : 'none';
+}
+
+/** The loader's posters in each theme and shape, and a tiny copy of each, as its style. */
+export function loaderStyle(page: PageInfo): string {
+  const tiny = THEME_NAMES.flatMap((theme) =>
+    POSTER_SHAPES.map((shape) => {
+      const copy = placeholderUrl(POSTER_PLACEHOLDERS, posterPath(page, theme, shape));
+      return `--poster-${theme}-${shape}-tiny: ${copy}`;
+    }),
+  );
+  return [posterStyle(page, '/'), ...tiny].join('; ');
+}
+
+/**
+ * A script for a page's head that starts fetching the pictures its first screen shows, in the
+ * reader's theme (the one the settings script has just put on <html>, or the device's), with the
+ * page itself rather than once its styles are read: a 3D page's loader poster, in the screen's
+ * shape, which marks the page (`data-poster`) once it's in, so a lesson's preview carries on
+ * into it only then; the portal's hero, where it stands beside the name, and its lessons'
+ * previews. Once the portal is in, it fetches its lessons' posters too, for later, so a lesson
+ * opened from it has its poster at its first paint. None for any other page.
+ */
+export function picturesScript(page: PageInfo): string | null {
+  const both = (path: (theme: 'light' | 'dark') => string) =>
+    JSON.stringify(Object.fromEntries(THEME_NAMES.map((t) => [t, `${BASE_PATH}${path(t)}`])));
+  /** A 3D page's posters, in the screen's shape. */
+  const posters = (p: PageInfo) => {
+    const byShape = POSTER_SHAPES.map(
+      (shape) => `${shape}: ${both((t) => posterPath(p, t, shape))}`,
+    );
+    return `{ ${byShape.join(', ')} }[shape]`;
+  };
+  const fetches: string[] = [];
+  if (page.scene) {
+    fetches.push(`get(${posters(page)}, function () { root.dataset.poster = 'ready'; });`);
+  } else if (page.id === 'portal') {
+    const lessons = SECTIONS.flatMap((section) => section.lessons);
+    fetches.push(
+      `if (!matchMedia(${JSON.stringify(HERO_STACKS)}).matches) get(${both(heroPath)});`,
+      ...lessons.map((lesson) => `get(${both((t) => previewPath(lesson.image, t))});`),
+      // Only a lesson with a 3D view has a poster.
+      `addEventListener('load', function () { [${lessons
+        .map(lessonPage)
+        .filter((p) => p.scene)
+        .map(posters)
+        .join(', ')}].forEach(later); });`,
+    );
+  } else {
+    return null;
+  }
+  return [
+    '(function () {',
+    '  var root = document.documentElement;',
+    "  var theme = root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');",
+    `  var shape = matchMedia(${JSON.stringify(POSTER_TALL)}).matches ? 'tall' : 'wide';`,
+    '  // For this page: now, first.',
+    '  function get(urls, done) {',
+    "    var el = document.createElement('link');",
+    "    el.rel = 'preload';",
+    "    el.as = 'image';",
+    "    el.setAttribute('fetchpriority', 'high');",
+    '    if (done) el.onload = done;',
+    '    el.href = urls[theme];',
+    '    document.head.appendChild(el);',
+    '  }',
+    '  // For a page this one leads to: when nothing else is loading.',
+    '  function later(urls) {',
+    "    var el = document.createElement('link');",
+    "    el.rel = 'prefetch';",
+    '    el.href = urls[theme];',
+    '    document.head.appendChild(el);',
+    '  }',
+    ...fetches.map((f) => `  ${f}`),
+    '})();',
+  ].join('\n');
+}
 
 /** The head's tags, after the page's own. */
 export function headTags(page: PageInfo): string {
@@ -65,6 +160,7 @@ export function headTags(page: PageInfo): string {
     `<meta name="theme-color" content="${THEMES.dark.chrome.bg}" media="(prefers-color-scheme: dark)" />`,
     // With no script, a 3D view never loads, so its loader shouldn't promise one.
     ...(page.scene ? ['<noscript><style>.scene-loader { display: none; }</style></noscript>'] : []),
+    ...[picturesScript(page)].flatMap((script) => (script ? [`<script>${script}</script>`] : [])),
   ].join('\n    ');
 }
 
@@ -120,14 +216,13 @@ export function footerHtml(): string {
 }
 
 /**
- * While a 3D view loads: its poster, blurred, in the reader's theme, and a hairline that steps on
- * as the view's code arrives, builds and compiles. It fades once the view draws.
+ * While a 3D view loads: its poster, lightly blurred, in the reader's theme, over a tiny copy of it
+ * that's there from the first paint, and a hairline that steps on as the view's code arrives,
+ * builds and compiles. It fades once the view draws.
  */
 export function loaderHtml(page: PageInfo): string {
-  // Root-relative, from public/: the build puts the site's base path in front.
-  const url = (theme: 'light' | 'dark') => `url('/${posterPath(page, theme)}')`;
   return [
-    `<div class="scene-loader" aria-hidden="true" style="--poster-light: ${url('light')}; --poster-dark: ${url('dark')}">`,
+    `<div class="scene-loader" aria-hidden="true" style="${loaderStyle(page)}">`,
     // Named so the lesson's preview on the portal carries on into it (see site.css).
     `<div class="scene-loader-poster" style="--lesson-transition: ${lessonTransition(page.id)}"></div>`,
     '<div class="scene-loader-status"><span class="scene-loader-bar"><span></span></span>',
@@ -139,13 +234,15 @@ export function loaderHtml(page: PageInfo): string {
 /**
  * The portal's hero: the site's name, set as its wordmark, with its tagline in a line under it,
  * and the whole diorama in its sky beside them. The still comes in the reader's theme (see
- * portal.css): only that one loads, and none where the hero stacks.
+ * portal.css), over a tiny copy of it until it lands: only that one loads, and none where the hero
+ * stacks.
  */
 export function heroHtml(): string {
   // Root-relative, from public/: the build puts the site's base path in front.
-  const stills = THEME_NAMES.map((theme) => `--hero-${theme}: url('/${heroPath(theme)}')`).join(
-    '; ',
-  );
+  const stills = THEME_NAMES.flatMap((theme) => [
+    `--hero-${theme}: url('/${heroPath(theme)}')`,
+    `--hero-${theme}-tiny: ${placeholderUrl(STILL_PLACEHOLDERS, heroPath(theme))}`,
+  ]).join('; ');
   return [
     '<section class="hero" aria-labelledby="hero-title">',
     '<div class="hero-text">',
@@ -164,7 +261,8 @@ const iconSlot = (name: IconName, className: string) =>
 /**
  * The portal's cards, static like its hero: a large one for each lesson, then one for each section
  * still being built, which says it's coming. A lesson's card holds its preview in each theme, lazy,
- * and the page's CSS shows the reader's, so only that one loads; under it, the lesson's name and
+ * and the page's CSS shows the reader's, so only that one loads (its head starts fetching it with
+ * the page), over a tiny copy of it until it lands; under it, the lesson's name and
  * what it covers, then its section's. A section's first card carries its id, so a lesson's
  * breadcrumb leads to it.
  */
@@ -173,7 +271,7 @@ export function cardsHtml(): string {
     // Root-relative, from public/: the build puts the site's base path in front.
     const previews = THEME_NAMES.map(
       (theme) =>
-        `<img class="card-image" data-theme-image="${theme}" src="/${previewPath(lesson.image, theme)}" alt="" width="${String(PREVIEW_SIZE.width)}" height="${String(PREVIEW_SIZE.height)}" loading="lazy" decoding="async" />`,
+        `<img class="card-image" data-theme-image="${theme}" src="/${previewPath(lesson.image, theme)}" alt="" width="${String(PREVIEW_SIZE.width)}" height="${String(PREVIEW_SIZE.height)}" loading="lazy" decoding="async" style="--tiny: ${placeholderUrl(STILL_PLACEHOLDERS, previewPath(lesson.image, theme))}" />`,
     ).join('');
     return [
       `<li${first ? ` id="${section.id}"` : ''} class="card" data-transition="${lessonTransition(lessonPage(lesson).id)}">${previews}`,
