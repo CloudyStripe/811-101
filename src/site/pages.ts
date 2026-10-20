@@ -6,7 +6,7 @@
 import { BRAND } from '../../config/brand.ts';
 import { SECTIONS, type Lesson } from '../../content/portal.ts';
 
-export type PageId = 'portal' | 'frequency-lab' | 'gas-petroleum' | 'not-found';
+export type PageId = 'portal' | 'read-the-marks' | 'frequency-lab' | 'gas-petroleum' | 'not-found';
 
 /** Load budgets for a page, gzip KB (see scripts/budgets.ts). */
 export interface PageBudgets {
@@ -91,6 +91,31 @@ export const PAGES: readonly PageInfo[] = [
     scene: false,
     footer: true,
     budgets: { js: 30, css: 15, fonts: 150, images: 150, firstVisit: 350 },
+  },
+  {
+    id: 'read-the-marks',
+    html: 'basics/read-the-marks/index.html',
+    path: 'basics/read-the-marks/',
+    title: lessonTitle('Read the Marks'),
+    heading: 'Read the Marks',
+    description:
+      'A game in a small yard: say what each color of paint and flag means, and see what is buried under the marks.',
+    share: {
+      image: 'read-the-marks.jpg',
+      alt: 'A small yard with colored flags and paint marks, the ground open along a gas line.',
+    },
+    scene: true,
+    footer: false,
+    budgets: {
+      js: 50,
+      css: 30,
+      fonts: 200,
+      vendor3d: 240,
+      ao: 85,
+      scene: 70,
+      poster: 20,
+      firstVisit: 750,
+    },
   },
   {
     id: 'frequency-lab',

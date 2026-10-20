@@ -1,0 +1,457 @@
+/*
+ * Read the Marks: the yard full-bleed under the site header, the question beside it in a panel
+ * (on wide screens, and on short ones, as a phone held sideways), and under it in a sheet on phones
+ * held upright. The sheet keeps one height through a round, so the yard keeps its size as you
+ * answer and move on.
+ */
+
+body {
+  overflow-x: hidden;
+}
+
+.rm {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.rm-grid {
+  --rm-top: calc(var(--header-h) + max(0px, env(safe-area-inset-top) - var(--space-3)));
+  /* The least of the yard a sheet leaves, with the gaps around it. */
+  --rm-yard: 180px;
+  /*
+   * The sheet's height: about half the screen, but leaving the yard its room on a short phone,
+   * where the sheet scrolls; on the shortest, the page scrolls instead.
+   */
+  --rm-sheet: max(260px, min(clamp(390px, 52dvh, 500px), 100dvh - var(--rm-top) - var(--rm-yard)));
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: '. panel' '. .';
+  gap: var(--space-4);
+  padding: var(--rm-top) max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  min-height: 100dvh;
+  pointer-events: none;
+}
+
+.rm-grid > * {
+  pointer-events: auto;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.rm-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.stage-message {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  max-width: 34rem;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+}
+
+/* The question: a panel beside the yard. */
+.rm-panel {
+  grid-area: panel;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - var(--rm-top) - var(--space-4));
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+
+/*
+ * The view's full-bleed stage runs under the panel, so the poster a lesson's preview carries in, as
+ * the page changes, would be drawn over it. Named while the view loads, it takes part in the change
+ * on its own, drawn over the poster as it is over the view.
+ */
+:root:not([data-scene-ready]) .rm-panel {
+  view-transition-name: rm-panel;
+}
+
+::view-transition-new(rm-panel) {
+  animation: var(--dur-slow) var(--ease) both page-in;
+}
+
+.rm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.rm-count {
+  margin: 0 0 7px;
+  font: 700 var(--text-small) / 1.2 var(--font-body);
+  color: var(--ink-2);
+}
+
+.rm-dots {
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rm-dots li {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--ink-3);
+}
+
+.rm-dots li.is-done {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.rm-dots li.is-now {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.rm-tools {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.rm-key {
+  gap: 6px;
+}
+
+.rm-labels.is-on {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.rm-body {
+  padding: var(--space-5);
+}
+
+.rm-question,
+.rm-end {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rm-intro {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.rm-color {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-self: start;
+  margin: 0;
+  padding: 5px 14px 5px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font: 700 var(--text-small) / 1 var(--font-body);
+}
+
+.rm-swatch {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1.5px rgb(0 0 0 / 0.38);
+}
+
+.rm-ask {
+  margin: 0;
+  font: 800 1.45rem / 1.22 var(--font-display);
+  text-wrap: balance;
+}
+
+.rm-ask:focus-visible {
+  outline-offset: 4px;
+}
+
+.rm-answers {
+  display: grid;
+  gap: 10px;
+}
+
+.rm-answer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 16px 10px 12px;
+  text-align: left;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: 700 1.05rem / 1.25 var(--font-body);
+  cursor: pointer;
+}
+
+.rm-answer-key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font: 600 0.85rem / 1 var(--font-mono);
+}
+
+.rm-answer-text {
+  flex: 1;
+}
+
+@media (hover: hover) {
+  .rm-answer:not([aria-disabled='true']):hover {
+    border-color: var(--ink-3);
+  }
+}
+
+.rm-answer:not([aria-disabled='true']):active {
+  transform: translateY(1px);
+}
+
+.rm-answer[aria-disabled='true'] {
+  cursor: default;
+  color: var(--ink-3);
+}
+
+/* Marked in ink, icons and words, never green and red. */
+.rm-answer.is-right {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.rm-answer.is-wrong {
+  border-style: dashed;
+  border-color: var(--ink-2);
+  color: var(--ink-2);
+}
+
+.rm-answer-tag {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font: 700 var(--text-small) / 1 var(--font-body);
+  white-space: nowrap;
+}
+
+.rm-result {
+  display: grid;
+  gap: 10px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.rm-verdict,
+.rm-found,
+.rm-safety {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+}
+
+.rm-verdict {
+  font: 700 1.05rem / 1.4 var(--font-body);
+}
+
+.rm-verdict .icon,
+.rm-found .icon,
+.rm-safety .icon {
+  flex: none;
+  margin-top: 0.2em;
+}
+
+.rm-end > p {
+  margin: 0;
+}
+
+.rm-safety {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.rm-code-title {
+  margin: var(--space-2) 0 0;
+  font: 800 1.1rem / 1.2 var(--font-display);
+}
+
+.rm-code {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rm-code li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.rm-code .rm-swatch {
+  margin-top: 0.1em;
+}
+
+.rm-key-lede {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-2);
+}
+
+.rm-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--line);
+}
+
+.rm-next {
+  gap: 8px;
+}
+
+/*
+ * Phones held upright, and the narrowest screens: the question in a sheet under the yard, as tall
+ * through a round as at its start. (Held sideways, and on other short screens, it stays beside the
+ * yard.) Matches `sheetQuery` in App.tsx.
+ */
+@media (max-width: 760px) and (min-height: 581px), (max-width: 560px) {
+  .rm-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: '.' 'panel';
+    gap: var(--space-3);
+    padding-left: max(var(--space-2), env(safe-area-inset-left));
+    padding-right: max(var(--space-2), env(safe-area-inset-right));
+    padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+    min-height: max(100dvh, calc(var(--rm-top) + var(--rm-yard) + var(--rm-sheet)));
+  }
+
+  .rm-panel {
+    align-self: end;
+    height: var(--rm-sheet);
+    max-height: none;
+  }
+
+  .rm-next {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/*
+ * Phones and short screens: smaller type, the answers two by two, and once one is picked, the
+ * result in their place, so it shows without scrolling.
+ */
+@media (max-width: 760px), (max-height: 580px) {
+  .rm-head {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .rm-count {
+    margin-bottom: 5px;
+  }
+
+  .rm-body {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .rm-question,
+  .rm-end {
+    gap: 10px;
+  }
+
+  .rm-intro {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .rm-ask {
+    font-size: 1.2rem;
+  }
+
+  .rm-answers {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .rm-answer {
+    min-height: 60px;
+    padding: 8px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    font-size: 1rem;
+  }
+
+  .rm-result {
+    gap: 8px;
+    padding: var(--space-3);
+  }
+
+  .rm-verdict {
+    font-size: 1rem;
+  }
+
+  /* Each answer's number, for its key, only where there's a keyboard to press it on. */
+  .rm-answer-key {
+    display: none;
+  }
+
+  /* Answered, the result takes the answers' room, so a sheet keeps its height. */
+  .rm-grid[data-answered] .rm-answers {
+    display: none;
+  }
+
+  .rm-foot {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+@media (max-width: 760px) and (hover: hover) and (pointer: fine),
+  (max-height: 580px) and (hover: hover) and (pointer: fine) {
+  .rm-answer-key {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+  }
+}

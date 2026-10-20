@@ -148,6 +148,7 @@ interface Row {
 /** Short names for the report. */
 const NAMES: Record<PageId, string> = {
   portal: 'Portal',
+  'read-the-marks': 'Marks',
   'frequency-lab': 'Lab',
   'gas-petroleum': 'Diorama',
   'not-found': '404',

@@ -18,6 +18,10 @@ export const STILL_PLACEHOLDERS: Readonly<Record<string, string>> = {
     'data:image/webp;base64,UklGRuQAAABXRUJQVlA4INgAAAAwBgCdASowACcAPs1Wo0unpKMhtVVYAPAZiWQAtsg9h/sOWnX0z8NMEKnM08PdQLDsSjAjShGAz6pwAP72gTYHJLprklPdLCG2Vx4EP+UBsTcDrnVvU82P+g8D9DBkGe7KwQVjKQ81iyvA6y3wZ5hwy2gQrLXzUCNxYh78APJn8cuPzoXscCxY0bEIa6XGC/81WV6JJcbr9skJBe1H7ryNwysHUA/V/P3RaNc79eyzSZ00WkMqApOUOSMAJBbGu1gGB+WGBEvbC/hQEjAW8hmyuR6xOA4AAAA=',
   'stills/hero-light.webp':
     'data:image/webp;base64,UklGRhYBAABXRUJQVlA4IAoBAACwBwCdASowACcAPslYokunpaMhtVVYAPAZCWYAgzJgcsY3Tn4GaC3a4wBpHAHWGsYttkH3ConeXQv18juQKQAyH016/32AANYphOYKiNsNlOBzeCtu//rKW21hLDIFJNfn//G9lg4lpYY3NgjZUV87quZHslqr8o7XRyT5dsEzS5UuZ6pnF85pUxDOrdDtOWxabpCMsW4UPQ7wd5gKRdP/TjTLvj+uU/YRLEfVk7n9tG4EOJTgMLjkC+tbFVuBXs37TOGf8N5ddHmrpL6qmCkAwD4mDJqaSKbdOpWL0hnaraRgB7DypzZ3MvKlWdAfrdmUjnzBR0hOS3perjoAfgX8ya+qAr0kD7AAAA==',
+  'stills/read-the-marks-dark.webp':
+    'data:image/webp;base64,UklGRkYBAABXRUJQVlA4IDoBAADwBwCdASowABgAPtFaqE0oJSQiJWzJABoJbACpJ0dBbxhhRl45Lt+PeRKj0ScQsn/4D+OSevLqjk4J/1qDlepNyNsPlLWYxoAA/vymQqWJIXDlbiMeY3uT6277mybbvg6bD46b9qA82n+kI9GkJHdFORQHZAsjbrTw1Km/NUeQjwnoRbzNqnLBbQQnAwtZu4UfLAVqOEGfvXz5I8VrBh7giMeOxZ/M3l2aralUcZu6VAmJk1XhxXIRtkQHDcZWY6f0H0ZoXOdZFVL1QeRfvLLd6D+c/+uOGhVqBFxe6C8fByJKfTZtV7gLu+cuLsP4iiYFeu80CdentBz+bobsghqZSexXcLbQjZhVotm6naBe8g440H1Se4C1F/x5+4Tx7m6ik3Tjd7ytGculoHyFFzy/vh5sJir/GpAAAA==',
+  'stills/read-the-marks-light.webp':
+    'data:image/webp;base64,UklGRngBAABXRUJQVlA4IGwBAABQCACdASowABgAPtFgqlAoJSOipWmZABoJbACdMvZ/EQM0WeXZpVGSLGcGg6NGxZxBvcQCLvhlcx51aRuoAJhuiI682+2e8P+tVzQA/sU9Ina4Gwi1klLr36hX97pFyA/6A+sgP8asTDfRq39D7j/w/oPiK4Dte60jUJTvwHkXFS16rOtGftTwV0WtLwoU6uMEee2Fg5wtmWdf2obsI0Yi/XB6RKoCMa5SH19x/nWd5OoO78ZzKQ9Hvbb2uOjUEir931zdR1M8rOfBGkopHMHwwg94eDZVC1pP0H2k0bspuCEKEjsmbr1zeG1AIKSQ54r0KcdqJpmAeSRqeNn52BAX5f6pyiisTSuPFCW2ATBaFb316sae/8iMtgVwWzIwfsRNnGxMn5OcPga1oBt0sxheKZy1p3BLxcRfe5aqmioFJzLfv+EaaWXQ605xV0lg7dejqiK+siUgCmE5z7jTlCQ8WBAa4YDgjMpiPAAA',
 };
 
 export const POSTER_PLACEHOLDERS: Readonly<Record<string, string>> = {
@@ -37,6 +41,14 @@ export const POSTER_PLACEHOLDERS: Readonly<Record<string, string>> = {
     'data:image/webp;base64,UklGRiQBAABXRUJQVlA4IBgBAACwBwCdASowAGgAPtFkq1CoJTajoxgK8tAaCUAZhiF5VADvqn8zgCSoM//4Oi3QUdMVd45FHh3mEBA6t74V2mtAZtj9yvVYAP6n37oAkf/uD9Qfk6pn/rb6K/Jkc+So6lxDQTeYE7mPORXs5cbqHCHxYfVjJ0GHAA4G5/ij7LhBHGovhv27mbCRWcp9CBsUdfX37IRb9cLBGNP+wpPF7DCUHEFfOQdxi1O0Z7jdmw58KA+32GuXHm7FQ/CbJe9wC4PACN/K5eNBlUsVKgmsaM3mLKO5Fog5qPosI5iVSiZAx9LUqjlfhxTK4qHcmt8ZTMJlNedmMODnm4ITFNypFbcyO0MtHlPh+aLTnw9DT8jzqP8vp/tybIgA',
   'posters/gas-petroleum-light-wide.webp':
     'data:image/webp;base64,UklGRjIBAABXRUJQVlA4ICYBAADQBwCdASpgADwAPtFiqU+oP7+iKBVZy/AaCUWwAULFNoLsac+TDqW3E5282+EjakldF4lFcPZb0MEwvOvrx1Ze568o0RarAAD+z0H6cN6Iv7U/KzzWB/+6Hvq6djgeRKqnLAz7jJAPZWfzk1aLv0uv67Q+kgyLD3yRyjmJKCh1EFWFDdEnP/DnDNP+AHGQmm5v6zMnKbX7PLRxoJA/7knRklFzJb6RYjdUBhOG5BKDjVpb4eQ/tmQG2WCPXgqqzhvLwZi5XY3leYKeoZ5IFmRjHVz/pde8fbtGPIda3aUbxkG9/zXJbbCMOKSp5wcH2e/jCP+36pCR5312MJa22p+1XS4hbOFuOIqAOFEeQ2110PfEDrFlrJ3FQ5bpb8pxtrEKiZ1AAAA=',
+  'posters/read-the-marks-dark-tall.webp':
+    'data:image/webp;base64,UklGRmQBAABXRUJQVlA4IFgBAADQCQCdASowAGgAPtFiq1AoJSOipjQJ4QAaCWIAyQikmc7fvnnQI/1m5zUmMO2FkO+Oj0odseJAYVLQ/rIBn8Sd6ceuJSRb6SsSyeim+m0hIlxc3FgVo4AA/vaAtX87/WtOw5bn2H0/5lZ72g3Jd6C3ZxV3CJ/FB5+kzhLHe4fVsXugE7W3fhaYAPs+47TzbrkzIahmEDwCcoaTbqaZ3GyKs3TRx8HroWzfnoi7WzwkG9gdjKYyksaNRdGk5Q9z8fodwsZYz8ggp/OaWd7VywdJQOek/9Zu72D9s83GPIsgHh1ylqrpOgizhk1RJa6P74xKREJOauh5Hb2AzJINDd1Y4Ktn7PuEIemF1IaBOQpxANE4hcRSfUVSzImCulC7u5i5PBALN/WDDk82AzZe611/yfGkeWqrJ4PdeuLNbK29AnDgAGM3z9u3g5AgtHjCjzQCHyLJA8oAAA==',
+  'posters/read-the-marks-dark-wide.webp':
+    'data:image/webp;base64,UklGRgYCAABXRUJQVlA4IPoBAAAwDQCdASpgADwAPtFcpk2oJSOiKVbcOQAaCWgAwYgwEBi5vNbgA3Y5gl11hgfmtNwAVoSBmjHxQvgdprdkn//MsjC8yB9Q/Vb/8+k2ijZB/V2y7TN790wHcYnkSqocL9m85a5+8BRHwGE9ZbaIfS2/70QA/vRY0Pdjs9ljw3G79GC15c91SHNNIMO1tsJf+wXi0Nw02N+pBRHj+qSHwKFhlcUtGgewMD0r2BmN1SlTmTn7l+PcA5yhvWIhqvqnOqrSjYn5g2hVELrr0TQRfNEi67nJ5dnniNBJ7IEypXf7EYMSbBYkpSUE4Hgc2x1lPHoJHIvWC+0GkMrU0vCSGXamn74lOTPOMbTnSlhxxWR+skImjs4BDbEw9RZHR1VQN+QSdrVm2DKhoErz+Iq07n9CRJzWD0LGNEIw3RDbGxphan+nzVEggSCk5iwRoIvBiGWr2TubSLQqZN9fxMkg82p3mNepZnBh/M7ov9lWQevGUdlHrku4ZWe0EREQhKu6XCYYn4rqb1QkhENBYueds6XvJnaTwcVttN99Jp+O2Cce5WEO5VPUt2O+8ygvEWsudXUE4d7ojtZbxnvCYAA+ReQXa0Y0jMKK3Qw7ozc/OF7fPLK2/xaypicHIkKRgQCT62vtQcaeK6MzePPoTycgb8hrCib9dee3WAAAAA==',
+  'posters/read-the-marks-light-tall.webp':
+    'data:image/webp;base64,UklGRuwBAABXRUJQVlA4IOABAADwCgCdASowAGgAPtFiqE8oJaO2qTgJmtAaCWYAvzBfZ3iS23i57HTK1AdPdyAC+IZqVt1VNYWRFOSIMoYWgfjS19GfKaSJv11EO6Oc/r9oWtkkP4JSvjan8o00OwJyeuwAUJ3cv4PZvYOgg/7gzPam1xqV/AWhp/rbduOWih1Pry0gXBGc6bBrMjT7AO7hHLZQ+luR2/VfipdQwxnavEr2CUYTU/2x5EVgAmiG0kZX34oD9xg7Dz8Ox+tsT5KPSP7XiXLMMlQi0jVQDTeBG5VnR2x8AUaecQaKOHHQecxrjJRozCEt6DZN12fPY68CRrIJaqCDbjJSbKaai50LLYNNATtRBN7TW4uSSVztCqlaNGYr6DrYZEB0nW6gDGITV+tmgnOjvORPgybgCtKVKesBKFx8Xg/Kw3OotVH8SLznT7Azsv1vFUu502U7t8z9O4KsA43V50gcRCKznalObkJPe33VmwOqa6PDBKaIo//4uPYLkXf0LTCqXQ/vj2kBkmz5KRVJsTECS6ZxjtLBZmgTcAjn8DYeSsbl6n3Y1MH/Sq6qwqn1287TUuQQYxtMmo3EScPtZGULGZV/Mjf04bzWD+Efz/oKrPFn4GnZoRzt7UxBia4UdtwnPLuKE9EwAAA=',
+  'posters/read-the-marks-light-wide.webp':
+    'data:image/webp;base64,UklGRgQDAABXRUJQVlA4IPgCAABQEACdASpgADwAPtFYpk0oJT+iKrYMe/AaCWoAxj0AOgZAbUBcXuB+edso9f5LuUGhwRo/iwMac+GvHwPG4lyvewcmPfAmcaNknoA85yuJWeC61X+pjumI58+UX+QVO//Ug7DnPCv+f7y7hrsd2X11UH7IAlLmNnnZVqMN0p6QMSTY3vpd79big2cIAP7bpP6vb+fR497Ud7GP/YtbcGuhmg8mpqvk3FQqlQdNTtFOIvMI65UVdana8G7JQeAiLBUb5EnG/RLG7o6LGJh3hrL6YNnF08l48y1ilm1i8xpa29TYraMOKVxsl9t5KOuBWFaku1CB3h3E46vkAexXmySp1UKCo60fMIYzSf2rr/2ujth+6NZfeLogUuCIt8Itf+Vxde/VXSFOXIw5l4eZQ+Bwh2qP2jZgJRmW76dod4Q117Q2uI8Fs8BDjTE0HutQX+aP4ChGqOsbKmKQILMf+kk+q4UYG1ngOfST3fjmwUBkcwgi4QPB9FkFmZsBiqh2a41/ahIPDUpFr0vwkyDRKo/26yVDZViFvbqc9gJUc0R7uVZiF88VpOAKcKdbAOvb0zG56QfSlsfl2e422q2YCw2j6EE/AcNh0/ssCzGtZqA1sudwOG4ppqbaxHOvlEy5/uXSpQkiqFmiBKljwfc8kjRCDVuMofp9TvsxnC18B81UA911nhVTeVCeurZlL/FvpAh5dx60idl/gKTdr9zfHDCHbifV2ZH3tsWjGXf4KucFMRNJ6USPtDz+Vx3PlWj5QvsDQSnvQAuHfvbDWut6lZtpA4FnFOxopuqPi1JqVo/rvJphI3+O9OXF7gZ3ZaC00Io2XNTWfOy9MJrw0rtk3cFhMJ7GuFCGBngxHlwHCcEpLWpfRCjtyH37YiyBHTL+LLDrtHdgg5AO0La8GHyKpcfIdIfJ73Vg4tf1NYO0fVX4S7MsrXpRqW3u2BOpeTT52y6ahr3SDecSf2yxRXa9mK0HRmmjcAMlH1s4/AjIo/mgVKbO0+JYroAA',
 };
 
 /** The version of each picture its copy was made from (`pictureHash`, scripts/placeholders.ts). */
@@ -49,10 +61,16 @@ export const PLACEHOLDER_SOURCES: Readonly<Record<string, string>> = {
   'posters/gas-petroleum-dark-wide.webp': '2b9e5a60b40cafb0',
   'posters/gas-petroleum-light-tall.webp': 'a71a883fb9cc22f7',
   'posters/gas-petroleum-light-wide.webp': '7ec1e3cba60bf733',
+  'posters/read-the-marks-dark-tall.webp': '2ae6f879699c4bc6',
+  'posters/read-the-marks-dark-wide.webp': 'dc98a88fd76417e4',
+  'posters/read-the-marks-light-tall.webp': '54aae7c6e7976b5b',
+  'posters/read-the-marks-light-wide.webp': '2fa2f3e8bdf85b22',
   'stills/frequency-lab-dark.webp': '99e91968b9e04e75',
   'stills/frequency-lab-light.webp': 'd5858a55a5b18371',
   'stills/gas-petroleum-dark.webp': '4a67fa3773b8913d',
   'stills/gas-petroleum-light.webp': '4b06472f21fcbc72',
   'stills/hero-dark.webp': '1d19df42c3cad9ca',
   'stills/hero-light.webp': 'acedb3290773ac32',
+  'stills/read-the-marks-dark.webp': '595e65c1dcb6a294',
+  'stills/read-the-marks-light.webp': '6e52bef54a575f5a',
 };

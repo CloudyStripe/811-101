@@ -50,6 +50,15 @@ export const ICONS = {
   key: 'swatches',
   // Labels in the view, shown or hidden: a tag, as on a part.
   labels: 'tag',
+  // Read the Marks: a flag for a mark's color, and an icon for what each mark shows.
+  flag: 'flag',
+  dig: 'shovel',
+  electric: 'lightning',
+  water: 'drop',
+  sewer: 'toilet',
+  reclaimed: 'recycle',
+  survey: 'ruler',
+  again: 'arrow-counter-clockwise',
 } as const;
 
 const PACKAGE = new URL('../node_modules/@phosphor-icons/core/', import.meta.url);
