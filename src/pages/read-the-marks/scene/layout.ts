@@ -13,6 +13,7 @@
  */
 import type { ApwaCode } from '../../../design/apwa.ts';
 import { MARK_COLOR, type MarkId } from '../game.ts';
+import { MARK_LOOK } from './palette.ts';
 
 export interface Box {
   x0: number;
@@ -69,6 +70,8 @@ export const FIXTURES = {
   reclaimedBox: { x: 26, z: 7.6 },
   cleanout: { x: -22, z: 6.3 },
   gasMeter: { x: -6, z: -26 },
+  /** Where the gas line rises to its meter, just out from the wall. */
+  gasRiser: { x: -6, z: -25.5 },
   electricMeter: { x: 6, z: -26 },
   /** Where the communication cable meets the house. */
   terminal: { x: -17, z: -26 },
@@ -156,7 +159,13 @@ export const MARKS: readonly Mark[] = [
   {
     id: 'gas',
     color: MARK_COLOR.gas,
-    line: { route: [{ x: F.gasMeter.x, z: STREET }, F.gasMeter], depth: 2.2, radius: 0.42 },
+    line: {
+      route: [{ x: F.gasRiser.x, z: STREET }, F.gasRiser],
+      depth: 2.2,
+      radius: 0.42,
+      // Open to just short of the wall, so the riser shows rising from the line.
+      inset: [0, -0.2],
+    },
     spots: [
       ...flags(alongZ(-6, [8.4])),
       ...paint(alongZ(-6, [1.4, 3.6]), 90),
@@ -176,7 +185,7 @@ export const MARKS: readonly Mark[] = [
       ...flags(alongX(-5, [24.2])),
       ...paint(alongX(-5, [13.3, 16, 18.7]), 0),
       ...flags([
-        { x: 8.6, z: -5 },
+        { x: 9.2, z: -5 },
         { x: 6, z: -5.6 },
       ]),
       ...flags(alongZ(6, [-11, -16.5, -22])),
@@ -308,10 +317,167 @@ export function cutsOf(line: Line): Box[] {
   });
 }
 
+/** Where two boxes overlap in the ground's plane, if they do. */
+export function overlapOf(a: Box, b: Box): Box | null {
+  const x0 = Math.max(a.x0, b.x0);
+  const x1 = Math.min(a.x1, b.x1);
+  const z0 = Math.max(a.z0, b.z0);
+  const z1 = Math.min(a.z1, b.z1);
+  if (x1 - x0 < 1e-6 || z1 - z0 < 1e-6) return null;
+  return { x0, x1, y0: Math.max(a.y0, b.y0), y1: Math.min(a.y1, b.y1), z0, z1 };
+}
+
+/** A box moved in the ground's plane. */
+export const shifted = (b: Box, by: Point): Box => ({
+  ...b,
+  x0: b.x0 + by.x,
+  x1: b.x1 + by.x,
+  z0: b.z0 + by.z,
+  z1: b.z1 + by.z,
+});
+
+/** A box less another, as up to four boxes around the part taken out. */
+function less(box: Box, hole: Box): Box[] {
+  const h = overlapOf(box, hole);
+  if (!h) return [box];
+  const out: Box[] = [];
+  if (h.x0 > box.x0) out.push({ ...box, x1: h.x0 });
+  if (h.x1 < box.x1) out.push({ ...box, x0: h.x1 });
+  if (h.z0 > box.z0) out.push({ ...box, x0: h.x0, x1: h.x1, z1: h.z0 });
+  if (h.z1 < box.z1) out.push({ ...box, x0: h.x0, x1: h.x1, z0: h.z1 });
+  return out;
+}
+
+/** One run of one line, as the ground opens along it. */
+export interface RunRef {
+  mark: MarkId;
+  run: number;
+}
+
+const sameRun = (a: RunRef | null, b: RunRef | null) =>
+  a !== null && b !== null && a.mark === b.mark && a.run === b.run;
+
+/** How far a run's cover slides to clear its cut: the cut's width across the run, and a little. */
+export function reachOf(cut: Box, alongZ: boolean): number {
+  return (alongZ ? cut.x1 - cut.x0 : cut.z1 - cut.z0) + 0.4;
+}
+
+/** The way a run's cover would slide by default: away from the camera, which looks from the street and the right. */
+const awayOf = (run: readonly [Point, Point]): Point =>
+  runsAlongZ(run) ? { x: -1, z: 0 } : { x: 0, z: -1 };
+
+/** Every run of every line: its cut, the way it lies, and how far its cover slides. */
+const RUNS = MARKS.flatMap((m) => {
+  if (!m.line) return [];
+  const cuts = cutsOf(m.line);
+  return segmentsOf(m.line).flatMap((r, run) => {
+    const cut = cuts[run];
+    if (!cut) return [];
+    const alongZ = runsAlongZ(r);
+    return [{ ref: { mark: m.id, run }, cut, away: awayOf(r), reach: reachOf(cut, alongZ) }];
+  });
+});
+
+const runInfo = (ref: RunRef) => {
+  const info = RUNS.find((r) => sameRun(r.ref, ref));
+  if (!info) throw new Error(`no run ${ref.mark} ${String(ref.run)}`);
+  return info;
+};
+
+/** The ground a box passes over as it slides `reach` its way: from its leading edge on. */
+export function sweptAhead(box: Box, dir: Point, reach: number): Box {
+  if (dir.x < 0) return { ...box, x0: box.x0 - reach, x1: box.x0 };
+  if (dir.x > 0) return { ...box, x0: box.x1, x1: box.x1 + reach };
+  if (dir.z < 0) return { ...box, z0: box.z0 - reach, z1: box.z0 };
+  return { ...box, z0: box.z1, z1: box.z1 + reach };
+}
+
+/** Whether a box, slid as a run's cover slides, passes over no cut but its own run's. */
+const slidesClear = (ref: RunRef, box: Box, dir: Point) => {
+  const swept = sweptAhead(box, dir, runInfo(ref).reach);
+  return RUNS.every((r) => sameRun(r.ref, ref) || !overlapOf(swept, r.cut));
+};
+
 /**
- * Which way the ground slides away as it opens, and the flags over the line step aside: away from
- * the camera, which looks from the street and the right, so nothing stands between it and the cut.
+ * Who covers where two runs of a line meet at its turn: the run whose cover, sliding its default
+ * way, carries the overlap clear of the other's cut (so it never shows in that open trench); the
+ * later run where neither or both would.
  */
-export function asideOf(run: readonly [Point, Point]): Point {
-  return runsAlongZ(run) ? { x: -1, z: 0 } : { x: 0, z: -1 };
+function ownsTurn(a: RunRef, b: RunRef): RunRef {
+  const overlap = overlapOf(runInfo(a).cut, runInfo(b).cut);
+  if (!overlap) return b;
+  const aClear = slidesClear(a, overlap, runInfo(a).away);
+  const bClear = slidesClear(b, overlap, runInfo(b).away);
+  return aClear && !bClear ? a : b;
+}
+
+/**
+ * A run's cover, the ground that slides off its cut: the cut, less where it meets another run of
+ * its line at a turn, if that run covers the turn.
+ */
+export function coverOf(ref: RunRef): Box[] {
+  let boxes = [runInfo(ref).cut];
+  for (const other of RUNS) {
+    if (other.ref.mark !== ref.mark || other.ref.run === ref.run) continue;
+    if (sameRun(ownsTurn(ref, other.ref), ref)) continue;
+    boxes = boxes.flatMap((b) => less(b, other.cut));
+  }
+  return boxes;
+}
+
+/**
+ * Which way a run's cover slides as the ground opens, and its flags step aside: away from the
+ * camera, so nothing stands between it and the cut; or where that would carry it across another
+ * cut, so it would show in that trench open, the other way.
+ */
+export function asideOf(ref: RunRef): Point {
+  const { away } = runInfo(ref);
+  const clear = (dir: Point) => coverOf(ref).every((b) => slidesClear(ref, b, dir));
+  if (clear(away)) return away;
+  const back = { x: -away.x, z: -away.z };
+  return clear(back) ? back : away;
+}
+
+/** The run whose cover a flag's foot stands on, or a paint dash's footprint lies on, if any. */
+export function coverAt(spot: MarkSpot): RunRef | null {
+  const foot = footprintOf(spot);
+  let best: { ref: RunRef; area: number } | null = null;
+  for (const r of RUNS) {
+    for (const b of coverOf(r.ref)) {
+      const o = overlapOf(foot, b);
+      const area = o ? (o.x1 - o.x0) * (o.z1 - o.z0) : 0;
+      if (area > 0 && (!best || area > best.area)) best = { ref: r.ref, area };
+    }
+  }
+  return best?.ref ?? null;
+}
+
+/** What a mark covers on the ground: a dash's footprint, or a flag stake's foot. */
+export function footprintOf(spot: MarkSpot): Box {
+  const along = spot.form === 'paint' ? MARK_LOOK.paint.length / 2 : 0.05;
+  const across = spot.form === 'paint' ? MARK_LOOK.paint.width / 2 : 0.05;
+  const alongX =
+    spot.form !== 'paint' || Math.abs(Math.sin(((spot.heading ?? 0) * Math.PI) / 180)) < 0.5;
+  const [hx, hz] = alongX ? [along, across] : [across, along];
+  return { x0: spot.x - hx, x1: spot.x + hx, y0: 0, y1: 0, z0: spot.z - hz, z1: spot.z + hz };
+}
+
+/**
+ * Where a flag in a run's cover steps to as the ground opens: across the cut, the way the cover
+ * slides, onto the solid ground past its edge, `step` of the way.
+ */
+export function steppedAside(spot: Point, ref: RunRef, step: number): Point {
+  const dir = asideOf(ref);
+  const { cut } = runInfo(ref);
+  // From the flag to the cut's far edge the way it steps, and a little past it.
+  const toEdge =
+    dir.x < 0
+      ? spot.x - cut.x0
+      : dir.x > 0
+        ? cut.x1 - spot.x
+        : dir.z < 0
+          ? spot.z - cut.z0
+          : cut.z1 - spot.z;
+  const by = (toEdge + 0.5) * step;
+  return { x: spot.x + dir.x * by, z: spot.z + dir.z * by };
 }

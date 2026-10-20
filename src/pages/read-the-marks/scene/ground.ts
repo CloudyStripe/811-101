@@ -20,7 +20,9 @@ import {
   MARKS,
   TOPS,
   asideOf,
+  coverOf,
   cutsOf,
+  reachOf,
   runsAlongZ,
   segmentsOf,
   type Box,
@@ -233,7 +235,10 @@ export function groundMaterials(): Record<Cover, Material> {
   };
 }
 
-/** One cut's lid: what was in it, which slides aside to open the ground. */
+/**
+ * One run's lid: the ground that was over it (its cover: at a turn, only one of the two runs has
+ * the corner), which slides aside to open the ground.
+ */
 export interface Lid {
   mark: MarkId;
   /** Its run's index along the line. */
@@ -243,7 +248,7 @@ export interface Lid {
   aside: Point;
   /** How far it slides, to be out of the way: the cut's width, and a little more. */
   reach: number;
-  /** The cut itself, for what rides on the lid (paint) or steps off it (flags). */
+  /** The cut itself. */
   cut: Box;
 }
 
@@ -261,7 +266,8 @@ export function cutsFor(open: readonly MarkId[]) {
     return cutsOf(m.line).map((cut, run) => {
       const r = runs[run];
       if (!r) throw new Error(`${m.id}: a cut with no run`);
-      return { mark: m.id, run, cut, aside: asideOf(r), alongZ: runsAlongZ(r) };
+      const ref = { mark: m.id, run };
+      return { ...ref, cut, lidBoxes: coverOf(ref), aside: asideOf(ref), alongZ: runsAlongZ(r) };
     });
   });
 }
@@ -293,17 +299,18 @@ export function buildGround(open: readonly MarkId[], materials: Record<Cover, Ma
   const group = new Group();
   group.name = 'ground';
   group.add(...meshesOf(pieces, materials, true));
-  const lids = cuts.map(({ mark, run, cut, aside, alongZ }): Lid => {
+  const lids = cuts.map(({ mark, run, cut, lidBoxes, aside, alongZ }): Lid => {
     const lidGroup = new Group();
     lidGroup.name = `lid ${mark} ${String(run)}`;
-    const inside = whole.flatMap((p) => {
-      const b = intersect(p, cut);
-      return b ? [{ ...b, cover: p.cover, radius: p.radius }] : [];
-    });
+    const inside = whole.flatMap((p) =>
+      lidBoxes.flatMap((part) => {
+        const b = intersect(p, part);
+        return b ? [{ ...b, cover: p.cover, radius: p.radius }] : [];
+      }),
+    );
     // A lid moves, so it casts nothing: the shadow map holds still.
     lidGroup.add(...meshesOf(inside, materials, false));
-    const width = alongZ ? cut.x1 - cut.x0 : cut.z1 - cut.z0;
-    return { mark, run, group: lidGroup, aside, reach: width + 0.4, cut };
+    return { mark, run, group: lidGroup, aside, reach: reachOf(cut, alongZ), cut };
   });
   return {
     group,

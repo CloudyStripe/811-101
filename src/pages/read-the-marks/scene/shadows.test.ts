@@ -42,17 +42,24 @@ describe('the yard’s shadows', () => {
     }
   });
 
-  it('hold still: what casts stays put as every line’s ground opens and closes, day and night', () => {
-    const roots = [ground.group, buildings.group, lines.group, fixtures];
+  it('hold still: whatever moves as each line’s ground opens and closes, day and night, casts nothing', () => {
+    const roots = [
+      ground.group,
+      ...ground.lids.map((l) => l.group),
+      marks.group,
+      buildings.group,
+      lines.group,
+      fixtures,
+    ];
     for (const root of roots) root.updateMatrixWorld(true);
-    const casters = roots.flatMap(meshesOf).filter((mesh) => mesh.castShadow);
-    expect(casters.length).toBeGreaterThan(0);
-    const before = casters.map((mesh) => ({
+    const meshes = roots.flatMap(meshesOf);
+    const before = meshes.map((mesh) => ({
       world: mesh.matrixWorld.clone(),
       instances: mesh instanceof InstancedMesh ? [...mesh.instanceMatrix.array] : null,
     }));
-    // Each lid slides aside and back, as the scene moves it, its paint riding along and its
-    // flags stepping off; the marks are lit in turn, and the night comes on.
+    let movedAny = false;
+    // Each lid slides aside and back, as the scene moves it, the paint on it riding along and the
+    // flags on it stepping off; the marks are lit in turn, and the night comes on.
     for (const t of [0.3, 0.7, 1, 0.5, 0]) {
       for (const lid of ground.lids) {
         const offset = new Vector3(
@@ -61,7 +68,25 @@ describe('the yard’s shadows', () => {
           lid.aside.z * lid.reach * t,
         );
         lid.group.position.copy(offset);
+        lid.group.visible = t < 1;
         marks.setRun(lid.mark, lid.run, offset, t, t >= 1);
+        for (const root of roots) root.updateMatrixWorld(true);
+        meshes.forEach((mesh, i) => {
+          const was = before[i];
+          if (!was) throw new Error('a mesh not measured');
+          const moved =
+            !mesh.matrixWorld.equals(was.world) ||
+            (mesh instanceof InstancedMesh &&
+              was.instances !== null &&
+              mesh.instanceMatrix.array.some((v, k) => v !== was.instances?.[k]));
+          if (moved) {
+            expect(
+              mesh.castShadow,
+              `a ${mesh.type} in ${mesh.parent?.name ?? 'the yard'} moves and casts`,
+            ).toBe(false);
+            movedAny = true;
+          }
+        });
       }
     }
     for (const m of MARKS) marks.setFocus(m.id, true);
@@ -69,16 +94,7 @@ describe('the yard’s shadows', () => {
     marks.setNight(true);
     lines.setNight(true);
     buildings.setLamps(1);
-    for (const root of roots) root.updateMatrixWorld(true);
-    casters.forEach((mesh, i) => {
-      const was = before[i];
-      if (!was) throw new Error('a caster not measured');
-      expect(mesh.matrixWorld.equals(was.world), `a ${mesh.type} casts but moves`).toBe(true);
-      if (was.instances && mesh instanceof InstancedMesh) {
-        expect([...mesh.instanceMatrix.array], `a ${mesh.type}'s copies cast but move`).toEqual(
-          was.instances,
-        );
-      }
-    });
+    // Something did move: the test isn't idle.
+    expect(movedAny).toBe(true);
   });
 });

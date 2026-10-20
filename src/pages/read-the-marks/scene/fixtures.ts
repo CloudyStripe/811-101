@@ -38,8 +38,9 @@ export function buildFixtures(): Group {
       cap,
     ),
     mesh(roundedBox(1.2, 1.5, 0.7, 0.1, [F.gasMeter.x, 2.2, F.gasMeter.z + 0.4]), gray),
+    // The riser above the ground; the gas line rises to meet it from below (lines.ts).
     mesh(
-      new CylinderGeometry(0.12, 0.12, 1.5, 12).translate(F.gasMeter.x, 0.75, F.gasMeter.z + 0.5),
+      new CylinderGeometry(0.12, 0.12, 1.5, 12).translate(F.gasRiser.x, 0.75, F.gasRiser.z),
       gray,
     ),
     mesh(roundedBox(0.9, 1.3, 0.5, 0.1, [F.electricMeter.x, 4.4, F.electricMeter.z + 0.3]), gray),

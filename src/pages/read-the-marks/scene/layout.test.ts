@@ -9,12 +9,22 @@ import {
   GARAGE,
   HOUSE,
   MARKS,
+  asideOf,
+  coverAt,
+  coverOf,
   cutsOf,
+  footprintOf,
   groundAt,
+  markById,
+  overlapOf,
+  reachOf,
   runsAlongZ,
   segmentsOf,
+  steppedAside,
+  sweptAhead,
   type Box,
   type Point,
+  type RunRef,
 } from './layout.ts';
 
 /** How far a point is from a straight run. */
@@ -26,6 +36,26 @@ function distanceToRun(p: Point, [a, b]: readonly [Point, Point]): number {
 }
 
 const overlapsInPlan = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+
+const area = (b: Box) => (b.x1 - b.x0) * (b.z1 - b.z0);
+
+/** Every run of every line, with its cut. */
+const RUNS = MARKS.flatMap((m) => {
+  if (!m.line) return [];
+  const runs = segmentsOf(m.line);
+  return cutsOf(m.line).map((cut, run) => ({
+    ref: { mark: m.id, run },
+    cut,
+    alongZ: runsAlongZ(
+      runs[run] ?? [
+        { x: 0, z: 0 },
+        { x: 0, z: 1 },
+      ],
+    ),
+  }));
+});
+const same = (a: RunRef, b: RunRef) => a.mark === b.mark && a.run === b.run;
+const name = (r: RunRef) => `${r.mark} ${String(r.run)}`;
 
 describe('the yard', () => {
   it('has one mark for each of the game’s marks', () => {
@@ -119,13 +149,106 @@ describe('the yard', () => {
     }
   });
 
-  it('opens each line on its own: no two lines’ cuts overlap, and none crosses the dig', () => {
+  it('opens each line on its own: no two lines’ cuts overlap', () => {
     const cuts = MARKS.flatMap((m) => (m.line ? cutsOf(m.line).map((c) => ({ id: m.id, c })) : []));
     for (const a of cuts) {
       for (const b of cuts) {
         if (a.id !== b.id) expect(overlapsInPlan(a.c, b.c), `${a.id} and ${b.id}`).toBe(false);
       }
     }
+  });
+
+  it('covers each turn once: a line’s runs share its cuts, none of it twice and none left out', () => {
+    for (const mark of MARKS) {
+      if (!mark.line) continue;
+      const cuts = cutsOf(mark.line);
+      const covers = cuts.flatMap((_, run) => coverOf({ mark: mark.id, run }));
+      covers.forEach((a, i) => {
+        for (const b of covers.slice(i + 1)) expect(overlapOf(a, b), mark.id).toBeNull();
+      });
+      // As much ground as the cuts take together: each cut, less where two meet.
+      let union = cuts.reduce((sum, c) => sum + area(c), 0);
+      cuts.forEach((a, i) => {
+        for (const b of cuts.slice(i + 1)) {
+          const o = overlapOf(a, b);
+          if (o) union -= area(o);
+        }
+      });
+      expect(
+        covers.reduce((sum, b) => sum + area(b), 0),
+        mark.id,
+      ).toBeCloseTo(union, 6);
+    }
+    // The electric line's turn goes with the run toward the meter, which slides it onto the lawn,
+    // not with the run from the transformer, which would carry it down the other open trench.
+    const turn = { x: FIXTURES.electricMeter.x, z: FIXTURES.transformer.z };
+    const holds = (run: number) =>
+      coverOf({ mark: 'electric', run }).some(
+        (c) => turn.x > c.x0 && turn.x < c.x1 && turn.z > c.z0 && turn.z < c.z1,
+      );
+    expect(holds(1), 'the run toward the meter').toBe(true);
+    expect(holds(0), 'the run from the transformer').toBe(false);
+  });
+
+  it('slides each cover over solid ground only, never across another cut as the ground opens', () => {
+    for (const r of RUNS) {
+      const dir = asideOf(r.ref);
+      for (const part of coverOf(r.ref)) {
+        const swept = sweptAhead(part, dir, reachOf(r.cut, r.alongZ));
+        for (const other of RUNS) {
+          if (same(other.ref, r.ref)) continue;
+          expect(
+            overlapOf(swept, other.cut),
+            `${name(r.ref)} across ${name(other.ref)}`,
+          ).toBeNull();
+        }
+        expect(swept.x0, name(r.ref)).toBeGreaterThan(BLOCK.x0);
+        expect(swept.x1, name(r.ref)).toBeLessThan(BLOCK.x1);
+      }
+    }
+  });
+
+  it('steps every flag on a cover off it, onto the grass clear of every cut, as the ground opens', () => {
+    for (const mark of MARKS) {
+      for (const s of mark.spots) {
+        if (s.form !== 'flag') continue;
+        const on = coverAt(s);
+        const at = on ? steppedAside(s, on, 1) : s;
+        const where = `${mark.id} flag at ${String(s.x)}, ${String(s.z)}`;
+        // A flag in a cut is on one of its covers; one on none stands where it is.
+        const inCut = RUNS.some(
+          (r) => s.x > r.cut.x0 && s.x < r.cut.x1 && s.z > r.cut.z0 && s.z < r.cut.z1,
+        );
+        expect(on !== null, where).toBe(inCut);
+        for (const r of RUNS) {
+          const near =
+            at.x > r.cut.x0 - 0.3 &&
+            at.x < r.cut.x1 + 0.3 &&
+            at.z > r.cut.z0 - 0.3 &&
+            at.z < r.cut.z1 + 0.3;
+          expect(near, `${where}, by ${name(r.ref)}'s cut`).toBe(false);
+        }
+        expect(groundAt(at), where).toBe('grass');
+      }
+    }
+  });
+
+  it('lets paint over a line ride that line’s cover, the outline’s dashes over the gas line too', () => {
+    for (const mark of MARKS) {
+      for (const s of mark.spots) {
+        if (s.form !== 'paint') continue;
+        const over = RUNS.filter((r) => overlapOf(footprintOf(s), r.cut));
+        const on = coverAt(s);
+        const where = `${mark.id} paint at ${String(s.x)}, ${String(s.z)}`;
+        // No dash lies across two lines; one over a line goes with one of its runs' covers.
+        expect(new Set(over.map((r) => r.ref.mark)).size, where).toBeLessThanOrEqual(1);
+        expect(on?.mark ?? null, where).toBe(over[0]?.ref.mark ?? null);
+      }
+    }
+    const crossing = markById('dig').spots.filter(
+      (s) => s.form === 'paint' && coverAt(s)?.mark === 'gas',
+    );
+    expect(crossing.length).toBeGreaterThan(0);
   });
 
   it('keeps the boxes at the lines’ ends standing on solid ground', () => {

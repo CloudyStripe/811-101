@@ -2,8 +2,9 @@
  * The marks: flags on the grass and paint where a line crosses the sidewalk or driveway, each in
  * its full APWA color, larger than life. The mark asked about glows softly on the ground under it,
  * its flags stand a little taller, and the other marks dim a little; its own color never changes.
- * As the ground opens along a line, its flags step aside onto solid ground and its paint goes with
- * the cover it's painted on.
+ * As the ground opens along a line, the flags over it step aside onto solid ground and the paint on
+ * it goes with the cover it's painted on, whichever mark they are: the white outline's dashes over
+ * the gas line go with the gas line's cover.
  *
  * Nothing here casts a shadow, as flags move and the shadow map holds still: each flag has a small
  * soft shadow of its own under it instead.
@@ -32,7 +33,15 @@ import { APWA } from '../../../design/apwa.ts';
 import { merge, roundedBox } from '../../../kit3d/geometry.ts';
 import { surface } from '../../../kit3d/materials.ts';
 import type { MarkId } from '../game.ts';
-import { MARKS, cutsOf, topAt, type Box, type Mark, type MarkSpot, type Point } from './layout.ts';
+import {
+  MARKS,
+  coverAt,
+  steppedAside,
+  topAt,
+  type Mark,
+  type MarkSpot,
+  type RunRef,
+} from './layout.ts';
 import { MARK_LOOK as L, YARD_COLORS as Y } from './palette.ts';
 
 /** A soft round spot, white at its middle and clear at its edge: for glows and contact shadows. */
@@ -56,16 +65,13 @@ function softSpot(size = 64, falloff = 2): DataTexture {
   return t;
 }
 
-/** Which of a line's cuts a spot lies in: its run's index, or -1 for none. */
-function runOf(mark: Mark, s: Point): number {
-  if (!mark.line) return -1;
-  return cutsOf(mark.line).findIndex((c) => s.x > c.x0 && s.x < c.x1 && s.z > c.z0 && s.z < c.z1);
-}
+/** A run's key, for what goes with its cover. */
+const keyOf = (ref: RunRef | null) => (ref ? `${ref.mark}:${String(ref.run)}` : 'none');
 
 interface FlagSlot {
   spot: MarkSpot;
-  /** The run whose cut it stands in, or -1. */
-  run: number;
+  /** The run whose cover it stands on, or none. */
+  on: RunRef | null;
 }
 
 /** One mark's flags, paint and glow, and the materials that dim it. */
@@ -78,8 +84,8 @@ interface MarkParts {
   hemMesh: InstancedMesh | null;
   stakeMesh: InstancedMesh | null;
   blobMesh: InstancedMesh | null;
-  /** Paint, per run of the line it lies over (-1: none), so it can ride with that run's cover. */
-  paintGroups: Map<number, Group>;
+  /** Paint, per run whose cover it's on (`keyOf`), so it can ride with that cover. */
+  paintGroups: Map<string, Group>;
   glow: Mesh | null;
 }
 
@@ -92,8 +98,9 @@ export interface MarkSet {
   setFocus(id: MarkId | null, glow: boolean): void;
   setNight(night: boolean): void;
   /**
-   * Places a line's marks as its ground opens: flags in that run's cut step aside by `step`
-   * (0 to 1 of the way), and its paint moves with the cover by `offset`, hidden once it's away.
+   * Places the marks on a run's cover as its ground opens, whichever mark they are: flags step
+   * aside by `step` (0 to 1 of the way), and paint moves with the cover by `offset`, hidden once
+   * it's away.
    */
   setRun(id: MarkId, run: number, offset: Vector3, step: number, away: boolean): void;
   dispose(): void;
@@ -158,7 +165,7 @@ export function buildMarks(): MarkSet {
     paint.emissiveIntensity = 0;
     const flags: FlagSlot[] = mark.spots
       .filter((s) => s.form === 'flag')
-      .map((s) => ({ spot: s, run: runOf(mark, s) }));
+      .map((s) => ({ spot: s, on: coverAt(s) }));
     const instanced = (geometry: BufferGeometry, material: Material) => {
       if (!flags.length) return null;
       const m = new InstancedMesh(geometry, material, flags.length);
@@ -179,26 +186,26 @@ export function buildMarks(): MarkSet {
       paintGroups: new Map(),
       glow: null,
     };
-    // Paint, a mesh for each run it lies over.
-    const byRun = new Map<number, BufferGeometry[]>();
+    // Paint, a mesh for each run's cover it lies on.
+    const byCover = new Map<string, BufferGeometry[]>();
     for (const s of mark.spots) {
       if (s.form !== 'paint') continue;
       const dash = roundedBox(L.paint.length, 0.025, L.paint.width, 0.012, [0, 0, 0], 1)
         .rotateY(-((s.heading ?? 0) * Math.PI) / 180)
         .translate(s.x, topAt(s) + 0.016, s.z);
-      const run = runOf(mark, s);
-      const list = byRun.get(run) ?? [];
+      const key = keyOf(coverAt(s));
+      const list = byCover.get(key) ?? [];
       list.push(dash);
-      byRun.set(run, list);
+      byCover.set(key, list);
     }
-    for (const [run, geometries] of byRun) {
+    for (const [key, geometries] of byCover) {
       const g = new Group();
       const m = new Mesh(merge(geometries), paint);
       m.castShadow = false;
       m.receiveShadow = true;
       g.add(m);
       group.add(g);
-      p.paintGroups.set(run, g);
+      p.paintGroups.set(key, g);
     }
     // The glow under each flag and dash, shown while the mark is asked about.
     const r = L.glow.radius;
@@ -218,8 +225,8 @@ export function buildMarks(): MarkSet {
   const q = new Quaternion();
   const s = new Vector3();
   const at = new Vector3();
-  /** Each flag's offset as it steps aside, per mark. */
-  const steps = new Map<MarkId, Map<number, Vector3>>();
+  /** How far the flags on each run's cover have stepped aside, 0 to 1, by `keyOf`. */
+  const steps = new Map<string, number>();
   /** The mark glowing, its flags standing taller: the one asked about. */
   let lit: MarkId | null = null;
 
@@ -227,8 +234,9 @@ export function buildMarks(): MarkSet {
     const lift = p.mark.id === lit ? L.lift : 1;
     q.setFromAxisAngle(UP, L.flagTurn);
     p.flags.forEach((slot, i) => {
-      const offset = steps.get(p.mark.id)?.get(slot.run);
-      at.set(slot.spot.x + (offset?.x ?? 0), topAt(slot.spot), slot.spot.z + (offset?.z ?? 0));
+      const step = steps.get(keyOf(slot.on)) ?? 0;
+      const to = slot.on && step > 0 ? steppedAside(slot.spot, slot.on, step) : slot.spot;
+      at.set(to.x, topAt(to), to.z);
       s.setScalar(lift);
       m.compose(at, q, s);
       for (const mesh of [p.clothMesh, p.hemMesh, p.stakeMesh]) mesh?.setMatrixAt(i, m);
@@ -274,18 +282,16 @@ export function buildMarks(): MarkSet {
       for (const p of parts) shade(p);
     },
     setRun(id, run, offset, step, away) {
-      const p = parts.find((x) => x.mark.id === id);
-      if (!p) return;
-      const paint = p.paintGroups.get(run);
-      if (paint) {
-        paint.position.copy(offset);
-        paint.visible = !away;
+      const key = keyOf({ mark: id, run });
+      steps.set(key, step);
+      for (const p of parts) {
+        const paint = p.paintGroups.get(key);
+        if (paint) {
+          paint.position.copy(offset);
+          paint.visible = !away;
+        }
+        if (p.flags.some((slot) => keyOf(slot.on) === key)) placeFlags(p);
       }
-      const cut = p.mark.line ? cutsOf(p.mark.line)[run] : undefined;
-      const byRun = steps.get(id) ?? new Map<number, Vector3>();
-      steps.set(id, byRun);
-      byRun.set(run, cut ? stepAside(cut, offset, step) : new Vector3());
-      placeFlags(p);
     },
     dispose() {
       for (const g of [clothGeometry, hemGeometry, stakeGeometry, blobGeometry]) g.dispose();
@@ -301,19 +307,6 @@ export function buildMarks(): MarkSet {
       spot.dispose();
     },
   };
-}
-
-/**
- * Where a flag in a cut steps to as the ground opens: across to the far edge of the cut, in the
- * way its cover slides, onto the solid ground there, `step` of the way.
- */
-function stepAside(cut: Box, offset: Vector3, step: number): Vector3 {
-  const along = Math.hypot(offset.x, offset.z);
-  if (along < 1e-6 && step === 0) return new Vector3();
-  // The cover slides along `offset`; flags step the cut's half width and a little, the same way.
-  const dir = along > 1e-6 ? new Vector3(offset.x / along, 0, offset.z / along) : new Vector3();
-  const half = Math.abs(dir.x) > 0.5 ? (cut.x1 - cut.x0) / 2 : (cut.z1 - cut.z0) / 2;
-  return dir.multiplyScalar((half + 0.5) * step);
 }
 
 /** For tests: a box the size of a flag's cloth, unrotated. */

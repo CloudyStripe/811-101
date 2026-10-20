@@ -1,7 +1,8 @@
 /**
  * The buried lines, each in its full APWA color: a teaching aid, as in the lab, since real pipe and
  * cable colors underground are unreliable. A line runs from under the street, or from the box it
- * leaves, to where it ends; the sewer line rises to its cleanout. Hidden in the ground until the
+ * leaves, to where it ends; the sewer line rises to its cleanout, and the gas line to the riser up to
+ * its meter. Hidden in the ground until the
  * ground opens along it; at night each keeps a faint glow of its own color.
  */
 import {
@@ -66,15 +67,21 @@ export function buildLines(): Lines {
     material.emissiveIntensity = 0;
     materials.push(material);
     const parts = [pipeOf(mark.line)];
-    // The sewer line rises to its cleanout's cap at the surface.
-    if (mark.id === 'sewer') {
-      const { x, z } = FIXTURES.cleanout;
-      const top = TOPS.grass;
+    // The sewer line rises to its cleanout's cap at the surface, and the gas line to the foot of
+    // its meter's riser, at the ground.
+    const riser =
+      mark.id === 'sewer'
+        ? { at: FIXTURES.cleanout, radius: 0.24, top: TOPS.grass }
+        : mark.id === 'gas'
+          ? { at: FIXTURES.gasRiser, radius: 0.16, top: 0 }
+          : null;
+    if (riser) {
+      const { x, z } = riser.at;
       const bottom = -mark.line.depth;
       parts.push(
-        new CylinderGeometry(0.24, 0.24, top - bottom, 20, 1, true).translate(
+        new CylinderGeometry(riser.radius, riser.radius, riser.top - bottom, 20, 1, true).translate(
           x,
-          (top + bottom) / 2,
+          (riser.top + bottom) / 2,
           z,
         ),
         new SphereGeometry(mark.line.radius, 20, 10).translate(x, bottom, z),
