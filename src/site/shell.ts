@@ -43,7 +43,7 @@ export const HERO_SLOT = '<!-- portal-hero -->';
 /** Where the cards go in the portal's static shell. */
 export const CARDS_SLOT = '<!-- portal-cards -->';
 
-/** What the cards' list is named for readers: the lessons, then what's to come. */
+/** What the cards' list is named for readers: the lessons (and any section still to come). */
 export const CARDS_NAME = 'Lessons';
 
 const attr = escapeHtml;

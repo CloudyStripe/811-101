@@ -189,7 +189,7 @@ Appendix B, adopts (`content/sources.ts`):
 | Pink   | Temporary survey markings                                 |
 | White  | Proposed excavation                                       |
 
-- **Marks wear their code:** in Read the Marks, the paint and flags above ground are their full APWA color, and nothing else in the yard reads as any of the eight colors, white included (`scene/palette.test.ts`, lit and tone mapped): its walls, fixtures, paving and boxes are warm grays and browns, and the reclaimed water box isn't purple. The mark asked about is lit by a soft glow on the ground under it, the others dimmed a little; its own color never changes.
+- **Marks wear their code:** in Read the Marks, the paint and flags above ground are their full APWA color, and nothing else in the yard reads as any of the eight colors, white included (`scene/palette.test.ts`, lit and tone mapped), but the grass and leaves, which are green as grass is: the green flags wear a light hem that stands clear of them. Its walls, fixtures, paving and boxes are warm grays and browns, and the reclaimed water box isn't purple. The Key and the end say the lines are drawn in their marks' colors, which real pipes and cables aren't always, and larger than life. The mark asked about is lit by a soft glow on the ground under it, the others dimmed a little; its own color never changes.
 - **Never color alone:** color is never the only cue. Pair it with an icon, label, pattern or arrow.
 - **Lines wear their code:** buried lines are drawn close to their full APWA color (`FACILITY_TINT_STRENGTH`), with an icon and label. It's a teaching aid: real pipe and cable color underground is unreliable, so say so where it matters.
 - **The ground stays ground:** soils, rock and fill never read as a code color the lesson uses (tested lit and tone mapped). The lab's trench fill is a gray sand, so the gas main stands out by value too.
@@ -227,7 +227,7 @@ Appendix B, adopts (`content/sources.ts`):
 - **No fog:** the model floats in a screen-space gradient sky (`src/kit3d/backdrop.ts`), drawn through the inverse of the tone mapping so it shows as authored. If fog ever returns, N8AO needs `FogExp2`.
 - **N8AO:** keep its debug mode and neural denoise off.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
-- **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
+- **Shared runtime:** every 3D page runs on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
 - **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire and the signal bloom; lamps and lit windows glow under it. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
 - **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view or depth, the yard's ground is cut along other lines, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved, and another opens and closes every line in the yard (its lids, flags and paint cast nothing).
 
@@ -257,14 +257,20 @@ Appendix B, adopts (`content/sources.ts`):
   the driveway. Green and purple are public lines: the sewer out to its cleanout, and reclaimed
   water from the curb to its own box in the grass strip.
 - **The ground opens:** answered, the ground is built again, cut along the mark's line (`carve`
-  in `scene/ground.ts`), and each cut's lid drops and slides aside, its paint riding along and its
-  flags stepping off, until the line shows, named; with reduced motion it's open at once. Next
-  mark closes it again, and at the end every line is open at once.
+  in `scene/ground.ts`), and each run's lid (its cover: at a turn, the run whose slide carries
+  the corner clear of the other's trench has it) drops and slides aside, away from the camera, or
+  the other way where that would cross another line's cut (`coverOf`, `asideOf` in
+  `scene/layout.ts`, tested). The paint on a cover rides with it, whichever mark it is (the white
+  outline's dashes over the gas line), and the flags on it step off onto the grass, until the line
+  shows, named; with reduced motion it's open at once. Next mark closes it again, and at the end
+  every line is open at once.
 - **The panel:** beside the yard on wide and short screens (a phone held sideways), and under it
   in a sheet on phones held upright, one height through a round (`--rm-sheet`), so the yard keeps
-  its size; there, once answered, the result takes the answers' place. 1 to 4 answer, focus moves
-  on to Next and then to the next mark, and the Key shows the whole code at any time. The status
-  line (`#rm-status`) says what's lit, then the answer and what's under it, then the score.
+  its size; there, once answered, the result takes the answers' place. While focus is in the
+  question, 1 to 4 answer (only there, as single keys acting anywhere would fail WCAG 2.1.4); focus
+  moves on to Next, which carries the answer as its description, then to the next mark. The Key
+  shows the whole code at any time. The status line (`#rm-status`) says what's lit, then the
+  answer and what's under it, then the score.
 
 ## Performance and accessibility
 
