@@ -22,16 +22,6 @@ export const SOURCES = {
     publisher: 'Common Ground Alliance',
     url: 'https://www.bluestakes.org/pdfs/CGA_BestPractices_ApxB.pdf',
   },
-  'cga-best-practices-glossary': {
-    title: 'CGA Best Practices 10.0, Glossary: Locator',
-    publisher: 'Common Ground Alliance',
-    url: 'https://www.georgia811.com/userfiles/file/PDF_libary/CGA_BestPractices.pdf',
-  },
-  'phmsa-safe-digging': {
-    title: 'PHMSA Recognizes April as National Safe Digging Month (April 12, 2022)',
-    publisher: 'Pipeline and Hazardous Materials Safety Administration',
-    url: 'https://www.phmsa.dot.gov/news/phmsa-recognizes-april-national-safe-digging-month-0',
-  },
   'bls-surveyors': {
     title: 'Surveyors, Occupational Outlook Handbook',
     publisher: 'U.S. Bureau of Labor Statistics',

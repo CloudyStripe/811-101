@@ -113,7 +113,7 @@ function Swatch({ color }: { color: ApwaCode }) {
  * The whole code: a row per color, its swatch, name and meaning; then what the yard draws as it
  * isn't in the field: larger than life, and each line in its marks' color.
  */
-function CodeList() {
+function CodeList({ missed }: { missed?: ReadonlySet<ApwaCode> }) {
   return (
     <>
       <ul class="rm-code">
@@ -122,6 +122,13 @@ function CodeList() {
             <Swatch color={c} />
             <span>
               <strong>{CODE[c].name}:</strong> <Rich text={CODE[c].meaning.text} define={define} />
+              {/* At the end, a miss beside its meaning: marked in ink, an icon and a word. */}
+              {missed?.has(c) && (
+                <span class="rm-missed">
+                  <Icon name="close" />
+                  {UI.missed.text}
+                </span>
+              )}
             </span>
           </li>
         ))}
@@ -130,6 +137,15 @@ function CodeList() {
         {KEY.colors.text} {KEY.scale.text}
       </p>
     </>
+  );
+}
+
+/** The colors of the marks a round's answers missed. */
+function missedColors(round: Round): ReadonlySet<ApwaCode> {
+  return new Set(
+    round.questions
+      .filter((x) => x.picked !== null && x.picked !== MARK_COLOR[x.mark])
+      .map((x) => MARK_COLOR[x.mark]),
   );
 }
 
@@ -143,6 +159,7 @@ export function App() {
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef(new Map<MarkId, HTMLElement>());
+  const tagRefs = useRef(new Map<MarkId, HTMLElement>());
   const sceneRef = useRef<MarksScene | null>(null);
   const askRef = useRef<HTMLHeadingElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
@@ -209,6 +226,7 @@ export function App() {
         scene = await createMarksScene({
           canvas,
           labelElements: labelRefs.current,
+          tagElements: tagRefs.current,
           tier: TIER_PARAM ?? s.quality,
           theme: resolvedTheme(),
           reducedMotion: reducesMotion(s.motion, reducedMotionQuery.matches),
@@ -371,7 +389,9 @@ export function App() {
           aria-describedby="rm-status"
         />
         <SceneLoader page={PAGE} done={failed !== null} />
-        <div class="labels" hidden={failed !== null || !labelsShown} aria-hidden="true">
+        {/* The lines' names hide with the labels off (the scene hides them); the tag over the mark asked
+            about doesn't, as it points out the question. */}
+        <div class="labels" hidden={failed !== null} aria-hidden="true">
           {LINE_MARKS.map((id) => (
             <div
               key={id}
@@ -390,6 +410,28 @@ export function App() {
                   <Icon name={MARK_ICON[id]} />
                 </span>
                 <span class="lbl-text">{TEXT[id].label?.text}</span>
+              </span>
+            </div>
+          ))}
+          {MARK_IDS.map((id) => (
+            <div
+              key={`lit-${id}`}
+              class="lbl off rm-lit"
+              data-label={`lit-${id}`}
+              data-pointer=""
+              ref={(el) => {
+                if (el) tagRefs.current.set(id, el);
+                else tagRefs.current.delete(id);
+              }}
+            >
+              <span class="lbl-btn">
+                <span
+                  class="lbl-icon lbl-icon-facility"
+                  style={{ '--chip': APWA[MARK_COLOR[id]].fill }}
+                >
+                  <Icon name="flag" />
+                </span>
+                <span class="lbl-text">{CODE[MARK_COLOR[id]].name}</span>
               </span>
             </div>
           ))}
@@ -459,19 +501,14 @@ export function App() {
                 <span>{END.safety.text}</span>
               </p>
               <h3 class="rm-code-title">{KEY.heading.text}</h3>
-              <CodeList />
+              <CodeList missed={missedColors(round)} />
             </div>
           ) : (
             q &&
             right &&
             markText && (
               <div class="rm-question">
-                {round.at === 0 && (
-                  <p class="rm-intro">
-                    <Rich text={INTRO.scene.text} define={define} />{' '}
-                    <span class="rm-intro-how">{INTRO.how.text}</span>
-                  </p>
-                )}
+                {round.at === 0 && <p class="rm-intro">{INTRO.how.text}</p>}
                 <p class="rm-color">
                   <Swatch color={right} />
                   <Icon name="flag" />

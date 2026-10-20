@@ -364,6 +364,26 @@ body {
   margin-top: 0.1em;
 }
 
+/* A miss, at the end: in ink, as "Your answer" is, never red. */
+.rm-missed {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 8px;
+  padding: 1px 8px 1px 5px;
+  border: 1.5px dashed var(--ink-2);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font: 700 var(--text-small) / 1.3 var(--font-body);
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.rm-missed .icon {
+  width: 14px;
+  height: 14px;
+}
+
 .rm-code-note {
   margin: var(--space-3) 0 0;
   color: var(--ink-2);
@@ -417,6 +437,25 @@ body {
   .rm-next {
     width: 100%;
     justify-content: center;
+  }
+
+  /*
+   * The answers at the sheet's foot, and once answered, the result there, right over Next: the
+   * thumb stays in one place.
+   */
+  .rm-question {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .rm-answers,
+  .rm-result {
+    margin-top: auto;
+  }
+
+  .rm-color {
+    align-self: flex-start;
   }
 
   .rm .scene-loader-status {
@@ -526,11 +565,6 @@ body {
   .rm-intro {
     font-size: 0.85rem;
     line-height: 1.35;
-  }
-
-  /* How to play, which the question and its answers show anyway, gives them its room. */
-  .rm-intro-how {
-    display: none;
   }
 
   /* The count says where the round is; its dots, which say it again, give it their room. */

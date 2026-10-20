@@ -13,8 +13,6 @@ Every factual claim in the lessons, for locator sign-off.
 
 - **APWA card:** [APWA Uniform Color Code: Guidelines for Uniform Temporary Marking of Underground Facilities (Rev. 4/99)](https://www.apwa.org/wp-content/uploads/Uniform-Color-Code-1.pdf), American Public Works Association.
 - **CGA Best Practices:** [CGA Best Practices 22.0, Appendix B: Uniform Color Code and Marking Guidelines](https://www.bluestakes.org/pdfs/CGA_BestPractices_ApxB.pdf), Common Ground Alliance.
-- **CGA glossary:** [CGA Best Practices 10.0, Glossary: Locator](https://www.georgia811.com/userfiles/file/PDF_libary/CGA_BestPractices.pdf), Common Ground Alliance.
-- **PHMSA:** [PHMSA Recognizes April as National Safe Digging Month (April 12, 2022)](https://www.phmsa.dot.gov/news/phmsa-recognizes-april-national-safe-digging-month-0), Pipeline and Hazardous Materials Safety Administration.
 - **BLS:** [Surveyors, Occupational Outlook Handbook](https://www.bls.gov/ooh/architecture-and-engineering/surveyors.htm), U.S. Bureau of Labor Statistics.
 - **FCC:** [47 CFR § 1.1402(i), the definition of conduit](https://www.ecfr.gov/current/title-47/chapter-I/subchapter-A/part-1/subpart-J/section-1.1402), Federal Communications Commission.
 - **Merriam-Webster (conduit):** [Conduit](https://www.merriam-webster.com/dictionary/conduit), Merriam-Webster.
@@ -29,7 +27,7 @@ Every factual claim in the lessons, for locator sign-off.
 | ID | Claim | Source | State-specific | Hash | Status |
 |---|---|---|---|---|---|
 | `rm.code.white` | Proposed excavation | APWA card, CGA Best Practices | No | `e799a191c5` | Not reviewed |
-| `rm.answer.white` | Where you plan to dig | APWA card, CGA Best Practices | No | `e1bbb711be` | Not reviewed |
+| `rm.answer.white` | Planned digging | APWA card, CGA Best Practices | No | `db5a0a206a` | Not reviewed |
 | `rm.code.pink` | Temporary survey markings | APWA card, CGA Best Practices | No | `9cc7e930e4` | Not reviewed |
 | `rm.answer.pink` | Temporary survey marks | APWA card, CGA Best Practices | No | `1ff7f9e09b` | Not reviewed |
 | `rm.code.red` | Electric power lines, cables, conduit and lighting cables | APWA card, CGA Best Practices | No | `1dba0f5453` | Not reviewed |
@@ -48,7 +46,7 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.mark.dig.reveal` | You'll dig inside the white outline. The other marks show what's buried near it. | APWA card, The scene | No | `e6f8471489` | Not reviewed |
 | `rm.mark.dig.lit` | The white outline in the lawn is lit. | The game | No | `eb6189adc1` | Not reviewed |
 | `rm.mark.gas.ask` | These flags and paint marks are yellow. What do they mean? | The game | No | `c69a97421b` | Not reviewed |
-| `rm.mark.gas.reveal` | Under the yellow marks: the gas line from the street to the house's meter. | The scene | No | `c14285d691` | Not reviewed |
+| `rm.mark.gas.reveal` | Under the yellow marks: the gas line from the street to the house's meter, right through where you plan to dig. | The scene | No | `86b0fb1236` | Not reviewed |
 | `rm.mark.gas.label` | Gas line | The scene | No | `079f1be934` | Not reviewed |
 | `rm.mark.gas.lit` | The yellow flags and paint marks are lit. | The game | No | `f8eaa9bd63` | Not reviewed |
 | `rm.mark.electric.ask` | These flags and paint marks are red. What do they mean? | The game | No | `1bc5be96d6` | Not reviewed |
@@ -74,7 +72,6 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.mark.survey.ask` | These flags are pink. What do they mean? | The game | No | `29d182f823` | Not reviewed |
 | `rm.mark.survey.reveal` | Nothing's buried under these: a surveyor set pink flags along the property line. | APWA card, The scene | No | `f7e0e48390` | Not reviewed |
 | `rm.mark.survey.lit` | The pink flags along the property line are lit. | The game | No | `3ac0cd4d9e` | Not reviewed |
-| `rm.intro.scene` | You're about to dig in this yard. You've outlined the spot in white and called 811, and locators have marked what's buried nearby. _(The APWA card: white marks show proposed excavation; the one-call center is contacted before digging; colored paint and flags show buried lines.)_ | APWA card, CGA Best Practices, The scene | No | `2ee10035e6` | Not reviewed |
 | `rm.intro.how` | One mark lights up at a time. Pick what its color means. | The game | No | `1235cd28c8` | Not reviewed |
 | `rm.right` | Right. {Color} means {meaning}. _(Composed with the color’s name and its meaning (rm.code.*).)_ | The game | No | `edd6e0f709` | Not reviewed |
 | `rm.wrong` | Not quite. {Color} means {meaning}. _(Composed with the color’s name and its meaning (rm.code.*).)_ | The game | No | `d83899c2c3` | Not reviewed |
@@ -82,6 +79,7 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.ui.answers` | Answers | The game | No | `4ad0a0a6ae` | Not reviewed |
 | `rm.ui.yours` | Your answer | The game | No | `d0e869b777` | Not reviewed |
 | `rm.ui.right-answer` | Right answer | The game | No | `4285399fe6` | Not reviewed |
+| `rm.ui.missed` | Missed | The game | No | `3d86eb082e` | Not reviewed |
 | `rm.ui.next` | Next mark | The game | No | `43f5c185b7` | Not reviewed |
 | `rm.ui.finish` | See everything | The game | No | `5a8099bc64` | Not reviewed |
 | `rm.ui.key` | Key | The game | No | `99a52df3ff` | Not reviewed |
@@ -108,7 +106,6 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.term.potable` | Safe to drink. | USGS glossary | No | `0d978c1fb8` | Not reviewed |
 | `rm.term.reclaimed-water` | Used water that's been treated so it can be used again, for things like watering or industry. _(Some places treat it further, into drinking water; this line says only what it’s often used for.)_ | USGS glossary | No | `ea7c7e6a2f` | Not reviewed |
 | `rm.term.slurry` | Water with solid bits mixed in, such as mud or ground coal, that can flow through a pipe. _(No source says what the code’s slurry lines carry, so this names no contents.)_ | Merriam-Webster (slurry), USGS coal slurry study | No | `91f7048406` | Not reviewed |
-| `rm.term.locators` | People who find buried lines and mark about where they run, usually with colored paint, flags or stakes. | PHMSA, CGA glossary, APWA card | No | `3904064467` | Not reviewed |
 
 ## Frequency Lab
 

@@ -93,13 +93,14 @@ export async function waitStill(page: Page, message: string): Promise<void> {
 /**
  * The names drawn in a 3D view, at their size: its labels' names, and the diorama's on its stops'
  * parts (not the time-lapse's clock). A name kept for screen readers, clipped to a pixel, isn't
- * drawn.
+ * drawn. A pointer (`data-pointer`), as Read the Marks' tag over the mark asked about, names
+ * nothing in the view, so it isn't counted.
  */
 export function shownNames(page: Page): Promise<string[]> {
   return page.evaluate(() =>
     [
       ...document.querySelectorAll<HTMLElement>(
-        '.labels .lbl-text, .details .dlbl:not(.dlbl-clock)',
+        '.labels .lbl:not([data-pointer]) .lbl-text, .details .dlbl:not(.dlbl-clock)',
       ),
     ]
       .filter((el) => {

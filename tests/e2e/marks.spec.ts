@@ -32,6 +32,38 @@ import {
   openMarks as open,
 } from './play-marks.ts';
 
+/**
+ * A line as the browser gives it to screen readers: a term, being a button, can have the punctuation
+ * after it set apart by a space ("proposed excavation ."), which reads the same.
+ */
+const asSpoken = (text: string) =>
+  new RegExp(`^${text.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&').replace(/\\?[.,;:!?]/g, '\\s?$&')}$`);
+
+/**
+ * Held still after a step of the round: no new frame for three seconds running. (Not `waitStill`,
+ * which waits out the longest gap between the last few frames, as motion's: a round's steps, far
+ * apart under load, aren't motion.)
+ */
+function holdsStill(
+  page: import('@playwright/test').Page,
+  frames: () => Promise<number>,
+  message: string,
+) {
+  return expect
+    .poll(
+      async () => {
+        const was = await frames();
+        await page.waitForTimeout(3000);
+        return (await frames()) - was;
+      },
+      { message, intervals: [0], timeout: MOTION_WAIT },
+    )
+    .toBe(0);
+}
+
+/** The tag shown over the mark asked about, if one is. */
+const tagShown = (page: import('@playwright/test').Page) => page.locator('.rm-lit:not(.off)');
+
 test.use({ reducedMotion: 'reduce' });
 
 test.describe('on a desktop', () => {
@@ -67,6 +99,10 @@ test.describe('on a desktop', () => {
       for (const [i, button] of (await answers(page).all()).entries()) {
         await expect(button).toHaveAttribute('aria-keyshortcuts', String(i + 1));
       }
+      // A tag over the mark asked about, its color's name, and over no other.
+      await expect(tagShown(page)).toHaveCount(1);
+      await expect(tagShown(page)).toHaveAttribute('data-label', `lit-${mark}`);
+      await expect(tagShown(page)).toHaveText(CODE[color].name);
       // Each read right but the third.
       const key = await numberOf(page, color, n !== 3);
       const picked = colorOf(
@@ -77,6 +113,8 @@ test.describe('on a desktop', () => {
       await page.keyboard.press(String(key));
       await expect(next).toBeFocused();
       await expect(next).toHaveText(n === 8 ? UI.finish.text : UI.next.text);
+      // Answered, the tag goes with the glow.
+      await expect(tagShown(page)).toHaveCount(0);
       await expect(page.locator('.rm-verdict')).toHaveText(
         plainText(feedback(picked === color, color)),
         { useInnerText: true },
@@ -84,7 +122,9 @@ test.describe('on a desktop', () => {
       await expect(page.locator('.rm-found')).toHaveText(TEXT[mark].reveal.text);
       // Next, where focus is now, carries the answer, heard as focus lands; then the status line
       // says what the ground opens to show.
-      await expect(next).toHaveAccessibleDescription(plainText(feedback(picked === color, color)));
+      await expect(next).toHaveAccessibleDescription(
+        asSpoken(plainText(feedback(picked === color, color))),
+      );
       await expect(status).toHaveText(viewSummary({ mark, answered: true, over: false }));
       // Answered, the answers are done with: another number changes nothing.
       for (const button of await answers(page).all()) {
@@ -109,6 +149,19 @@ test.describe('on a desktop', () => {
     await expect(page.locator('.rm-end')).toContainText(END.all.text);
     await expect(page.locator('.rm-safety')).toHaveText(END.safety.text);
     await expect(page.locator('.rm-end .rm-code li')).toHaveCount(MARKS_APWA.length);
+    // The one missed, the third, is tagged beside its meaning, and no other.
+    const third = asked[2];
+    if (!third) throw new Error('no third mark');
+    const missed = page.locator('.rm-end .rm-code li').filter({ has: page.locator('.rm-missed') });
+    await expect(missed).toHaveCount(1);
+    await expect(missed).toContainText(`${CODE[MARK_COLOR[third]].name}:`);
+    await expect(missed.locator('.rm-missed')).toHaveText(UI.missed.text);
+    // The Key, opened at the end, tags nothing.
+    await page.getByRole('button', { name: UI.key.text, exact: true }).click();
+    await expect(
+      page.getByRole('dialog', { name: KEY.heading.text }).locator('.rm-missed'),
+    ).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await expect(status).toHaveText(`${scoreLine(7)} ${viewSummary({ mark: null, over: true })}`);
     // Every line under the marks is open, and named.
     await expect.poll(async () => (await shownNames(page)).sort()).toEqual([...LINES].sort());
@@ -125,6 +178,8 @@ test.describe('on a desktop', () => {
       await expect(next).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(page.locator('.rm-count')).toHaveText(progress(n + 1));
+      // Focus on the new question, where the numbers answer it.
+      await expect(ask).toBeFocused();
     }
     expect(again[0]).toBe('dig');
     expect(again).not.toEqual(asked.slice(0, 3));
@@ -206,11 +261,11 @@ test.describe('on a desktop', () => {
     const frames = await countFrames(page);
     await open(page);
     const mark = await onToALine(page);
-    await waitStill(page, 'the yard holds still at a line’s mark');
+    await holdsStill(page, frames, 'the yard holds still at a line’s mark');
     const before = await frames();
     await page.keyboard.press(String(await numberOf(page, MARK_COLOR[mark])));
     await expect.poll(() => shownNames(page)).toEqual([TEXT[mark].label?.text]);
-    await waitStill(page, 'the yard holds still, open');
+    await holdsStill(page, frames, 'the yard holds still, open');
     // A frame for the opening, and perhaps one for the panel's new size: no slide.
     expect((await frames()) - before).toBeLessThanOrEqual(2);
     expect(await isMoving(page, frames)).toBe(false);
@@ -232,7 +287,7 @@ test.describe('with motion', () => {
     const frames = await countFrames(page);
     await open(page);
     const mark = await onToALine(page);
-    await waitStill(page, 'the yard holds still at a line’s mark');
+    await holdsStill(page, frames, 'the yard holds still at a line’s mark');
     let before = await frames();
     await page.keyboard.press(String(await numberOf(page, MARK_COLOR[mark])));
     await expect
@@ -264,12 +319,21 @@ test.describe('on a phone', () => {
     const sheet = page.locator('.rm-panel');
     const box = await sheet.boundingBox();
     const more = page.locator('.rm-panel .scroll-more-button');
+    /** How far a part of the question sits above the foot of the sheet's body. */
+    const aboveFoot = async (part: string) => {
+      const body = await page.locator('.rm-body').boundingBox();
+      const it = await page.locator(part).boundingBox();
+      if (!body || !it) throw new Error(`no ${part}`);
+      return body.y + body.height - (it.y + it.height);
+    };
     for (let n = 1; n <= 8; n++) {
       // The question all shows: every answer whole, on screen, and no More to scroll to.
       for (const button of await answers(page).all()) {
         await expect(button).toBeInViewport({ ratio: 1 });
       }
       await expect(more).toBeHidden();
+      // The answers at the sheet's foot, where Next comes, so the thumb stays put.
+      expect(await aboveFoot('.rm-answers'), `the answers at mark ${String(n)}`).toBeLessThan(24);
       expect(await sheet.boundingBox(), `the sheet at mark ${String(n)}`).toEqual(box);
       const mark = await askedMark(page);
       await answers(page)
@@ -280,11 +344,14 @@ test.describe('on a phone', () => {
       await expect(page.locator('.rm-result')).toBeInViewport({ ratio: 1 });
       await expect(next).toBeInViewport({ ratio: 1 });
       await expect(more).toBeHidden();
+      expect(await aboveFoot('.rm-result'), `the result at mark ${String(n)}`).toBeLessThan(24);
       expect(await sheet.boundingBox(), `the sheet, mark ${String(n)} answered`).toEqual(box);
       await next.tap();
     }
     await expect(page.locator('#rm-ask')).toHaveText(scoreLine(7));
     expect(await sheet.boundingBox(), 'the sheet at the end').toEqual(box);
+    // Every line open, and each named, on a phone as on a desktop.
+    await expect.poll(async () => (await shownNames(page)).sort()).toEqual([...LINES].sort());
     await expect(page.getByRole('button', { name: UI.again.text })).toBeInViewport({ ratio: 1 });
   });
 });

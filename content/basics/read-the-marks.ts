@@ -28,7 +28,8 @@ export const CODE: Readonly<Record<ApwaCode, ColorText>> = {
   white: {
     name: 'White',
     meaning: claim('rm.code.white', '[[Proposed excavation]]', apwa),
-    answer: claim('rm.answer.white', 'Where you plan to dig', apwa),
+    // A plain noun, as every other answer is, so it doesn't stand out as the one about "you".
+    answer: claim('rm.answer.white', 'Planned digging', apwa),
   },
   pink: {
     name: 'Pink',
@@ -105,7 +106,7 @@ export const MARKS: Readonly<Record<MarkId, MarkText>> = {
     ),
     reveal: claim(
       'rm.mark.gas.reveal',
-      "Under the yellow marks: the gas line from the street to the house's meter.",
+      "Under the yellow marks: the gas line from the street to the house's meter, right through where you plan to dig.",
       scene,
     ),
     label: claim('rm.mark.gas.label', 'Gas line', scene),
@@ -177,15 +178,8 @@ export const MARKS: Readonly<Record<MarkId, MarkText>> = {
   },
 };
 
+/** Above the first mark: how to play, and no more, so it gives no answer away. */
 export const INTRO = {
-  scene: claim(
-    'rm.intro.scene',
-    "You're about to dig in this yard. You've outlined the spot in white and called 811, and [[locators]] have marked what's buried nearby.",
-    {
-      source: ['apwa-card', 'cga-best-practices-b', 'scene'],
-      note: 'The APWA card: white marks show proposed excavation; the one-call center is contacted before digging; colored paint and flags show buried lines.',
-    },
-  ),
   how: claim('rm.intro.how', 'One mark lights up at a time. Pick what its color means.', game),
 } as const;
 
@@ -206,6 +200,8 @@ export const UI = {
   answers: claim('rm.ui.answers', 'Answers', game),
   yours: claim('rm.ui.yours', 'Your answer', game),
   rightAnswer: claim('rm.ui.right-answer', 'Right answer', game),
+  /** At the end, beside each color in the code that was answered wrong. */
+  missed: claim('rm.ui.missed', 'Missed', game),
   next: claim('rm.ui.next', 'Next mark', game),
   finish: claim('rm.ui.finish', 'See everything', game),
   key: claim('rm.ui.key', 'Key', game),
@@ -314,11 +310,6 @@ export const TERMS: Readonly<Record<string, Claim>> = {
       source: ['mw-slurry', 'usgs-coal-slurry'],
       note: 'No source says what the code’s slurry lines carry, so this names no contents.',
     },
-  ),
-  locators: claim(
-    'rm.term.locators',
-    'People who find buried lines and mark about where they run, usually with colored paint, flags or stakes.',
-    { source: ['phmsa-safe-digging', 'cga-best-practices-glossary', 'apwa-card'] },
   ),
 };
 
