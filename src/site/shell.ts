@@ -44,7 +44,7 @@ export const HERO_SLOT = '<!-- portal-hero -->';
 export const CARDS_SLOT = '<!-- portal-cards -->';
 
 /** What the cards' list is named for readers: the lessons, then what's to come. */
-export const CARDS_NAME = 'Lessons, and what’s coming';
+export const CARDS_NAME = 'Lessons';
 
 const attr = escapeHtml;
 

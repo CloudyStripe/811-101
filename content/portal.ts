@@ -10,7 +10,7 @@ export interface Lesson {
   /** Relative to the site root. */
   href: string;
   /** The name of the lesson's preview stills on the portal (see src/site/stills.ts). */
-  image: 'frequency-lab' | 'gas-petroleum';
+  image: 'read-the-marks' | 'frequency-lab' | 'gas-petroleum';
 }
 
 export interface Section {
@@ -28,7 +28,14 @@ export const SECTIONS: readonly Section[] = [
     title: '811 Basics',
     summary: 'Why 811 exists, the life of a locate ticket, and what the marks mean.',
     icon: 'ticket',
-    lessons: [],
+    lessons: [
+      {
+        title: 'Read the Marks',
+        summary: 'Say what each color of paint and flag means, and see what is buried in a yard.',
+        href: 'basics/read-the-marks/',
+        image: 'read-the-marks',
+      },
+    ],
   },
   {
     id: 'training',
