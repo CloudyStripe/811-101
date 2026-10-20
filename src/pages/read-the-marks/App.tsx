@@ -46,7 +46,7 @@ import {
   type Round,
 } from './game.ts';
 import type { MarksScene, Rect } from './scene/index.ts';
-import { announcement, feedback, progress, scoreLine, viewSummary } from './text.ts';
+import { feedback, progress, scoreLine, viewSummary } from './text.ts';
 
 const PAGE = pageById('read-the-marks');
 
@@ -304,6 +304,7 @@ export function App() {
     const body = bodyRef.current;
     if (answered) {
       nextRef.current?.focus();
+      setSaid(status);
       const result = resultRef.current;
       if (body && result) {
         const top = result.getBoundingClientRect().top - body.getBoundingClientRect().top;
@@ -314,6 +315,7 @@ export function App() {
     } else {
       body?.scrollTo({ top: 0 });
       askRef.current?.focus();
+      setSaid(status);
     }
   }, [focusKey]);
 
@@ -344,9 +346,12 @@ export function App() {
 
   const status = over
     ? `${scoreLine(score(round))} ${viewSummary({ mark: null, over: true })}`
-    : q && answered && q.picked
-      ? announcement(q.mark, q.picked)
-      : viewSummary({ mark: q?.mark ?? null, over: false });
+    : viewSummary({ mark: q?.mark ?? null, answered, over: false });
+  /**
+   * What the status line says, set once focus has moved on: a screen reader that stops speaking as
+   * focus moves then says it after the control focus lands on, not cut short by it.
+   */
+  const [said, setSaid] = useState(status);
 
   const right = q ? MARK_COLOR[q.mark] : null;
   const markText = q ? TEXT[q.mark] : null;
@@ -415,7 +420,7 @@ export function App() {
           <div class="rm-tools">
             <button
               type="button"
-              class={`icon-button rm-labels${labelsShown ? ' is-on' : ''}`}
+              class={`button button-secondary rm-labels${labelsShown ? ' is-on' : ''}`}
               aria-pressed={labelsShown}
               aria-label={UI.labels.text}
               title={UI.labels.text}
@@ -424,6 +429,9 @@ export function App() {
               }}
             >
               <Icon name="labels" />
+              <span class="rm-labels-word" aria-hidden="true">
+                {UI.labels.text}
+              </span>
             </button>
             <button
               type="button"
@@ -458,9 +466,10 @@ export function App() {
             right &&
             markText && (
               <div class="rm-question">
-                {round.at === 0 && !answered && (
+                {round.at === 0 && (
                   <p class="rm-intro">
-                    <Rich text={INTRO.scene.text} define={define} /> {INTRO.how.text}
+                    <Rich text={INTRO.scene.text} define={define} />{' '}
+                    <span class="rm-intro-how">{INTRO.how.text}</span>
                   </p>
                 )}
                 <p class="rm-color">
@@ -507,8 +516,8 @@ export function App() {
                   })}
                 </div>
                 {answered && q.picked && (
-                  <div id="rm-result" class="rm-result" ref={resultRef}>
-                    <p class="rm-verdict">
+                  <div class="rm-result" ref={resultRef}>
+                    <p id="rm-verdict" class="rm-verdict">
                       <Icon name={q.picked === right ? 'check' : 'close'} />
                       <span>
                         <Rich text={feedback(q.picked === right, right)} define={define} />
@@ -542,9 +551,9 @@ export function App() {
                 type="button"
                 class="button button-primary rm-next"
                 ref={nextRef}
-                // Focus comes here once the mark is answered: the answer, said with it, isn't
+                // Focus comes here once the mark is answered: the verdict, said with it, isn't
                 // cut short as focus moves.
-                aria-describedby="rm-result"
+                aria-describedby="rm-verdict"
                 onClick={moveOn}
               >
                 {round.at === round.questions.length - 1 ? UI.finish.text : UI.next.text}
@@ -556,7 +565,7 @@ export function App() {
       </section>
 
       <p id="rm-status" class="sr-only" role="status">
-        {status}
+        {said}
       </p>
 
       <Dialog

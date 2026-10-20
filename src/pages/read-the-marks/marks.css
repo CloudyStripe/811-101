@@ -147,9 +147,36 @@ body {
   gap: 6px;
 }
 
+.rm-labels {
+  gap: 6px;
+}
+
 .rm-labels.is-on {
   background: var(--ink);
   color: var(--bg);
+}
+
+/* Where the panel's narrower than at its widest, the labels button by its icon, as the diorama's. */
+@media (max-width: 1359px), (max-height: 580px) {
+  .rm-labels {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    padding: 0;
+  }
+
+  .rm-labels-word {
+    display: none;
+  }
+}
+
+/*
+ * The loader's tag in the middle of the yard's room: beside the panel, or (on phones held upright)
+ * above the sheet, not behind it.
+ */
+.rm .scene-loader-status {
+  top: calc((100% + var(--rm-top)) / 2);
+  left: calc((100% - var(--panel-w) - var(--space-4)) / 2);
 }
 
 .rm-body {
@@ -391,6 +418,11 @@ body {
     width: 100%;
     justify-content: center;
   }
+
+  .rm .scene-loader-status {
+    top: calc((var(--rm-top) + 100% - var(--rm-sheet) - var(--space-3) - var(--space-2)) / 2);
+    left: 50%;
+  }
 }
 
 /*
@@ -453,8 +485,12 @@ body {
     display: none;
   }
 
-  /* Answered, the result takes the answers' room, so a sheet keeps its height. */
-  .rm-grid[data-answered] .rm-answers {
+  /*
+   * Answered, the result takes the answers' room (and the first mark's intro's), so a sheet keeps
+   * its height. On wider screens both stay, so nothing moves under the pointer.
+   */
+  .rm-grid[data-answered] .rm-answers,
+  .rm-grid[data-answered] .rm-intro {
     display: none;
   }
 
@@ -470,5 +506,65 @@ body {
     width: 22px;
     height: 22px;
     font-size: 0.75rem;
+  }
+}
+
+/*
+ * The shortest screens, a small phone or one held sideways: tighter still, so the first mark's
+ * question and its answers show without scrolling where they can.
+ */
+@media (max-height: 600px) {
+  .rm-body {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .rm-question,
+  .rm-end {
+    gap: 8px;
+  }
+
+  .rm-intro {
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+
+  /* How to play, which the question and its answers show anyway, gives them its room. */
+  .rm-intro-how {
+    display: none;
+  }
+
+  /* The count says where the round is; its dots, which say it again, give it their room. */
+  .rm-dots {
+    display: none;
+  }
+
+  .rm-count {
+    margin: 0;
+  }
+
+  /* The color's chip too: the question says the color in words, and the yard shows it lit. */
+  .rm-color {
+    display: none;
+  }
+
+  .rm-ask {
+    font-size: 1.05rem;
+  }
+
+  .rm-answers {
+    gap: 6px;
+  }
+
+  .rm-answer {
+    min-height: 46px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Held sideways, the yard has room to spare: the question's panel takes a little more of it. */
+@media (max-height: 580px) and (min-width: 561px) {
+  .rm-grid {
+    --panel-w: clamp(19rem, 44vw, 24rem);
   }
 }

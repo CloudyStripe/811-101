@@ -254,7 +254,7 @@ export const KEY = {
 } as const;
 
 export const END = {
-  score: claim('rm.end.score', 'You read {n} of 8 marks.', game),
+  score: claim('rm.end.score', 'You read {n} of 8 marks right.', game),
   all: claim('rm.end.all', 'Here is everything under the marks, all at once.', game),
   safety: claim('rm.end.safety', 'Near a mark, dig by hand until you can see the line.', {
     source: ['apwa-card'],

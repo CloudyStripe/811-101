@@ -1,12 +1,12 @@
 /**
  * The game's lines, filled in from the content: an answer's one line ("Not quite. Yellow means gas,
- * oil, steam, petroleum or gaseous materials."), the progress, the score, and what screen readers
- * hear. Term markup is kept, for the page to show the terms.
+ * oil, steam, petroleum or gaseous materials."), the progress, the score, and what the view shows,
+ * in words, for screen readers. Term markup is kept, for the page to show the terms.
  */
 import { CODE, END, FEEDBACK, MARKS, UI, VIEW } from '../../../content/basics/read-the-marks.ts';
 import type { ApwaCode } from '../../design/apwa.ts';
 import { plainText } from '../../content-kit/terms.ts';
-import { MARK_COLOR, type MarkId } from './game.ts';
+import type { MarkId } from './game.ts';
 
 /** Fills a line's {placeholders}; one it has no value for stays as it is. */
 export function fill(template: string, values: Readonly<Record<string, string>>): string {
@@ -32,19 +32,18 @@ export const progress = (n: number): string => fill(UI.progress.text, { n: Strin
 
 export const scoreLine = (n: number): string => fill(END.score.text, { n: String(n) });
 
-/** What screen readers hear once a mark is answered: the answer's line, then what's under it. */
-export function announcement(mark: MarkId, picked: ApwaCode): string {
-  const color = MARK_COLOR[mark];
-  return `${plainText(feedback(picked === color, color))} ${plainText(MARKS[mark].reveal.text)}`;
-}
-
 /**
- * The view, in words: the yard, then the mark that's lit, or at the end, every line open. (Once a
- * mark's answered, `announcement` says what the view shows.)
+ * The view, in words: the yard, then the mark that's lit; once it's answered, what's under it, as
+ * the ground opens to show; at the end, every line open. (The answer itself, Next carries.)
  */
-export function viewSummary(state: { mark: MarkId | null; over: boolean }): string {
+export function viewSummary(state: {
+  mark: MarkId | null;
+  answered?: boolean;
+  over: boolean;
+}): string {
   const yard = VIEW.summary.text;
   if (state.over) return `${yard} ${VIEW.end.text}`;
   if (!state.mark) return yard;
-  return `${yard} ${plainText(MARKS[state.mark].lit.text)}`;
+  const text = MARKS[state.mark];
+  return `${yard} ${plainText(state.answered ? text.reveal.text : text.lit.text)}`;
 }

@@ -2,22 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { plainText } from '../../content-kit/terms.ts';
 import { APWA, MARKS_APWA } from '../../design/apwa.ts';
 import { MARK_IDS } from './game.ts';
-import {
-  announcement,
-  feedback,
-  fill,
-  lowerFirst,
-  progress,
-  scoreLine,
-  viewSummary,
-} from './text.ts';
+import { feedback, fill, lowerFirst, progress, scoreLine, viewSummary } from './text.ts';
 
 describe('the game’s lines', () => {
   it('fill their placeholders, and leave unknown ones be', () => {
     expect(fill('Mark {n} of 8', { n: '3' })).toBe('Mark 3 of 8');
     expect(fill('{a} and {b}', { a: 'x' })).toBe('x and {b}');
     expect(progress(2)).toBe('Mark 2 of 8');
-    expect(scoreLine(6)).toBe('You read 6 of 8 marks.');
+    expect(scoreLine(6)).toBe('You read 6 of 8 marks right.');
   });
 
   it('lower a meaning’s first letter, inside a term too', () => {
@@ -39,17 +31,18 @@ describe('the game’s lines', () => {
     );
   });
 
-  it('announce the answer, then what’s under the marks', () => {
-    expect(announcement('gas', 'red')).toBe(
-      "Not quite. Yellow means gas, oil, steam, petroleum or gaseous materials. Under the yellow marks: the gas line from the street to the house's meter.",
-    );
-    for (const id of MARK_IDS) expect(announcement(id, 'white')).not.toMatch(/[{}[\]]/);
-  });
-
-  it('describe the view: the yard, then the mark that’s lit, or at the end, every line open', () => {
+  it('describe the view: the yard, the mark that’s lit, what’s under it once answered, and the end', () => {
     expect(viewSummary({ mark: 'gas', over: false })).toMatch(
       /flags and paint\. The yellow flags and paint marks are lit\.$/,
     );
+    expect(viewSummary({ mark: 'gas', answered: true, over: false })).toMatch(
+      /flags and paint\. Under the yellow marks: the gas line from the street to the house's meter\.$/,
+    );
     expect(viewSummary({ mark: null, over: true })).toMatch(/all the lines\.$/);
+    for (const id of MARK_IDS) {
+      for (const answered of [false, true]) {
+        expect(viewSummary({ mark: id, answered, over: false })).not.toMatch(/[{}[\]]/);
+      }
+    }
   });
 });

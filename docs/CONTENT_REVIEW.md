@@ -96,7 +96,7 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.key.lede` | What each color of paint or flag means, from the American Public Works Association (APWA) uniform color code. | APWA card, CGA Best Practices | No | `362f8330c1` | Not reviewed |
 | `rm.key.scale` | Not to scale: the flags, paint and lines are drawn larger than life. | The scene | No | `a3190fa7e8` | Not reviewed |
 | `rm.key.colors` | Each buried line is drawn in its marks' color. Real pipes and cables aren't always those colors. _(The second sentence says what the Frequency Lab's key says (fl.key.colors); it has no source of its own yet, for a locator to confirm.)_ | The scene | No | `7502f634e7` | Not reviewed |
-| `rm.end.score` | You read {n} of 8 marks. | The game | No | `91a26184e7` | Not reviewed |
+| `rm.end.score` | You read {n} of 8 marks right. | The game | No | `201b2665f8` | Not reviewed |
 | `rm.end.all` | Here is everything under the marks, all at once. | The game | No | `8e760e5967` | Not reviewed |
 | `rm.end.safety` | Near a mark, dig by hand until you can see the line. _(The APWA card's tolerance zone: hand tools until the marked facility is exposed. Its width is set by state law, so this line names none.)_ | APWA card | No | `1ba9f3d530` | Not reviewed |
 | `rm.view.name` | A yard in 3D, with flags and paint marking what's buried in it. | The scene | No | `a4c1ba47d4` | Not reviewed |

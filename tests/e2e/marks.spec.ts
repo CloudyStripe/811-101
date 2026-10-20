@@ -12,13 +12,7 @@ import { CODE, END, KEY, MARKS as TEXT, UI } from '../../content/basics/read-the
 import { plainText } from '../../src/content-kit/terms.ts';
 import { MARKS_APWA } from '../../src/design/apwa.ts';
 import { MARK_COLOR, type MarkId } from '../../src/pages/read-the-marks/game.ts';
-import {
-  announcement,
-  feedback,
-  progress,
-  scoreLine,
-  viewSummary,
-} from '../../src/pages/read-the-marks/text.ts';
+import { feedback, progress, scoreLine, viewSummary } from '../../src/pages/read-the-marks/text.ts';
 import {
   MOTION_WAIT,
   countFrames,
@@ -37,9 +31,6 @@ import {
   onToALine,
   openMarks as open,
 } from './play-marks.ts';
-
-/** Text as a pattern that matches it word for word. */
-const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test.use({ reducedMotion: 'reduce' });
 
@@ -91,19 +82,20 @@ test.describe('on a desktop', () => {
         { useInnerText: true },
       );
       await expect(page.locator('.rm-found')).toHaveText(TEXT[mark].reveal.text);
-      await expect(status).toHaveText(announcement(mark, picked));
-      // Next, where focus is now, carries the answer too, so it's heard as focus moves.
-      await expect(next).toHaveAccessibleDescription(
-        new RegExp(
-          `^${escaped(plainText(feedback(picked === color, color)))}\\s*${escaped(TEXT[mark].reveal.text)}$`,
-        ),
-      );
+      // Next, where focus is now, carries the answer, heard as focus lands; then the status line
+      // says what the ground opens to show.
+      await expect(next).toHaveAccessibleDescription(plainText(feedback(picked === color, color)));
+      await expect(status).toHaveText(viewSummary({ mark, answered: true, over: false }));
       // Answered, the answers are done with: another number changes nothing.
       for (const button of await answers(page).all()) {
         await expect(button).toHaveAttribute('aria-disabled', 'true');
       }
       await page.keyboard.press(String((key % 4) + 1));
-      await expect(status).toHaveText(announcement(mark, picked));
+      await expect(status).toHaveText(viewSummary({ mark, answered: true, over: false }));
+      await expect(page.locator('.rm-verdict')).toHaveText(
+        plainText(feedback(picked === color, color)),
+        { useInnerText: true },
+      );
       await page.keyboard.press('Enter');
       if (n < 8) await expect(ask).toBeFocused();
     }
