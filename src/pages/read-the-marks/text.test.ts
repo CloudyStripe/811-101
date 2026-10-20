@@ -36,7 +36,7 @@ describe('the game’s lines', () => {
       /flags and paint\. The yellow flags and paint marks are lit\.$/,
     );
     expect(viewSummary({ mark: 'gas', answered: true, over: false })).toMatch(
-      /flags and paint\. Under the yellow marks: the gas line from the street to the house's meter\.$/,
+      /flags and paint\. Under the yellow marks: the gas line from the street to the house's meter, right through where you plan to dig\.$/,
     );
     expect(viewSummary({ mark: null, over: true })).toMatch(/all the lines\.$/);
     for (const id of MARK_IDS) {

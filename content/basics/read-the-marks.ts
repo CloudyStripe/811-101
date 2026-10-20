@@ -28,7 +28,8 @@ export const CODE: Readonly<Record<ApwaCode, ColorText>> = {
   white: {
     name: 'White',
     meaning: claim('rm.code.white', '[[Proposed excavation]]', apwa),
-    answer: claim('rm.answer.white', 'Where you plan to dig', apwa),
+    // A plain noun, as every other answer is, so it doesn't stand out as the one about "you".
+    answer: claim('rm.answer.white', 'Planned digging', apwa),
   },
   pink: {
     name: 'Pink',
@@ -105,7 +106,7 @@ export const MARKS: Readonly<Record<MarkId, MarkText>> = {
     ),
     reveal: claim(
       'rm.mark.gas.reveal',
-      "Under the yellow marks: the gas line from the street to the house's meter.",
+      "Under the yellow marks: the gas line from the street to the house's meter, right through where you plan to dig.",
       scene,
     ),
     label: claim('rm.mark.gas.label', 'Gas line', scene),
@@ -199,6 +200,8 @@ export const UI = {
   answers: claim('rm.ui.answers', 'Answers', game),
   yours: claim('rm.ui.yours', 'Your answer', game),
   rightAnswer: claim('rm.ui.right-answer', 'Right answer', game),
+  /** At the end, beside each color in the code that was answered wrong. */
+  missed: claim('rm.ui.missed', 'Missed', game),
   next: claim('rm.ui.next', 'Next mark', game),
   finish: claim('rm.ui.finish', 'See everything', game),
   key: claim('rm.ui.key', 'Key', game),

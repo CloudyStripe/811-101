@@ -189,7 +189,7 @@ Appendix B, adopts (`content/sources.ts`):
 | Pink   | Temporary survey markings                                 |
 | White  | Proposed excavation                                       |
 
-- **Marks wear their code:** in Read the Marks, the paint and flags above ground are their full APWA color, and nothing else in the yard reads as any of the eight colors, white included (`scene/palette.test.ts`, lit and tone mapped), but the grass and leaves, which are green as grass is: the green flags wear a light hem that stands clear of them. Its walls, fixtures, paving and boxes are warm grays and browns, and the reclaimed water box isn't purple. The Key and the end say the lines are drawn in their marks' colors, which real pipes and cables aren't always, and larger than life. The mark asked about is lit by a soft glow on the ground under it, the others dimmed a little; its own color never changes.
+- **Marks wear their code:** in Read the Marks, the paint and flags above ground are their full APWA color, and nothing else in the yard reads as any of the eight colors, white included (`scene/palette.test.ts`, lit and tone mapped), but the grass and leaves, which are green as grass is: the green flags wear a light hem that stands clear of them. Its walls, fixtures, paving and boxes are warm grays and browns, and the reclaimed water box isn't purple. The Key and the end say the lines are drawn in their marks' colors, which real pipes and cables aren't always, and larger than life. The mark asked about is lit by a soft glow on the ground under it, the others dimmed a little, and a tag over it names its color; its own color never changes.
 - **Never color alone:** color is never the only cue. Pair it with an icon, label, pattern or arrow.
 - **Lines wear their code:** buried lines are drawn close to their full APWA color (`FACILITY_TINT_STRENGTH`), with an icon and label. It's a teaching aid: real pipe and cable color underground is unreliable, so say so where it matters.
 - **The ground stays ground:** soils, rock and fill never read as a code color the lesson uses (tested lit and tone mapped). The lab's trench fill is a gray sand, so the gas main stands out by value too.
@@ -248,8 +248,14 @@ Appendix B, adopts (`content/sources.ts`):
   the right one, one easily confused with it (`CONFUSED_WITH`), and two at random. An answer
   marks the right one beside the reader's, says in one line what the color means ("Not quite.
   Yellow means gas, oil, steam, petroleum or gaseous materials."), then what's under the marks.
-  The end shows the score, a safety line and the whole code, and Play again. No timer, levels or
+  The end shows the score, a safety line and the whole code, each color answered wrong tagged
+  "Missed" beside its meaning (in ink, an icon and the word), and Play again. No timer, levels or
   saves.
+- **The mark asked about** glows on the ground under it, its flags stand a little taller, the
+  others dim, and a tag hangs over it (its middle flag; white's, the bed): its color's chip with a
+  flag on it and the color's name, nothing that tells what it means. The tag points out the
+  question, so it shows with the labels off too (`data-pointer`, which tests' `shownNames` skips),
+  and goes with the glow once the mark's answered.
 - **The yard** (`scene/layout.ts`, in feet, tested): a house and garage, a lawn, a sidewalk and a
   street, seen from a fixed angle (the tall view where the room is tall). Every mark is in the
   yard, from the curb in; nothing's in the street. Lines run straight or with one turn, so each
@@ -267,12 +273,15 @@ Appendix B, adopts (`content/sources.ts`):
   step off onto the grass, until the line shows, named; with reduced motion it's open at once.
   Next mark closes it again, and at the end every line is open at once. A line's name points at
   the stretch of it the view sees into, with others along it to fall back on, keeping off the open
-  lines (the sewer's, at its riser, as it lies too deep to see); every name still shows at the end,
-  on a phone as an icon where it must.
+  lines (the sewer's, at its riser, as it lies too deep to see). With every line open at the end,
+  room is short, so the names go in an order: the line through where you'll dig first, then the
+  farther ones (the far side is smaller in the view); the lines seen only in the grass strip hang
+  theirs below, over the street. So every name shows at the end, phones included (tested); in the
+  smallest views, as in the other lessons, they show as icons.
 - **The panel:** beside the yard on wide and short screens (a phone held sideways), and under it
   in a sheet on phones held upright, one height through a round (`--rm-sheet`), so the yard keeps
-  its size; there, once answered, the result takes the answers' place (and the first mark's
-  intro's). On the shortest screens the color's chip and the progress dots give way, so a
+  its size; there the answers sit at the sheet's foot, and once answered the result takes their
+  place (and the first mark's intro's), right over Next, so the thumb stays put. On the shortest screens the color's chip and the progress dots give way, so a
   mark's answers all show. While focus is in the question, 1 to 4 answer (only
   there, as single keys acting anywhere would fail WCAG 2.1.4); focus moves on to Next, whose
   description is the answer, then to the next mark. The Key shows the whole code at any time. The

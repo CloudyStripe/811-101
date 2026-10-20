@@ -27,7 +27,7 @@ Every factual claim in the lessons, for locator sign-off.
 | ID | Claim | Source | State-specific | Hash | Status |
 |---|---|---|---|---|---|
 | `rm.code.white` | Proposed excavation | APWA card, CGA Best Practices | No | `e799a191c5` | Not reviewed |
-| `rm.answer.white` | Where you plan to dig | APWA card, CGA Best Practices | No | `e1bbb711be` | Not reviewed |
+| `rm.answer.white` | Planned digging | APWA card, CGA Best Practices | No | `db5a0a206a` | Not reviewed |
 | `rm.code.pink` | Temporary survey markings | APWA card, CGA Best Practices | No | `9cc7e930e4` | Not reviewed |
 | `rm.answer.pink` | Temporary survey marks | APWA card, CGA Best Practices | No | `1ff7f9e09b` | Not reviewed |
 | `rm.code.red` | Electric power lines, cables, conduit and lighting cables | APWA card, CGA Best Practices | No | `1dba0f5453` | Not reviewed |
@@ -46,7 +46,7 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.mark.dig.reveal` | You'll dig inside the white outline. The other marks show what's buried near it. | APWA card, The scene | No | `e6f8471489` | Not reviewed |
 | `rm.mark.dig.lit` | The white outline in the lawn is lit. | The game | No | `eb6189adc1` | Not reviewed |
 | `rm.mark.gas.ask` | These flags and paint marks are yellow. What do they mean? | The game | No | `c69a97421b` | Not reviewed |
-| `rm.mark.gas.reveal` | Under the yellow marks: the gas line from the street to the house's meter. | The scene | No | `c14285d691` | Not reviewed |
+| `rm.mark.gas.reveal` | Under the yellow marks: the gas line from the street to the house's meter, right through where you plan to dig. | The scene | No | `86b0fb1236` | Not reviewed |
 | `rm.mark.gas.label` | Gas line | The scene | No | `079f1be934` | Not reviewed |
 | `rm.mark.gas.lit` | The yellow flags and paint marks are lit. | The game | No | `f8eaa9bd63` | Not reviewed |
 | `rm.mark.electric.ask` | These flags and paint marks are red. What do they mean? | The game | No | `1bc5be96d6` | Not reviewed |
@@ -79,6 +79,7 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.ui.answers` | Answers | The game | No | `4ad0a0a6ae` | Not reviewed |
 | `rm.ui.yours` | Your answer | The game | No | `d0e869b777` | Not reviewed |
 | `rm.ui.right-answer` | Right answer | The game | No | `4285399fe6` | Not reviewed |
+| `rm.ui.missed` | Missed | The game | No | `3d86eb082e` | Not reviewed |
 | `rm.ui.next` | Next mark | The game | No | `43f5c185b7` | Not reviewed |
 | `rm.ui.finish` | See everything | The game | No | `5a8099bc64` | Not reviewed |
 | `rm.ui.key` | Key | The game | No | `99a52df3ff` | Not reviewed |

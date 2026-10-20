@@ -141,3 +141,18 @@ test('Read the Marks, opened with labels already off, measures them once they’
   }));
   expect(sizes.placed).toBe(sizes.shown);
 });
+
+test('Read the Marks, labels off: the tag over the mark asked about still shows, as it points out the question', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('811-101.settings', JSON.stringify({ labels: 'off' }));
+  });
+  await page.goto('basics/read-the-marks/?tier=low&seed=1');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+  // No line's name, but the tag over the white outline, asked about first.
+  await expect(page.locator('.rm-lit:not(.off)')).toHaveText('White');
+  await expect.poll(() => shownNames(page)).toEqual([]);
+});

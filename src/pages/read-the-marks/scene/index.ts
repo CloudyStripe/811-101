@@ -24,18 +24,20 @@ import { buildGround, groundMaterials, type Ground } from './ground.ts';
 import {
   BANDS,
   BLOCK,
+  DIG,
   FIXTURES,
   GARAGE,
   HOUSE,
   MARKS,
   cutsOf,
+  overlapOf,
   runsAlongZ,
   segmentsOf,
   topAt,
 } from './layout.ts';
 import { buildLines } from './lines.ts';
 import { buildMarks } from './marks.ts';
-import { OPEN_MS } from './palette.ts';
+import { MARK_LOOK, OPEN_MS } from './palette.ts';
 
 export type { Rect } from '../../../kit3d/labels.ts';
 
@@ -53,6 +55,8 @@ export interface MarksSceneOptions {
   canvas: HTMLCanvasElement;
   /** Each open line's name, in the view. */
   labelElements: Map<MarkId, HTMLElement>;
+  /** Each mark's tag, shown over it while it's the one asked about. */
+  tagElements: Map<MarkId, HTMLElement>;
   tier: Tier | 'auto';
   theme: ThemeName;
   reducedMotion: boolean;
@@ -298,6 +302,8 @@ async function buildMarksScene(
    * sewer line, is pointed at where it rises to the surface.
    */
   const labels = new LabelLayer(camera, o.noGo);
+  const crossesDig = (line: NonNullable<(typeof MARKS)[number]['line']>) =>
+    cutsOf(line).some((c) => overlapOf(c, { ...DIG, y0: 0, y1: 0 }));
   const labelList: Label[] = MARKS.flatMap((m) => {
     const element = o.labelElements.get(m.id);
     const line = m.line;
@@ -332,17 +338,50 @@ async function buildMarksScene(
         point: longest ? onLine(mid) : new Vector3(mid.x, -1.5, mid.z),
         along: longest
           ? [
-              ...[0.25, 0.75, 0.1, 0.9].map((k) => onLine(longest.at(k))),
+              ...[0.25, 0.75, 0.1, 0.9, 0.4, 0.6, 0.05, 0.95].map((k) => onLine(longest.at(k))),
               ...others.map((r) => onLine(r.at(0.5))),
             ]
           : [],
         offLine: true,
-        priority: 1,
+        // A line seen only in the grass strip hangs its name below, over the street, so the
+        // lawn's room goes to the lines across it.
+        below: mid.z > BANDS.sidewalkFront,
+        // A line through where you'll dig first (the point of calling), then the farther lines: the
+        // far side of the yard is smaller in the view, and the near ones have the street.
+        priority: 1 + (crossesDig(line) ? 0.5 : 0) + (BLOCK.z1 - mid.z) / 1000,
         hidden: true,
       },
     ];
   });
-  labels.setLabels(labelList);
+  /**
+   * The tag over the mark asked about, so it's plain which flags are meant: over its middle flag
+   * (white's, over the middle of the bed), pointing at the flag's top, with its other flags to fall
+   * back on. Its color's chip with a flag on it, and the color's name: nothing that tells what the
+   * mark means. It points out the question, so it shows with the labels off too.
+   */
+  const flagTop = (q: { x: number; z: number }) =>
+    new Vector3(q.x, topAt(q) + MARK_LOOK.flag.stake * MARK_LOOK.lift, q.z);
+  const tagList: Label[] = MARKS.flatMap((m) => {
+    const element = o.tagElements.get(m.id);
+    if (!element) return [];
+    const flags = m.spots.filter((spot) => spot.form === 'flag');
+    const middle = flags[Math.floor(flags.length / 2)];
+    const bed = { x: (DIG.x0 + DIG.x1) / 2, z: (DIG.z0 + DIG.z1) / 2 };
+    const point =
+      m.id === 'dig' || !middle ? new Vector3(bed.x, topAt(bed) + 0.05, bed.z) : flagTop(middle);
+    return [
+      {
+        id: `lit-${m.id}`,
+        element,
+        anchor: point.clone().add(new Vector3(0, 0.8, 0)),
+        point,
+        along: flags.filter((spot) => spot !== middle).map(flagTop),
+        priority: 10,
+        hidden: true,
+      },
+    ];
+  });
+  labels.setLabels([...labelList, ...tagList]);
 
   /**
    * Each line, as the names keep off it once it's open, as the lab's keep off its lines: points all
@@ -375,7 +414,8 @@ async function buildMarksScene(
       const t = openness.get(label.id as MarkId)?.t ?? 0;
       label.hidden = !labelsShown || t < 0.7;
     }
-    if (!labelsShown && labelList.every((l) => l.hidden)) {
+    for (const tag of tagList) tag.hidden = !(state.glow && tag.id === `lit-${state.focus ?? ''}`);
+    if ([...labelList, ...tagList].every((l) => l.hidden)) {
       labels.update(stage.width, stage.height, freeArea(), 0, false);
       return;
     }
