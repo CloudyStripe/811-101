@@ -12,9 +12,9 @@ Short, visual lessons on buried utilities and how they're found.
 
 A static site: Vite, TypeScript and Preact, with three.js for the 3D lessons. Each page's head and
 header, its footer or 3D loader where it has one, and the home page's content are written into its
-HTML at build time, so it paints before the page's code loads. Lesson text lives in `content/`, where every factual sentence has a
-claim ID for review. The images the site shows of its own lessons are captured from them with
-`npm run thumbnails`.
+HTML at build time, so it paints before the page's code loads. Lesson text lives in `content/`,
+where every factual sentence has a claim ID for review. The images the site shows of its own
+lessons are captured from them with `npm run thumbnails`.
 
 ## Working on it
 

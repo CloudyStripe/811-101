@@ -1,7 +1,8 @@
 /**
  * The Frequency Lab's 3D scene: the street block, both setups, the signal effects and the
  * labels, behind a small API the UI drives. The block is built for the view the screen asks for,
- * its ground drawn deeper in the tall view, and built again when the screen turns.
+ * its ground drawn as deep as it takes to fill the room the page leaves it, and built again when
+ * the screen turns, a drawer opens or closes, or a resized window settles on another shape.
  */
 import { Box3, PerspectiveCamera, Scene, Vector3, type Group } from 'three';
 import { FREQUENCIES, frequencyLabel, type Frequency } from '../../../../config/equipment.ts';
@@ -30,6 +31,7 @@ import { labState, type SetupId } from '../../../signal/model.ts';
 import type { Label } from '../../../kit3d/labels.ts';
 import { LABEL_SPECS, labelPlaces, type LabelId } from './labels.ts';
 import { buildContactShadows } from './contact.ts';
+import { depthFor } from './fill.ts';
 import { layoutFor, viewKind, viewOf, type LabLayout, type ViewKind } from './layout.ts';
 import {
   TransmitterScreen,
@@ -59,8 +61,11 @@ export interface LabSceneOptions {
   visibleArea: () => VisibleArea;
   /** Rectangles labels must avoid, in the canvas's CSS pixels. */
   noGo: () => Rect[];
-  /** Told which view the block is built for: from in front, or at three-quarters, deeper. */
-  onView?: (kind: ViewKind) => void;
+  /**
+   * Told which view the block is built for, from in front or from the hookup end, and how many
+   * times deeper than true its ground is drawn.
+   */
+  onView?: (kind: ViewKind, depth: number) => void;
   onContextLost?: () => void;
   onContextRestored?: () => void;
 }
@@ -99,7 +104,7 @@ const READINGS = FREQUENCIES.map(frequencyLabel);
 const maxLabels = (width: number) =>
   width < LABEL_LIMITS.narrowBelow ? LABEL_LIMITS.narrow : LABEL_LIMITS.wide;
 
-/** What's built for one view: the block at the depth that view draws it, and all on and in it. */
+/** What's built for one view: the block at the depth its room asks for, and all on and in it. */
 interface Built {
   kind: ViewKind;
   layout: LabLayout;
@@ -113,13 +118,21 @@ interface Built {
   lost: boolean;
 }
 
-/** What casts shadows in a build: the slab, and the trees and lamps standing on it. */
-function boundsOf({ block }: LabLayout): Box3 {
+/**
+ * What casts and takes shadows in a build: the slab down to a little under the gas main, and the
+ * trees and lamps standing on it. Nothing below the main casts a shadow, so the soil drawn under
+ * it doesn't take the sun's shadow map from the street.
+ */
+function boundsOf({ block, lines }: LabLayout): Box3 {
+  const below = lines.steel.y - lines.steel.radius - 4;
   return new Box3(
-    new Vector3(block.x0, block.bottom, block.z0),
+    new Vector3(block.x0, Math.max(block.bottom, below), block.z0),
     new Vector3(block.x1, 15, block.z1),
   );
 }
+
+/** How long a window being resized must hold still before the block is built for its new shape. */
+const SETTLE_MS = 250;
 
 /** Everything a build puts in the main scene. */
 const sceneParts = (b: Built): Group[] => [
@@ -146,16 +159,7 @@ function linesOf(layout: LabLayout, setup: SetupId): KeepClear[] {
     radius: line.radius,
   });
   const gas = setup === 'steel' ? [lines.steel] : [lines.plastic, lines.tracer];
-  const water = lines.water;
-  return [
-    tube(lines.telecom),
-    ...gas.map(tube),
-    // The water main crosses under the street, its end standing out of the cut face.
-    {
-      points: [new Vector3(water.x, water.y, 0), new Vector3(water.x, water.y, water.z1)],
-      radius: water.radius,
-    },
-  ];
+  return [tube(lines.telecom), ...gas.map(tube)];
 }
 
 function labelsFor(
@@ -229,7 +233,7 @@ async function buildLabScene(
   let frequency = o.frequency;
   let theme = o.theme;
   let disposed = false;
-  /** Builds for a view the screen has turned from: kept until the new build has drawn. */
+  /** Builds for a view the screen has left: kept until the new build has drawn. */
   const stale: Built[] = [];
   let staleFrames = 0;
 
@@ -272,7 +276,7 @@ async function buildLabScene(
       },
       resize() {
         glide = null;
-        frameArea(o.visibleArea());
+        frameArea(o.visibleArea(), true);
       },
       tierChanged(tierSettings) {
         lighting.setShadowQuality(tierSettings.shadowMapSize, tierSettings.shadowRadius);
@@ -288,7 +292,7 @@ async function buildLabScene(
         // So was everything the block had uploaded: it's built afresh, and the old build goes
         // without disposing, since its GPU objects now belong to no context.
         for (const b of [built, ...stale]) b.lost = true;
-        rebuild(built.kind);
+        rebuild(built.kind, built.layout.depth);
         labelsDirty = true;
         o.onContextRestored?.();
       },
@@ -301,15 +305,14 @@ async function buildLabScene(
   // The ambient-occlusion chunk downloads while the scene is built and compiled.
   preloadPost(settings());
   // The stage has no size until the runtime starts, so the first view is chosen by the canvas's own.
-  const firstKind = viewKind(o.visibleArea(), {
-    width: o.canvas.clientWidth,
-    height: o.canvas.clientHeight,
-  });
+  const firstCanvas = { width: o.canvas.clientWidth, height: o.canvas.clientHeight };
+  const firstKind = viewKind(o.visibleArea(), firstCanvas);
+  const firstDepth = depthFor(firstKind, o.visibleArea(), firstCanvas);
   // The sun's shadow fits the block built first, and fits again whenever it's built for another view.
   const lighting = createLighting(
     renderer,
     scene,
-    boundsOf(layoutFor(firstKind)),
+    boundsOf(layoutFor(firstKind, firstDepth)),
     labSceneTokens(o.theme),
     { shadow: { mapSize: settings().shadowMapSize, radius: settings().shadowRadius } },
   );
@@ -318,9 +321,9 @@ async function buildLabScene(
     () => false,
   );
 
-  /** Builds the block for a view, in the scenes. */
-  function build(kind: ViewKind): Built {
-    const layout = layoutFor(kind);
+  /** Builds the block for a view, its ground drawn this deep, in the scenes. */
+  function build(kind: ViewKind, depth: number): Built {
+    const layout = layoutFor(kind, depth);
     const street = buildStreet(layout);
     street.setDetail(settings().detail);
     const scenery = buildScenery(layout);
@@ -356,22 +359,22 @@ async function buildLabScene(
     for (const part of [...sceneParts(b), b.fx.group]) disposeObject(part);
   }
 
-  let built = build(firstKind);
-  o.onView?.(built.kind);
+  let built = build(firstKind, firstDepth);
+  o.onView?.(built.kind, built.layout.depth);
 
   /**
-   * Builds the block for the view the screen now asks for, with the labels placed on it and the
-   * shadows drawn again. The old build stays, out of sight, until the new one has drawn.
+   * Builds the block for the view and depth the screen now asks for, with the labels placed on it
+   * and the shadows drawn again. The old build stays, out of sight, until the new one has drawn.
    */
-  function rebuild(kind: ViewKind) {
+  function rebuild(kind: ViewKind, depth: number) {
     const old = built;
     scene.remove(...sceneParts(old));
     fxScene.remove(old.fx.group);
     stale.push(old);
     staleFrames = 2;
-    built = build(kind);
+    built = build(kind, depth);
     lighting.setBounds(boundsOf(built.layout));
-    o.onView?.(kind);
+    o.onView?.(kind, depth);
     labelsFor_ = null;
     shadowsFor = null;
     applyState();
@@ -396,10 +399,37 @@ async function buildLabScene(
       area.h < LABEL_LIMITS.iconsBelow,
     );
   };
-  /** Frames the view for a free area of the canvas, with the block built for the view that suits it. */
-  function frameArea(area: VisibleArea) {
+  /** The view and depth a free area asks for, given the block built now. */
+  function asks(area: VisibleArea): { kind: ViewKind; depth: number } {
     const kind = viewKind(area, stage, built.kind);
-    if (kind !== built.kind) rebuild(kind);
+    const now = kind === built.kind ? built.layout.depth : undefined;
+    return { kind, depth: depthFor(kind, area, stage, now) };
+  }
+
+  /** A rebuild for a window still being resized, once it holds still. */
+  let settling: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Frames the view for a free area of the canvas, with the block built for the view and depth that
+   * suit it. While a window is being resized (`settle`), a new depth waits until it holds still; a
+   * new view doesn't.
+   */
+  function frameArea(area: VisibleArea, settle = false, asked = asks(area)) {
+    const { kind, depth } = asked;
+    if (settling) clearTimeout(settling);
+    settling = null;
+    if (kind !== built.kind) rebuild(kind, depth);
+    else if (depth !== built.layout.depth) {
+      if (settle) {
+        settling = setTimeout(() => {
+          settling = null;
+          if (disposed) return;
+          glide = null;
+          frameArea(o.visibleArea());
+          stage.requestFrame();
+        }, SETTLE_MS);
+      } else rebuild(kind, depth);
+    }
     cam.setLayout(stage.width, stage.height, area);
     cam.frame(viewOf(built.layout, kind));
     shownArea = area;
@@ -534,10 +564,16 @@ async function buildLabScene(
     relayout(ease = false) {
       labels.measure();
       const area = o.visibleArea();
+      // The room is measured afresh here, so a rebuild still waiting on a resize isn't needed.
+      if (settling) clearTimeout(settling);
+      settling = null;
       // A glide from the framing shown now, unless motion is reduced, there's nothing to glide
-      // from, or the new room asks for the other view, whose block is built anew.
-      const kind = viewKind(area, stage, built.kind);
+      // from, or the new room asks for the other view, seen from elsewhere and framed at once. A
+      // new depth builds the block anew first, and the camera glides on to frame it.
+      const asked = asks(area);
+      const { kind, depth } = asked;
       if (ease && !reducedMotion && !o.capture && shownArea && kind === built.kind) {
+        if (depth !== built.layout.depth) rebuild(kind, depth);
         // Where it lands: the pose that frames the new area, fitted without moving the camera.
         cam.setLayout(stage.width, stage.height, area);
         const toPose = cam.poseFor(viewOf(built.layout, kind));
@@ -553,7 +589,7 @@ async function buildLabScene(
         return;
       }
       glide = null;
-      frameArea(area);
+      frameArea(area, false, asked);
       if (o.capture) {
         // The loop has stopped, so render the new framing once for the screenshot.
         placeLabels();
@@ -566,6 +602,7 @@ async function buildLabScene(
     dispose() {
       if (disposed) return;
       disposed = true;
+      if (settling) clearTimeout(settling);
       runtime.dispose();
       lighting.dispose();
       for (const b of stale.splice(0)) release(b);

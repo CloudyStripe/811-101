@@ -3,7 +3,8 @@
  * beside them, turning left and right and tilting up and down round the compass, which sets the
  * view back. A drag, the wheel, a pinch or the keys do the same. A press moves a step; held, a turn,
  * tilt or zoom goes on until it's let go or reaches its limit. A button at its limit says so
- * (aria-disabled) but keeps its focus.
+ * (aria-disabled) but keeps its focus; so does every button until the view is built, so the
+ * buttons are there from the page's first paint and nothing pops in as the view arrives.
  */
 import { useEffect, useRef } from 'preact/hooks';
 import { Icon, type IconName } from '../../../design/icons.tsx';
@@ -74,7 +75,7 @@ function Move(props: {
 }
 
 export function ViewControls(props: {
-  /** The view is built: until then the buttons hold their place, out of sight, so it's framed clear of them. */
+  /** The view is built: until then every button is shown, but can't be used yet. */
   ready: boolean;
   /** The open sheet covers the view: the buttons are out of sight and out of reach, as the view is. */
   covered: boolean;
@@ -85,6 +86,8 @@ export function ViewControls(props: {
   onReset: () => void;
 }) {
   const { limits } = props;
+  /** Whether a move can't be made: until the view is built, none can; then, only at a limit. */
+  const stuck = (atLimit?: boolean) => !props.ready || atLimit === true;
   return (
     <div
       class="gp-camera"
@@ -100,7 +103,7 @@ export function ViewControls(props: {
           name="Zoom in"
           icon="zoom-in"
           class="cam-in"
-          at={limits.zoomIn}
+          at={stuck(limits.zoomIn)}
           repeats
           onPress={() => {
             props.onZoom(1);
@@ -110,7 +113,7 @@ export function ViewControls(props: {
           name="Zoom out"
           icon="zoom-out"
           class="cam-out"
-          at={limits.zoomOut}
+          at={stuck(limits.zoomOut)}
           repeats
           onPress={() => {
             props.onZoom(-1);
@@ -122,7 +125,7 @@ export function ViewControls(props: {
           name="Tilt up"
           icon="chevron-up"
           class="cam-up"
-          at={limits.tiltUp}
+          at={stuck(limits.tiltUp)}
           repeats
           onPress={() => {
             props.onTilt(1);
@@ -132,16 +135,24 @@ export function ViewControls(props: {
           name="Turn left"
           icon="turn-left"
           class="cam-left"
+          at={stuck()}
           repeats
           onPress={() => {
             props.onTurn(-1);
           }}
         />
-        <Move name="Reset view" icon="compass" class="cam-reset" onPress={props.onReset} />
+        <Move
+          name="Reset view"
+          icon="compass"
+          class="cam-reset"
+          at={stuck()}
+          onPress={props.onReset}
+        />
         <Move
           name="Turn right"
           icon="turn-right"
           class="cam-right"
+          at={stuck()}
           repeats
           onPress={() => {
             props.onTurn(1);
@@ -151,7 +162,7 @@ export function ViewControls(props: {
           name="Tilt down"
           icon="chevron-down"
           class="cam-down"
-          at={limits.tiltDown}
+          at={stuck(limits.tiltDown)}
           repeats
           onPress={() => {
             props.onTilt(-1);

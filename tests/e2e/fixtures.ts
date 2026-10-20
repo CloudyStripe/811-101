@@ -91,6 +91,31 @@ export async function waitStill(page: Page, message: string): Promise<void> {
 }
 
 /**
+ * The names drawn in a 3D view, at their size: its labels' names, and the diorama's on its stops'
+ * parts (not the time-lapse's clock). A name kept for screen readers, clipped to a pixel, isn't
+ * drawn.
+ */
+export function shownNames(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    [
+      ...document.querySelectorAll<HTMLElement>(
+        '.labels .lbl-text, .details .dlbl:not(.dlbl-clock)',
+      ),
+    ]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return (
+          r.width > 2 &&
+          r.height > 2 &&
+          getComputedStyle(el).clipPath === 'none' &&
+          el.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+        );
+      })
+      .map((el) => el.textContent.trim()),
+  );
+}
+
+/**
  * Loads every image the portal shows, so none is blank when it's checked or captured: its lazy
  * previews, below the fold, and its hero's still, a CSS background.
  */

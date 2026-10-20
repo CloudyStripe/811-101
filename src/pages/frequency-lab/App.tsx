@@ -13,6 +13,7 @@ import { Legend } from './Legend.tsx';
 import { SceneLabel } from './SceneLabel.tsx';
 import type { LabScene, Rect } from './scene/index.ts';
 import { LABEL_SPECS, type LabelId } from './scene/labels.ts';
+import { revealed } from '../../site/arrival.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
@@ -45,15 +46,20 @@ const DRAWER_CLOSE: Record<DrawerId, string> = {
   guide: 'Close the lab guide',
   key: 'Close the key',
 };
+const DRAWER_MORE: Record<DrawerId, string> = {
+  guide: 'More of the lab guide',
+  key: 'More of the key',
+};
 
+/** A control over the view, in the view's own pixels, with room around it the labels keep clear of. */
 function rectWithin(el: Element, container: DOMRect): Rect | null {
   const r = el.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return null;
   return {
-    x: r.left - container.left - 6,
-    y: r.top - container.top - 6,
-    w: r.width + 12,
-    h: r.height + 12,
+    x: r.left - container.left - 10,
+    y: r.top - container.top - 10,
+    w: r.width + 20,
+    h: r.height + 20,
   };
 }
 
@@ -141,6 +147,10 @@ export function App() {
     };
 
     void (async () => {
+      // Not while the page change into the lab is still animating: building the view holds up
+      // the page, and the change with it; nor, for the same reason, saying it can't be built.
+      await revealed();
+      if (cancelled()) return;
       // three needs WebGL 2; without it, say so rather than report a generic failure.
       if (!document.createElement('canvas').getContext('webgl2')) {
         setFailed(NO_WEBGL);
@@ -167,9 +177,10 @@ export function App() {
           perf: PERF,
           visibleArea,
           noGo,
-          // Which view the block is built for, on the page for tests and styles to read.
-          onView: (kind) => {
+          // Which view the block is built for, and how deep, on the page for tests and styles to read.
+          onView: (kind, depth) => {
             stageEl.dataset.view = kind;
+            stageEl.dataset.depth = String(depth);
           },
           onContextLost: () => {
             setFailed(
@@ -331,6 +342,7 @@ export function App() {
         id={DRAWER_ID}
         title={drawer ? DRAWER_TITLES[drawer] : null}
         closeLabel={drawer ? DRAWER_CLOSE[drawer] : ''}
+        moreLabel={drawer ? DRAWER_MORE[drawer] : ''}
         onClose={closeDrawer}
       >
         {drawer === 'guide' && (

@@ -2,12 +2,13 @@
  * The one set of step controls, at the foot of the guide (on phones, under its bar): in the
  * overview, the way in, Start at the beginning; at a stop, the overview and back (round buttons, by
  * their icons), where the journey is ("Step 6 of 9", over a strip of its stops in their paths'
- * shapes) and on: to the next stop, to its path's quiz, or at the fork with no path chosen, to the
+ * shapes) and on: to the next stop, by its name ("Next: Using natural gas", or plain "Next" where
+ * the bar is too narrow for it), to its path's quiz, or at the fork with no path chosen, to the
  * choice; in a quiz, back, and Finish, to the overview.
  */
 import { stopById } from '../../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../../design/icons.tsx';
-import { back, forward, progressOf, stopsOf, type Journey } from '../journey.ts';
+import { back, forward, progressOf, stopAt, stopsOf, type Journey } from '../journey.ts';
 import { PathShape } from './PathShape.tsx';
 
 export function StepBar(props: {
@@ -33,6 +34,8 @@ export function StepBar(props: {
   const { step, of } = progressOf(journey);
   const next = forward(journey);
   const toQuiz = next?.quiz === true;
+  const nextStop = next && stopAt(next);
+  const nextName = nextStop ? stopById(nextStop).label : null;
   // At the fork with no path chosen, the way on is the choice.
   const atFork = !journey.quiz && next === null;
   return (
@@ -83,10 +86,13 @@ export function StepBar(props: {
           key="next"
           type="button"
           class="button button-primary"
-          aria-label={toQuiz ? 'Take the quiz' : 'Next step'}
+          aria-label={toQuiz ? 'Take the quiz' : nextName ? `Next: ${nextName}` : 'Next step'}
           onClick={props.onNext}
         >
-          {toQuiz ? 'Quiz' : 'Next'}
+          <span>
+            {toQuiz ? 'Quiz' : 'Next'}
+            {!toQuiz && nextName && <span class="stepbar-to">: {nextName}</span>}
+          </span>
           <Icon name="forward" />
         </button>
       )}

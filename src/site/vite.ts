@@ -4,7 +4,10 @@
  * - `siteShell`: each built page's head, header, footer and loader (src/site/shell.ts).
  * - `notFoundPages`: unknown addresses get the site's 404 page, with a 404 status, in the dev and
  *   preview servers as on GitHub Pages.
- * - `preloadScenes`: a 3D page starts fetching its scene code with the page itself.
+ * - `preloadScenes`: a 3D page starts fetching its scene code with the page itself, after what
+ *   its first paint needs.
+ * - `firstPaint`: each page's own script holds its first paint until it runs, and, coming from the
+ *   site, the fonts its first screen sets text in start loading with the page.
  */
 import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -13,7 +16,7 @@ import { relative, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { tokensCss } from '../design/tokens.ts';
 import { pageById, pageForHtml } from './pages.ts';
-import { renderPage } from './shell.ts';
+import { BOOT, FROM_THE_SITE, PICTURES_ATTR, VIEWPORT, renderPage } from './shell.ts';
 
 export function siteTokens(): Plugin {
   const id = 'virtual:tokens.css';
@@ -194,11 +197,124 @@ export function preloadScenes(): Plugin {
           c.imports.forEach(addScene);
         };
         entry.dynamicImports.forEach(addScene);
+        // Low, so it doesn't hold up what the first paint waits for: the page's styles, its own
+        // script, fonts and pictures.
         return [...scene].map((file) => ({
           tag: 'link',
-          attrs: { rel: 'modulepreload', crossorigin: true, href: `${base}${file}` },
+          attrs: {
+            rel: 'modulepreload',
+            crossorigin: true,
+            fetchpriority: 'low',
+            href: `${base}${file}`,
+          },
           injectTo: 'head' as const,
         }));
+      },
+    },
+  };
+}
+
+/**
+ * The font files the first screen of every page sets text in, by the start of their built names:
+ * the display face, the body face's regular and bold, and the mono face's semibold. (Measured: each
+ * page loads exactly these on its first screen, at every size; a font preloaded and not used is a
+ * console warning.)
+ */
+export const FIRST_SCREEN_FONTS = [
+  'archivo-latin-wdth-normal-',
+  'atkinson-hyperlegible-latin-400-normal-',
+  'atkinson-hyperlegible-latin-700-normal-',
+  'ibm-plex-mono-latin-600-normal-',
+] as const;
+
+/**
+ * Each page's first paint, made whole:
+ * - Its own script holds it (`blocking="render"`) until it runs, so a page that draws its controls
+ *   (a lesson's console or dock, the header's settings button) shows them in its first paint, and
+ *   a page change into it animates: Chromium skips the change's animation into a page revealed
+ *   while its script is still loading. Browsers that don't know the attribute paint as before.
+ * - Coming from another page of the site, the fonts its first screen uses are asked for first,
+ *   not once its styles are read and its text laid out, so they're in (from the cache) before text
+ *   shows. On a first visit they come once its text is laid out, after what it needs to paint,
+ *   rather than hold its first paint up (FROM_THE_SITE in shell.ts).
+ */
+export function firstPaint(): Plugin {
+  let base = '/';
+  let root = process.cwd();
+  return {
+    name: 'first-paint',
+    configResolved(config) {
+      base = config.base;
+      root = config.root;
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!pageAt(root, ctx.filename)) return html;
+        // The page's own script, its only module script: built, from the bundle (a page with no
+        // code of its own, as the 404 page, loads a shared chunk); served in development, its
+        // source (not the dev server's client).
+        const own = (src: string) =>
+          ctx.bundle ? src.startsWith(`${base}assets/`) : src.includes('/src/pages/');
+        let marked = 0;
+        const out = html.replace(
+          /<script type="module"([^>]*) src="([^"]+)"/g,
+          (tag, attrs: string, src: string) => {
+            if (!own(src) || attrs.includes('blocking=')) return tag;
+            marked++;
+            return `<script type="module" blocking="render"${attrs} src="${src}"`;
+          },
+        );
+        // Built, a page that misses either (a bundler or font package that names things otherwise)
+        // stops the build, rather than quietly painting without its controls or in other faces.
+        const built = ctx.bundle !== undefined;
+        if (built && marked !== 1) {
+          throw new Error(
+            `${ctx.filename}: ${String(marked)} scripts of its own to hold the first paint`,
+          );
+        }
+        // Only the WOFF2 files: every browser that reads a preload reads those, so the WOFF ones
+        // beside them would never be used.
+        const fonts = Object.values(ctx.bundle ?? {})
+          .filter((file) => {
+            const name = file.fileName.split('/').pop() ?? '';
+            return (
+              file.type === 'asset' &&
+              name.endsWith('.woff2') &&
+              FIRST_SCREEN_FONTS.some((font) => name.startsWith(font))
+            );
+          })
+          .map((file) => `${base}${file.fileName}`);
+        if (built && fonts.length !== FIRST_SCREEN_FONTS.length) {
+          throw new Error(
+            `${ctx.filename}: ${String(fonts.length)} of the ${String(FIRST_SCREEN_FONTS.length)} first-screen fonts found to preload`,
+          );
+        }
+        if (fonts.length === 0) return out;
+        // After the pictures script (on a page with none, the viewport tag), so, coming from the
+        // site, they're asked for before the styles and scripts: the pictures first, as a lesson's
+        // poster is what a page change carries a preview into, then the fonts.
+        const ask = [
+          `<script data-first-fonts>if (${FROM_THE_SITE}) ${JSON.stringify(fonts)}.forEach(function (href) {`,
+          "  var el = document.createElement('link');",
+          "  el.rel = 'preload';",
+          "  el.as = 'font';",
+          "  el.type = 'font/woff2';",
+          "  el.crossOrigin = 'anonymous';",
+          '  el.href = href;',
+          '  document.head.appendChild(el);',
+          '});</script>',
+        ].join('\n');
+        const boot = `<script>${BOOT}</script>`;
+        let after = out.indexOf(boot);
+        if (after < 0)
+          throw new Error(`${ctx.filename}: no settings script to put the fonts after`);
+        after += boot.length;
+        const pictures = out.indexOf(`<script ${PICTURES_ATTR}>`, after);
+        const viewport = VIEWPORT.exec(out.slice(after));
+        if (pictures >= 0) after = out.indexOf('</script>', pictures) + '</script>'.length;
+        else if (viewport) after += viewport.index + viewport[0].length;
+        return `${out.slice(0, after)}\n    ${ask}${out.slice(after)}`;
       },
     },
   };

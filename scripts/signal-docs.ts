@@ -85,7 +85,6 @@ The lab shows eight states: two setups × four frequencies. The model is a small
 - **Earth return:** everything that leaves the target returns to the ground stake. That includes the fade and what continues past the end of the model. The telecom cable's share is part of that return, not added to it.
 - **Direction:** outgoing on the target, returning on the telecom cable, and through the earth toward the stake.
 - **Transmitter readout:** circuit resistance is set per setup and frequency. Current follows from a fixed output with internal resistance.
-- **Water main:** it isn't connected to anything, so the model gives it no signal. An unconnected crossing line picks up too little to show.
 
 **Left out:** a circuit solver, receiver field math, depth, passive modes, clamp and induction coupling, and stake placement.
 
@@ -94,8 +93,6 @@ The lab shows eight states: two setups × four frequencies. The model is a small
 ${single(GEOMETRY.blockLengthFt)}
 
 ${single(GEOMETRY.modelLengthFt)}
-
-${single(GEOMETRY.waterCrossingAtFt)}
 
 ${perFrequency('Fade along the line', [
   ['Coated steel main', FADE_PER_100FT.steel],

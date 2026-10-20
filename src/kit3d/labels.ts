@@ -45,6 +45,12 @@ export interface Label {
   hidden?: boolean;
   /** Shown however crowded the view, like a focused label: pointed at from elsewhere, e.g. a key. */
   highlight?: boolean;
+  /**
+   * Under the mouse: placed as a focused label is, named on a side with room for it. For markers,
+   * whose badge stays put as their name shows; a label growing from its icon could move out from
+   * under the pointer.
+   */
+  hovered?: boolean;
   /** Placed as a marker, shown by its badge alone unless focused, as on a path faded back. */
   badgeOnly?: boolean;
   /** Hangs below its anchor instead of above it, e.g. to keep clear of a line just above. */
@@ -158,6 +164,9 @@ export class LabelLayer {
       const line = document.createElementNS(SVG_NS, 'line');
       const dot = document.createElementNS(SVG_NS, 'circle');
       dot.setAttribute('r', '2.5');
+      // Which label it leads to, and (data-at) which of the label's places, for tests to find where
+      // a label points.
+      group.dataset.for = label.id;
       group.classList.add('off');
       group.append(line, dot);
       this.svg.append(group);
@@ -243,6 +252,7 @@ export class LabelLayer {
       const isFocused =
         !label.hidden &&
         (label.highlight === true ||
+          label.hovered === true ||
           label.element.contains(focused) ||
           (pinned && this.named.has(label.id)));
       return {
@@ -308,6 +318,8 @@ export class LabelLayer {
     this.lastKey.set(label.id, key);
     // From the whole label, or a named marker's badge.
     this.drawLeader(label.id, from ?? r, point);
+    const leader = this.leaders.get(label.id);
+    if (leader) leader.group.dataset.at = shownAt ? String(shownAt.at) : '';
     classList.toggle('off', state === 'off');
     classList.toggle('capped', state === 'capped');
     if (!r) return;

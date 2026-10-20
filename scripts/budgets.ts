@@ -10,6 +10,7 @@ import { BASE_PATH } from '../config/brand.ts';
 import { SECTIONS } from '../content/portal.ts';
 import {
   PAGES,
+  POSTER_SHAPES,
   posterPath,
   type PageBudgets,
   type PageId,
@@ -189,12 +190,14 @@ async function pageRows(page: PageInfo, budgets: PageBudgets): Promise<Row[]> {
     else if (c.name === 'vendor-3d') vendor += bytes;
     else scene += bytes;
   }
-  // The loader shows one poster, the reader's theme's; count the larger.
+  // The loader shows one poster, the reader's theme's in the screen's shape; count the largest.
   const poster = page.scene
     ? Math.max(
         ...(await Promise.all(
-          (['light', 'dark'] as const).map(
-            async (theme) => (await stat(resolve(dist, posterPath(page, theme)))).size,
+          (['light', 'dark'] as const).flatMap((theme) =>
+            POSTER_SHAPES.map(
+              async (shape) => (await stat(resolve(dist, posterPath(page, theme, shape)))).size,
+            ),
           ),
         )),
       )

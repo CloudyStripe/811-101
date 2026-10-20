@@ -62,8 +62,8 @@ for (const theme of ['light', 'dark'] as const) {
         await open(page);
         await toggle(page, 'Key').click();
         const key = page.getByRole('region', { name: 'Key' });
-        await key.getByRole('button', { name: 'Water main' }).hover();
-        await expect(page.locator('[data-label="water"]')).toHaveClass(/\blit\b/);
+        await key.getByRole('button', { name: 'Telecom cable' }).hover();
+        await expect(page.locator('[data-label="telecom"]')).toHaveClass(/\blit\b/);
         await scan(page, `${theme} wide, key`);
         await page.getByRole('button', { name: 'Pause the signal' }).click();
         await scan(page, `${theme} wide, paused`);
@@ -106,7 +106,7 @@ for (const theme of ['light', 'dark'] as const) {
       await openDiorama(page);
       await page.getByRole('button', { name: 'Natural gas tour' }).click();
       const guide = page.locator('.gp-panel');
-      for (let i = 0; i < 8; i++) await guide.getByRole('button', { name: 'Next step' }).click();
+      for (let i = 0; i < 8; i++) await guide.getByRole('button', { name: /^Next: / }).click();
       await guide.getByRole('button', { name: 'Take the quiz' }).click();
       await page.locator('.q').first().getByRole('button').first().click();
       await scan(page, `${theme} diorama quiz`);

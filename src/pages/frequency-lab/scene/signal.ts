@@ -2,7 +2,9 @@
  * The locate signal, as one loop: out along the signal lead and down to the target, along the
  * target as luminous bands, into the soil and back to the ground stake, and up the ground lead.
  * Band spacing stands in for frequency. Brightness shows strength: on the target it fades out where
- * the signal gets too weak to trace (see glow.ts), and bleed-over glows as a share of the target.
+ * the signal gets too weak to trace (see glow.ts), and bleed-over glows as a share of the target;
+ * on the telecom cable, where it has to read as the same signal over the cable's orange, its bands
+ * keep the signal's color, narrower and dimmer as it weakens.
  * The shaders use the model's current formula (src/signal/model.ts), so the view and the text
  * agree.
  */
@@ -85,6 +87,10 @@ uniform float uTaper;
 uniform float uBase;
 // Band sharpness: wider pulses on lines, short dashes on soil return paths.
 uniform float uSharp;
+// 1: a band covers the line under it in the signal's own color however weak the signal, and a
+// weaker one shows narrower and dimmer, not mixed with the line's color into white: the telecom cable.
+// 0: it covers the line only as far as it's bright.
+uniform float uCover;
 varying float vDist;
 varying vec3 vNormalV;
 varying vec3 vViewDir;
@@ -113,9 +119,28 @@ void main() {
   float band = pow(0.5 + 0.5 * cos(6.2831853 * phase), uSharp);
   float rim = mix(1.0, 0.55, abs(dot(vNormalV, vViewDir)));
   float ends = smoothstep(uStart, uStart + 2.0, vDist) * (1.0 - smoothstep(uEnd - uTaper, uEnd, vDist));
-  float glow = (uBase + (1.0 - uBase) * band) * b * ends * rim;
+  float shape = (uBase + (1.0 - uBase) * band) * ends * rim;
+  float glow = shape * b;
+  // Covering, a band is a stripe of the signal's own color, never letting the line show through:
+  // as wide and as bright as the signal is strong, from a thin, dimmer line for a little bleed-over
+  // to most of the band, and bright, at the most the telecom cable gets (the highest frequency, by
+  // the hookup). None for a mere trace, as at the lowest frequency. Measured from the band's
+  // middle, with its edge a pixel soft, so even the thinnest keeps the signal's color.
+  float cover = glow;
+  float lit = uIntensity * glow;
+  if (uCover > 0.5) {
+    float strength = clamp((b - 0.005) / 0.175, 0.0, 1.0);
+    float fromMiddle = abs(fract(phase + 0.5) - 0.5);
+    // A pixel, in bands; never none (a line seen end on), which would leave the edge undefined.
+    float pixel = max(fwidth(phase), 1e-4);
+    float halfWidth = max(mix(0.035, 0.18, strength), 0.75 * pixel);
+    float stripe = (1.0 - smoothstep(halfWidth - 0.5 * pixel, halfWidth + 0.5 * pixel, fromMiddle))
+      * ends * smoothstep(0.005, 0.0065, b);
+    cover = stripe;
+    lit = stripe * max(mix(0.5, 1.0, strength), uIntensity * glow);
+  }
   // Premultiplied: bright bands read as pure signal color, and the line keeps its own color between them.
-  gl_FragColor = vec4(uColor * uIntensity * glow, clamp(glow * 1.8, 0.0, 1.0));
+  gl_FragColor = vec4(uColor * lit, clamp(cover * 1.8, 0.0, 1.0));
 }`;
 
 type Uniforms = Record<string, IUniform>;
@@ -204,6 +229,7 @@ export class SignalEffects {
         uTaper: { value: 2 },
         uBase: { value: 0.05 },
         uSharp: { value: 6 },
+        uCover: { value: 0 },
         ...extra,
       },
       vertexShader: VERTEX,
@@ -231,11 +257,11 @@ export class SignalEffects {
     );
     const length = curve.getLength();
     const geometry = withTubeDistance(
-      // Thicker as the ground is drawn deeper, so the paths keep their weight on a taller face.
+      // Thicker as the lines are drawn thicker, so the paths keep their weight beside them.
       new TubeGeometry(
         curve,
         Math.max(24, Math.round(length / 1.2)),
-        0.04 * ((1 + this.layout.depth) / 2),
+        0.04 * ((1 + this.layout.thick) / 2),
         6,
         false,
       ),
@@ -295,10 +321,13 @@ export class SignalEffects {
       uBase: { value: 0.012 },
     });
     const t = lines.telecom;
+    // The signal that bleeds onto the cable is the same signal, only weaker: its bands cover the
+    // cable's orange, dimmer, rather than mix with it into white.
     const telecomSleeve = this.sleeve(t.x0, block.x1, t.y, t.radius, {
       uDir: { value: -1 },
       uMinX: { value: hookup.pedestal.x },
       uTaper: { value: 0.3 },
+      uCover: { value: 1 },
     });
     // The rest of the loop: out along the signal lead and down the riser to the line, and back
     // from the stake along the ground lead.
@@ -318,15 +347,22 @@ export class SignalEffects {
       setup === 'steel'
         ? new Vector3(x, line.y - glowRadius - 0.15, 0.12)
         : new Vector3(x, lines.tracer.y, lines.plastic.radius + 0.12);
-    // A few return paths, each carrying the soil leakage from a 20 ft stretch of the target.
+    // A few return paths, each carrying the soil leakage from a 20 ft stretch of the target, the
+    // farther the stretch the deeper it dips into the ground under the main: `share` of the way
+    // from the main's underside to the slab's bottom.
+    const main = setup === 'steel' ? lines.steel : lines.plastic;
+    const under = (share: number) => {
+      const top = main.y - main.radius;
+      return top + (block.bottom - top) * share;
+    };
     const bins = 7;
     for (let i = 0; i < bins; i++) {
       const x = 10 + i * 20;
-      const depthY = drawn(-5.2 - 3.2 * (i / (bins - 1)));
+      const depthY = under(0.3 + 0.6 * (i / (bins - 1)));
       flows.push(this.flow(start(x), depthY, { kind: 'leak', from: x - 10, to: x + 10 }, group));
     }
-    // Current still on the target at the end of the block returns from beyond it.
-    flows.push(this.flow(start(BLOCK_FT - 2), drawn(-8.6), { kind: 'beyond' }, group));
+    // Current still on the target at the end of the block returns from beyond it, deepest.
+    flows.push(this.flow(start(BLOCK_FT - 2), under(0.95), { kind: 'beyond' }, group));
     flows.push(
       this.flow(
         new Vector3(t.x0, t.y - t.radius - 0.1, 0.12),

@@ -30,20 +30,6 @@ export function pipeAlongX(
     .translate((x0 + x1) / 2, y, z);
 }
 
-/** A round pipe running along Z from z0 to z1. */
-export function pipeAlongZ(
-  z0: number,
-  z1: number,
-  x: number,
-  y: number,
-  radius: number,
-  radialSegments = 32,
-): BufferGeometry {
-  return new CylinderGeometry(radius, radius, z1 - z0, radialSegments, 1, false)
-    .rotateX(Math.PI / 2)
-    .translate(x, y, (z0 + z1) / 2);
-}
-
 /** A vertical post or rod from y0 up to y1. */
 export function post(
   x: number,

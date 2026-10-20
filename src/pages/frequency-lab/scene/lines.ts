@@ -18,14 +18,7 @@ import {
 } from 'three';
 import { APWA } from '../../../design/apwa.ts';
 import { FACILITY_TINT_STRENGTH, MATERIAL_COLORS as C } from '../../../design/tokens.ts';
-import {
-  merge,
-  pipeAlongX,
-  pipeAlongZ,
-  post,
-  ringAlongX,
-  roundedBox,
-} from '../../../kit3d/geometry.ts';
+import { merge, pipeAlongX, post, ringAlongX, roundedBox } from '../../../kit3d/geometry.ts';
 import { surface, tint, type SurfaceOptions } from '../../../kit3d/materials.ts';
 import type { SetupId } from '../../../signal/model.ts';
 import type { LabLayout } from './layout.ts';
@@ -72,7 +65,6 @@ const MATERIALS = {
   plasticMain: () => line(C.casing, APWA.yellow.fill, strength, { roughness: 0.42 }),
   tracer: () => line(C.graphite, APWA.yellow.fill, strength, { roughness: 0.5 }),
   telecom: () => line(C.graphite, APWA.orange.fill, strength, { roughness: 0.55 }),
-  water: () => line('#4b4f55', APWA.blue.fill, strength, { roughness: 0.6 }),
   graphite: () => surface(C.graphite, { finish: 'paint' }),
   steel: () => surface(C.steel, { finish: 'metal', roughness: 0.3, metalness: 0.8 }),
   yellowPost: () => surface(APWA.yellow.fill, { finish: 'paint' }),
@@ -158,7 +150,6 @@ export function buildShared(layout: LabLayout, readings: readonly string[]): Sha
   const group = new Group();
   group.name = 'shared-lines';
   const t = lines.telecom;
-  const w = lines.water;
   group.add(
     mesh(
       merge([
@@ -166,15 +157,6 @@ export function buildShared(layout: LabLayout, readings: readonly string[]): Sha
         new SphereGeometry(t.radius, 24, 12).translate(t.x0, t.y, 0),
       ]),
       MATERIALS.telecom(),
-    ),
-  );
-  group.add(
-    mesh(
-      merge([
-        pipeAlongZ(w.z0, w.z1, w.x, w.y, w.radius, 32),
-        new TorusGeometry(w.radius + 0.03, 0.06 * layout.depth, 12, 40).translate(w.x, w.y, -0.6),
-      ]),
-      MATERIALS.water(),
     ),
   );
 
@@ -257,7 +239,7 @@ export function buildSetup(layout: LabLayout, setup: SetupId): Group {
           ...Array.from(
             { length: Math.floor((block.x1 - 20) / 40) + 1 },
             (_, i) => 20 + i * 40,
-          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02 * layout.depth, 0.05 * layout.depth)),
+          ).map((x) => ringAlongX(x, m.y, 0, m.radius + 0.02 * layout.thick, 0.05 * layout.thick)),
         ]),
         coating,
       ),

@@ -3,7 +3,13 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { BASE_PATH } from './config/brand.ts';
 import { PAGES } from './src/site/pages.ts';
-import { notFoundPages, preloadScenes, siteShell, siteTokens } from './src/site/vite.ts';
+import {
+  firstPaint,
+  notFoundPages,
+  preloadScenes,
+  siteShell,
+  siteTokens,
+} from './src/site/vite.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
@@ -11,7 +17,7 @@ export default defineConfig({
   base: BASE_PATH,
   // Pages, not an app: an unknown path is a 404, as on GitHub Pages, rather than the portal.
   appType: 'mpa',
-  plugins: [siteTokens(), siteShell(), notFoundPages(), preloadScenes()],
+  plugins: [siteTokens(), siteShell(), notFoundPages(), preloadScenes(), firstPaint()],
   build: {
     target: 'es2022',
     manifest: true,

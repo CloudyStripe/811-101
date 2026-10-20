@@ -65,6 +65,25 @@ body {
   z-index: 1;
 }
 
+/*
+ * The stage runs under the console and the drawer, so the poster a lesson's preview carries in, as
+ * the page changes, would be drawn over them. Named while the view loads, each takes part in the
+ * change on its own, drawn over the poster as it is over the view, and comes in as the rest of the
+ * page does (base.css).
+ */
+:root:not([data-scene-ready]) .lab-console {
+  view-transition-name: lab-console;
+}
+
+:root:not([data-scene-ready]) .lab-drawer {
+  view-transition-name: lab-drawer;
+}
+
+::view-transition-new(lab-console),
+::view-transition-new(lab-drawer) {
+  animation: var(--dur-slow) var(--ease) both page-in;
+}
+
 .lab-canvas {
   display: block;
   width: 100%;
@@ -221,6 +240,7 @@ body {
  * never takes more than its share of the screen.
  */
 .lab-drawer {
+  position: relative;
   grid-area: drawer;
   display: flex;
   flex-direction: column;
@@ -250,12 +270,14 @@ body {
   font-weight: 800;
 }
 
+/* The drawer's body scrolls in its ScrollMore (components.css), which shows when there's more. */
 .drawer-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+/* Focus handed to the body by More, at its end (components.css), within the drawer's corners. */
+.drawer-body:focus-visible {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 /* The guide: its sections side by side where there's room, one under another where there isn't. */

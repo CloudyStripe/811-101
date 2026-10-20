@@ -4,20 +4,31 @@
  * chrome hidden, then writes:
  * - the portal's stills, day and night (public/stills/): each lesson's preview, cropped to the
  *   scene, and the hero, the whole diorama in its sky;
- * - each 3D page's loader posters, day and night: small WebPs, shown blurred (public/posters/);
- * - share previews: 1200 × 630 JPEGs with the mark and the page's name (public/share/).
+ * - each 3D page's loader posters, day and night: WebPs shown lightly blurred while the view loads
+ *   (public/posters/);
+ * - share previews: 1200 × 630 JPEGs with the mark and the page's name (public/share/);
+ * - the placeholders: a tiny copy of each still and poster, inline in the pages
+ *   (src/site/placeholders.ts, by scripts/placeholders.ts).
  * It stops without saving anything wrong: on a page error, a crop outside the 3D view, or an
  * image that comes out blank.
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { chromium, type Browser, type Page } from '@playwright/test';
 import { createServer } from 'vite';
 import { BRAND } from '../config/brand.ts';
 import type { Lesson } from '../content/portal.ts';
 import { THEMES, TYPE } from '../src/design/tokens.ts';
-import { PAGES, pageById, posterPath, type PageInfo } from '../src/site/pages.ts';
+import {
+  PAGES,
+  POSTER_SHAPES,
+  pageById,
+  posterPath,
+  type PageInfo,
+  type PosterShape,
+} from '../src/site/pages.ts';
 import { SHARE_SIZE } from '../src/site/shell.ts';
 import { HERO_SIZE, PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from '../src/site/stills.ts';
+import { writePlaceholders } from './placeholders.ts';
 import { TILE_COLORS, WORDMARK_HTML, archivoFace, wordmarkCss } from './wordmark.ts';
 
 const PORT = 5199;
@@ -25,8 +36,18 @@ const BASE = `http://localhost:${String(PORT)}/811-101/`;
 const VIEWPORT = { width: 1280, height: 720 };
 /** WebP quality for the portal's stills: sharp enough at their size, light to load. */
 const STILL_QUALITY = 0.7;
-/** Posters are shown blurred, so a small one does. */
-const POSTER = { width: 480, height: 270, quality: 0.6 };
+/**
+ * Posters stand in for the view while it loads, only lightly blurred, so each is the view itself
+ * as it first draws, cut to its own box, on a wide screen and a tall one, sharp enough at its size.
+ */
+const POSTER_SCREENS: Record<
+  PosterShape,
+  { width: number; height: number; scale: number; mobile: boolean; out: number }
+> = {
+  wide: { width: 1440, height: 900, scale: 1, mobile: false, out: 960 },
+  tall: { width: 390, height: 844, scale: 2, mobile: true, out: 540 },
+};
+const POSTER_QUALITY = 0.62;
 /**
  * How long a screenshot of a 3D view may take. In software WebGL the first frame after a view is
  * ready can take a quarter of a minute to reach the screen, as its shaders finish compiling.
@@ -48,6 +69,11 @@ interface Shot {
   hide: string;
   /** The part of the 1280 × 720 view to keep, in CSS pixels, as wide as the preview's shape. */
   crop: { x: number; y: number; width: number };
+}
+
+/** Waits for a 3D view to load, as it starts. */
+async function viewReady(page: Page): Promise<void> {
+  await page.waitForFunction(() => document.documentElement.dataset.sceneReady === 'true');
 }
 
 /** Opens the lab in capture mode; its guide and key start closed, so the view has its whole room. */
@@ -85,8 +111,8 @@ const SHOTS: Shot[] = [
     path: 'training/frequency-lab/?setup=steel&f=33000&tier=high&capture',
     ready: labReady,
     hide: LAB_CHROME,
-    // Close on the hookup and the signal setting off along the main.
-    crop: { x: 40, y: 200, width: 600 },
+    // Close on the hookup and the signal setting off along the main, the street edge over them.
+    crop: { x: 40, y: 178, width: 600 },
   },
   {
     name: 'gas-petroleum',
@@ -112,7 +138,27 @@ const HERO = {
   crop: { x: 342, y: 0, width: 1642, height: 1350 },
 } as const;
 
-/** What each 3D page shows in its poster and share preview. */
+/**
+ * What each 3D page shows in its poster: its view as it starts, so the diorama's guide is open
+ * where there's room for it.
+ */
+const POSTER_VIEWS: Partial<
+  Record<PageInfo['id'], { path: string; ready: (page: Page) => Promise<void>; hide: string }>
+> = {
+  'frequency-lab': {
+    path: 'training/frequency-lab/?setup=steel&f=512&tier=high&capture',
+    ready: viewReady,
+    hide: LAB_CHROME,
+  },
+  // Where the view's arrival starts, from farther out, so the view takes over from the poster.
+  'gas-petroleum': {
+    path: 'utilities/gas-petroleum/?tier=high&capture&arrival',
+    ready: viewReady,
+    hide: DIORAMA_CHROME,
+  },
+};
+
+/** What each 3D page shows in its share preview. */
 const STILLS: Partial<
   Record<PageInfo['id'], { path: string; ready: (page: Page) => Promise<void>; hide: string }>
 > = {
@@ -199,12 +245,20 @@ function encode(
 /** Opens a page in a fresh tab, failing on any page error, and runs `fn` with it. */
 async function withPage<T>(
   browser: Browser,
-  options: { width: number; height: number; scale: number; scheme: 'light' | 'dark' },
+  options: {
+    width: number;
+    height: number;
+    scale: number;
+    scheme: 'light' | 'dark';
+    mobile?: boolean;
+  },
   fn: (page: Page, errors: string[]) => Promise<T>,
 ): Promise<T> {
   const page = await browser.newPage({
     viewport: { width: options.width, height: options.height },
     deviceScaleFactor: options.scale,
+    isMobile: options.mobile ?? false,
+    hasTouch: options.mobile ?? false,
     colorScheme: options.scheme,
     reducedMotion: 'reduce',
   });
@@ -216,7 +270,7 @@ async function withPage<T>(
       errors.push(msg.text());
     }
   });
-  // The posters may not exist yet: this script is what makes them.
+  // The posters may not exist yet (or not in each shape): this script is what makes them.
   page.on('response', (res) => {
     if (res.status() >= 400 && !res.url().includes('/posters/')) {
       errors.push(`${String(res.status())} ${res.url()}`);
@@ -348,18 +402,46 @@ try {
     console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
   }
 
-  // Posters and share previews, for every 3D page built on the site's shell.
+  // Posters, for every 3D page built on the site's shell: its view alone, cut to its own box.
+  await mkdir('public/posters', { recursive: true });
   for (const page of PAGES.filter((p) => p.scene)) {
-    const view = STILLS[page.id];
-    if (!view) throw new Error(`No still for ${page.id}`);
-    for (const scheme of THEME_NAMES) {
-      const png = await still(browser, view, VIEWPORT, scheme);
-      const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
-        encode(tab, png, POSTER, 'image/webp', POSTER.quality),
-      );
-      const path = `public/${posterPath(page, scheme)}`;
-      await writeFile(path, webp);
-      console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
+    const view = POSTER_VIEWS[page.id];
+    if (!view) throw new Error(`No poster view for ${page.id}`);
+    for (const shape of POSTER_SHAPES) {
+      const screen = POSTER_SCREENS[shape];
+      for (const scheme of THEME_NAMES) {
+        const { png, box } = await withPage(browser, { ...screen, scheme }, async (tab, errors) => {
+          await tab.goto(`${BASE}${view.path}`);
+          await view.ready(tab);
+          const found = await tab.locator('canvas').first().boundingBox();
+          if (!found) throw new Error(`${page.id}: no 3D view`);
+          const clip = {
+            x: Math.round(found.x),
+            y: Math.round(found.y),
+            width: Math.round(found.width),
+            height: Math.round(found.height),
+          };
+          const image = await tab.screenshot({
+            animations: 'disabled',
+            style: `${view.hide} { visibility: hidden !important; }`,
+            clip,
+            timeout: SHOT_TIMEOUT,
+          });
+          if (errors.length) throw new Error(`${page.id}: ${errors.join(' | ')}`);
+          if ((await spreadOf(tab, image, 'image/png')) < 8) throw new Error(`${page.id}: blank`);
+          return { png: image, box: clip };
+        });
+        const size = {
+          width: screen.out,
+          height: Math.round((screen.out * box.height) / box.width),
+        };
+        const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
+          encode(tab, png, size, 'image/webp', POSTER_QUALITY),
+        );
+        const path = `public/${posterPath(page, scheme, shape)}`;
+        await writeFile(path, webp);
+        console.log(`Wrote ${path} (${(webp.length / 1024).toFixed(1)} KB).`);
+      }
     }
   }
 
@@ -399,3 +481,6 @@ try {
   await browser.close();
   await server.close();
 }
+
+// The tiny copies of what was just made.
+await writePlaceholders();

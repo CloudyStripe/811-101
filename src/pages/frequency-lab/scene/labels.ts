@@ -5,8 +5,7 @@
 import type { SetupId } from '../../../signal/model.ts';
 import type { LabLayout, ViewKind } from './layout.ts';
 
-export type LabelId =
-  'transmitter' | 'stake' | 'access' | 'target' | 'tracer' | 'telecom' | 'water';
+export type LabelId = 'transmitter' | 'stake' | 'access' | 'target' | 'tracer' | 'telecom';
 
 export type Point3 = readonly [number, number, number];
 
@@ -14,9 +13,9 @@ export interface LabelSpec {
   id: LabelId;
   /** Text per setup; null hides the label in that setup. */
   text: Record<SetupId, string | null>;
-  icon: 'transmitter' | 'stake' | 'access' | 'gas' | 'wire' | 'telecom' | 'water';
+  icon: 'transmitter' | 'stake' | 'access' | 'gas' | 'wire' | 'telecom';
   /** APWA color code for line labels; equipment labels stay neutral. */
-  color?: 'yellow' | 'orange' | 'blue';
+  color?: 'yellow' | 'orange';
   priority: number;
   /** Labels on the cut face only show from in front of it. */
   onFace: boolean;
@@ -88,20 +87,11 @@ export const LABEL_SPECS: readonly LabelSpec[] = [
     priority: 7,
     onFace: true,
   },
-  {
-    id: 'water',
-    text: { steel: 'Water main', plastic: 'Water main' },
-    icon: 'water',
-    color: 'blue',
-    priority: 3,
-    onFace: true,
-    below: true,
-  },
 ];
 
 /**
  * How far along the block each line's label sits, in feet, first choice first: near the hookup,
- * seen from in front. At three-quarters the hookup's own labels fill the near end, so the cable's
+ * seen from in front. From the hookup end its own labels fill the near end, so the cable's
  * and the tracer wire's sit further along.
  */
 const ALONG: Readonly<
@@ -130,8 +120,10 @@ export function labelPlaces(layout: LabLayout, kind: ViewKind): Record<LabelId, 
   const caseTop = 0.12 + 0.92 * k;
   const handleTop = 0.12 + 1.39 * k;
   return {
+    // As high as the test station's, over its post, so the two stand side by side over the hookup
+    // rather than one covering the other's point and pushing the stake's into the corner.
     transmitter: {
-      anchor: same([tx.x, handleTop + 0.05 * k, tx.z]),
+      anchor: same([tx.x, Math.max(handleTop + 0.05 * k, 3 * k + 0.5), tx.z]),
       point: same([tx.x, caseTop, tx.z]),
     },
     stake: {
@@ -169,8 +161,5 @@ export function labelPlaces(layout: LabLayout, kind: ViewKind): Record<LabelId, 
       lines.telecom.y + lines.telecom.radius,
       lines.telecom.radius,
     ]),
-    water: {
-      anchor: same([lines.water.x, lines.water.y - lines.water.radius, lines.water.z1]),
-    },
   };
 }

@@ -226,18 +226,29 @@ for (const size of SIZES) {
         if (size.roomy) await expectFrequencyOnScreen(page, size.height, 'with the guide open');
         const target = page.locator('[data-label="target"]');
         if (size.guideRoom) await expect(target).not.toHaveClass(/\b(off|capped)\b/);
-        // Shown or not, the main's label is never under the guide.
-        if (await target.locator('.lbl-btn').isVisible()) {
+        // Shown, the main's label is never under the guide; over the cap, focusing it shows it,
+        // clear of the guide too.
+        const underGuide = async () => {
           const label = await target.locator('.lbl-btn').boundingBox();
           const drawer = await page.locator('#lab-drawer').boundingBox();
-          const over =
+          return (
             label !== null &&
             drawer !== null &&
             label.x < drawer.x + drawer.width &&
             label.x + label.width > drawer.x &&
             label.y < drawer.y + drawer.height &&
-            label.y + label.height > drawer.y;
-          expect(over, 'the main under the guide').toBe(false);
+            label.y + label.height > drawer.y
+          );
+        };
+        const state = await target.getAttribute('class');
+        if (!/\boff\b/.test(state ?? '')) {
+          if (!/\bcapped\b/.test(state ?? '')) {
+            expect(await underGuide(), 'the main under the guide').toBe(false);
+          }
+          await target.locator('.lbl-btn').focus();
+          await expect(target).not.toHaveClass(/\bcapped\b/);
+          expect(await underGuide(), 'the main, focused, under the guide').toBe(false);
+          await target.locator('.lbl-btn').blur();
         }
         await page.getByRole('button', { name: 'Close the lab guide' }).click();
         await expect(page.locator('#lab-drawer')).toBeHidden();
@@ -277,7 +288,7 @@ for (const size of SIZES) {
 test.describe('rotating a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('turns the block between its deeper three-quarter view and the view from in front', async ({
+  test('turns the block between its view from the hookup end and the view from in front', async ({
     page,
   }) => {
     await open(page);
@@ -469,3 +480,113 @@ for (const size of SIZES.filter((s) =>
     });
   });
 }
+
+/**
+ * The rows of the view, between the header and the console, that the block takes: with the page's
+ * chrome and labels hidden, a row is the block's where enough of it differs from the sky at its
+ * left edge, which is sky at every size.
+ */
+async function blockRows(page: Page) {
+  const free = await page.evaluate(() => {
+    const top = document.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0;
+    const below = document.querySelector('.lab-console')?.getBoundingClientRect().top;
+    return { top, bottom: (below ?? innerHeight) - 8 };
+  });
+  const png = await page.screenshot({
+    style: '.labels, .site-header, .lab-console { visibility: hidden !important; }',
+  });
+  const rows = await page.evaluate(async (data) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${data}`;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+    ctx.drawImage(img, 0, 0);
+    const { data: px, width, height } = ctx.getImageData(0, 0, img.width, img.height);
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; y < height; y++) {
+      const edge = y * width * 4;
+      let block = 0;
+      for (let x = 0; x < width; x += 3) {
+        const i = (y * width + x) * 4;
+        const differs =
+          Math.abs((px[i] ?? 0) - (px[edge] ?? 0)) +
+          Math.abs((px[i + 1] ?? 0) - (px[edge + 1] ?? 0)) +
+          Math.abs((px[i + 2] ?? 0) - (px[edge + 2] ?? 0));
+        if (differs > 40) block++;
+      }
+      if (block > width / 60) {
+        if (top < 0) top = y;
+        bottom = y;
+      }
+    }
+    return { top, bottom };
+  }, png.toString('base64'));
+  return { free, rows };
+}
+
+test.describe('the block fills its room', () => {
+  for (const size of [
+    { name: 'desktop', width: 1440, height: 900, touch: false },
+    { name: 'phone', width: 390, height: 844, touch: true },
+    { name: '4:3 monitor', width: 1280, height: 1024, touch: false },
+  ]) {
+    test.describe(size.name, () => {
+      test.use({
+        viewport: { width: size.width, height: size.height },
+        hasTouch: size.touch,
+        isMobile: size.touch,
+        reducedMotion: 'reduce',
+      });
+
+      test('between the header and the console, with no band of sky above or under it', async ({
+        page,
+      }) => {
+        await page.goto('training/frequency-lab/?tier=low&capture');
+        await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+          timeout: 60_000,
+        });
+        const { free, rows } = await blockRows(page);
+        const room = free.bottom - free.top;
+        expect(rows.top, 'the block shows').toBeGreaterThan(0);
+        expect((rows.top - free.top) / room, 'sky above').toBeLessThan(0.08);
+        expect((free.bottom - rows.bottom) / room, 'sky under').toBeLessThan(0.07);
+      });
+    });
+  }
+});
+
+test.describe('the block is built again for its room', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+
+  test('shallower over an open drawer, deep again once it closes, and deeper for a squarer window', async ({
+    page,
+  }) => {
+    await page.goto('training/frequency-lab/?tier=low');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    const stage = page.locator('.stage');
+    const depth = async () => Number(await stage.getAttribute('data-depth'));
+    const closed = await depth();
+    expect(closed).toBeGreaterThan(0);
+    const guide = page
+      .getByRole('region', { name: 'Controls' })
+      .getByRole('button', { name: 'Guide', exact: true });
+    await guide.click();
+    await expect.poll(depth).toBeLessThan(closed);
+    await page.getByRole('button', { name: 'Close the lab guide' }).click();
+    await expect.poll(depth).toBe(closed);
+    // Resized squarer, it's built deeper once the window holds still, and fills its room again.
+    await page.setViewportSize({ width: 1280, height: 1024 });
+    await expect.poll(depth, { timeout: 15_000 }).toBeGreaterThan(closed);
+    const { free, rows } = await blockRows(page);
+    const room = free.bottom - free.top;
+    expect((rows.top - free.top) / room, 'sky above').toBeLessThan(0.08);
+    expect((free.bottom - rows.bottom) / room, 'sky under').toBeLessThan(0.07);
+  });
+});

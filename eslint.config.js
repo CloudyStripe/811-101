@@ -8,6 +8,8 @@ export default defineConfig(
   {
     ignores: [
       'dist/',
+      // The owner's review copy (npm run review), a build like dist/.
+      'dist-review/',
       'node_modules/',
       'docs/',
       'playwright-report/',

@@ -104,8 +104,10 @@ for (const key of ['gas', 'gasoline'] as const) {
         stopById(id).title.text,
       );
       await expect(status(page)).toHaveText(stopSummary(id));
-      const next = i === tour.stops.length - 1 ? 'Take the quiz' : 'Next step';
-      await guide(page).getByRole('button', { name: next }).click();
+      // Next names the stop it goes to, and the last one, the quiz.
+      const on = tour.stops[i + 1];
+      const next = on ? `Next: ${stopById(on).label}` : 'Take the quiz';
+      await guide(page).getByRole('button', { name: next, exact: true }).click();
     }
     await expect(guide(page).getByRole('heading', { level: 2 })).toHaveText(
       'Quick check: 3 questions',
@@ -149,12 +151,14 @@ test('Start walks the shared start to the fork, where the way on is the choice o
   await guide(page).getByRole('button', { name: 'Start at the beginning' }).click();
   for (const step of [1, 2, 3]) {
     await expect(guide(page)).toContainText(`Step ${String(step)} of 4`);
-    await guide(page).getByRole('button', { name: 'Next step' }).click();
+    await guide(page)
+      .getByRole('button', { name: /^Next: / })
+      .click();
   }
   // The fork: the step bar's way on is the choice of path.
   await expect(guide(page)).toContainText('Step 4 of 4');
   await expect(status(page)).toHaveText(stopSummary('lifting'));
-  await expect(guide(page).getByRole('button', { name: 'Next step' })).toHaveCount(0);
+  await expect(guide(page).getByRole('button', { name: /^Next/ })).toHaveCount(0);
   await expect(filterChecked(page)).toHaveText('Both');
   await guide(page).getByRole('button', { name: 'Choose a path' }).click();
   await expect(guide(page).getByRole('button', { name: /Natural gas path/ })).toBeFocused();
@@ -170,7 +174,9 @@ test('Start walks the shared start to the fork, where the way on is the choice o
   // Back at the fork, the path chosen is marked, and Next goes on along it.
   await guide(page).getByRole('button', { name: 'Back', exact: true }).click();
   await expect(guide(page).getByRole('button', { name: /Gasoline path.*your path/ })).toBeVisible();
-  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await guide(page)
+    .getByRole('button', { name: /^Next: / })
+    .click();
   await expect(status(page)).toHaveText(stopSummary('crude-transport'));
 });
 
@@ -181,13 +187,17 @@ test('a stop opened from its marker steps along its own path; a shared one waits
   // A stop of a path: its path's steps, counting the shared start, on to its quiz.
   await openMarker(page, 'distillation');
   await expect(guide(page)).toContainText(`Step 6 of ${String(TOURS.gasoline.stops.length)}`);
-  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await guide(page)
+    .getByRole('button', { name: /^Next: / })
+    .click();
   await expect(status(page)).toHaveText(stopSummary('delivery'));
   // A stop of the shared start, with both paths showing: the choice waits at the fork.
   await guide(page).getByRole('button', { name: 'Overview', exact: true }).click();
   await openMarker(page, 'drilling');
   await expect(guide(page)).toContainText('Step 3 of 4');
-  await guide(page).getByRole('button', { name: 'Next step' }).click();
+  await guide(page)
+    .getByRole('button', { name: /^Next: / })
+    .click();
   await guide(page).getByRole('button', { name: 'Choose a path' }).click();
   await expect(guide(page).getByRole('button', { name: /Natural gas path/ })).toBeFocused();
   // Opening the gas plant from its marker goes down the natural gas path, which the view shows.
@@ -302,15 +312,59 @@ test.describe('on a phone', () => {
       'true',
     );
   });
+
+  test('the open guide, with more below, shows it, and More scrolls on to the end, focus kept in it', async ({
+    page,
+  }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Details' }).click();
+    const body = guide(page).locator('#gp-body');
+    const more = guide(page).getByRole('button', { name: 'More of the guide' });
+    // More of the overview's guide below than shows: its foot fades, and More sits there.
+    await expect(body).toHaveAttribute('data-more', '');
+    await expect(more).toBeVisible();
+    await more.tap();
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    // By keys to the end, where More goes: focus stays in the guide, so the arrows scroll it.
+    await more.focus();
+    await expect(async () => {
+      await page.keyboard.press('Enter');
+      await expect(more).toBeHidden({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+    await expect(body).not.toHaveAttribute('data-more');
+    await expect(body).toBeFocused();
+  });
+
+  test('stepping on from the guide’s words, where More leaves focus, moves focus to the new view’s heading', async ({
+    page,
+  }) => {
+    await open(page, '&stop=formation');
+    await page.getByRole('button', { name: 'Details' }).click();
+    const body = guide(page).locator('#gp-body');
+    const more = guide(page).getByRole('button', { name: 'More of the guide' });
+    await more.focus();
+    await expect(async () => {
+      await page.keyboard.press('Enter');
+      await expect(more).toBeHidden({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+    await expect(body).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(guide(page)).toContainText('Step 2 of 4');
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.activeElement?.matches('#gp-title, .sheet-summary') ?? false),
+      )
+      .toBe(true);
+  });
 });
 
-test("the parts' labels hide and show from the dock, and the stops' markers stay", async ({
+test("the view's labels hide and show from the dock, and the stops' markers stay", async ({
   page,
 }) => {
   await open(page, '&stop=city-gate');
   const parts = page.locator('.dlbl:not(.dlbl-clock):not(.off)');
   await expect(parts.first()).toBeVisible();
-  const toggle = dock(page).getByRole('button', { name: 'Labels on the parts' });
+  const toggle = dock(page).getByRole('button', { name: 'Labels', exact: true });
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   // On a wide screen it says its word, as the lab's does.
   await expect(toggle.getByText('Labels', { exact: true })).toBeVisible();
@@ -528,6 +582,7 @@ test('a definition shows on hover, and the time-lapse plays on request', async (
 });
 
 type Arrival = Window & { zooms?: string[]; pressedAt?: number };
+type Named = Window & { seen?: { zoom: string; named: number }[] };
 
 test.describe('with motion', () => {
   test.use({ reducedMotion: 'no-preference' });
@@ -566,6 +621,46 @@ test.describe('with motion', () => {
     expect(Number(zooms[0]), `zooms ${zooms.join(' ')}`).toBeGreaterThan(1.3);
     expect(Number(zooms[pressedAt - 1]), `zooms ${zooms.join(' ')}`).toBeGreaterThan(1);
     expect(zooms.slice(pressedAt)).toEqual(['1.00']);
+  });
+
+  test('while the view arrives the stops show by number, and their names fade in once it has settled', async ({
+    page,
+  }) => {
+    // The whole arrival, frame by frame, in software: a smaller view draws its frames sooner.
+    test.slow();
+    await page.setViewportSize({ width: 960, height: 600 });
+    // Every zoom the view reports, with how many stops were named at it, noted as each changes
+    // (in the frame that changes it, before anything else can look).
+    await page.addInitScript(() => {
+      const seen: { zoom: string; named: number }[] = [];
+      (window as Named).seen = seen;
+      new MutationObserver(() => {
+        const zoom = document.querySelector<HTMLElement>('.gp-canvas')?.dataset.zoom;
+        const named = document.querySelectorAll('.mk:not(.off):not(.compact)').length;
+        const last = seen.at(-1);
+        if (zoom !== undefined && (last?.zoom !== zoom || last.named !== named)) {
+          seen.push({ zoom, named });
+        }
+      }).observe(document, { subtree: true, attributeFilter: ['class', 'data-zoom'] });
+    });
+    await page.goto('utilities/gas-petroleum/?tier=low');
+    await page.waitForFunction(() => (window as Named).seen?.some((s) => s.named > 0), null, {
+      timeout: 240_000,
+    });
+    const seen = await page.evaluate(() => (window as Named).seen ?? []);
+    const at = seen.findIndex((s) => s.named > 0);
+    const log = seen.map((s) => `${s.zoom}:${String(s.named)}`).join(' ');
+    // From farther out, by number alone all the way in, and named only at the overview.
+    expect(Number(seen[0]?.zoom), log).toBeGreaterThan(1.3);
+    expect(at, log).toBeGreaterThan(0);
+    expect(seen[at]?.zoom, log).toBe('1.00');
+    // Fading in: the name's own animation, begun as it came.
+    const name = page.locator('.mk:not(.off):not(.compact) .lbl-text').first();
+    expect(
+      await name.evaluate((el) =>
+        el.getAnimations().some((a) => a instanceof CSSAnimation && a.animationName === 'name-in'),
+      ),
+    ).toBe(true);
   });
 
   test('paused, the view draws while a drag moves it, then sleeps', async ({ page }) => {
@@ -629,4 +724,69 @@ test('losing the graphics context: a clear message, then a clean recovery', asyn
   await expect(message).toBeHidden();
   // The view is drawn again, not left blank.
   await expect.poll(() => frames(), { message: 'drawn again' }).toBeGreaterThan(before);
+});
+
+test.describe('on a very narrow phone', () => {
+  test.use({
+    reducedMotion: 'reduce',
+    viewport: { width: 300, height: 640 },
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  test('Next says Next alone where the step bar has no room for the name, and still names it to screen readers', async ({
+    page,
+  }) => {
+    await page.goto('utilities/gas-petroleum/?tier=low&stop=pipeline');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    const next = page.locator('.gp-panel').getByRole('button', {
+      name: 'Next: Storage & shipping',
+      exact: true,
+    });
+    await expect(next).toBeVisible();
+    // What shows: the stop's name, hidden for want of room, isn't read by the eye.
+    await expect(next).toHaveText('Next', { useInnerText: true });
+  });
+});
+
+test.describe('with the guide closed beside the view', () => {
+  test.use({ reducedMotion: 'reduce', viewport: { width: 1024, height: 768 } });
+
+  test('the closed guide keeps its step bar on one row, Next alone, and opened, Next names its stop', async ({
+    page,
+  }) => {
+    // A long title, and a stop whose Next would need more room than the title gives it.
+    await page.goto('utilities/gas-petroleum/?tier=low&stop=gas-plant');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    const panel = page.locator('.gp-panel');
+    await expect(panel).toHaveAttribute('data-collapsed', '');
+    const next = panel.getByRole('button', { name: 'Next: Pipeline', exact: true });
+    await expect(next).toHaveText('Next', { useInnerText: true });
+    const back = panel.getByRole('button', { name: 'Back', exact: true });
+    const [nextBox, backBox] = await Promise.all([next.boundingBox(), back.boundingBox()]);
+    if (!nextBox || !backBox) throw new Error('no step bar');
+    expect(Math.abs(nextBox.y - backBox.y), 'Next on the row Back is on').toBeLessThan(4);
+    await panel.getByRole('button', { name: 'Open the guide' }).click();
+    await expect(next).toHaveText('Next: Pipeline', { useInnerText: true });
+  });
+});
+
+test.describe('with room', () => {
+  test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
+
+  test('Next names the stop it goes to', async ({ page }) => {
+    await page.goto('utilities/gas-petroleum/?tier=low&stop=pipeline');
+    await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+      timeout: 60_000,
+    });
+    await expect(
+      page
+        .locator('.gp-panel')
+        .getByRole('button', { name: 'Next: Storage & shipping', exact: true }),
+    ).toHaveText('Next: Storage & shipping', { useInnerText: true });
+  });
 });

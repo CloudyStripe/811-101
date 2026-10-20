@@ -3,12 +3,124 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BASE_PATH, BRAND, SITE_URL, escapeHtml } from '../../config/brand.ts';
 import { SECTIONS } from '../../content/portal.ts';
-import { PAGES, lessonPage, lessonTransition, pageById, posterPath } from './pages.ts';
-import { BOOT, CARDS_NAME, CARDS_SLOT, HERO_SLOT, LOADER_SLOT, renderPage } from './shell.ts';
-import { THEME_NAMES, heroPath, previewPath } from './stills.ts';
+import {
+  PAGES,
+  POSTER_SHAPES,
+  lessonPage,
+  lessonTransition,
+  pageById,
+  posterPath,
+  POSTER_TALL,
+} from './pages.ts';
+import { POSTER_PLACEHOLDERS, STILL_PLACEHOLDERS } from './placeholders.ts';
+import {
+  BOOT,
+  CARDS_NAME,
+  CARDS_SLOT,
+  HERO_SLOT,
+  LOADER_SLOT,
+  PICTURES_ATTR,
+  VIEWPORT,
+  picturesScript,
+  renderPage,
+} from './shell.ts';
+import { HERO_STACKS, THEME_NAMES, heroPath, previewPath } from './stills.ts';
 
 const render = (page: (typeof PAGES)[number]) => renderPage(readFileSync(page.html, 'utf8'), page);
 const count = (html: string, pattern: RegExp) => [...html.matchAll(pattern)].length;
+
+/**
+ * The script straight after a page's viewport tag. The pictures script goes there: before the
+ * fonts, styles and scripts, so it's asked for first, and after the tag a phone measures by.
+ */
+function afterViewport(html: string): string {
+  const viewport = VIEWPORT.exec(html);
+  if (!viewport) throw new Error('no viewport tag');
+  const rest = html.slice(viewport.index + viewport[0].length).trimStart();
+  return rest.slice(0, rest.indexOf('</script>') + '</script>'.length);
+}
+
+/** A tiny copy, inline, as the shell writes it. */
+const TINY = "url('data:image/webp;base64,";
+
+/**
+ * Runs a page's pictures script against a stand-in document: a saved theme (or none), the device's
+ * theme, whether the screen is upright, whether the portal's hero stacks, and whether the reader
+ * came from another page of the site (`fromSite`; else it's a first visit). Returns what it
+ * fetches for the page now (`hrefs`, at `priorities`), what it fetches once the page has loaded,
+ * for later (`later`), and what it marks the page with as each lands.
+ */
+function runPictures(
+  script: string,
+  {
+    saved,
+    dark,
+    stacks = false,
+    tall = false,
+    fromSite = true,
+  }: {
+    saved?: 'light' | 'dark';
+    dark: boolean;
+    stacks?: boolean;
+    tall?: boolean;
+    fromSite?: boolean;
+  },
+) {
+  interface Link {
+    rel?: string;
+    as?: string;
+    href?: string;
+    priority?: string;
+    onload?: () => void;
+  }
+  const links: Link[] = [];
+  const loaded: (() => void)[] = [];
+  const root = { dataset: (saved ? { theme: saved } : {}) as Record<string, string> };
+  const origin = 'https://example.test';
+  const document = {
+    documentElement: root,
+    referrer: fromSite ? `${origin}${BASE_PATH}` : 'https://elsewhere.test/',
+    head: {
+      appendChild: (link: Link) => {
+        // A preload starts at once, so it must be set up before it's put in.
+        if (link.rel === 'preload') expect(link.as, link.href).toBe('image');
+        links.push(link);
+      },
+    },
+    createElement: (): Link & { setAttribute: (name: string, value: string) => void } => ({
+      setAttribute(this: Link, name: string, value: string) {
+        if (name === 'fetchpriority') this.priority = value;
+      },
+    }),
+  };
+  const matchMedia = (query: string) => ({
+    matches: query.includes('prefers-color-scheme') ? dark : query === POSTER_TALL ? tall : stacks,
+  });
+  const addEventListener = (type: string, listener: () => void) => {
+    if (type === 'load') loaded.push(listener);
+  };
+  // The script as a page runs it, with the stand-ins for the page's globals.
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- running the page's own script
+  const run = new Function('document', 'matchMedia', 'addEventListener', 'location', script) as (
+    doc: typeof document,
+    media: typeof matchMedia,
+    listen: typeof addEventListener,
+    where: { origin: string },
+  ) => void;
+  run(document, matchMedia, addEventListener, { origin });
+  const now = [...links];
+  for (const link of now) link.onload?.();
+  for (const listener of loaded) listener();
+  const later = links.filter((link) => !now.includes(link));
+  expect(now.every((link) => link.rel === 'preload')).toBe(true);
+  expect(later.every((link) => link.rel === 'prefetch')).toBe(true);
+  return {
+    hrefs: now.map((l) => l.href),
+    priorities: now.map((l) => l.priority),
+    later: later.map((l) => l.href),
+    root,
+  };
+}
 
 describe('renderPage', () => {
   it.each(PAGES)('$id: charset in the first 1024 bytes, then the settings script', (page) => {
@@ -62,8 +174,11 @@ describe('renderPage', () => {
     expect(html.includes('class="scene-loader"')).toBe(page.scene);
     if (page.scene) {
       // From public/, root-relative: the build puts the base path in front.
-      expect(html).toContain(`url('/${posterPath(page, 'light')}')`);
-      expect(html).toContain(`url('/${posterPath(page, 'dark')}')`);
+      for (const theme of THEME_NAMES) {
+        for (const shape of POSTER_SHAPES) {
+          expect(html).toContain(`url('/${posterPath(page, theme, shape)}')`);
+        }
+      }
       // Without script, no view loads, so no loader shows.
       expect(html).toContain(
         '<noscript><style>.scene-loader { display: none; }</style></noscript>',
@@ -125,6 +240,110 @@ describe('renderPage', () => {
     '$id: its loader poster carries on from its preview on the portal',
     (page) => {
       expect(render(page)).toContain(`--lesson-transition: ${lessonTransition(page.id)}`);
+    },
+  );
+
+  it.each(PAGES.filter((page) => page.scene))(
+    '$id: its loader stands its poster over a tiny copy of it, inline, in each theme and shape',
+    (page) => {
+      const html = render(page);
+      for (const theme of THEME_NAMES) {
+        for (const shape of POSTER_SHAPES) {
+          expect(html).toContain(`--poster-${theme}-${shape}-tiny: ${TINY}`);
+          expect(POSTER_PLACEHOLDERS[posterPath(page, theme, shape)]).toBeDefined();
+        }
+      }
+    },
+  );
+
+  it.each(PAGES.filter((page) => page.scene))(
+    '$id: its head fetches the poster in the reader’s theme and the screen’s shape, and marks the page once it’s in',
+    (page) => {
+      const script = picturesScript(page);
+      if (!script) throw new Error('no pictures script');
+      expect(afterViewport(render(page)), 'straight after the viewport tag').toBe(
+        `<script ${PICTURES_ATTR}>${script}</script>`,
+      );
+      const url = (theme: 'light' | 'dark', shape: 'wide' | 'tall') =>
+        `${BASE_PATH}${posterPath(page, theme, shape)}`;
+      expect(runPictures(script, { dark: false }).hrefs).toEqual([url('light', 'wide')]);
+      expect(runPictures(script, { dark: true }).hrefs).toEqual([url('dark', 'wide')]);
+      expect(runPictures(script, { dark: false, tall: true }).hrefs).toEqual([
+        url('light', 'tall'),
+      ]);
+      // A theme chosen in the settings wins over the device's.
+      expect(runPictures(script, { saved: 'light', dark: true, tall: true }).hrefs).toEqual([
+        url('light', 'tall'),
+      ]);
+      // The stylesheet picks the same shape.
+      expect(readFileSync('src/site/site.css', 'utf8')).toContain(`@media ${POSTER_TALL} {`);
+      const run = runPictures(script, { dark: false });
+      expect(run.priorities).toEqual(['high']);
+      expect(run.root.dataset.poster).toBe('ready');
+      // A first visit asks only for what it needs to paint: its styles find the poster after.
+      expect(runPictures(script, { dark: false, fromSite: false }).hrefs).toEqual([]);
+    },
+  );
+
+  it('the portal: its head fetches the hero, where it shows, and the previews, in the reader’s theme', () => {
+    const script = picturesScript(pageById('portal'));
+    if (!script) throw new Error('no pictures script');
+    expect(afterViewport(render(pageById('portal'))), 'straight after the viewport tag').toBe(
+      `<script ${PICTURES_ATTR}>${script}</script>`,
+    );
+    const lessons = SECTIONS.flatMap((section) => section.lessons);
+    const previews = (theme: 'light' | 'dark') =>
+      lessons.map((lesson) => `${BASE_PATH}${previewPath(lesson.image, theme)}`);
+    expect(runPictures(script, { dark: false, stacks: false }).hrefs).toEqual([
+      `${BASE_PATH}${heroPath('light')}`,
+      ...previews('light'),
+    ]);
+    expect(runPictures(script, { saved: 'dark', dark: false, stacks: false }).hrefs).toEqual([
+      `${BASE_PATH}${heroPath('dark')}`,
+      ...previews('dark'),
+    ]);
+    // Where the hero stacks, it shows no model, so its still isn't fetched.
+    expect(runPictures(script, { dark: false, stacks: true }).hrefs).toEqual(previews('light'));
+    // A first visit asks only for what it needs to paint: its styles find the pictures after.
+    expect(runPictures(script, { dark: false, fromSite: false }).hrefs).toEqual([]);
+    // Once it's in, each lesson's poster, in the theme and the screen's shape, for later, on a
+    // first visit too.
+    const posters = (theme: 'light' | 'dark', shape: 'wide' | 'tall') =>
+      lessons.map((lesson) => `${BASE_PATH}${posterPath(lessonPage(lesson), theme, shape)}`);
+    expect(runPictures(script, { dark: false }).later).toEqual(posters('light', 'wide'));
+    expect(runPictures(script, { dark: true, tall: true }).later).toEqual(posters('dark', 'tall'));
+    expect(runPictures(script, { dark: false, fromSite: false }).later).toEqual(
+      posters('light', 'wide'),
+    );
+    expect(readFileSync('src/pages/portal/portal.css', 'utf8')).toContain(
+      `@media ${HERO_STACKS} {`,
+    );
+  });
+
+  it('the portal: its hero and its previews stand over tiny copies of themselves, inline', () => {
+    const html = render(pageById('portal'));
+    for (const theme of THEME_NAMES) {
+      expect(html).toContain(`--hero-${theme}-tiny: ${TINY}`);
+      expect(STILL_PLACEHOLDERS[heroPath(theme)]).toBeDefined();
+    }
+    const previews = [...html.matchAll(/<img class="card-image"[^>]*>/g)].map(([tag]) => tag);
+    expect(previews.length).toBeGreaterThan(0);
+    for (const tag of previews) expect(tag).toContain(`style="--tiny: ${TINY}`);
+  });
+
+  it('every placeholder is a tiny WebP, inline', () => {
+    const all = { ...STILL_PLACEHOLDERS, ...POSTER_PLACEHOLDERS };
+    expect(Object.keys(all).length).toBeGreaterThan(0);
+    for (const [path, uri] of Object.entries(all)) {
+      expect(uri, path).toMatch(/^data:image\/webp;base64,UklGR[A-Za-z0-9+/=]+$/);
+      expect(uri.length, path).toBeLessThan(1200);
+    }
+  });
+
+  it.each(PAGES.filter((page) => !page.scene && page.id !== 'portal'))(
+    '$id: no pictures to fetch first, so no script for them',
+    (page) => {
+      expect(picturesScript(page)).toBeNull();
     },
   );
 

@@ -68,6 +68,31 @@ body {
   box-shadow: var(--shadow-1);
 }
 
+/*
+ * The view's full-bleed stage runs under the guide, the dock and the camera's buttons, so the
+ * poster a lesson's preview carries in, as the page changes, would be drawn over them. Named while
+ * the view loads, each takes part in the change on its own, drawn over the poster as it is over the
+ * view.
+ */
+:root:not([data-scene-ready]) .gp-panel {
+  view-transition-name: gp-panel;
+}
+
+:root:not([data-scene-ready]) .gp-dock {
+  view-transition-name: gp-dock;
+}
+
+:root:not([data-scene-ready]) .gp-camera {
+  view-transition-name: gp-camera;
+}
+
+/* Arriving, they come in as the rest of the page does (base.css). */
+::view-transition-new(gp-panel),
+::view-transition-new(gp-dock),
+::view-transition-new(gp-camera) {
+  animation: var(--dur-slow) var(--ease) both page-in;
+}
+
 .stage-message {
   position: relative;
   z-index: 1;
@@ -83,7 +108,7 @@ body {
   text-align: center;
 }
 
-/* The dock: the path switch, the pause and the parts' labels. */
+/* The dock: the path switch, the pause and the labels' switch. */
 .gp-dock {
   grid-area: dock;
   align-self: end;
@@ -125,7 +150,7 @@ body {
 }
 
 /*
- * The parts' labels, beside the pause: a pill with its word, as in the lab, filled while they
+ * The labels' switch, beside the pause: a pill with its word, as in the lab, filled while the names
  * show; on phones, short screens and narrow windows, a round button by its icon alone.
  */
 .gp-dock .dock-labels {
@@ -159,11 +184,6 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* Until the view is built, the buttons hold their place out of sight, so it's framed clear of them. */
-.gp-camera:not([data-ready]) {
-  visibility: hidden;
 }
 
 /* Under the open sheet, as the view is: out of sight, and (inert) out of reach. */
@@ -402,11 +422,8 @@ body {
   font-weight: 800;
 }
 
+/* The guide's body scrolls in its ScrollMore (components.css), which shows when there's more. */
 .gp-panel .panel-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
@@ -861,6 +878,7 @@ body {
  * the guide is too narrow for all of it in a row, its way on takes a row of its own, on the right.
  */
 .stepbar {
+  container: stepbar / inline-size;
   display: flex;
   flex: none;
   flex-wrap: wrap;
@@ -877,6 +895,15 @@ nav.stepbar > :last-child {
 .stepbar .button {
   padding: 0 var(--space-3);
   gap: 6px;
+}
+
+/* Next names where it goes, but where the bar is too narrow for the longest name on a row of its
+   own, it says Next alone. (Wider text, as spacing set by the reader makes it, wraps in the
+   button rather than being cut off.) */
+@container stepbar (max-width: 17rem) {
+  .stepbar-to {
+    display: none;
+  }
 }
 
 .stepbar-overview,
@@ -1024,8 +1051,9 @@ nav.stepbar > :last-child {
 
 /*
  * A stop's marker on the model: its numbered badge, a tab with its path's icon, and its name beside
- * them, on the right, or with .left, the left. Without its name (.compact), the badge shows alone,
- * and hovered, shows its name over the others. The label layer places it (.lbl, components.css).
+ * them, on the right, or with .left, the left. Without its name (.compact), the badge shows alone.
+ * The label layer places it (.lbl, components.css), and names it while it's focused or under the
+ * mouse, over the others.
  */
 .mk-btn {
   display: flex;
@@ -1112,6 +1140,27 @@ nav.stepbar > :last-child {
   padding: 0 17px 0 9px;
 }
 
+/* A marker given its name, as the view settles or makes room for it, fades it in. */
+.mk:not(.compact) .lbl-text {
+  animation: var(--dur) var(--ease) both name-in;
+}
+
+@keyframes name-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .mk:not(.compact) .lbl-text {
+    animation: none;
+  }
+}
+
+:root[data-motion='reduce'] .mk:not(.compact) .lbl-text {
+  animation: none;
+}
+
 /* The stop the view is at: its name in ink, as its badge is. */
 .mk[data-tier='current'] .lbl-text {
   border-color: var(--ink);
@@ -1136,8 +1185,8 @@ nav.stepbar > :last-child {
     border-color: var(--ink-3);
   }
 
-  /* A marker shown without its name, for want of room, shows it while hovered, over the others. */
-  .mk.compact:hover {
+  /* Under the mouse, named by the label layer however crowded, over the others. */
+  .mk:hover {
     z-index: 3;
   }
 
@@ -1147,14 +1196,6 @@ nav.stepbar > :last-child {
 
   .mk[data-faded]:hover .pshape-in {
     color: var(--ink);
-  }
-
-  .mk.compact:hover .lbl-text {
-    position: static;
-    width: auto;
-    height: 22px;
-    overflow: visible;
-    clip-path: none;
   }
 }
 
@@ -1226,16 +1267,21 @@ nav.stepbar > :last-child {
     gap: var(--space-3);
   }
 
-  .gp-panel[data-collapsed] .panel-body {
+  .gp-panel[data-collapsed] .scroll-more {
     display: none;
   }
 
-  /* Closed, the guide is its title over the step bar, the way in without its note. */
+  /*
+   * Closed, the guide is its title over the step bar, the way in without its note, as wide as the
+   * wider of the two: so the bar is sized by its buttons, not a container, and Next says Next
+   * alone, as it does wherever the bar is narrow.
+   */
   .gp-panel[data-collapsed] .stepbar {
+    container-type: normal;
     border-top: 0;
   }
 
-  .gp-panel[data-collapsed] .stepbar-note {
+  .gp-panel[data-collapsed] :is(.stepbar-note, .stepbar-to) {
     display: none;
   }
 }
@@ -1319,7 +1365,7 @@ nav.stepbar > :last-child {
     cursor: pointer;
   }
 
-  .gp-panel:not([data-open]) .panel-body {
+  .gp-panel:not([data-open]) .scroll-more {
     display: none;
   }
 

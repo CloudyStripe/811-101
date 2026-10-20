@@ -314,7 +314,8 @@ export const CHIP_INK = '#1b1a17';
 
 /**
  * The locate signal's own color: a luminous cyan, chosen to sit well away from every APWA hue
- * (checked in tokens.test.ts). Strength is shown by brightness, never by a change of color.
+ * (checked in tokens.test.ts). Strength is shown by brightness (on the telecom cable, by how bright
+ * and how wide its bands are), never by a change of color.
  */
 export const SIGNAL_COLOR = '#4fe3ff';
 

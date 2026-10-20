@@ -16,7 +16,10 @@ export interface Settings {
   theme: ThemeSetting;
   motion: MotionSetting;
   quality: QualitySetting;
-  /** The labels on the 3D views' tools, lines and parts: the diorama's stop markers always show. */
+  /**
+   * The names in the 3D views, on the lab's tools and lines and the diorama's stops and parts. Off,
+   * the diorama's stop markers still show, each named only while it's hovered or focused.
+   */
   labels: LabelsSetting;
 }
 
@@ -38,8 +41,8 @@ export const SETTINGS_KEY = '811-101.settings';
  * Chromium sometimes does when a link is followed the moment a page loads. The transition's
  * promises then reject, harmlessly, and would otherwise be reported as uncaught errors. And the
  * header, which holds still between pages, takes part only when it's on screen: on a scrolled page
- * it has gone, and would otherwise slide back in. The change revealing this page is kept, so the
- * page's code can wait for it (src/site/arrival.ts).
+ * it has gone, and would otherwise slide back in. The change revealing this page is kept, and that
+ * the page has been revealed at all, so the page's code can wait for both (src/site/arrival.ts).
  */
 export function bootScript(): string {
   return `try {
@@ -50,6 +53,7 @@ export function bootScript(): string {
 if (typeof addEventListener === 'function') {
   ['pageswap', 'pagereveal'].forEach(function (type) {
     addEventListener(type, function (event) {
+      if (type === 'pagereveal') window.__revealed = true;
       var t = event.viewTransition;
       if (!t) return;
       [t.ready, t.finished, t.updateCallbackDone].forEach(function (p) { p.catch(function () {}); });

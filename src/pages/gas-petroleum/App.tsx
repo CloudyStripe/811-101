@@ -7,9 +7,11 @@ import {
   type StopId,
 } from '../../../content/utilities/gas-petroleum.ts';
 import { Icon } from '../../design/icons.tsx';
+import { ScrollMore } from '../../design/ScrollMore.tsx';
 import type { Box, VisibleArea } from '../../kit3d/camera.ts';
 import { TAP_SLOP } from '../../kit3d/input.ts';
 import { parseTier } from '../../kit3d/quality.ts';
+import { revealed } from '../../site/arrival.ts';
 import { pageById } from '../../site/pages.ts';
 import { SceneLoader } from '../../site/SceneLoader.tsx';
 import { reducesMotion } from '../../site/settings.ts';
@@ -44,6 +46,8 @@ const STOP_IDS = STOPS.map((s) => s.id);
 const INITIAL_STOP: StopId | null = STOP_IDS.find((id) => id === params.get('stop')) ?? null;
 const TIER_PARAM = parseTier(params.get('tier'));
 const CAPTURE = params.has('capture');
+/** With capture, the view held where its arrival starts, as the loader's poster shows it. */
+const ARRIVAL = params.has('arrival');
 const PERF = params.has('perf');
 /** What lands the establishing move: any input at all. */
 const LAND_ON = ['pointerdown', 'keydown', 'wheel'] as const;
@@ -74,14 +78,15 @@ const FREE: AtLimits = { tiltUp: false, tiltDown: false, zoomIn: false, zoomOut:
 
 const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
 
+/** A control over the view, in the view's own pixels, with room around it the labels keep clear of. */
 function rectWithin(el: Element, container: DOMRect): Rect | null {
   const r = el.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return null;
   return {
-    x: r.left - container.left - 6,
-    y: r.top - container.top - 6,
-    w: r.width + 12,
-    h: r.height + 12,
+    x: r.left - container.left - 10,
+    y: r.top - container.top - 10,
+    w: r.width + 20,
+    h: r.height + 20,
   };
 }
 
@@ -146,8 +151,11 @@ export function App() {
   const [moved, setMoved] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [settings, setSettings] = useSettings();
-  /** The small labels on the stops' parts show; the stops' markers always do. */
-  const partLabels = settings.labels === 'on';
+  /**
+   * The names in the view show: the stops' and the small labels on their parts. Off, the numbered
+   * markers still show, each named only while it's hovered or focused.
+   */
+  const labelsShown = settings.labels === 'on';
   const sheet = useSheetLayout();
   /** The open sheet covers the view: the view, its buttons and the hint are out of reach under it. */
   const covered = sheet && sheetOpen && sheetCovers();
@@ -246,6 +254,10 @@ export function App() {
     };
 
     void (async () => {
+      // Not while the page change into the diorama is still animating: building the view holds up
+      // the page, and the change with it; nor, for the same reason, saying it can't be built.
+      await revealed();
+      if (cancelled()) return;
       if (!document.createElement('canvas').getContext('webgl2')) {
         setFailed(NO_WEBGL);
         return;
@@ -265,6 +277,7 @@ export function App() {
           theme: resolvedTheme(),
           reducedMotion: reducesMotion(s.motion, reducedMotionQuery.matches),
           capture: CAPTURE,
+          arrival: ARRIVAL,
           perf: PERF,
           visibleArea,
           noGo,
@@ -291,7 +304,7 @@ export function App() {
         scene.setTheme(resolvedTheme());
         scene.setReducedMotion(reducesMotion(now.settings.motion, reducedMotionQuery.matches));
         scene.setPaused(now.paused);
-        scene.setPartLabels(now.settings.labels === 'on');
+        scene.setLabels(now.settings.labels === 'on');
         scene.setFilter(now.filter);
         setLimits(scene.limits);
         setReady(true);
@@ -363,8 +376,8 @@ export function App() {
     sceneRef.current?.setPaused(paused);
   }, [paused]);
   useEffect(() => {
-    sceneRef.current?.setPartLabels(partLabels);
-  }, [partLabels]);
+    sceneRef.current?.setLabels(labelsShown);
+  }, [labelsShown]);
   useEffect(() => {
     const scene = sceneRef.current;
     scene?.setTheme(resolvedTheme());
@@ -503,16 +516,19 @@ export function App() {
 
   // A control in the guide that changes the view is often gone with the old view: a stop on the
   // map, the button to the next stop. Then focus moves to the new view's heading (or, on phones,
-  // the sheet's summary), so the reader hears where they are and keeps their place.
+  // the sheet's summary), so the reader hears where they are and keeps their place. So it does
+  // from the guide's words themselves, or their More button, where More leaves focus.
   const viewKey = `${stop ?? ''}/${journey?.quiz ? (journey.path ?? '') : ''}`;
   const shownView = useRef(viewKey);
   useEffect(() => {
     if (shownView.current === viewKey) return;
     shownView.current = viewKey;
     // A new view's words start at their top, wherever the last one's were read to.
-    document.getElementById('gp-body')?.scrollTo({ top: 0 });
+    const body = document.getElementById('gp-body');
+    body?.scrollTo({ top: 0 });
     const active = document.activeElement;
-    if (active && active !== document.body) return;
+    const onWords = active !== null && (active === body || active === body?.nextElementSibling);
+    if (active && active !== document.body && !onWords) return;
     const heading = [
       ...document.querySelectorAll<HTMLElement>('#gp-title, .gp-panel .sheet-summary'),
     ].find((el) => el.offsetParent !== null);
@@ -639,6 +655,13 @@ export function App() {
     setMoved(true);
   }
 
+  /** Names the marker the pointer is now over, if any, as the scene names a focused one. */
+  function hoverOver(target: EventTarget | null) {
+    const marker = target instanceof Element ? target.closest<HTMLElement>('.mk') : null;
+    const id = marker?.dataset.label;
+    sceneRef.current?.setHovered(STOP_IDS.find((stopId) => stopId === id) ?? null);
+  }
+
   function refreshLabels() {
     sceneRef.current?.refreshLabels();
   }
@@ -715,7 +738,7 @@ export function App() {
         </button>
       </div>
       {sheet && stepBar}
-      <div class="panel-body" id="gp-body">
+      <ScrollMore class="panel-body" id="gp-body" label="More of the guide">
         {quizPath ? (
           <QuizPanel
             path={quizPath}
@@ -746,7 +769,7 @@ export function App() {
             onOpen={open}
           />
         )}
-      </div>
+      </ScrollMore>
       {!sheet && stepBar}
     </aside>
   );
@@ -758,7 +781,7 @@ export function App() {
       onFilter={setFilter}
       paused={paused}
       onPause={setPaused}
-      labels={partLabels}
+      labels={labelsShown}
       onLabels={(on) => {
         setSettings({ ...settings, labels: on ? 'on' : 'off' });
       }}
@@ -804,6 +827,13 @@ export function App() {
           hidden={failed !== null}
           onFocusIn={refreshLabels}
           onFocusOut={refreshLabels}
+          // A marker under the mouse is named on a side with room; a touch names it by focus.
+          onPointerOver={(event) => {
+            if (event.pointerType !== 'touch') hoverOver(event.target);
+          }}
+          onPointerOut={(event) => {
+            if (event.pointerType !== 'touch') hoverOver(event.relatedTarget);
+          }}
         >
           <div class="details" ref={detailRef} />
           {STOPS.map(({ id, path }) => (

@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SECTIONS } from '../../content/portal.ts';
-import { PAGES, pageForHtml, posterPath, sectionOf } from './pages.ts';
+import { PAGES, POSTER_SHAPES, pageForHtml, posterPath, sectionOf } from './pages.ts';
 
 describe('the pages', () => {
   it('have unique ids, files and addresses', () => {
@@ -23,7 +23,10 @@ describe('the pages', () => {
     expect(existsSync(`public/share/${page.share.image}`), page.share.image).toBe(true);
     if (page.scene) {
       for (const theme of ['light', 'dark'] as const) {
-        expect(existsSync(`public/${posterPath(page, theme)}`), theme).toBe(true);
+        for (const shape of POSTER_SHAPES) {
+          const path = posterPath(page, theme, shape);
+          expect(existsSync(`public/${path}`), path).toBe(true);
+        }
       }
     }
   });

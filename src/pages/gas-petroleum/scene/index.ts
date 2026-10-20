@@ -63,6 +63,11 @@ export interface DioramaSceneOptions {
   theme: ThemeName;
   reducedMotion: boolean;
   capture: boolean;
+  /**
+   * With `capture`: the view held where the establishing move starts, as the loader's poster shows
+   * it, so the view takes over from the poster with no jump (`npm run thumbnails` shoots it so).
+   */
+  arrival?: boolean;
   perf: boolean;
   /** The part of the canvas the panel and controls leave free, in CSS pixels. */
   visibleArea: () => VisibleArea;
@@ -124,8 +129,17 @@ export interface DioramaScene {
   relayout(ease?: boolean): void;
   /** Places labels again, now: when a label gains focus. */
   refreshLabels(): void;
-  /** Shows or hides the small labels on the stops' parts; the stops' markers always show. */
-  setPartLabels(shown: boolean): void;
+  /**
+   * The stop whose marker is under the mouse, or null: it's named as a focused one is, on a side of
+   * its badge with room for its name, clear of the controls.
+   */
+  setHovered(id: StopId | null): void;
+  /**
+   * Shows or hides every name in the view: the small labels on the stops' parts, and the stops'
+   * names, which then show only on a marker that's hovered or focused. The numbered markers always
+   * show, since they're how to get around.
+   */
+  setLabels(shown: boolean): void;
   dispose(): void;
 }
 
@@ -134,6 +148,13 @@ const TALL = 1.05;
 
 /** How long the establishing move takes to settle, in seconds: most of `MOTION.establish`. */
 const ESTABLISH_SETTLE = MOTION.establish / 1000 / 3;
+
+/**
+ * The establishing move has settled, to the eye, once what's left of it is this share of the
+ * camera's distance: a pixel or two at the view's edges. Its ease goes on for seconds more, too
+ * little to see, and the stops' names needn't wait for it.
+ */
+const ARRIVED_WITHIN = 0.002;
 
 /** Builds the scene. If building fails, the renderer it made is released before the error. */
 export async function createDioramaScene(o: DioramaSceneOptions): Promise<DioramaScene> {
@@ -161,6 +182,10 @@ async function buildDiorama(
   let lapseThroughPause = false;
   let disposed = false;
   let labelsDirty = true;
+  /** Whether the view shows its names (the labels setting). */
+  let named = true;
+  /** The stop whose marker is under the mouse. */
+  let hovered: StopId | null = null;
   /** Seconds of motion so far: the clock every machine and bead runs on. */
   let time = 3;
   let shown: StopId | null = null;
@@ -183,8 +208,20 @@ async function buildDiorama(
   } | null = null;
   /** The reader has moved the camera since the view was last framed for them. */
   let movedByReader = false;
-  /** The establishing move is under way: framed again meanwhile (the fonts in, say), it heads there. */
+  /**
+   * The establishing move is under way: framed again meanwhile (the fonts in, say), it heads there.
+   * Meanwhile the stops show by number alone, as names would come and go as the view closes in.
+   */
   let arriving = false;
+  /** Ends the establishing move's hold on the stops' names: they're placed again, now. */
+  function arrived() {
+    if (!arriving) return;
+    arriving = false;
+    labelsDirty = true;
+    redraw();
+  }
+  /** Held where the establishing move starts (`arrival`, with capture): framed again, it stays there. */
+  let heldArriving = false;
   /** The limits last told to the UI. */
   let toldLimits = '';
   const timeLapse: { current: TimeLapse | null } = { current: null };
@@ -340,9 +377,8 @@ async function buildDiorama(
       labelsDirty = true;
       tellLimits();
       markCamera();
-    } else {
-      arriving = false;
     }
+    if (!turning || (arriving && rig.remaining() < ARRIVED_WITHIN)) arrived();
     gradeGround();
     const following = moving && stops.some((s) => s.id === shown && s.follows);
     if (labelsDirty || lapsing || following) {
@@ -507,7 +543,7 @@ async function buildDiorama(
       },
       moved() {
         movedByReader = true;
-        arriving = false;
+        arrived();
         o.onMoved?.();
       },
     },
@@ -567,6 +603,19 @@ async function buildDiorama(
   /** Camera moves are cuts with motion reduced, and in capture mode. */
   const instantMoves = () => reducedMotion || o.capture;
 
+  /** Where the establishing move into a pose starts: farther out and higher, looking the same way. */
+  function arrivalFrom(to: CameraPose): CameraPose {
+    const out = to.position.clone().sub(to.target).multiplyScalar(1.8);
+    return {
+      position: to.target
+        .clone()
+        .add(out)
+        .add(new Vector3(0, 30, 0)),
+      target: to.target.clone(),
+      fov: to.fov,
+    };
+  }
+
   /**
    * Frames the open view in the room the view has now: the camera moves to the view's framing in
    * it (a cut, unless `move`), and the area and the picture's slide glide there along with it
@@ -594,7 +643,8 @@ async function buildDiorama(
     rig.setLimits(limitsIn(area));
     if (pose) {
       movedByReader = false;
-      if (arriving) rig.lookAt(pose, true, ESTABLISH_SETTLE);
+      if (heldArriving) rig.lookAt(arrivalFrom(pose), false);
+      else if (arriving) rig.lookAt(pose, true, ESTABLISH_SETTLE);
       else rig.lookAt(pose, move);
     }
     tellLimits();
@@ -613,17 +663,22 @@ async function buildDiorama(
     const free = { x: area.x, y: area.y, w: area.width, h: area.height };
     // Every stop's marker shows. The open stop's is named however crowded; the rest are named in
     // the story's order where there's room, step by step, the path the view shows first after the
-    // fork; a path faded back shows by number alone, and comes last.
+    // fork; a path faded back shows by number alone, and comes last. With the labels off, every
+    // marker shows by number alone, the open stop's too, but for one hovered or focused; and so
+    // while the view arrives, until it has settled, when the names come in.
     const first = filter === 'gasoline' ? 'gasoline' : 'gas';
     for (const label of labelList) {
       const stop = stops.find((s) => s.id === label.id);
       if (!stop) continue;
       const faded = dimmed(stop.path) && label.id !== shown;
       const rank = stop.step * 2 + (stop.path === 'shared' || stop.path === first ? 0 : 1);
-      label.priority = -rank - (faded ? 100 : 0);
-      label.highlight = label.id === shown;
-      // Faded back, by its badge alone, unless it's focused.
-      label.badgeOnly = faded;
+      // The open stop's marker first, named or not, so no other badge takes its place.
+      label.priority = (label.id === shown ? 1000 : 0) - rank - (faded ? 100 : 0);
+      label.highlight = named && label.id === shown;
+      label.hovered = label.id === hovered;
+      // Faded back, with the labels off or while the view arrives, by its badge alone, unless
+      // it's focused.
+      label.badgeOnly = faded || !named || arriving;
     }
     // A view too short for names, as on a phone with the guide open, shows them by number alone,
     // but for the open stop and a focused one.
@@ -677,6 +732,9 @@ async function buildDiorama(
       return rig.atLimits();
     },
     show(stop, options = {}) {
+      // Opened while the view arrives, as by a screen reader's click, which lands nothing first: the
+      // arrival ends, so the stop's marker is named and the view moves to it as to any stop.
+      arrived();
       // Leaving the formation, a time-lapse held at a step goes back to today.
       const lapse = timeLapse.current;
       if (stop !== 'formation' && lapse && !lapse.playing && lapse.state.progress < 1) {
@@ -764,24 +822,22 @@ async function buildDiorama(
       return best;
     },
     establish() {
-      if (instantMoves() || shown !== null || !shownArea) return;
+      const held = o.capture && o.arrival === true;
+      if ((instantMoves() && !held) || shown !== null || !shownArea) return;
       // From farther out and higher, looking the same way: the whole site comes into view.
       const to = rig.pose(camera.fov, true);
-      const out = to.position.clone().sub(to.target).multiplyScalar(1.8);
-      const from = {
-        position: to.target
-          .clone()
-          .add(out)
-          .add(new Vector3(0, 30, 0)),
-        target: to.target.clone(),
-        fov: to.fov,
-      };
-      rig.lookAt(from, false);
+      rig.lookAt(arrivalFrom(to), false);
+      // Held where it starts, for the poster: the move's first frame.
+      if (held) {
+        heldArriving = true;
+        redraw();
+        return;
+      }
       rig.lookAt(to, true, ESTABLISH_SETTLE);
       arriving = true;
     },
     land() {
-      arriving = false;
+      arrived();
       rig.land();
     },
     playTimeLapse() {
@@ -800,7 +856,13 @@ async function buildDiorama(
     refreshLabels() {
       placeLabels();
     },
-    setPartLabels(shown) {
+    setHovered(id) {
+      if (hovered === id) return;
+      hovered = id;
+      placeLabels();
+    },
+    setLabels(shown) {
+      named = shown;
       details.setPartsShown(shown);
       labelsDirty = true;
       redraw();
