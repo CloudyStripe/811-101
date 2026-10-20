@@ -21,7 +21,7 @@ import type { MarkId } from '../game.ts';
 import { buildBuildings } from './buildings.ts';
 import { buildFixtures } from './fixtures.ts';
 import { buildGround, groundMaterials, type Ground } from './ground.ts';
-import { BLOCK, GARAGE, HOUSE, MARKS, segmentsOf, topAt } from './layout.ts';
+import { BANDS, BLOCK, GARAGE, HOUSE, MARKS, segmentsOf, topAt } from './layout.ts';
 import { buildLines } from './lines.ts';
 import { buildMarks } from './marks.ts';
 import { OPEN_MS } from './palette.ts';
@@ -131,6 +131,8 @@ async function buildMarksScene(
   let labelsShown = true;
   let labelsDirty = true;
   let disposed = false;
+  /** While the graphics context is lost, the ground waits to be built again until it's back. */
+  let lost = false;
   let state = o.state;
   /** How open each line's ground is, 0 to 1, and where it's headed. */
   const openness = new Map<MarkId, { t: number; want: number }>(
@@ -165,11 +167,14 @@ async function buildMarksScene(
         lighting.setShadowQuality(settings.shadowMapSize, settings.shadowRadius);
       },
       contextLost() {
+        lost = true;
         o.onContextLost?.();
       },
       contextRestored() {
+        lost = false;
         lighting.restore(labSceneTokens(theme));
-        // What the ground had uploaded went with the context: it's built afresh.
+        // What the ground had uploaded went with the context: it's built afresh, for the lines
+        // open now.
         rebuildGround(true);
         labelsDirty = true;
         o.onContextRestored?.();
@@ -198,16 +203,21 @@ async function buildMarksScene(
   /** The lines the ground is cut along now. */
   let cutFor: MarkId[] = [];
 
-  /** Builds the ground cut along every line that's open or opening; whole when none is. */
-  function rebuildGround(lost = false) {
+  /**
+   * Builds the ground cut along every line that's open or opening; whole when none is. With the
+   * graphics context lost, it waits: the restored context builds it afresh.
+   */
+  function rebuildGround(afresh = false) {
+    if (lost) return;
     const open = MARKS.filter((m) => {
       const s = openness.get(m.id);
       return m.line && s && (s.t > 0 || s.want > 0);
     }).map((m) => m.id);
-    if (!lost && ground && open.join() === cutFor.join()) return;
+    if (!afresh && ground && open.join() === cutFor.join()) return;
     if (ground) {
       scene.remove(ground.group, ...ground.lids.map((l) => l.group));
-      if (!lost) ground.dispose();
+      // What a lost context had uploaded is gone already: nothing to free.
+      if (!afresh) ground.dispose();
     }
     ground = buildGround(open, materials);
     cutFor = open;
@@ -286,6 +296,28 @@ async function buildMarksScene(
   });
   labels.setLabels(labelList);
 
+  /**
+   * Each line, as the names keep off it once it's open, as the lab's keep off its lines: points all
+   * along its runs, from the curb in, so the band narrows with distance as the line does.
+   */
+  const keepClear = new Map(
+    MARKS.flatMap((m) => {
+      const line = m.line;
+      if (!line) return [];
+      const points = segmentsOf(line).flatMap(([a, b]) =>
+        Array.from({ length: 9 }, (_, i) => {
+          const k = i / 8;
+          return new Vector3(
+            a.x + (b.x - a.x) * k,
+            -line.depth,
+            Math.min(a.z + (b.z - a.z) * k, BANDS.stripFront),
+          );
+        }),
+      );
+      return [[m.id, { points, radius: line.radius }] as const];
+    }),
+  );
+
   const freeArea = () => {
     const v = o.visibleArea();
     return { x: v.x, y: v.y, w: v.width, h: v.height };
@@ -299,6 +331,12 @@ async function buildMarksScene(
       labels.update(stage.width, stage.height, freeArea(), 0, false);
       return;
     }
+    labels.setKeepClear(
+      MARKS.flatMap((m) => {
+        const keep = keepClear.get(m.id);
+        return keep && (openness.get(m.id)?.t ?? 0) >= 0.7 ? [keep] : [];
+      }),
+    );
     const area = freeArea();
     labels.update(
       stage.width,
@@ -375,6 +413,9 @@ async function buildMarksScene(
       redraw();
     },
     setLabelsShown(shown) {
+      // Shown again, they're measured afresh: hidden, as they may have been from the first, they
+      // had no size.
+      if (shown && !labelsShown) labels.measure();
       labelsShown = shown;
       labelsDirty = true;
       if (o.capture) redraw();
