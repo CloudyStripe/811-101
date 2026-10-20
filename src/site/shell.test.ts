@@ -200,13 +200,13 @@ describe('renderPage', () => {
     }
   });
 
-  it('the portal: a card for each lesson, with its preview in each theme, then what’s coming', () => {
+  it('the portal: a card for each lesson, with its preview in each theme, then any section to come', () => {
     const page = render(pageById('portal'));
     // The cards' list alone, not the footer's lessons.
     const start = page.indexOf(`<ul class="cards" aria-label="${escapeHtml(CARDS_NAME)}">`);
     const html = page.slice(start, page.indexOf('</ul>', start));
     expect(start).toBeGreaterThan(0);
-    // Each section's first card carries its id: the lessons' first, then what's coming.
+    // Each section's first card carries its id: the lessons' first, then any section still to come.
     const ids = [...html.matchAll(/<li id="([^"]+)" class="card/g)].map(([, id]) => id);
     const live = SECTIONS.filter((s) => s.lessons.length > 0);
     const soon = SECTIONS.filter((s) => s.lessons.length === 0);

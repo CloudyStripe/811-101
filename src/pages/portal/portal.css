@@ -1,7 +1,7 @@
 /*
  * The portal, about one screen on a desktop: the whole diorama floating in its sky, the site's name
- * and its line in the sky beside it, and a large card for each lesson and for what's coming, over
- * the sky's foot. The ink reads clear on the sky in either theme, from its top down.
+ * and its line in the sky beside it, and a large card for each lesson and for any section still to
+ * come, over the sky's foot. The ink reads clear on the sky in either theme, from its top down.
  */
 
 .portal {
@@ -301,22 +301,25 @@
 }
 
 /*
- * Narrower: the lessons side by side, and what's coming under them, the row's whole width, its
- * icon beside its words.
+ * Narrower: two cards to a row, and an odd one out (the last of an odd number) the row's whole
+ * width, its preview or icon beside its words.
  */
 @media (max-width: 1023px) {
   .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .card-soon {
+  .card:last-child:nth-child(odd) {
     grid-column: 1 / -1;
     flex-direction: row;
   }
 
-  .card-soon .card-art {
+  .card:last-child:nth-child(odd) :is(.card-image, .card-art) {
     flex: none;
     width: calc((100% - var(--space-5)) / 2);
+  }
+
+  .card-soon .card-art {
     aspect-ratio: auto;
     min-height: 9rem;
   }
@@ -356,19 +359,22 @@
   }
 }
 
-/* Small phones: one card under another, what's coming as the lessons are. */
+/* Small phones: one card under another, each as the others are. */
 @media (max-width: 640px) {
   .cards {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
   }
 
-  .card-soon {
+  .card:last-child:nth-child(odd) {
     flex-direction: column;
   }
 
-  .card-soon .card-art {
+  .card:last-child:nth-child(odd) :is(.card-image, .card-art) {
     width: 100%;
+  }
+
+  .card-soon .card-art {
     aspect-ratio: 2 / 1;
     min-height: 0;
   }

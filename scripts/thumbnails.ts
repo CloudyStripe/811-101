@@ -31,6 +31,14 @@ import { HERO_SIZE, PREVIEW_SIZE, THEME_NAMES, heroPath, previewPath } from '../
 import { writePlaceholders } from './placeholders.ts';
 import { TILE_COLORS, WORDMARK_HTML, archivoFace, wordmarkCss } from './wordmark.ts';
 
+/**
+ * `--only=<page id>` makes only that page's pictures: its preview, posters and share preview (the
+ * portal's: its hero and share preview). The placeholders are made again from every picture.
+ */
+const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length);
+if (ONLY && !PAGES.some((p) => p.id === ONLY)) throw new Error(`No page ${ONLY}`);
+const wanted = (id: PageInfo['id']) => !ONLY || ONLY === id;
+
 const PORT = 5199;
 const BASE = `http://localhost:${String(PORT)}/811-101/`;
 const VIEWPORT = { width: 1280, height: 720 };
@@ -107,6 +115,15 @@ function dioramaMoved(keys: readonly string[]): (page: Page) => Promise<void> {
 
 const SHOTS: Shot[] = [
   {
+    name: 'read-the-marks',
+    // A round under way, the gas line open: the marks, and what's under one.
+    path: 'basics/read-the-marks/?seed=1&show=gas&tier=high&capture',
+    ready: viewReady,
+    hide: LAB_CHROME,
+    // The front lawn, the outline and the open gas line, the sidewalk and the grass strip.
+    crop: { x: 60, y: 150, width: 760 },
+  },
+  {
     name: 'frequency-lab',
     path: 'training/frequency-lab/?setup=steel&f=33000&tier=high&capture',
     ready: labReady,
@@ -145,6 +162,12 @@ const HERO = {
 const POSTER_VIEWS: Partial<
   Record<PageInfo['id'], { path: string; ready: (page: Page) => Promise<void>; hide: string }>
 > = {
+  // The yard as a round starts: the white outline asked about, glowing.
+  'read-the-marks': {
+    path: 'basics/read-the-marks/?seed=1&tier=high&capture',
+    ready: viewReady,
+    hide: LAB_CHROME,
+  },
   'frequency-lab': {
     path: 'training/frequency-lab/?setup=steel&f=512&tier=high&capture',
     ready: viewReady,
@@ -162,6 +185,11 @@ const POSTER_VIEWS: Partial<
 const STILLS: Partial<
   Record<PageInfo['id'], { path: string; ready: (page: Page) => Promise<void>; hide: string }>
 > = {
+  'read-the-marks': {
+    path: 'basics/read-the-marks/?seed=1&show=gas&tier=high&capture',
+    ready: viewReady,
+    hide: LAB_CHROME,
+  },
   'frequency-lab': {
     path: 'training/frequency-lab/?setup=steel&f=512&tier=high&capture',
     ready: labReady,
@@ -346,7 +374,7 @@ const browser = await chromium.launch({
 
 try {
   // The portal's lesson previews, in each theme.
-  for (const shot of SHOTS) {
+  for (const shot of SHOTS.filter((s) => wanted(s.name))) {
     for (const scheme of THEME_NAMES) {
       // Render at the scale that makes the crop come out as wide as the preview.
       const png = await withPage(
@@ -392,7 +420,7 @@ try {
   }
 
   // The portal's hero, in each theme.
-  for (const scheme of THEME_NAMES) {
+  for (const scheme of wanted('portal') ? THEME_NAMES : []) {
     const png = await still(browser, HERO, HERO.viewport, scheme, HERO.scale);
     const webp = await withPage(browser, { width: 200, height: 200, scale: 1, scheme }, (tab) =>
       encode(tab, png, HERO_SIZE, 'image/webp', STILL_QUALITY, HERO.crop),
@@ -404,7 +432,7 @@ try {
 
   // Posters, for every 3D page built on the site's shell: its view alone, cut to its own box.
   await mkdir('public/posters', { recursive: true });
-  for (const page of PAGES.filter((p) => p.scene)) {
+  for (const page of PAGES.filter((p) => p.scene && wanted(p.id))) {
     const view = POSTER_VIEWS[page.id];
     if (!view) throw new Error(`No poster view for ${page.id}`);
     for (const shape of POSTER_SHAPES) {
@@ -451,12 +479,20 @@ try {
     if (!view) throw new Error(`No still for ${id}`);
     return still(browser, view, SHARE_SIZE, 'light');
   };
-  const labStill = await shareStill('frequency-lab');
-  const cards: [PageInfo, Buffer][] = [
-    [pageById('portal'), labStill],
-    [pageById('frequency-lab'), labStill],
-    [pageById('gas-petroleum'), await shareStill('gas-petroleum')],
+  // The home page's card shows the lab's view.
+  const sources: [PageInfo['id'], PageInfo['id']][] = [
+    ['portal', 'frequency-lab'],
+    ['read-the-marks', 'read-the-marks'],
+    ['frequency-lab', 'frequency-lab'],
+    ['gas-petroleum', 'gas-petroleum'],
   ];
+  const stills = new Map<PageInfo['id'], Buffer>();
+  const cards: [PageInfo, Buffer][] = [];
+  for (const [id, from] of sources.filter(([id]) => wanted(id))) {
+    const image = stills.get(from) ?? (await shareStill(from));
+    stills.set(from, image);
+    cards.push([pageById(id), image]);
+  }
   const fonts = await fontFaces();
   for (const [page, image] of cards) {
     const jpeg = await withPage(

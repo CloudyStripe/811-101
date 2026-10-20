@@ -10,10 +10,12 @@ export interface DialogProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** The close button's name for assistive tech; "Close" unless the content names it. */
+  closeLabel?: string;
   children: ComponentChildren;
 }
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+export function Dialog({ open, onClose, title, closeLabel = 'Close', children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
   const titleId = useId();
@@ -57,7 +59,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
           <button
             type="button"
             class="icon-button"
-            aria-label="Close"
+            aria-label={closeLabel}
             onClick={() => ref.current?.close()}
           >
             <Icon name="close" />

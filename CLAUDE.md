@@ -5,12 +5,12 @@ An interactive learning site about buried utilities and line locating.
 | Page                                                    | Path                                | Source                                                                      |
 | ------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------- |
 | Portal (home)                                           | `/811-101/`                         | `index.html`, `src/site/shell.ts`, `src/pages/portal/`, `content/portal.ts` |
+| Read the Marks (811 Basics)                             | `/811-101/basics/read-the-marks/`   | `basics/read-the-marks/`, `src/pages/read-the-marks/`                       |
 | Frequency Lab (Locator Training)                        | `/811-101/training/frequency-lab/`  | `training/frequency-lab/`, `src/pages/frequency-lab/`                       |
 | Gas & Petroleum: From Rock to Flame (Utility Education) | `/811-101/utilities/gas-petroleum/` | `utilities/gas-petroleum/`, `src/pages/gas-petroleum/`                      |
 | Page not found                                          | any missing address                 | `404.html`, `src/pages/not-found/`                                          |
 
-811 Basics shows on the portal as coming soon. The site's name, tagline and address live in
-`config/brand.ts`.
+The site's name, tagline and address live in `config/brand.ts`.
 
 ## Site shell
 
@@ -24,8 +24,8 @@ An interactive learning site about buried utilities and line locating.
   own HTML keeps only what's theirs; links in it use `%BASE%`.
 - **The portal:** about one screen on a desktop (tested at 1440 × 900): the whole diorama floating
   in its sky, with the site's name (the h1, set as its wordmark) and its tagline in the sky beside
-  it; then a large card for each lesson and one for each section still to come (811 Basics),
-  over the sky's foot. The page paints the diorama's own sky (`--sky-*`, from the scene tokens)
+  it; then a large card for each lesson, and one for any section still to come, over the sky's
+  foot (two to a row on narrower screens, an odd one out the row's width). The page paints the diorama's own sky (`--sky-*`, from the scene tokens)
   across the screen, and the model's still stands at the hero's full height, so the two skies
   meet with no edge. The model shows only where it fits beside the name: wherever the hero would
   stack (phones, upright tablets, short screens), the name and its line sit on the sky, then the
@@ -35,7 +35,8 @@ An interactive learning site about buried utilities and line locating.
 - **Stills:** the portal's hero and lesson previews are WebPs in `public/stills/`, one per theme,
   named in `src/site/stills.ts`; only the reader's loads. `npm run thumbnails` makes them from the
   real 3D views: the hero is the diorama's overview two steps farther out, cut to the model and
-  the sky's whole height; the Gas & Petroleum card is the refinery up close. It makes each 3D
+  the sky's whole height; the Gas & Petroleum card is the refinery up close, and Read the Marks'
+  is the yard with its gas line open. It makes each 3D
   page's loader posters too, one per theme and shape (`posterPath`): the view itself as it first
   draws (the diorama's where its arrival starts, `?arrival`), cut to its own box, at 1440 × 900
   (wide) and 390 × 844 (tall, for upright screens), shown under only a light blur so they look like
@@ -124,8 +125,9 @@ An interactive learning site about buried utilities and line locating.
 
 ## Status and scope
 
-- Done: Phase 0 (the Frequency Lab) and the portal home. The rest of the brief's phases are on
-  hold: don't plan or build them unless the owner asks.
+- Done: Phase 0 (the Frequency Lab), the portal home, and Read the Marks (811 Basics' first
+  lesson, which the owner asked for). The rest of the brief's phases are on hold: don't plan or
+  build them unless the owner asks.
 - Read `docs/private/redo-brief.md` before starting work: it's the current brief for the site's
   look and UX, and it wins wherever it conflicts with `docs/BRIEF.md` or this file. Then read
   `docs/BRIEF.md`. Ignore `docs/PLAN.md`, an earlier plan. All of `docs/private/`, `docs/BRIEF.md`
@@ -137,24 +139,26 @@ An interactive learning site about buried utilities and line locating.
 
 ## Commands
 
-| Command              | What it does                                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `npm run dev`        | Dev server, for working on the code; the owner reviews the production build (`npm run review`)              |
-| `npm run review`     | Build into `dist-review/` and serve it at http://localhost:5173/811-101/: the copy the owner reviews        |
-| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass.             |
-| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                                   |
-| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                              |
-| `npm run budgets`    | Load budgets for each page, against the last build                                                          |
-| `npm run thumbnails` | Re-capture the stills, loader posters, share previews and placeholders; run it when a lesson's look changes |
-| `npm run icons`      | Regenerate the icon data from Phosphor and re-render the favicons from the wordmark                         |
-| `npm run credits`    | Rewrite `public/credits.txt` from the installed packages                                                    |
+| Command              | What it does                                                                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`        | Dev server, for working on the code; the owner reviews the production build (`npm run review`)                                                  |
+| `npm run review`     | Build into `dist-review/` and serve it at http://localhost:5173/811-101/: the copy the owner reviews                                            |
+| `npm run check`      | Typecheck, lint, format check, unit tests, generated-docs freshness, build, budgets. Must pass.                                                 |
+| `npm run e2e`        | Build, then Playwright: console/cross-origin/axe gates and the happy path                                                                       |
+| `npm run docs`       | Regenerate `docs/SIGNAL_MODEL.md` and `docs/CONTENT_REVIEW.md`                                                                                  |
+| `npm run budgets`    | Load budgets for each page, against the last build                                                                                              |
+| `npm run thumbnails` | Re-capture the stills, loader posters, share previews and placeholders (`-- --only=<page id>`: one page's); run it when a lesson's look changes |
+| `npm run icons`      | Regenerate the icon data from Phosphor and re-render the favicons from the wordmark                                                             |
+| `npm run credits`    | Rewrite `public/credits.txt` from the installed packages                                                                                        |
 
 Useful URL parameters on the 3D pages:
 
 - Lab: `?setup=steel|plastic` and `&f=512|8000|33000|83000` set the starting state.
 - Diorama: `?stop=<id>` opens a stop (ids in `content/utilities/gas-petroleum.ts`), and with
   `?capture`, `&arrival` holds the view where its arrival starts (as its loader's posters show it).
-- Both: `?tier=low|medium|high` forces a quality tier, `?perf` shows the performance HUD, and
+- Read the Marks: `?seed=<n>` fixes a round's order, and `?show=<mark>` opens a round at that
+  mark, answered right (ids in `src/pages/read-the-marks/game.ts`), as its preview shows it.
+- All three: `?tier=low|medium|high` forces a quality tier, `?perf` shows the performance HUD, and
   `?capture` gives deterministic frames for screenshots.
 
 ## Quality gates (every change)
@@ -171,17 +175,21 @@ In the field, the color is the code.
 - **Reserved for meaning:** APWA colors (`src/design/apwa.ts`) are never decoration or UI accent.
 - **Neutral chrome:** the default accent is ink.
 
-| Color  | Meaning                                                                 |
-| ------ | ----------------------------------------------------------------------- |
-| Red    | Electric power lines, cables, conduit, lighting cables                  |
-| Orange | Telecommunications, alarm or signal lines, cables, conduit              |
-| Yellow | Natural gas, oil, steam, petroleum, other gaseous or flammable material |
-| Green  | Sewer and drain lines                                                   |
-| Blue   | Potable water                                                           |
-| Purple | Reclaimed water, irrigation, slurry lines                               |
-| Pink   | Temporary survey markings, unknown or unidentified facilities           |
-| White  | Proposed excavation limits or route                                     |
+Word for word from the APWA Uniform Color Code card (Rev. 4/99), which CGA Best Practices 22.0,
+Appendix B, adopts (`content/sources.ts`):
 
+| Color  | Meaning                                                   |
+| ------ | --------------------------------------------------------- |
+| Red    | Electric power lines, cables, conduit and lighting cables |
+| Orange | Communication, alarm or signal lines, cables or conduit   |
+| Yellow | Gas, oil, steam, petroleum or gaseous materials           |
+| Green  | Sewers and drain lines                                    |
+| Blue   | Potable water                                             |
+| Purple | Reclaimed water, irrigation and slurry lines              |
+| Pink   | Temporary survey markings                                 |
+| White  | Proposed excavation                                       |
+
+- **Marks wear their code:** in Read the Marks, the paint and flags above ground are their full APWA color, and nothing else in the yard reads as any of the eight colors, white included (`scene/palette.test.ts`, lit and tone mapped), but the grass and leaves, which are green as grass is: the green flags wear a light hem that stands clear of them. Its walls, fixtures, paving and boxes are warm grays and browns, and the reclaimed water box isn't purple. The Key and the end say the lines are drawn in their marks' colors, which real pipes and cables aren't always, and larger than life. The mark asked about is lit by a soft glow on the ground under it, the others dimmed a little; its own color never changes.
 - **Never color alone:** color is never the only cue. Pair it with an icon, label, pattern or arrow.
 - **Lines wear their code:** buried lines are drawn close to their full APWA color (`FACILITY_TINT_STRENGTH`), with an icon and label. It's a teaching aid: real pipe and cable color underground is unreliable, so say so where it matters.
 - **The ground stays ground:** soils, rock and fill never read as a code color the lesson uses (tested lit and tone mapped). The lab's trench fill is a gray sand, so the gas main stands out by value too.
@@ -200,7 +208,7 @@ In the field, the color is the code.
 ## Content rules
 
 - **No invented facts:** never invent facts, rules or procedures. If unsure, ask the owner or flag it for review.
-- **Claims and review:** every factual sentence in `content/` has a claim ID. After editing content, run `npm run docs`; `docs/CONTENT_REVIEW.md` lists every claim and its sign-off status. The portal's section and lesson descriptions (`content/portal.ts`) describe the lessons, not the world, so they don't need claim IDs.
+- **Claims and review:** every factual sentence in `content/` has a claim ID, and can name its sources (`content/sources.ts`; every one of Read the Marks' does). After editing content, run `npm run docs`; `docs/CONTENT_REVIEW.md` lists every claim and its sign-off status. The portal's section and lesson descriptions (`content/portal.ts`) describe the lessons, not the world, so they don't need claim IDs.
 - **Units:** US customary first, metric in parentheses.
 - **Voice:** plain words, no background assumed, never talking down.
 - **Depth:** keep it conceptual. One idea per sentence, qualitative words over numbers, and no data tables or readouts; leave out detail the lesson doesn't need.
@@ -219,9 +227,9 @@ In the field, the color is the code.
 - **No fog:** the model floats in a screen-space gradient sky (`src/kit3d/backdrop.ts`), drawn through the inverse of the tone mapping so it shows as authored. If fog ever returns, N8AO needs `FogExp2`.
 - **N8AO:** keep its debug mode and neural denoise off.
 - **Version pin:** keep three on 0.186.x, because `postprocessing` 6.39 supports three below 0.187.
-- **Shared runtime:** both 3D pages run on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
+- **Shared runtime:** every 3D page runs on `src/kit3d/runtime.ts` (loop, tiers, post chain, capture, ready signal); a page brings its scene and what moves in it.
 - **Bloom only for emitters,** and no NaN: every lit surface's glints are capped under bloom's threshold (`GLINT_CAP`, a shared shader chunk), so only fire and the signal bloom; lamps and lit windows glow under it. A shape that tapers to a point leaves zero normals, which shaders turn into NaN and bloom spreads over the whole frame; the diorama's builders run `fixNormals`.
-- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view or depth, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved.
+- **Shadows hold still:** the shadow map renders once, and again only when the theme, tier or the lab's setup changes, the lab's block is built for another view or depth, the yard's ground is cut along other lines, or a lost graphics context comes back, so moving parts don't cast into it; a unit test runs every diorama stop's machines and checks no shadow caster moved, and another opens and closes every line in the yard (its lids, flags and paint cast nothing).
 
 ## The diorama's story
 
@@ -232,13 +240,52 @@ In the field, the color is the code.
 - **Markers:** all thirteen stops show on the model as numbered markers in their path's mark (`ui/StopMarker.tsx`), each a button that opens its stop, with its path's icon on a tab. Each is named beside its badge where there's room, in the story's order, the path the view shows first after the fork, and by number alone where there isn't, or in a view too short for names (`LABEL_LIMITS.iconsBelow`, as under a phone's open sheet). While the view arrives they show by number alone, as names would come and go as it closes in; once it has all but landed (`ARRIVED_WITHIN`), the names fade in, as any name does where it comes to fit. The guide's map (`ui/RouteMap.tsx`) names every stop. The open stop's is named and filled in ink, its name placed with its badge, before the others, which keep clear of both; a focused or hovered one shows its name, and stays where it was, in the free part of the view; one on a path the view fades back shows by number, its ring and tab faded; one whose point is out of view, or under a control, steps out of sight. Badges keep off each other's points, and names off every point, so every leader shows. Their points show from every side (none hangs on a face), and the shared start's four sit at least 36 px apart in a tall phone's overview (tested). The small labels on an open stop's parts (`scene/details.ts`) hang beside the points they name, on leaders, so the parts show; the dock's labels toggle (the same `labels` setting as the lab's) hides every name in the view: these, and the stops' names, which then show only on a marker that's hovered or focused. The numbered markers stay, since they're how to get around; the step bar, the guide and its map are controls and keep their names (tested in each lesson, `tests/e2e/labels.spec.ts`).
 - **Motion in tests:** e2e tests count frames (`countFrames`, `isMoving`, `waitStill` in `tests/e2e/fixtures.ts`), never screenshots of a moving canvas; one late frame after a pause isn't motion, and stillness waits out the longest of the last few gaps between frames, as one slow software frame isn't stillness.
 
+## Read the Marks
+
+- **The game** (`src/pages/read-the-marks/game.ts`) is a pure state machine with its own tests: a
+  round asks about each of the yard's eight marks once, white first (where you'll dig), then the
+  other seven in a new order each round. Each has four answers, each a color's meaning in short:
+  the right one, one easily confused with it (`CONFUSED_WITH`), and two at random. An answer
+  marks the right one beside the reader's, says in one line what the color means ("Not quite.
+  Yellow means gas, oil, steam, petroleum or gaseous materials."), then what's under the marks.
+  The end shows the score, a safety line and the whole code, and Play again. No timer, levels or
+  saves.
+- **The yard** (`scene/layout.ts`, in feet, tested): a house and garage, a lawn, a sidewalk and a
+  street, seen from a fixed angle (the tall view where the room is tall). Every mark is in the
+  yard, from the curb in; nothing's in the street. Lines run straight or with one turn, so each
+  cut along one is a box. Flags stand on grass; paint shows where a line crosses the sidewalk or
+  the driveway. Green and purple are public lines: the sewer out to its cleanout, and reclaimed
+  water from the curb to its own box in the grass strip. The view can't turn, so what's in a cut
+  must show from it: the two water lines, whose cuts are short, lie shallow, their boxes just in
+  front of the sidewalk.
+- **The ground opens:** answered, the ground is built again, cut along the mark's line (`carve`
+  in `scene/ground.ts`), and each run's lid (its cover: at a turn, the run whose slide carries
+  the corner clear of the other's trench has it) drops and slides aside, away from the camera, or
+  the other way where that would cross another line's cut (`coverOf`, `asideOf` in
+  `scene/layout.ts`, tested). The paint on a cover rides with it, whichever mark it is (the white
+  outline's dashes over the gas line, cut at the cover's edge: `piecesOf`), and the flags on it
+  step off onto the grass, until the line shows, named; with reduced motion it's open at once.
+  Next mark closes it again, and at the end every line is open at once. A line's name points at
+  the stretch of it the view sees into, with others along it to fall back on, keeping off the open
+  lines (the sewer's, at its riser, as it lies too deep to see); every name still shows at the end,
+  on a phone as an icon where it must.
+- **The panel:** beside the yard on wide and short screens (a phone held sideways), and under it
+  in a sheet on phones held upright, one height through a round (`--rm-sheet`), so the yard keeps
+  its size; there, once answered, the result takes the answers' place (and the first mark's
+  intro's). On the shortest screens the color's chip, the progress dots and the intro's how-to
+  line give way, so a mark's answers all show. While focus is in the question, 1 to 4 answer (only
+  there, as single keys acting anywhere would fail WCAG 2.1.4); focus moves on to Next, whose
+  description is the answer, then to the next mark. The Key shows the whole code at any time. The
+  status line (`#rm-status`, set once focus has moved, so it isn't cut short) says what's lit,
+  then what's under it once answered, then the score.
+
 ## Performance and accessibility
 
 - **Budgets** are set per page in `src/site/pages.ts`; `scripts/budgets.ts` checks the build against them in `npm run check`.
 - **GPU resources:** disposed on exit. Quality tiers have a manual override.
 - **WCAG 2.2 AA:**
   - every control works by keyboard;
-  - nothing needs dragging: the lab's view is fixed, and the diorama's view, which turns, tilts and zooms by dragging, the wheel or a pinch, does the same by its buttons and keys, and a double-click or double-tap centers it on a spot;
+  - nothing needs dragging: the lab's and the yard's views are fixed, and the diorama's view, which turns, tilts and zooms by dragging, the wheel or a pinch, does the same by its buttons and keys, and a double-click or double-tap centers it on a spot;
   - focus is never hidden under the panel or sheet, and both can be closed;
   - popovers can be hovered;
   - nothing pulses faster than 3 Hz, and the signal's motion has a pause button, whatever the

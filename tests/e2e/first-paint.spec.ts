@@ -16,7 +16,17 @@ import { expect, test } from './fixtures.ts';
  */
 type Fill = 'picture' | 'grass';
 
-const CASES: { name: string; path: string; places: { selector: string; fill: Fill }[] }[] = [
+interface Place {
+  selector: string;
+  fill: Fill;
+  /**
+   * What stands over the foot of the place where it spans its width, as a phone's sheet over a
+   * full-bleed view: only what shows above it counts.
+   */
+  above?: string;
+}
+
+const CASES: { name: string; path: string; places: Place[] }[] = [
   {
     name: 'the portal',
     path: '',
@@ -35,6 +45,12 @@ const CASES: { name: string; path: string; places: { selector: string; fill: Fil
     name: 'the diorama',
     path: 'utilities/gas-petroleum/',
     places: [{ selector: '.stage', fill: 'picture' }],
+  },
+  {
+    name: 'Read the Marks',
+    path: 'basics/read-the-marks/',
+    // On a phone held upright, the question's sheet stands over the view's foot.
+    places: [{ selector: '.stage', fill: 'picture', above: '.rm-panel' }],
   },
 ];
 
@@ -172,20 +188,26 @@ for (const size of SIZES) {
           const frame = await firstPaint(page, c.path);
           const width = size.viewport.width;
           for (const place of c.places) {
-            const boxes = await page.locator(place.selector).evaluateAll((els) =>
-              els
-                .filter((el) => el.checkVisibility())
-                .map((el) => {
-                  const r = el.getBoundingClientRect();
-                  // Only what's on the first screen.
-                  return {
-                    x: r.x,
-                    y: r.y,
-                    width: r.width,
-                    height: Math.min(r.height, innerHeight - r.y),
-                  };
-                })
-                .filter((r) => r.height > 0 && r.width > 0),
+            const boxes = await page.locator(place.selector).evaluateAll(
+              (els, above) =>
+                els
+                  .filter((el) => el.checkVisibility())
+                  .map((el) => {
+                    const r = el.getBoundingClientRect();
+                    const cover = above
+                      ? document.querySelector(above)?.getBoundingClientRect()
+                      : null;
+                    const foot = cover && cover.width > r.width * 0.8 ? cover.top : innerHeight;
+                    // Only what's on the first screen, and not under what stands over its foot.
+                    return {
+                      x: r.x,
+                      y: r.y,
+                      width: r.width,
+                      height: Math.min(r.height, Math.min(innerHeight, foot) - r.y),
+                    };
+                  })
+                  .filter((r) => r.height > 0 && r.width > 0),
+              place.above ?? null,
             );
             // Where the hero stacks, it shows no model; the cards are always there.
             if (place.selector === '.hero-image' && boxes.length === 0) continue;

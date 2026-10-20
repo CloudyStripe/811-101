@@ -1,8 +1,8 @@
 /**
  * Labels off, in each lesson: no name shows anywhere in the 3D view (the lab's tools and lines; the
- * diorama's stops and their parts), while the diorama's numbered markers stay, naming a stop only
- * while its marker is hovered or focused. The step bar, the guide and its map are controls, not
- * labels, so they keep their names. A name counts only where it's drawn at its size: a marker's
+ * diorama's stops and their parts; the yard's open lines), while the diorama's numbered markers
+ * stay, naming a stop only while its marker is hovered or focused. The step bar, the guide and its
+ * map, and the yard's question, are controls, not labels, so they keep their names. A name counts only where it's drawn at its size: a marker's
  * name kept for screen readers, clipped to a pixel, doesn't.
  */
 import { expect, shownNames, test } from './fixtures.ts';
@@ -95,4 +95,49 @@ test('the diorama, opened with labels already off, shows no name in its view', a
   });
   await expect(page.locator('[data-label="city-gate"] .mk-btn')).toBeVisible();
   await expect.poll(() => shownNames(page)).toEqual([]);
+});
+
+test('Read the Marks, labels off: no name shows in its view, and the question keeps its words', async ({
+  page,
+}) => {
+  // Open at the gas line's mark, answered, its line open and named.
+  await page.goto('basics/read-the-marks/?tier=low&seed=1&show=gas');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+  await expect.poll(() => shownNames(page)).toEqual(['Gas line']);
+  const toggle = page.locator('.rm-panel').getByRole('button', { name: 'Labels', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(() => shownNames(page)).toEqual([]);
+  // The panel is a control: its question, answers and result keep their words.
+  await expect(page.locator('.rm-verdict')).toContainText('Yellow means');
+  await toggle.click();
+  await expect.poll(() => shownNames(page)).toEqual(['Gas line']);
+});
+
+test('Read the Marks, opened with labels already off, measures them once they’re on, so each is placed by its own size', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('811-101.settings', JSON.stringify({ labels: 'off' }));
+  });
+  // A long name, wider than a label is taken to be before it's measured.
+  await page.goto('basics/read-the-marks/?tier=low&seed=1&show=reclaimed');
+  await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+    timeout: 60_000,
+  });
+  await expect.poll(() => shownNames(page)).toEqual([]);
+  const toggle = page.locator('.rm-panel').getByRole('button', { name: 'Labels', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect.poll(() => shownNames(page)).toEqual(['Reclaimed water line']);
+  // Measured again as it's shown, it's placed by the size it shows at, not the size a label is
+  // taken to be before it can be measured.
+  const sizes = await page.locator('[data-label="reclaimed"]').evaluate((el: HTMLElement) => ({
+    placed: el.dataset.size,
+    shown: `${String(el.offsetWidth)}x${String(el.offsetHeight)}`,
+  }));
+  expect(sizes.placed).toBe(sizes.shown);
 });

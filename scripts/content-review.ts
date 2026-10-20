@@ -10,7 +10,8 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { FREQUENCIES, frequencyLabel } from '../config/equipment.ts';
 import { CONTENT_MODULES } from '../content/index.ts';
-import { APWA, DIORAMA_APWA, LAB_APWA } from '../src/design/apwa.ts';
+import { SOURCES, type SourceId } from '../content/sources.ts';
+import { APWA, DIORAMA_APWA, LAB_APWA, MARKS_APWA } from '../src/design/apwa.ts';
 import { collectClaims, type Claim } from '../src/content-kit/claims.ts';
 import { plainText } from '../src/content-kit/terms.ts';
 import { ALL_CONSTANTS, type Constant, type PerFrequency } from '../src/signal/constants.ts';
@@ -37,11 +38,40 @@ function status(id: string, text: string): string {
   return s.hash === hash(text) ? `Signed off by ${s.by}, ${s.date}` : 'Changed since sign-off';
 }
 
+/** Where a claim comes from, by the short names the sources list gives them. */
+const SOURCE_NAMES: Record<SourceId, string> = {
+  'apwa-card': 'APWA card',
+  'cga-best-practices-b': 'CGA Best Practices',
+  'cga-best-practices-glossary': 'CGA glossary',
+  'phmsa-safe-digging': 'PHMSA',
+  'bls-surveyors': 'BLS',
+  'fcc-conduit': 'FCC',
+  'mw-conduit': 'Merriam-Webster (conduit)',
+  'usgs-glossary': 'USGS glossary',
+  'mw-slurry': 'Merriam-Webster (slurry)',
+  'usgs-coal-slurry': 'USGS coal slurry study',
+  scene: 'The scene',
+  game: 'The game',
+};
+
+const sourceCell = (c: Claim) =>
+  c.source?.length ? c.source.map((s) => SOURCE_NAMES[s]).join(', ') : '—';
+
 /** Claims are listed and hashed as read, without term markup: only a change of wording needs re-review. */
 function claimRows(claims: readonly Claim[]): string[] {
   return claims.map((c) => {
     const text = plainText(c.text);
-    return `| \`${c.id}\` | ${cell(text)}${c.note ? ` _(${cell(c.note)})_` : ''} | ${c.stateSpecific ? 'Yes' : 'No'} | \`${hash(text)}\` | ${status(c.id, text)} |`;
+    return `| \`${c.id}\` | ${cell(text)}${c.note ? ` _(${cell(c.note)})_` : ''} | ${sourceCell(c)} | ${c.stateSpecific ? 'Yes' : 'No'} | \`${hash(text)}\` | ${status(c.id, text)} |`;
+  });
+}
+
+/** The sources claims cite, each with its link. */
+function sourceList(): string[] {
+  return (Object.keys(SOURCES) as SourceId[]).map((id) => {
+    const s: { title: string; publisher: string; url?: string } = SOURCES[id];
+    return s.url
+      ? `- **${SOURCE_NAMES[id]}:** [${s.title}](${s.url}), ${s.publisher}.`
+      : `- **${SOURCE_NAMES[id]}:** ${s.title}.`;
   });
 }
 
@@ -59,7 +89,7 @@ const modelClaims = ALL_CONSTANTS.map((c) => ({
 }));
 
 /** Every APWA color a lesson shows, once each. */
-const usedApwa = [...new Set([...LAB_APWA, ...DIORAMA_APWA])];
+const usedApwa = [...new Set([...LAB_APWA, ...DIORAMA_APWA, ...MARKS_APWA])];
 
 const colorClaims = usedApwa.map((code) => ({
   id: `apwa.${code}`,
@@ -78,14 +108,18 @@ function render(): string {
     '- **Edited claims:** editing a claim changes its hash and puts it back in review.',
     '',
     '**State-specific claims:** none so far. The lessons teach no state rules.',
+    '',
+    '**Sources:** the Source column says where a claim comes from, from these:',
+    '',
+    ...sourceList(),
   ];
   for (const mod of CONTENT_MODULES) {
     parts.push(
       '',
       `## ${mod.name}`,
       '',
-      '| ID | Claim | State-specific | Hash | Status |',
-      '|---|---|---|---|---|',
+      '| ID | Claim | Source | State-specific | Hash | Status |',
+      '|---|---|---|---|---|---|',
       ...claimRows(collectClaims(mod.content)),
     );
   }

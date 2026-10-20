@@ -2,6 +2,7 @@
  * Claims: every factual sentence in the content carries a stable ID, so locators can sign it
  * off and edits put it back in review (see scripts/content-review.ts).
  */
+import type { SourceId } from '../../content/sources.ts';
 
 export interface Claim {
   readonly kind: 'claim';
@@ -13,12 +14,14 @@ export interface Claim {
   readonly stateSpecific: boolean;
   /** Context for the reviewer, e.g. "teaching calibration". */
   readonly note?: string;
+  /** Where it comes from (content/sources.ts), or that it describes a lesson's scene or game. */
+  readonly source?: readonly SourceId[];
 }
 
 export function claim(
   id: string,
   text: string,
-  options: { stateSpecific?: boolean; note?: string } = {},
+  options: { stateSpecific?: boolean; note?: string; source?: readonly SourceId[] } = {},
 ): Claim {
   return {
     kind: 'claim',
@@ -26,6 +29,7 @@ export function claim(
     text,
     stateSpecific: options.stateSpecific ?? false,
     ...(options.note === undefined ? {} : { note: options.note }),
+    ...(options.source === undefined ? {} : { source: options.source }),
   };
 }
 

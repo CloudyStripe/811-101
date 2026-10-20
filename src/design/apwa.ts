@@ -2,6 +2,9 @@
  * The APWA uniform color code. In the field, the color is the code, so these colors are
  * reserved for their meanings and never used as decoration or UI accent.
  *
+ * Each meaning is word for word from the APWA Uniform Color Code card (Rev. 4/99), in sentence
+ * case; CGA Best Practices 22.0, Appendix B, adopts the same code (content/sources.ts).
+ *
  * Screen values approximate the ANSI Z535 safety colors the code builds on. The exact values
  * are listed for content review.
  */
@@ -32,7 +35,7 @@ export const APWA: Record<ApwaCode, ApwaColor> = {
   orange: {
     code: 'orange',
     name: 'Orange',
-    meaning: 'Telecommunication, alarm or signal lines, cables or conduit',
+    meaning: 'Communication, alarm or signal lines, cables or conduit',
     fill: '#f26a1b',
     ink: { light: '#9c3f08', dark: '#ffa36b' },
     soft: { light: '#fde4d4', dark: '#3a2112' },
@@ -40,7 +43,7 @@ export const APWA: Record<ApwaCode, ApwaColor> = {
   yellow: {
     code: 'yellow',
     name: 'Yellow',
-    meaning: 'Natural gas, oil, steam, petroleum or other gaseous or flammable material',
+    meaning: 'Gas, oil, steam, petroleum or gaseous materials',
     fill: '#f5c400',
     ink: { light: '#735600', dark: '#f7d24a' },
     soft: { light: '#fbf0c6', dark: '#352c0d' },
@@ -72,7 +75,7 @@ export const APWA: Record<ApwaCode, ApwaColor> = {
   pink: {
     code: 'pink',
     name: 'Pink',
-    meaning: 'Temporary survey markings, unknown or unidentified facilities',
+    meaning: 'Temporary survey markings',
     fill: '#f28ab8',
     ink: { light: '#a8336a', dark: '#f7b3d1' },
     soft: { light: '#fbe3ee', dark: '#3a1a2a' },
@@ -80,7 +83,7 @@ export const APWA: Record<ApwaCode, ApwaColor> = {
   white: {
     code: 'white',
     name: 'White',
-    meaning: 'Proposed excavation limits or route',
+    meaning: 'Proposed excavation',
     fill: '#ffffff',
     ink: { light: '#4a4640', dark: '#f2ede5' },
     soft: { light: '#f3f1ed', dark: '#2a2723' },
@@ -92,3 +95,15 @@ export const LAB_APWA: readonly ApwaCode[] = ['yellow', 'orange'];
 
 /** The colors the Gas & Petroleum diorama uses: both fuels are yellow, told apart by pattern. */
 export const DIORAMA_APWA: readonly ApwaCode[] = ['yellow'];
+
+/** The colors Read the Marks uses: all eight, as the flags and paint in its yard. */
+export const MARKS_APWA: readonly ApwaCode[] = [
+  'white',
+  'pink',
+  'red',
+  'yellow',
+  'orange',
+  'blue',
+  'purple',
+  'green',
+];

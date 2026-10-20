@@ -1,12 +1,14 @@
 /**
  * Accessibility: axe with the WCAG 2.2 AA rules, in both themes, at desktop and phone sizes, with
- * the settings, the guide, the key and the About dialog open, and the key finding a line.
+ * the settings, the guide, the key and the About dialog open, and the key finding a line; and in
+ * Read the Marks, a mark asked and answered, its Key open, and the end.
  * Violations fail the run; items axe can't decide on its own (such as text over the 3D view) are
  * listed for a person to check.
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
+import { answerMark, openMarks, playToEnd } from './play-marks.ts';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -120,6 +122,39 @@ for (const theme of ['light', 'dark'] as const) {
         await scan(page, `${theme} diorama phone`);
         await page.getByRole('button', { name: 'Details' }).tap();
         await scan(page, `${theme} diorama phone sheet`);
+      });
+    });
+  });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`Read the Marks ${theme}`, () => {
+    test.use({ colorScheme: theme });
+
+    test('desktop: a mark asked, answered wrong, the Key open, and the end', async ({ page }) => {
+      // Four full scans, and a whole round, drawn in software.
+      test.slow();
+      await openMarks(page);
+      await scan(page, `${theme} marks asked`);
+      await answerMark(page, false);
+      await scan(page, `${theme} marks answered`);
+      await page.getByRole('button', { name: 'Key', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'The color code' })).toBeVisible();
+      await scan(page, `${theme} marks key`);
+      await page.keyboard.press('Escape');
+      await openMarks(page);
+      await playToEnd(page);
+      await scan(page, `${theme} marks end`);
+    });
+
+    test.describe('phone', () => {
+      test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+      test('a mark asked and answered, in the sheet', async ({ page }) => {
+        await openMarks(page);
+        await scan(page, `${theme} marks phone`);
+        await answerMark(page, true);
+        await scan(page, `${theme} marks phone answered`);
       });
     });
   });

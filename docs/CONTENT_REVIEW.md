@@ -9,173 +9,274 @@ Every factual claim in the lessons, for locator sign-off.
 
 **State-specific claims:** none so far. The lessons teach no state rules.
 
+**Sources:** the Source column says where a claim comes from, from these:
+
+- **APWA card:** [APWA Uniform Color Code: Guidelines for Uniform Temporary Marking of Underground Facilities (Rev. 4/99)](https://www.apwa.org/wp-content/uploads/Uniform-Color-Code-1.pdf), American Public Works Association.
+- **CGA Best Practices:** [CGA Best Practices 22.0, Appendix B: Uniform Color Code and Marking Guidelines](https://www.bluestakes.org/pdfs/CGA_BestPractices_ApxB.pdf), Common Ground Alliance.
+- **CGA glossary:** [CGA Best Practices 10.0, Glossary: Locator](https://www.georgia811.com/userfiles/file/PDF_libary/CGA_BestPractices.pdf), Common Ground Alliance.
+- **PHMSA:** [PHMSA Recognizes April as National Safe Digging Month (April 12, 2022)](https://www.phmsa.dot.gov/news/phmsa-recognizes-april-national-safe-digging-month-0), Pipeline and Hazardous Materials Safety Administration.
+- **BLS:** [Surveyors, Occupational Outlook Handbook](https://www.bls.gov/ooh/architecture-and-engineering/surveyors.htm), U.S. Bureau of Labor Statistics.
+- **FCC:** [47 CFR § 1.1402(i), the definition of conduit](https://www.ecfr.gov/current/title-47/chapter-I/subchapter-A/part-1/subpart-J/section-1.1402), Federal Communications Commission.
+- **Merriam-Webster (conduit):** [Conduit](https://www.merriam-webster.com/dictionary/conduit), Merriam-Webster.
+- **USGS glossary:** [Water Science Glossary: potable water, reclaimed wastewater](https://www.usgs.gov/water-science-school/science/water-science-glossary), U.S. Geological Survey, Water Science School.
+- **Merriam-Webster (slurry):** [Slurry](https://www.merriam-webster.com/dictionary/slurry), Merriam-Webster.
+- **USGS coal slurry study:** [Comparative assessment of water use and environmental implications of coal slurry pipelines (1977)](https://www.usgs.gov/publications/comparative-assessment-water-use-and-environmental-implications-coal-slurry-pipelines), U.S. Geological Survey.
+- **The scene:** Describes the lesson’s own scene, not the world.
+- **The game:** How the lesson’s game works.
+
+## Read the Marks
+
+| ID | Claim | Source | State-specific | Hash | Status |
+|---|---|---|---|---|---|
+| `rm.code.white` | Proposed excavation | APWA card, CGA Best Practices | No | `e799a191c5` | Not reviewed |
+| `rm.answer.white` | Where you plan to dig | APWA card, CGA Best Practices | No | `e1bbb711be` | Not reviewed |
+| `rm.code.pink` | Temporary survey markings | APWA card, CGA Best Practices | No | `9cc7e930e4` | Not reviewed |
+| `rm.answer.pink` | Temporary survey marks | APWA card, CGA Best Practices | No | `1ff7f9e09b` | Not reviewed |
+| `rm.code.red` | Electric power lines, cables, conduit and lighting cables | APWA card, CGA Best Practices | No | `1dba0f5453` | Not reviewed |
+| `rm.answer.red` | Electric power | APWA card, CGA Best Practices | No | `89fcea1b32` | Not reviewed |
+| `rm.code.yellow` | Gas, oil, steam, petroleum or gaseous materials | APWA card, CGA Best Practices | No | `26f271a167` | Not reviewed |
+| `rm.answer.yellow` | Gas, oil or steam | APWA card, CGA Best Practices | No | `14c43485f5` | Not reviewed |
+| `rm.code.orange` | Communication, alarm or signal lines, cables or conduit | APWA card, CGA Best Practices | No | `5b292760b9` | Not reviewed |
+| `rm.answer.orange` | Communication lines | APWA card, CGA Best Practices | No | `bf7afbea9e` | Not reviewed |
+| `rm.code.blue` | Potable water | APWA card, CGA Best Practices | No | `38f3545b2a` | Not reviewed |
+| `rm.answer.blue` | Drinking water | APWA card, CGA Best Practices | No | `a30ba06256` | Not reviewed |
+| `rm.code.purple` | Reclaimed water, irrigation and slurry lines | APWA card, CGA Best Practices | No | `454973e19d` | Not reviewed |
+| `rm.answer.purple` | Reclaimed water or irrigation | APWA card, CGA Best Practices | No | `0f8caf0425` | Not reviewed |
+| `rm.code.green` | Sewers and drain lines | APWA card, CGA Best Practices | No | `99985c8fe6` | Not reviewed |
+| `rm.answer.green` | Sewers and drains | APWA card, CGA Best Practices | No | `bfcba7c84b` | Not reviewed |
+| `rm.mark.dig.ask` | These marks are white. What do they mean? | The game | No | `b48aacf303` | Not reviewed |
+| `rm.mark.dig.reveal` | You'll dig inside the white outline. The other marks show what's buried near it. | APWA card, The scene | No | `e6f8471489` | Not reviewed |
+| `rm.mark.dig.lit` | The white outline in the lawn is lit. | The game | No | `eb6189adc1` | Not reviewed |
+| `rm.mark.gas.ask` | These flags and paint marks are yellow. What do they mean? | The game | No | `c69a97421b` | Not reviewed |
+| `rm.mark.gas.reveal` | Under the yellow marks: the gas line from the street to the house's meter. | The scene | No | `c14285d691` | Not reviewed |
+| `rm.mark.gas.label` | Gas line | The scene | No | `079f1be934` | Not reviewed |
+| `rm.mark.gas.lit` | The yellow flags and paint marks are lit. | The game | No | `f8eaa9bd63` | Not reviewed |
+| `rm.mark.electric.ask` | These flags and paint marks are red. What do they mean? | The game | No | `1bc5be96d6` | Not reviewed |
+| `rm.mark.electric.reveal` | Under the red marks: the electric line from the transformer box to the house. | The scene | No | `8091fa88c8` | Not reviewed |
+| `rm.mark.electric.label` | Electric line | The scene | No | `37ae0ed110` | Not reviewed |
+| `rm.mark.electric.lit` | The red flags and paint marks are lit. | The game | No | `e69792f821` | Not reviewed |
+| `rm.mark.communication.ask` | These flags are orange. What do they mean? | The game | No | `16a04f445e` | Not reviewed |
+| `rm.mark.communication.reveal` | Under the orange flags: a communication cable from the pedestal to the house. | The scene | No | `c357b42843` | Not reviewed |
+| `rm.mark.communication.label` | Communication cable | The scene | No | `e4d8db46cb` | Not reviewed |
+| `rm.mark.communication.lit` | The orange flags are lit. | The game | No | `02476f34c3` | Not reviewed |
+| `rm.mark.water.ask` | These flags are blue. What do they mean? | The game | No | `09eff08fcb` | Not reviewed |
+| `rm.mark.water.reveal` | Under the blue flags: the water line from the street to the meter box. | The scene | No | `22b2cdc77a` | Not reviewed |
+| `rm.mark.water.label` | Water line | The scene | No | `8f27bd161c` | Not reviewed |
+| `rm.mark.water.lit` | The blue flags are lit. | The game | No | `9425cbc108` | Not reviewed |
+| `rm.mark.sewer.ask` | These flags are green. What do they mean? | The game | No | `b63d59e145` | Not reviewed |
+| `rm.mark.sewer.reveal` | Under the green flags: the sewer line out to the main under the street. | The scene | No | `62823f8ea8` | Not reviewed |
+| `rm.mark.sewer.label` | Sewer line | The scene | No | `e004c6b88d` | Not reviewed |
+| `rm.mark.sewer.lit` | The green flags are lit. | The game | No | `eb529c2941` | Not reviewed |
+| `rm.mark.reclaimed.ask` | These flags are purple. What do they mean? | The game | No | `a4a82d0f22` | Not reviewed |
+| `rm.mark.reclaimed.reveal` | Under the purple flags: a reclaimed water line from the street to its own meter box. | The scene | No | `5a141a6ab9` | Not reviewed |
+| `rm.mark.reclaimed.label` | Reclaimed water line | The scene | No | `74ab91a878` | Not reviewed |
+| `rm.mark.reclaimed.lit` | The purple flags are lit. | The game | No | `bdea5140a9` | Not reviewed |
+| `rm.mark.survey.ask` | These flags are pink. What do they mean? | The game | No | `29d182f823` | Not reviewed |
+| `rm.mark.survey.reveal` | Nothing's buried under these: a surveyor set pink flags along the property line. | APWA card, The scene | No | `f7e0e48390` | Not reviewed |
+| `rm.mark.survey.lit` | The pink flags along the property line are lit. | The game | No | `3ac0cd4d9e` | Not reviewed |
+| `rm.intro.scene` | You're about to dig in this yard. You've outlined the spot in white and called 811, and locators have marked what's buried nearby. _(The APWA card: white marks show proposed excavation; the one-call center is contacted before digging; colored paint and flags show buried lines.)_ | APWA card, CGA Best Practices, The scene | No | `2ee10035e6` | Not reviewed |
+| `rm.intro.how` | One mark lights up at a time. Pick what its color means. | The game | No | `1235cd28c8` | Not reviewed |
+| `rm.right` | Right. {Color} means {meaning}. _(Composed with the color’s name and its meaning (rm.code.*).)_ | The game | No | `edd6e0f709` | Not reviewed |
+| `rm.wrong` | Not quite. {Color} means {meaning}. _(Composed with the color’s name and its meaning (rm.code.*).)_ | The game | No | `d83899c2c3` | Not reviewed |
+| `rm.ui.progress` | Mark {n} of 8 | The game | No | `26d573108a` | Not reviewed |
+| `rm.ui.answers` | Answers | The game | No | `4ad0a0a6ae` | Not reviewed |
+| `rm.ui.yours` | Your answer | The game | No | `d0e869b777` | Not reviewed |
+| `rm.ui.right-answer` | Right answer | The game | No | `4285399fe6` | Not reviewed |
+| `rm.ui.next` | Next mark | The game | No | `43f5c185b7` | Not reviewed |
+| `rm.ui.finish` | See everything | The game | No | `5a8099bc64` | Not reviewed |
+| `rm.ui.key` | Key | The game | No | `99a52df3ff` | Not reviewed |
+| `rm.ui.close` | Close the key | The game | No | `c3306c6123` | Not reviewed |
+| `rm.ui.again` | Play again | The game | No | `5ef30d27f8` | Not reviewed |
+| `rm.ui.labels` | Labels | The game | No | `934b8899c3` | Not reviewed |
+| `rm.ui.more` | More of the question | The game | No | `1a74ce6a97` | Not reviewed |
+| `rm.ui.no-webgl` | This game draws its yard in 3D with WebGL, which this browser or device has turned off. The questions still work. | The game | No | `24bee74068` | Not reviewed |
+| `rm.ui.failed` | The 3D view couldn't load. Reload the page to try again. The questions still work. | The game | No | `7ea9bc2729` | Not reviewed |
+| `rm.ui.lost` | The 3D view paused because the graphics context was lost. It usually comes back on its own; if it doesn't, reload the page. | The game | No | `af9d1c68f6` | Not reviewed |
+| `rm.key.heading` | The color code | The game | No | `f977ec02e2` | Not reviewed |
+| `rm.key.lede` | What each color of paint or flag means, from the American Public Works Association (APWA) uniform color code. | APWA card, CGA Best Practices | No | `362f8330c1` | Not reviewed |
+| `rm.key.scale` | Not to scale: the flags, paint and lines are drawn larger than life. | The scene | No | `a3190fa7e8` | Not reviewed |
+| `rm.key.colors` | Each buried line is drawn in its marks' color. Real pipes and cables aren't always those colors. _(The second sentence says what the Frequency Lab's key says (fl.key.colors); it has no source of its own yet, for a locator to confirm.)_ | The scene | No | `7502f634e7` | Not reviewed |
+| `rm.end.score` | You read {n} of 8 marks right. | The game | No | `201b2665f8` | Not reviewed |
+| `rm.end.all` | Here is everything under the marks, all at once. | The game | No | `8e760e5967` | Not reviewed |
+| `rm.end.safety` | Near a mark, dig by hand until you can see the line. _(The APWA card's tolerance zone: hand tools until the marked facility is exposed. Its width is set by state law, so this line names none.)_ | APWA card | No | `1ba9f3d530` | Not reviewed |
+| `rm.view.name` | A yard in 3D, with flags and paint marking what's buried in it. | The scene | No | `a4c1ba47d4` | Not reviewed |
+| `rm.view.yard` | A yard with a house, a lawn, a sidewalk and a street, marked with flags and paint. | The scene | No | `6333c194b8` | Not reviewed |
+| `rm.view.end` | The ground is open along every buried line's marks, showing all the lines. | The game | No | `63f6fa8b15` | Not reviewed |
+| `rm.term.proposed-excavation` | Where someone plans to dig. | APWA card | No | `8eb92aa13f` | Not reviewed |
+| `rm.term.survey-markings` | Marks a surveyor sets, for example to show where a property line runs or where something will be built. | BLS | No | `038e0f4984` | Not reviewed |
+| `rm.term.conduit` | A pipe or tube that protects the wires or cables run through it. | FCC, Merriam-Webster (conduit) | No | `1983d292a8` | Not reviewed |
+| `rm.term.potable` | Safe to drink. | USGS glossary | No | `0d978c1fb8` | Not reviewed |
+| `rm.term.reclaimed-water` | Used water that's been treated so it can be used again, for things like watering or industry. _(Some places treat it further, into drinking water; this line says only what it’s often used for.)_ | USGS glossary | No | `ea7c7e6a2f` | Not reviewed |
+| `rm.term.slurry` | Water with solid bits mixed in, such as mud or ground coal, that can flow through a pipe. _(No source says what the code’s slurry lines carry, so this names no contents.)_ | Merriam-Webster (slurry), USGS coal slurry study | No | `91f7048406` | Not reviewed |
+| `rm.term.locators` | People who find buried lines and mark about where they run, usually with colored paint, flags or stakes. | PHMSA, CGA glossary, APWA card | No | `3904064467` | Not reviewed |
+
 ## Frequency Lab
 
-| ID | Claim | State-specific | Hash | Status |
-|---|---|---|---|---|
-| `fl.tagline` | Use the lowest frequency that works: it travels farther and spreads less to other lines. | No | `f4e61d69cd` | Not reviewed |
-| `fl.intro.find` | To find a buried line, a locator puts a signal on it with a transmitter, then follows the signal from above with a receiver. | No | `9610d7c686` | Not reviewed |
-| `fl.intro.frequency` | The signal's frequency matters: it changes how far the signal travels and how much of it spreads to other lines. | No | `ef0f7e86d9` | Not reviewed |
-| `fl.setup.steel` | A steel gas main carries the signal itself, so the transmitter connects right to it. | No | `9cfc04587a` | Not reviewed |
-| `fl.setup.plastic` | Plastic can't carry a signal, so a tracer wire is buried along the pipe, and the transmitter connects to that. | No | `039c5c4d94` | Not reviewed |
-| `fl.setup.plastic.carries` | The tracer wire carries the signal. | No | `c2b22adcc3` | Not reviewed |
-| `fl.freq.512` | The signal reaches the end of the block, and almost none of it bleeds onto the telecom cable. | No | `1266d7596f` | Not reviewed |
-| `fl.freq.8k` | The signal still reaches the end of the block, and a little of it bleeds onto the telecom cable. | No | `cafaf30a1a` | Not reviewed |
-| `fl.freq.33k` | The signal is weaker by the end of the block, and more of it bleeds onto the telecom cable. | No | `a592cc6ba7` | Not reviewed |
-| `fl.freq.83k` | The signal fades out before the end of the block, and much more of it bleeds onto the telecom cable. | No | `0aaa90a54b` | Not reviewed |
-| `fl.try.steel` | Step from 512 Hz up to 83 kHz. Watch the glow on the gas main end sooner, and more of the orange telecom cable light up. | No | `f7c256b1df` | Not reviewed |
-| `fl.try.plastic.wire` | Find the tracer wire on top of the plastic pipe: it carries the signal. | No | `a190e5a2ef` | Not reviewed |
-| `fl.try.plastic.reach` | Step up to 83 kHz and watch the signal fade out before the end of the block. | No | `2d53c7e75e` | Not reviewed |
-| `fl.rule.lowest` | Use the lowest frequency that works. | No | `350c026ea8` | Not reviewed |
-| `fl.rule.why` | Lower frequencies travel farther, and more of the signal stays on your line instead of spreading to others. | No | `87c560a153` | Not reviewed |
-| `fl.rule.higher` | Higher frequencies are for when a lower one can't get enough signal onto the line. | No | `d2919cbc8f` | Not reviewed |
-| `fl.key.colors` | Lines are colored like the paint marks locators use: yellow for gas, orange for communications. Real pipes aren't always those colors. | No | `2c2ea70b6d` | Not reviewed |
-| `fl.about.model` | What you see comes from a simplified teaching model, not from measurements. | No | `645d47e9cb` | Not reviewed |
-| `fl.about.distances` | Distances are shortened so the frequencies are easy to compare. Real signals travel much farther, in the same order: lower frequencies farthest. | No | `7232499340` | Not reviewed |
-| `fl.about.slowed` | The signal is slowed way down so you can see it. | No | `05dcc81536` | Not reviewed |
-| `fl.label.transmitter` | Puts the signal on the line. | No | `505c0e6273` | Not reviewed |
-| `fl.label.stake` | A metal rod in the soil. The signal returns to it, completing the loop. | No | `1f563fb29e` | Not reviewed |
-| `fl.label.test-station` | Where the transmitter connects to the steel main. | No | `12e8a9d4ef` | Not reviewed |
-| `fl.label.tracer-box` | Where the transmitter connects to the tracer wire. | No | `c24fb29be3` | Not reviewed |
-| `fl.label.steel-main` | A steel pipe carrying natural gas. The metal carries the signal. | No | `3cf1dee527` | Not reviewed |
-| `fl.label.plastic-main` | A plastic pipe carrying natural gas. Plastic can't carry the signal. | No | `b41b6a67c1` | Not reviewed |
-| `fl.label.tracer` | A wire buried with the plastic pipe. It carries the signal so the pipe can be found. | No | `a75e379e27` | Not reviewed |
-| `fl.label.telecom` | A phone or internet cable. Signal can bleed onto it. | No | `a6adc4fee5` | Not reviewed |
-| `fl.term.transmitter` | A device that puts a signal on a buried line. | No | `f09e236b25` | Not reviewed |
-| `fl.term.receiver` | A handheld device that picks up the signal from above ground, so the locator can follow the line. | No | `8b525fd540` | Not reviewed |
-| `fl.term.frequency` | How many times a second the signal repeats, in hertz (Hz). 8 kHz is 8,000 times a second. | No | `d04b4bcc70` | Not reviewed |
-| `fl.term.tracer-wire` | A wire buried along a plastic pipe so the pipe can be found. | No | `1f3b55f5ad` | Not reviewed |
-| `fl.term.bleed-over` | Signal that spreads from your line onto other lines nearby. It can lead a locator to the wrong line. | No | `e533842e00` | Not reviewed |
+| ID | Claim | Source | State-specific | Hash | Status |
+|---|---|---|---|---|---|
+| `fl.tagline` | Use the lowest frequency that works: it travels farther and spreads less to other lines. | — | No | `f4e61d69cd` | Not reviewed |
+| `fl.intro.find` | To find a buried line, a locator puts a signal on it with a transmitter, then follows the signal from above with a receiver. | — | No | `9610d7c686` | Not reviewed |
+| `fl.intro.frequency` | The signal's frequency matters: it changes how far the signal travels and how much of it spreads to other lines. | — | No | `ef0f7e86d9` | Not reviewed |
+| `fl.setup.steel` | A steel gas main carries the signal itself, so the transmitter connects right to it. | — | No | `9cfc04587a` | Not reviewed |
+| `fl.setup.plastic` | Plastic can't carry a signal, so a tracer wire is buried along the pipe, and the transmitter connects to that. | — | No | `039c5c4d94` | Not reviewed |
+| `fl.setup.plastic.carries` | The tracer wire carries the signal. | — | No | `c2b22adcc3` | Not reviewed |
+| `fl.freq.512` | The signal reaches the end of the block, and almost none of it bleeds onto the telecom cable. | — | No | `1266d7596f` | Not reviewed |
+| `fl.freq.8k` | The signal still reaches the end of the block, and a little of it bleeds onto the telecom cable. | — | No | `cafaf30a1a` | Not reviewed |
+| `fl.freq.33k` | The signal is weaker by the end of the block, and more of it bleeds onto the telecom cable. | — | No | `a592cc6ba7` | Not reviewed |
+| `fl.freq.83k` | The signal fades out before the end of the block, and much more of it bleeds onto the telecom cable. | — | No | `0aaa90a54b` | Not reviewed |
+| `fl.try.steel` | Step from 512 Hz up to 83 kHz. Watch the glow on the gas main end sooner, and more of the orange telecom cable light up. | — | No | `f7c256b1df` | Not reviewed |
+| `fl.try.plastic.wire` | Find the tracer wire on top of the plastic pipe: it carries the signal. | — | No | `a190e5a2ef` | Not reviewed |
+| `fl.try.plastic.reach` | Step up to 83 kHz and watch the signal fade out before the end of the block. | — | No | `2d53c7e75e` | Not reviewed |
+| `fl.rule.lowest` | Use the lowest frequency that works. | — | No | `350c026ea8` | Not reviewed |
+| `fl.rule.why` | Lower frequencies travel farther, and more of the signal stays on your line instead of spreading to others. | — | No | `87c560a153` | Not reviewed |
+| `fl.rule.higher` | Higher frequencies are for when a lower one can't get enough signal onto the line. | — | No | `d2919cbc8f` | Not reviewed |
+| `fl.key.colors` | Lines are colored like the paint marks locators use: yellow for gas, orange for communications. Real pipes aren't always those colors. | — | No | `2c2ea70b6d` | Not reviewed |
+| `fl.about.model` | What you see comes from a simplified teaching model, not from measurements. | — | No | `645d47e9cb` | Not reviewed |
+| `fl.about.distances` | Distances are shortened so the frequencies are easy to compare. Real signals travel much farther, in the same order: lower frequencies farthest. | — | No | `7232499340` | Not reviewed |
+| `fl.about.slowed` | The signal is slowed way down so you can see it. | — | No | `05dcc81536` | Not reviewed |
+| `fl.label.transmitter` | Puts the signal on the line. | — | No | `505c0e6273` | Not reviewed |
+| `fl.label.stake` | A metal rod in the soil. The signal returns to it, completing the loop. | — | No | `1f563fb29e` | Not reviewed |
+| `fl.label.test-station` | Where the transmitter connects to the steel main. | — | No | `12e8a9d4ef` | Not reviewed |
+| `fl.label.tracer-box` | Where the transmitter connects to the tracer wire. | — | No | `c24fb29be3` | Not reviewed |
+| `fl.label.steel-main` | A steel pipe carrying natural gas. The metal carries the signal. | — | No | `3cf1dee527` | Not reviewed |
+| `fl.label.plastic-main` | A plastic pipe carrying natural gas. Plastic can't carry the signal. | — | No | `b41b6a67c1` | Not reviewed |
+| `fl.label.tracer` | A wire buried with the plastic pipe. It carries the signal so the pipe can be found. | — | No | `a75e379e27` | Not reviewed |
+| `fl.label.telecom` | A phone or internet cable. Signal can bleed onto it. | — | No | `a6adc4fee5` | Not reviewed |
+| `fl.term.transmitter` | A device that puts a signal on a buried line. | — | No | `f09e236b25` | Not reviewed |
+| `fl.term.receiver` | A handheld device that picks up the signal from above ground, so the locator can follow the line. | — | No | `8b525fd540` | Not reviewed |
+| `fl.term.frequency` | How many times a second the signal repeats, in hertz (Hz). 8 kHz is 8,000 times a second. | — | No | `d04b4bcc70` | Not reviewed |
+| `fl.term.tracer-wire` | A wire buried along a plastic pipe so the pipe can be found. | — | No | `1f3b55f5ad` | Not reviewed |
+| `fl.term.bleed-over` | Signal that spreads from your line onto other lines nearby. It can lead a locator to the wrong line. | — | No | `e533842e00` | Not reviewed |
 
 ## Gas & Petroleum
 
-| ID | Claim | State-specific | Hash | Status |
-|---|---|---|---|---|
-| `gp.overview.title` | Two fuels, one beginning | No | `65f05de987` | Not reviewed |
-| `gp.overview.start` | Natural gas and gasoline start the same way: tiny sea life, buried and slowly "cooked" by heat and pressure over millions of years into oil and gas. | No | `1dd48cd257` | Not reviewed |
-| `gp.overview.wells` | The two often come up the same wells. | No | `65b4df5181` | Not reviewed |
-| `gp.overview.split` | Then the paths split: gas is cleaned and piped to where it's used, while crude oil goes to a refinery to become gasoline. | No | `100d8f36c4` | Not reviewed |
-| `gp.formation.title` | It starts with tiny sea life | No | `ab04633adc` | Not reviewed |
-| `gp.formation.sank` | Long ago, tiny sea life called plankton died and sank into the mud on the seafloor. | No | `e602391f8a` | Not reviewed |
-| `gp.formation.cooked` | Over millions of years, layers of mud and sand buried it deeper, and heat and pressure slowly "cooked" it into oil and gas. | No | `2aa6d4a128` | Not reviewed |
-| `gp.reservoir.title` | Hiding in rock, like water in a sponge | No | `4905e31dfe` | Not reviewed |
-| `gp.reservoir.cap` | Oil and gas slowly creep upward through the rock until a tight layer of cap rock stops them, like a lid. | No | `189514c41c` | Not reviewed |
-| `gp.reservoir.sponge` | Below it, they fill the tiny holes in reservoir rock, like water in a sponge. | No | `51da916ee6` | Not reviewed |
-| `gp.reservoir.weight` | Everything settles by weight: gas on top, then oil, then salty water. | No | `9e8d4bc655` | Not reviewed |
-| `gp.drilling.title` | Finding it, then drilling down | No | `a0d34c6af0` | Not reviewed |
-| `gp.drilling.survey` | Crews map the rock layers with a seismic survey, which uses sound waves. | No | `bb7eac90df` | Not reviewed |
-| `gp.drilling.casing` | Then a rig drills down and lines the hole with steel and cement to seal it off from groundwater. | No | `cd4dfebb55` | Not reviewed |
-| `gp.drilling.fracking` | In tight rock, fracking cracks the rock open so oil and gas can flow out. | No | `a312acc608` | Not reviewed |
-| `gp.lifting.title` | Up the well, then sorted three ways | No | `6330a33258` | Not reviewed |
-| `gp.lifting.pump` | Gas usually rushes up the well on its own, but oil often needs a pump jack to lift it. | No | `b3cb822759` | Not reviewed |
-| `gp.lifting.separator` | What comes up is a mix of gas, oil and salty water, and a separator lets it settle into layers. | No | `d543f57ee1` | Not reviewed |
-| `gp.lifting.fork` | This is the fork: gas heads off along the natural gas path, oil along the gasoline one. | No | `5a6f15e704` | Not reviewed |
-| `gp.gas-plant.title` | Cleaning up the gas | No | `394c9109c2` | Not reviewed |
-| `gp.gas-plant.raw` | Raw gas from the well isn't ready to use. | No | `05be20f3d7` | Not reviewed |
-| `gp.gas-plant.clean` | A processing plant dries it, removes impurities, and pulls out heavier gases like propane to sell separately. | No | `afac489d04` | Not reviewed |
-| `gp.gas-plant.left` | What's left is the natural gas that heads into the pipelines. | No | `c2b8a773e2` | Not reviewed |
-| `gp.pipeline.title` | Pushed along long pipelines | No | `64f2a4b9d0` | Not reviewed |
-| `gp.pipeline.travel` | Clean gas travels long distances through big, buried steel pipelines. | No | `80f1c92fca` | Not reviewed |
-| `gp.pipeline.compress` | It slowly loses pressure along the way, so compressor stations squeeze it back up to keep it moving. | No | `d3aec92d8f` | Not reviewed |
-| `gp.storage-lng.title` | Saved for winter, or shipped overseas | No | `5df2d431e1` | Not reviewed |
-| `gp.storage-lng.winter` | People use far more gas in winter, so extra gas is pumped into underground storage in warmer months and pulled back out when it's cold. | No | `5a8f9041b0` | Not reviewed |
-| `gp.storage-lng.lng` | Some gas is chilled until it turns into a liquid, called LNG, so ships can carry it overseas. | No | `9200e91409` | Not reviewed |
-| `gp.city-gate.title` | Into town: lower pressure, added smell | No | `ff9a5b7b3f` | Not reviewed |
-| `gp.city-gate.local` | At the city gate, gas leaves the big pipeline for the local network. | No | `da00528e79` | Not reviewed |
-| `gp.city-gate.odorant` | Its pressure is lowered, and an odorant is added, because natural gas has no smell of its own. | No | `c4fb45b529` | Not reviewed |
-| `gp.city-gate.meter` | Smaller pipes under the streets then carry it to a gas meter at each building. | No | `e9dd57f998` | Not reviewed |
-| `gp.city-gate.safety` | If you ever smell rotten eggs indoors, leave right away and call the gas company from outside. | No | `79c1fe0401` | Not reviewed |
-| `gp.gas-uses.title` | Electricity, heat and things we make | No | `e559fa3125` | Not reviewed |
-| `gp.gas-uses.power` | Much natural gas goes to power plants to make electricity. | No | `e966032e6a` | Not reviewed |
-| `gp.gas-uses.homes` | In homes, it fuels furnaces, stoves and water heaters, and factories use it to make things like fertilizer. | No | `a6127fb3f6` | Not reviewed |
-| `gp.crude-transport.title` | Moving crude oil to a refinery | No | `b6943babd6` | Not reviewed |
-| `gp.crude-transport.crude` | Crude oil is the thick, dark oil that comes out of the ground. | No | `54d3ec7059` | Not reviewed |
-| `gp.crude-transport.pipeline` | On land, most of it travels to a refinery by pipeline. | No | `c9482580e8` | Not reviewed |
-| `gp.crude-transport.other` | Ships carry it across oceans, and trains and trucks go where there are no pipes. | No | `f4951968dc` | Not reviewed |
-| `gp.distillation.title` | Turning crude oil into fuels | No | `cf0632391b` | Not reviewed |
-| `gp.distillation.vapor` | At a refinery, crude oil is heated until much of it turns to vapor. | No | `2f889b1a5d` | Not reviewed |
-| `gp.distillation.tower` | In a tall distillation tower, the vapor cools as it rises and turns back to liquid at different heights: gasoline near the top, heavier fuels lower down. | No | `2bf3200ce7` | Not reviewed |
-| `gp.distillation.blend` | The refinery then turns some of the heavier oils into more gasoline and blends the finished fuel. | No | `a6a1ae7aa6` | Not reviewed |
-| `gp.delivery.title` | From refinery to your neighborhood | No | `954d9611f3` | Not reviewed |
-| `gp.delivery.terminals` | Finished fuels travel through pipelines to storage terminals, big tank farms near cities. | No | `69ac1e53a3` | Not reviewed |
-| `gp.delivery.trucks` | There, tanker trucks fill up and drive the fuel to gas stations, where it goes into large tanks buried under the station. | No | `deb6c372fc` | Not reviewed |
-| `gp.pump.title` | At the pump, then on the road | No | `ee48258541` | Not reviewed |
-| `gp.pump.tanks` | At the station, the pumps draw fuel from the tanks buried below. | No | `ac8f80f0b4` | Not reviewed |
-| `gp.pump.engines` | Most gasoline goes into cars and other vehicles, whose engines burn it to turn the wheels. | No | `a2d2366521` | Not reviewed |
-| `gp.term.plankton` | Tiny living things that drift in water, like algae and microscopic animals. | No | `580032f565` | Not reviewed |
-| `gp.term.cap-rock` | A tight layer of rock that fluids can't pass through. It seals oil and gas in. | No | `470ddb81b9` | Not reviewed |
-| `gp.term.reservoir-rock` | Rock with many tiny connected holes that can hold oil, gas or water. | No | `ac9d2ef70c` | Not reviewed |
-| `gp.term.seismic-survey` | Mapping underground rock by sending sound waves down and timing their echoes. | No | `56c0daae3c` | Not reviewed |
-| `gp.term.groundwater` | Fresh water held in soil and rock near the surface. Many people drink it from wells. | No | `dfe2da71f4` | Not reviewed |
-| `gp.term.fracking` | Short for hydraulic fracturing: pumping water, sand and a little chemical additive into a well at high pressure to crack the rock. | No | `5e79d39090` | Not reviewed |
-| `gp.term.pump-jack` | A nodding machine at an oil well. It moves a long rod up and down to lift oil to the surface. | No | `27fea36e4c` | Not reviewed |
-| `gp.term.separator` | A tank that lets the gas, oil and water coming out of a well separate by weight. | No | `1bce9ef308` | Not reviewed |
-| `gp.term.processing-plant` | A facility that cleans raw natural gas and separates it into useful parts. | No | `bfec574360` | Not reviewed |
-| `gp.term.pipelines` | Long steel pipes, usually buried, that carry gas or liquids over long distances. | No | `b8b3a8d89a` | Not reviewed |
-| `gp.term.compressor-station` | A facility along a pipeline that squeezes the gas to raise its pressure so it keeps flowing. | No | `7a0cae193e` | Not reviewed |
-| `gp.term.underground-storage` | Places deep underground, like old gas fields or caverns in salt, where gas is kept until it's needed. | No | `4a111017d2` | Not reviewed |
-| `gp.term.lng` | Liquefied natural gas: natural gas chilled until it turns into a liquid, so it takes up far less space. | No | `e5df3222db` | Not reviewed |
-| `gp.term.city-gate` | The station where gas moves from a long-distance pipeline into a local delivery network. | No | `26080d5aa0` | Not reviewed |
-| `gp.term.odorant` | A strong-smelling chemical added to gas so leaks can be noticed. | No | `7c97202ca2` | Not reviewed |
-| `gp.term.gas-meter` | A device on the outside of a building that measures how much gas it uses. | No | `bd6f3263fa` | Not reviewed |
-| `gp.term.power-plants` | Facilities that make electricity, often by burning fuel to spin a generator. | No | `72ddba804c` | Not reviewed |
-| `gp.term.crude-oil` | Oil as it comes out of the ground, before a refinery turns it into fuels. | No | `32e7728a8e` | Not reviewed |
-| `gp.term.distillation-tower` | A tall column where hot vapor cools and turns back to liquid at different heights, sorting crude oil into fuels. | No | `7dc49d5852` | Not reviewed |
-| `gp.term.storage-terminals` | Large groups of tanks where fuel is stored and loaded onto trucks. | No | `5547d57e02` | Not reviewed |
-| `gp.term.refinery` | A plant that turns crude oil into fuels like gasoline, diesel and jet fuel. | No | `3a8f4f0dd9` | Not reviewed |
-| `gp.quiz.gas.origin` | Both formed from plankton and algae that were buried and slowly "cooked" by heat and pressure. | No | `4b29cc1174` | Not reviewed |
-| `gp.quiz.gas.smell` | Natural gas has no smell. An odorant is added at the city gate so people can notice a leak. | No | `e1564fa1ed` | Not reviewed |
-| `gp.quiz.gas.compressor` | Gas loses pressure as it travels. Compressor stations push it back up so it keeps flowing. | No | `1856ad872f` | Not reviewed |
-| `gp.quiz.gasoline.rock` | Oil fills the tiny spaces in reservoir rock, like water in a sponge, trapped under a cap rock. | No | `e3ca170477` | Not reviewed |
-| `gp.quiz.gasoline.refinery` | A refinery heats and separates crude oil, then turns it into finished fuels like gasoline. | No | `5a61aeb6cb` | Not reviewed |
-| `gp.quiz.gasoline.tanks` | Tanker trucks unload into large tanks buried under the station, and the pumps draw fuel from them. | No | `07e4fad463` | Not reviewed |
-| `gp.timelapse.sea` | Plankton thrive in a warm, shallow sea. When they die, they sink into the mud. | No | `0dd9f48070` | Not reviewed |
-| `gp.timelapse.mud` | Low oxygen on the seafloor stops them rotting away. A dark, rich mud builds up. | No | `7ea81e9032` | Not reviewed |
-| `gp.timelapse.buried` | Rivers dump sand and mud on top. Layer by layer, the remains are buried deeper. | No | `a31aed6ceb` | Not reviewed |
-| `gp.timelapse.oil` | Now buried deep, where it is hot, the remains slowly turn into oil. | No | `3565a1f2fd` | Not reviewed |
-| `gp.timelapse.gas` | Deeper, hotter parts turn into gas. Oil and gas creep upward through the rock. | No | `bc56b120ff` | Not reviewed |
-| `gp.timelapse.today` | They collect in porous sandstone, trapped under tight cap rock. Today, we drill for them. | No | `614fd4dbb3` | Not reviewed |
-| `gp.timelapse.illustrative` | Illustrative timeline: real ages vary widely from place to place. | No | `3499c58ac5` | Not reviewed |
-| `gp.detail.source-rock` | Source rock: where oil and gas form | No | `d81f6ced1c` | Not reviewed |
-| `gp.detail.gas` | Gas | No | `e23a445d0f` | Not reviewed |
-| `gp.detail.oil` | Oil | No | `2378bdd2cf` | Not reviewed |
-| `gp.detail.salty-water` | Salty water | No | `185cd54317` | Not reviewed |
-| `gp.detail.cap-rock` | Cap rock (the lid) | No | `b0a75e4170` | Not reviewed |
-| `gp.detail.zoom` | Zoom: sand grains, oil in the gaps | No | `058ac2930d` | Not reviewed |
-| `gp.detail.groundwater` | Groundwater | No | `b921e5bcc6` | Not reviewed |
-| `gp.detail.casing` | Steel casing + cement | No | `8d8a127e3f` | Not reviewed |
-| `gp.detail.fractures` | Fractures held open by sand | No | `5fef341c63` | Not reviewed |
-| `gp.detail.seismic` | Seismic waves | No | `ac3180e4c0` | Not reviewed |
-| `gp.detail.pump-jack` | Pump jack lifts the oil | No | `9c510c6f50` | Not reviewed |
-| `gp.detail.gas-well` | Gas flows up on its own | No | `6877b1a5c2` | Not reviewed |
-| `gp.detail.water-tank` | Salty water | No | `185cd54317` | Not reviewed |
-| `gp.detail.separator` | Inside: gas · oil · water | No | `e3115c647a` | Not reviewed |
-| `gp.detail.propane` | Propane & butane removed | No | `6d6ce0547d` | Not reviewed |
-| `gp.detail.flare` | Flare: burns off gas safely | No | `30b15ed0a7` | Not reviewed |
-| `gp.detail.clean-gas` | Clean gas leaves | No | `cd3aa5b32f` | Not reviewed |
-| `gp.detail.compressors` | Compressors squeeze the gas | No | `5bf377b9ff` | Not reviewed |
-| `gp.detail.markers` | Buried pipeline (marker posts) | No | `d0f654ac05` | Not reviewed |
-| `gp.detail.storage-rock` | Gas stored in porous rock for winter | No | `b0ed070f03` | Not reviewed |
-| `gp.detail.chilled` | Gas chilled into a liquid | No | `758b04acfa` | Not reviewed |
-| `gp.detail.lng-ship` | LNG ship | No | `dd3e67a547` | Not reviewed |
-| `gp.detail.storage-well` | Underground storage well | No | `853f562c09` | Not reviewed |
-| `gp.detail.pressure` | Pressure lowered here | No | `715a395513` | Not reviewed |
-| `gp.detail.odorant` | Odorant added | No | `67c3959f79` | Not reviewed |
-| `gp.detail.power-plant` | Power plant: electricity | No | `62d84d1105` | Not reviewed |
-| `gp.detail.factory` | Factory: fertilizer, plastics | No | `797db78074` | Not reviewed |
-| `gp.detail.homes` | Homes: heat, hot water, cooking | No | `cc4fc5e0b3` | Not reviewed |
-| `gp.detail.crude` | Crude oil: thick and dark | No | `2dbf46e031` | Not reviewed |
-| `gp.detail.rail` | Rail tank cars | No | `d2d9943b24` | Not reviewed |
-| `gp.detail.asphalt` | Asphalt | No | `6fab0a9f38` | Not reviewed |
-| `gp.detail.heavy-oils` | Heavy oils | No | `daa92f23c9` | Not reviewed |
-| `gp.detail.diesel` | Diesel | No | `0a3408c47c` | Not reviewed |
-| `gp.detail.jet-fuel` | Jet fuel | No | `6e28f6c70c` | Not reviewed |
-| `gp.detail.gasoline` | Gasoline | No | `3023b176e3` | Not reviewed |
-| `gp.detail.light-gases` | Light gases | No | `0942709676` | Not reviewed |
-| `gp.detail.furnace` | Furnace heats the crude | No | `eeb9fe0ebf` | Not reviewed |
-| `gp.detail.terminal` | Storage terminal | No | `3f963a2c92` | Not reviewed |
-| `gp.detail.tanker` | Tanker truck | No | `65f2b113f4` | Not reviewed |
-| `gp.detail.fuel-tanks` | Underground fuel tanks | No | `3441abbde5` | Not reviewed |
+| ID | Claim | Source | State-specific | Hash | Status |
+|---|---|---|---|---|---|
+| `gp.overview.title` | Two fuels, one beginning | — | No | `65f05de987` | Not reviewed |
+| `gp.overview.start` | Natural gas and gasoline start the same way: tiny sea life, buried and slowly "cooked" by heat and pressure over millions of years into oil and gas. | — | No | `1dd48cd257` | Not reviewed |
+| `gp.overview.wells` | The two often come up the same wells. | — | No | `65b4df5181` | Not reviewed |
+| `gp.overview.split` | Then the paths split: gas is cleaned and piped to where it's used, while crude oil goes to a refinery to become gasoline. | — | No | `100d8f36c4` | Not reviewed |
+| `gp.formation.title` | It starts with tiny sea life | — | No | `ab04633adc` | Not reviewed |
+| `gp.formation.sank` | Long ago, tiny sea life called plankton died and sank into the mud on the seafloor. | — | No | `e602391f8a` | Not reviewed |
+| `gp.formation.cooked` | Over millions of years, layers of mud and sand buried it deeper, and heat and pressure slowly "cooked" it into oil and gas. | — | No | `2aa6d4a128` | Not reviewed |
+| `gp.reservoir.title` | Hiding in rock, like water in a sponge | — | No | `4905e31dfe` | Not reviewed |
+| `gp.reservoir.cap` | Oil and gas slowly creep upward through the rock until a tight layer of cap rock stops them, like a lid. | — | No | `189514c41c` | Not reviewed |
+| `gp.reservoir.sponge` | Below it, they fill the tiny holes in reservoir rock, like water in a sponge. | — | No | `51da916ee6` | Not reviewed |
+| `gp.reservoir.weight` | Everything settles by weight: gas on top, then oil, then salty water. | — | No | `9e8d4bc655` | Not reviewed |
+| `gp.drilling.title` | Finding it, then drilling down | — | No | `a0d34c6af0` | Not reviewed |
+| `gp.drilling.survey` | Crews map the rock layers with a seismic survey, which uses sound waves. | — | No | `bb7eac90df` | Not reviewed |
+| `gp.drilling.casing` | Then a rig drills down and lines the hole with steel and cement to seal it off from groundwater. | — | No | `cd4dfebb55` | Not reviewed |
+| `gp.drilling.fracking` | In tight rock, fracking cracks the rock open so oil and gas can flow out. | — | No | `a312acc608` | Not reviewed |
+| `gp.lifting.title` | Up the well, then sorted three ways | — | No | `6330a33258` | Not reviewed |
+| `gp.lifting.pump` | Gas usually rushes up the well on its own, but oil often needs a pump jack to lift it. | — | No | `b3cb822759` | Not reviewed |
+| `gp.lifting.separator` | What comes up is a mix of gas, oil and salty water, and a separator lets it settle into layers. | — | No | `d543f57ee1` | Not reviewed |
+| `gp.lifting.fork` | This is the fork: gas heads off along the natural gas path, oil along the gasoline one. | — | No | `5a6f15e704` | Not reviewed |
+| `gp.gas-plant.title` | Cleaning up the gas | — | No | `394c9109c2` | Not reviewed |
+| `gp.gas-plant.raw` | Raw gas from the well isn't ready to use. | — | No | `05be20f3d7` | Not reviewed |
+| `gp.gas-plant.clean` | A processing plant dries it, removes impurities, and pulls out heavier gases like propane to sell separately. | — | No | `afac489d04` | Not reviewed |
+| `gp.gas-plant.left` | What's left is the natural gas that heads into the pipelines. | — | No | `c2b8a773e2` | Not reviewed |
+| `gp.pipeline.title` | Pushed along long pipelines | — | No | `64f2a4b9d0` | Not reviewed |
+| `gp.pipeline.travel` | Clean gas travels long distances through big, buried steel pipelines. | — | No | `80f1c92fca` | Not reviewed |
+| `gp.pipeline.compress` | It slowly loses pressure along the way, so compressor stations squeeze it back up to keep it moving. | — | No | `d3aec92d8f` | Not reviewed |
+| `gp.storage-lng.title` | Saved for winter, or shipped overseas | — | No | `5df2d431e1` | Not reviewed |
+| `gp.storage-lng.winter` | People use far more gas in winter, so extra gas is pumped into underground storage in warmer months and pulled back out when it's cold. | — | No | `5a8f9041b0` | Not reviewed |
+| `gp.storage-lng.lng` | Some gas is chilled until it turns into a liquid, called LNG, so ships can carry it overseas. | — | No | `9200e91409` | Not reviewed |
+| `gp.city-gate.title` | Into town: lower pressure, added smell | — | No | `ff9a5b7b3f` | Not reviewed |
+| `gp.city-gate.local` | At the city gate, gas leaves the big pipeline for the local network. | — | No | `da00528e79` | Not reviewed |
+| `gp.city-gate.odorant` | Its pressure is lowered, and an odorant is added, because natural gas has no smell of its own. | — | No | `c4fb45b529` | Not reviewed |
+| `gp.city-gate.meter` | Smaller pipes under the streets then carry it to a gas meter at each building. | — | No | `e9dd57f998` | Not reviewed |
+| `gp.city-gate.safety` | If you ever smell rotten eggs indoors, leave right away and call the gas company from outside. | — | No | `79c1fe0401` | Not reviewed |
+| `gp.gas-uses.title` | Electricity, heat and things we make | — | No | `e559fa3125` | Not reviewed |
+| `gp.gas-uses.power` | Much natural gas goes to power plants to make electricity. | — | No | `e966032e6a` | Not reviewed |
+| `gp.gas-uses.homes` | In homes, it fuels furnaces, stoves and water heaters, and factories use it to make things like fertilizer. | — | No | `a6127fb3f6` | Not reviewed |
+| `gp.crude-transport.title` | Moving crude oil to a refinery | — | No | `b6943babd6` | Not reviewed |
+| `gp.crude-transport.crude` | Crude oil is the thick, dark oil that comes out of the ground. | — | No | `54d3ec7059` | Not reviewed |
+| `gp.crude-transport.pipeline` | On land, most of it travels to a refinery by pipeline. | — | No | `c9482580e8` | Not reviewed |
+| `gp.crude-transport.other` | Ships carry it across oceans, and trains and trucks go where there are no pipes. | — | No | `f4951968dc` | Not reviewed |
+| `gp.distillation.title` | Turning crude oil into fuels | — | No | `cf0632391b` | Not reviewed |
+| `gp.distillation.vapor` | At a refinery, crude oil is heated until much of it turns to vapor. | — | No | `2f889b1a5d` | Not reviewed |
+| `gp.distillation.tower` | In a tall distillation tower, the vapor cools as it rises and turns back to liquid at different heights: gasoline near the top, heavier fuels lower down. | — | No | `2bf3200ce7` | Not reviewed |
+| `gp.distillation.blend` | The refinery then turns some of the heavier oils into more gasoline and blends the finished fuel. | — | No | `a6a1ae7aa6` | Not reviewed |
+| `gp.delivery.title` | From refinery to your neighborhood | — | No | `954d9611f3` | Not reviewed |
+| `gp.delivery.terminals` | Finished fuels travel through pipelines to storage terminals, big tank farms near cities. | — | No | `69ac1e53a3` | Not reviewed |
+| `gp.delivery.trucks` | There, tanker trucks fill up and drive the fuel to gas stations, where it goes into large tanks buried under the station. | — | No | `deb6c372fc` | Not reviewed |
+| `gp.pump.title` | At the pump, then on the road | — | No | `ee48258541` | Not reviewed |
+| `gp.pump.tanks` | At the station, the pumps draw fuel from the tanks buried below. | — | No | `ac8f80f0b4` | Not reviewed |
+| `gp.pump.engines` | Most gasoline goes into cars and other vehicles, whose engines burn it to turn the wheels. | — | No | `a2d2366521` | Not reviewed |
+| `gp.term.plankton` | Tiny living things that drift in water, like algae and microscopic animals. | — | No | `580032f565` | Not reviewed |
+| `gp.term.cap-rock` | A tight layer of rock that fluids can't pass through. It seals oil and gas in. | — | No | `470ddb81b9` | Not reviewed |
+| `gp.term.reservoir-rock` | Rock with many tiny connected holes that can hold oil, gas or water. | — | No | `ac9d2ef70c` | Not reviewed |
+| `gp.term.seismic-survey` | Mapping underground rock by sending sound waves down and timing their echoes. | — | No | `56c0daae3c` | Not reviewed |
+| `gp.term.groundwater` | Fresh water held in soil and rock near the surface. Many people drink it from wells. | — | No | `dfe2da71f4` | Not reviewed |
+| `gp.term.fracking` | Short for hydraulic fracturing: pumping water, sand and a little chemical additive into a well at high pressure to crack the rock. | — | No | `5e79d39090` | Not reviewed |
+| `gp.term.pump-jack` | A nodding machine at an oil well. It moves a long rod up and down to lift oil to the surface. | — | No | `27fea36e4c` | Not reviewed |
+| `gp.term.separator` | A tank that lets the gas, oil and water coming out of a well separate by weight. | — | No | `1bce9ef308` | Not reviewed |
+| `gp.term.processing-plant` | A facility that cleans raw natural gas and separates it into useful parts. | — | No | `bfec574360` | Not reviewed |
+| `gp.term.pipelines` | Long steel pipes, usually buried, that carry gas or liquids over long distances. | — | No | `b8b3a8d89a` | Not reviewed |
+| `gp.term.compressor-station` | A facility along a pipeline that squeezes the gas to raise its pressure so it keeps flowing. | — | No | `7a0cae193e` | Not reviewed |
+| `gp.term.underground-storage` | Places deep underground, like old gas fields or caverns in salt, where gas is kept until it's needed. | — | No | `4a111017d2` | Not reviewed |
+| `gp.term.lng` | Liquefied natural gas: natural gas chilled until it turns into a liquid, so it takes up far less space. | — | No | `e5df3222db` | Not reviewed |
+| `gp.term.city-gate` | The station where gas moves from a long-distance pipeline into a local delivery network. | — | No | `26080d5aa0` | Not reviewed |
+| `gp.term.odorant` | A strong-smelling chemical added to gas so leaks can be noticed. | — | No | `7c97202ca2` | Not reviewed |
+| `gp.term.gas-meter` | A device on the outside of a building that measures how much gas it uses. | — | No | `bd6f3263fa` | Not reviewed |
+| `gp.term.power-plants` | Facilities that make electricity, often by burning fuel to spin a generator. | — | No | `72ddba804c` | Not reviewed |
+| `gp.term.crude-oil` | Oil as it comes out of the ground, before a refinery turns it into fuels. | — | No | `32e7728a8e` | Not reviewed |
+| `gp.term.distillation-tower` | A tall column where hot vapor cools and turns back to liquid at different heights, sorting crude oil into fuels. | — | No | `7dc49d5852` | Not reviewed |
+| `gp.term.storage-terminals` | Large groups of tanks where fuel is stored and loaded onto trucks. | — | No | `5547d57e02` | Not reviewed |
+| `gp.term.refinery` | A plant that turns crude oil into fuels like gasoline, diesel and jet fuel. | — | No | `3a8f4f0dd9` | Not reviewed |
+| `gp.quiz.gas.origin` | Both formed from plankton and algae that were buried and slowly "cooked" by heat and pressure. | — | No | `4b29cc1174` | Not reviewed |
+| `gp.quiz.gas.smell` | Natural gas has no smell. An odorant is added at the city gate so people can notice a leak. | — | No | `e1564fa1ed` | Not reviewed |
+| `gp.quiz.gas.compressor` | Gas loses pressure as it travels. Compressor stations push it back up so it keeps flowing. | — | No | `1856ad872f` | Not reviewed |
+| `gp.quiz.gasoline.rock` | Oil fills the tiny spaces in reservoir rock, like water in a sponge, trapped under a cap rock. | — | No | `e3ca170477` | Not reviewed |
+| `gp.quiz.gasoline.refinery` | A refinery heats and separates crude oil, then turns it into finished fuels like gasoline. | — | No | `5a61aeb6cb` | Not reviewed |
+| `gp.quiz.gasoline.tanks` | Tanker trucks unload into large tanks buried under the station, and the pumps draw fuel from them. | — | No | `07e4fad463` | Not reviewed |
+| `gp.timelapse.sea` | Plankton thrive in a warm, shallow sea. When they die, they sink into the mud. | — | No | `0dd9f48070` | Not reviewed |
+| `gp.timelapse.mud` | Low oxygen on the seafloor stops them rotting away. A dark, rich mud builds up. | — | No | `7ea81e9032` | Not reviewed |
+| `gp.timelapse.buried` | Rivers dump sand and mud on top. Layer by layer, the remains are buried deeper. | — | No | `a31aed6ceb` | Not reviewed |
+| `gp.timelapse.oil` | Now buried deep, where it is hot, the remains slowly turn into oil. | — | No | `3565a1f2fd` | Not reviewed |
+| `gp.timelapse.gas` | Deeper, hotter parts turn into gas. Oil and gas creep upward through the rock. | — | No | `bc56b120ff` | Not reviewed |
+| `gp.timelapse.today` | They collect in porous sandstone, trapped under tight cap rock. Today, we drill for them. | — | No | `614fd4dbb3` | Not reviewed |
+| `gp.timelapse.illustrative` | Illustrative timeline: real ages vary widely from place to place. | — | No | `3499c58ac5` | Not reviewed |
+| `gp.detail.source-rock` | Source rock: where oil and gas form | — | No | `d81f6ced1c` | Not reviewed |
+| `gp.detail.gas` | Gas | — | No | `e23a445d0f` | Not reviewed |
+| `gp.detail.oil` | Oil | — | No | `2378bdd2cf` | Not reviewed |
+| `gp.detail.salty-water` | Salty water | — | No | `185cd54317` | Not reviewed |
+| `gp.detail.cap-rock` | Cap rock (the lid) | — | No | `b0a75e4170` | Not reviewed |
+| `gp.detail.zoom` | Zoom: sand grains, oil in the gaps | — | No | `058ac2930d` | Not reviewed |
+| `gp.detail.groundwater` | Groundwater | — | No | `b921e5bcc6` | Not reviewed |
+| `gp.detail.casing` | Steel casing + cement | — | No | `8d8a127e3f` | Not reviewed |
+| `gp.detail.fractures` | Fractures held open by sand | — | No | `5fef341c63` | Not reviewed |
+| `gp.detail.seismic` | Seismic waves | — | No | `ac3180e4c0` | Not reviewed |
+| `gp.detail.pump-jack` | Pump jack lifts the oil | — | No | `9c510c6f50` | Not reviewed |
+| `gp.detail.gas-well` | Gas flows up on its own | — | No | `6877b1a5c2` | Not reviewed |
+| `gp.detail.water-tank` | Salty water | — | No | `185cd54317` | Not reviewed |
+| `gp.detail.separator` | Inside: gas · oil · water | — | No | `e3115c647a` | Not reviewed |
+| `gp.detail.propane` | Propane & butane removed | — | No | `6d6ce0547d` | Not reviewed |
+| `gp.detail.flare` | Flare: burns off gas safely | — | No | `30b15ed0a7` | Not reviewed |
+| `gp.detail.clean-gas` | Clean gas leaves | — | No | `cd3aa5b32f` | Not reviewed |
+| `gp.detail.compressors` | Compressors squeeze the gas | — | No | `5bf377b9ff` | Not reviewed |
+| `gp.detail.markers` | Buried pipeline (marker posts) | — | No | `d0f654ac05` | Not reviewed |
+| `gp.detail.storage-rock` | Gas stored in porous rock for winter | — | No | `b0ed070f03` | Not reviewed |
+| `gp.detail.chilled` | Gas chilled into a liquid | — | No | `758b04acfa` | Not reviewed |
+| `gp.detail.lng-ship` | LNG ship | — | No | `dd3e67a547` | Not reviewed |
+| `gp.detail.storage-well` | Underground storage well | — | No | `853f562c09` | Not reviewed |
+| `gp.detail.pressure` | Pressure lowered here | — | No | `715a395513` | Not reviewed |
+| `gp.detail.odorant` | Odorant added | — | No | `67c3959f79` | Not reviewed |
+| `gp.detail.power-plant` | Power plant: electricity | — | No | `62d84d1105` | Not reviewed |
+| `gp.detail.factory` | Factory: fertilizer, plastics | — | No | `797db78074` | Not reviewed |
+| `gp.detail.homes` | Homes: heat, hot water, cooking | — | No | `cc4fc5e0b3` | Not reviewed |
+| `gp.detail.crude` | Crude oil: thick and dark | — | No | `2dbf46e031` | Not reviewed |
+| `gp.detail.rail` | Rail tank cars | — | No | `d2d9943b24` | Not reviewed |
+| `gp.detail.asphalt` | Asphalt | — | No | `6fab0a9f38` | Not reviewed |
+| `gp.detail.heavy-oils` | Heavy oils | — | No | `daa92f23c9` | Not reviewed |
+| `gp.detail.diesel` | Diesel | — | No | `0a3408c47c` | Not reviewed |
+| `gp.detail.jet-fuel` | Jet fuel | — | No | `6e28f6c70c` | Not reviewed |
+| `gp.detail.gasoline` | Gasoline | — | No | `3023b176e3` | Not reviewed |
+| `gp.detail.light-gases` | Light gases | — | No | `0942709676` | Not reviewed |
+| `gp.detail.furnace` | Furnace heats the crude | — | No | `eeb9fe0ebf` | Not reviewed |
+| `gp.detail.terminal` | Storage terminal | — | No | `3f963a2c92` | Not reviewed |
+| `gp.detail.tanker` | Tanker truck | — | No | `65f2b113f4` | Not reviewed |
+| `gp.detail.fuel-tanks` | Underground fuel tanks | — | No | `3441abbde5` | Not reviewed |
 
 ## Signal model calibrations
 
@@ -200,5 +301,11 @@ On-screen approximations of the APWA colors the lessons use.
 
 | ID | Claim | Hash | Status |
 |---|---|---|---|
-| `apwa.yellow` | Yellow means natural gas, oil, steam, petroleum or other gaseous or flammable material; shown on screen as #f5c400. | `fdf1c6de53` | Not reviewed |
-| `apwa.orange` | Orange means telecommunication, alarm or signal lines, cables or conduit; shown on screen as #f26a1b. | `95cdcef590` | Not reviewed |
+| `apwa.yellow` | Yellow means gas, oil, steam, petroleum or gaseous materials; shown on screen as #f5c400. | `441edca05d` | Not reviewed |
+| `apwa.orange` | Orange means communication, alarm or signal lines, cables or conduit; shown on screen as #f26a1b. | `fe383f8520` | Not reviewed |
+| `apwa.white` | White means proposed excavation; shown on screen as #ffffff. | `9e8544d6fa` | Not reviewed |
+| `apwa.pink` | Pink means temporary survey markings; shown on screen as #f28ab8. | `6c8f4b6281` | Not reviewed |
+| `apwa.red` | Red means electric power lines, cables, conduit and lighting cables; shown on screen as #d7262e. | `0336e6403d` | Not reviewed |
+| `apwa.blue` | Blue means potable water; shown on screen as #2b6cd6. | `99d059c27d` | Not reviewed |
+| `apwa.purple` | Purple means reclaimed water, irrigation and slurry lines; shown on screen as #8a4fc4. | `344e2b7fef` | Not reviewed |
+| `apwa.green` | Green means sewers and drain lines; shown on screen as #2e9a47. | `f008f9aa0d` | Not reviewed |
