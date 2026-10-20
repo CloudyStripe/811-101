@@ -466,12 +466,7 @@ export function App() {
             right &&
             markText && (
               <div class="rm-question">
-                {round.at === 0 && (
-                  <p class="rm-intro">
-                    <Rich text={INTRO.scene.text} define={define} />{' '}
-                    <span class="rm-intro-how">{INTRO.how.text}</span>
-                  </p>
-                )}
+                {round.at === 0 && <p class="rm-intro">{INTRO.how.text}</p>}
                 <p class="rm-color">
                   <Swatch color={right} />
                   <Icon name="flag" />

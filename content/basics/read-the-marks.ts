@@ -177,15 +177,8 @@ export const MARKS: Readonly<Record<MarkId, MarkText>> = {
   },
 };
 
+/** Above the first mark: how to play, and no more, so it gives no answer away. */
 export const INTRO = {
-  scene: claim(
-    'rm.intro.scene',
-    "You're about to dig in this yard. You've outlined the spot in white and called 811, and [[locators]] have marked what's buried nearby.",
-    {
-      source: ['apwa-card', 'cga-best-practices-b', 'scene'],
-      note: 'The APWA card: white marks show proposed excavation; the one-call center is contacted before digging; colored paint and flags show buried lines.',
-    },
-  ),
   how: claim('rm.intro.how', 'One mark lights up at a time. Pick what its color means.', game),
 } as const;
 
@@ -314,11 +307,6 @@ export const TERMS: Readonly<Record<string, Claim>> = {
       source: ['mw-slurry', 'usgs-coal-slurry'],
       note: 'No source says what the code’s slurry lines carry, so this names no contents.',
     },
-  ),
-  locators: claim(
-    'rm.term.locators',
-    'People who find buried lines and mark about where they run, usually with colored paint, flags or stakes.',
-    { source: ['phmsa-safe-digging', 'cga-best-practices-glossary', 'apwa-card'] },
   ),
 };
 

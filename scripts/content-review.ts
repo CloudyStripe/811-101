@@ -42,8 +42,6 @@ function status(id: string, text: string): string {
 const SOURCE_NAMES: Record<SourceId, string> = {
   'apwa-card': 'APWA card',
   'cga-best-practices-b': 'CGA Best Practices',
-  'cga-best-practices-glossary': 'CGA glossary',
-  'phmsa-safe-digging': 'PHMSA',
   'bls-surveyors': 'BLS',
   'fcc-conduit': 'FCC',
   'mw-conduit': 'Merriam-Webster (conduit)',

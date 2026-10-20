@@ -272,8 +272,8 @@ Appendix B, adopts (`content/sources.ts`):
 - **The panel:** beside the yard on wide and short screens (a phone held sideways), and under it
   in a sheet on phones held upright, one height through a round (`--rm-sheet`), so the yard keeps
   its size; there, once answered, the result takes the answers' place (and the first mark's
-  intro's). On the shortest screens the color's chip, the progress dots and the intro's how-to
-  line give way, so a mark's answers all show. While focus is in the question, 1 to 4 answer (only
+  intro's). On the shortest screens the color's chip and the progress dots give way, so a
+  mark's answers all show. While focus is in the question, 1 to 4 answer (only
   there, as single keys acting anywhere would fail WCAG 2.1.4); focus moves on to Next, whose
   description is the answer, then to the next mark. The Key shows the whole code at any time. The
   status line (`#rm-status`, set once focus has moved, so it isn't cut short) says what's lit,

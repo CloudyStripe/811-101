@@ -528,11 +528,6 @@ body {
     line-height: 1.35;
   }
 
-  /* How to play, which the question and its answers show anyway, gives them its room. */
-  .rm-intro-how {
-    display: none;
-  }
-
   /* The count says where the round is; its dots, which say it again, give it their room. */
   .rm-dots {
     display: none;

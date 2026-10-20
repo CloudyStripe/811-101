@@ -32,6 +32,13 @@ import {
   openMarks as open,
 } from './play-marks.ts';
 
+/**
+ * A line as the browser gives it to screen readers: a term, being a button, can have the punctuation
+ * after it set apart by a space ("proposed excavation ."), which reads the same.
+ */
+const asSpoken = (text: string) =>
+  new RegExp(`^${text.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&').replace(/\\?[.,;:!?]/g, '\\s?$&')}$`);
+
 test.use({ reducedMotion: 'reduce' });
 
 test.describe('on a desktop', () => {
@@ -84,7 +91,9 @@ test.describe('on a desktop', () => {
       await expect(page.locator('.rm-found')).toHaveText(TEXT[mark].reveal.text);
       // Next, where focus is now, carries the answer, heard as focus lands; then the status line
       // says what the ground opens to show.
-      await expect(next).toHaveAccessibleDescription(plainText(feedback(picked === color, color)));
+      await expect(next).toHaveAccessibleDescription(
+        asSpoken(plainText(feedback(picked === color, color))),
+      );
       await expect(status).toHaveText(viewSummary({ mark, answered: true, over: false }));
       // Answered, the answers are done with: another number changes nothing.
       for (const button of await answers(page).all()) {
