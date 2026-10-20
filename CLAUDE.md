@@ -255,22 +255,29 @@ Appendix B, adopts (`content/sources.ts`):
   yard, from the curb in; nothing's in the street. Lines run straight or with one turn, so each
   cut along one is a box. Flags stand on grass; paint shows where a line crosses the sidewalk or
   the driveway. Green and purple are public lines: the sewer out to its cleanout, and reclaimed
-  water from the curb to its own box in the grass strip.
+  water from the curb to its own box in the grass strip. The view can't turn, so what's in a cut
+  must show from it: the two water lines, whose cuts are short, lie shallow, their boxes just in
+  front of the sidewalk.
 - **The ground opens:** answered, the ground is built again, cut along the mark's line (`carve`
   in `scene/ground.ts`), and each run's lid (its cover: at a turn, the run whose slide carries
   the corner clear of the other's trench has it) drops and slides aside, away from the camera, or
   the other way where that would cross another line's cut (`coverOf`, `asideOf` in
   `scene/layout.ts`, tested). The paint on a cover rides with it, whichever mark it is (the white
-  outline's dashes over the gas line), and the flags on it step off onto the grass, until the line
-  shows, named; with reduced motion it's open at once. Next mark closes it again, and at the end
-  every line is open at once.
+  outline's dashes over the gas line, cut at the cover's edge: `piecesOf`), and the flags on it
+  step off onto the grass, until the line shows, named; with reduced motion it's open at once.
+  Next mark closes it again, and at the end every line is open at once. A line's name points at
+  the stretch of it the view sees into, with others along it to fall back on, keeping off the open
+  lines (the sewer's, at its riser, as it lies too deep to see); every name still shows at the end,
+  on a phone as an icon where it must.
 - **The panel:** beside the yard on wide and short screens (a phone held sideways), and under it
   in a sheet on phones held upright, one height through a round (`--rm-sheet`), so the yard keeps
-  its size; there, once answered, the result takes the answers' place. While focus is in the
-  question, 1 to 4 answer (only there, as single keys acting anywhere would fail WCAG 2.1.4); focus
-  moves on to Next, which carries the answer as its description, then to the next mark. The Key
-  shows the whole code at any time. The status line (`#rm-status`) says what's lit, then the
-  answer and what's under it, then the score.
+  its size; there, once answered, the result takes the answers' place (and the first mark's
+  intro's). On the shortest screens the color's chip, the progress dots and the intro's how-to
+  line give way, so a mark's answers all show. While focus is in the question, 1 to 4 answer (only
+  there, as single keys acting anywhere would fail WCAG 2.1.4); focus moves on to Next, whose
+  description is the answer, then to the next mark. The Key shows the whole code at any time. The
+  status line (`#rm-status`, set once focus has moved, so it isn't cut short) says what's lit,
+  then what's under it once answered, then the score.
 
 ## Performance and accessibility
 
