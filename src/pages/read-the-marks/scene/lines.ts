@@ -3,7 +3,8 @@
  * cable colors underground are unreliable. A line runs from under the street, or from the box it
  * leaves, to where it ends; the sewer line rises to its cleanout, and the gas line to the riser up to
  * its meter. Hidden in the ground until the
- * ground opens along it; at night each keeps a faint glow of its own color.
+ * ground opens along it; each keeps a faint glow of its own color, so it shows in its trench's
+ * shade by day, and more at night.
  */
 import {
   CylinderGeometry,
@@ -21,6 +22,8 @@ import { FIXTURES, MARKS, TOPS, runsAlongZ, segmentsOf, type Line } from './layo
 
 /** How brightly a line glows at night, as emissive intensity: well under bloom. */
 export const LINE_GLOW = 0.3;
+/** And by day, a little, so a line keeps its color in the shade of its trench. */
+export const LINE_DAY_GLOW = 0.15;
 
 /** A line's runs as round pipes, with a round joint at each turn. */
 function pipeOf(line: Line): BufferGeometry {
@@ -64,7 +67,7 @@ export function buildLines(): Lines {
     if (!mark.line) continue;
     const hex = APWA[mark.color].fill;
     const material = surface(hex, { finish: 'paint', emissive: hex });
-    material.emissiveIntensity = 0;
+    material.emissiveIntensity = LINE_DAY_GLOW;
     materials.push(material);
     const parts = [pipeOf(mark.line)];
     // The sewer line rises to its cleanout's cap at the surface, and the gas line to the foot of
@@ -97,7 +100,7 @@ export function buildLines(): Lines {
   return {
     group,
     setNight(night) {
-      for (const m of materials) m.emissiveIntensity = night ? LINE_GLOW : 0;
+      for (const m of materials) m.emissiveIntensity = night ? LINE_GLOW : LINE_DAY_GLOW;
     },
     dispose() {
       for (const m of meshes.values()) m.geometry.dispose();

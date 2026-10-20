@@ -189,7 +189,11 @@ export class LabelLayer {
     });
     // All copies are in place before the first read, so this lays out once.
     for (const { id, copy } of copies) {
-      this.sizes.set(id, { w: copy.offsetWidth || 120, h: copy.offsetHeight || 28 });
+      const size = { w: copy.offsetWidth || 120, h: copy.offsetHeight || 28 };
+      this.sizes.set(id, size);
+      // The size it's placed by, on the label, for tests to hold to the size it shows at.
+      const label = this.labels.find((l) => l.id === id);
+      if (label) label.element.dataset.size = `${String(size.w)}x${String(size.h)}`;
     }
     for (const { copy } of copies) copy.remove();
   }

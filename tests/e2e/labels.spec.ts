@@ -117,13 +117,14 @@ test('Read the Marks, labels off: no name shows in its view, and the question ke
   await expect.poll(() => shownNames(page)).toEqual(['Gas line']);
 });
 
-test('Read the Marks, opened with labels already off, shows them at their size once they’re on', async ({
+test('Read the Marks, opened with labels already off, measures them once they’re on, so each is placed by its own size', async ({
   page,
 }) => {
   await page.addInitScript(() => {
     localStorage.setItem('811-101.settings', JSON.stringify({ labels: 'off' }));
   });
-  await page.goto('basics/read-the-marks/?tier=low&seed=1&show=gas');
+  // A long name, wider than a label is taken to be before it's measured.
+  await page.goto('basics/read-the-marks/?tier=low&seed=1&show=reclaimed');
   await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
     timeout: 60_000,
   });
@@ -131,11 +132,12 @@ test('Read the Marks, opened with labels already off, shows them at their size o
   const toggle = page.locator('.rm-panel').getByRole('button', { name: 'Labels', exact: true });
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await toggle.click();
-  await expect.poll(() => shownNames(page)).toEqual(['Gas line']);
-  // Measured as shown, so placed by its own size: whole on screen, and clear of the question.
-  const label = await page.locator('[data-label="gas"] .lbl-btn').boundingBox();
-  const panel = await page.locator('.rm-panel').boundingBox();
-  if (!label || !panel) throw new Error('no label or panel');
-  expect(label.x).toBeGreaterThanOrEqual(0);
-  expect(label.x + label.width).toBeLessThanOrEqual(panel.x);
+  await expect.poll(() => shownNames(page)).toEqual(['Reclaimed water line']);
+  // Measured again as it's shown, it's placed by the size it shows at, not the size a label is
+  // taken to be before it can be measured.
+  const sizes = await page.locator('[data-label="reclaimed"]').evaluate((el: HTMLElement) => ({
+    placed: el.dataset.size,
+    shown: `${String(el.offsetWidth)}x${String(el.offsetHeight)}`,
+  }));
+  expect(sizes.placed).toBe(sizes.shown);
 });

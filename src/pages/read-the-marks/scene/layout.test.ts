@@ -13,10 +13,10 @@ import {
   coverAt,
   coverOf,
   cutsOf,
-  footprintOf,
   groundAt,
   markById,
   overlapOf,
+  piecesOf,
   reachOf,
   runsAlongZ,
   segmentsOf,
@@ -26,6 +26,7 @@ import {
   type Point,
   type RunRef,
 } from './layout.ts';
+import { MARK_LOOK } from './palette.ts';
 
 /** How far a point is from a straight run. */
 function distanceToRun(p: Point, [a, b]: readonly [Point, Point]): number {
@@ -233,22 +234,55 @@ describe('the yard', () => {
     }
   });
 
-  it('lets paint over a line ride that line’s cover, the outline’s dashes over the gas line too', () => {
+  it('lets paint over a line ride that line’s cover, cut at its edge, so the outline opens as wide as the trench', () => {
     for (const mark of MARKS) {
       for (const s of mark.spots) {
         if (s.form !== 'paint') continue;
-        const over = RUNS.filter((r) => overlapOf(footprintOf(s), r.cut));
-        const on = coverAt(s);
+        const pieces = piecesOf(s);
         const where = `${mark.id} paint at ${String(s.x)}, ${String(s.z)}`;
-        // No dash lies across two lines; one over a line goes with one of its runs' covers.
-        expect(new Set(over.map((r) => r.ref.mark)).size, where).toBeLessThanOrEqual(1);
-        expect(on?.mark ?? null, where).toBe(over[0]?.ref.mark ?? null);
+        // The pieces make up the whole dash.
+        expect(
+          pieces.reduce((sum, p) => sum + p.length, 0),
+          where,
+        ).toBeCloseTo(MARK_LOOK.paint.length, 6);
+        for (const p of pieces) {
+          const alongX = Math.abs(Math.sin((p.heading * Math.PI) / 180)) < 0.5;
+          const [mid, across] = alongX ? [p.x, p.z] : [p.z, p.x];
+          const [from, to] = [mid - p.length / 2, mid + p.length / 2];
+          const holds = (b: Box) => {
+            const [a0, a1, c0, c1] = alongX ? [b.x0, b.x1, b.z0, b.z1] : [b.z0, b.z1, b.x0, b.x1];
+            return across > c0 && across < c1 && from >= a0 - 1e-9 && to <= a1 + 1e-9;
+          };
+          const crosses = (b: Box) => {
+            const [a0, a1, c0, c1] = alongX ? [b.x0, b.x1, b.z0, b.z1] : [b.z0, b.z1, b.x0, b.x1];
+            return across > c0 && across < c1 && from < a1 - 1e-9 && to > a0 + 1e-9;
+          };
+          // A piece on a cover lies all on it; one on none crosses no cut.
+          if (p.on) {
+            const on = p.on;
+            expect(coverOf(on).some(holds), `${where}, on ${name(on)}`).toBe(true);
+          } else {
+            for (const r of RUNS)
+              expect(crosses(r.cut), `${where}, over ${name(r.ref)}`).toBe(false);
+          }
+        }
       }
     }
-    const crossing = markById('dig').spots.filter(
-      (s) => s.form === 'paint' && coverAt(s)?.mark === 'gas',
-    );
-    expect(crossing.length).toBeGreaterThan(0);
+    // The outline crosses the gas line: its gap there is the gas line's cover, no wider.
+    const [gas] = coverOf({ mark: 'gas', run: 0 });
+    if (!gas) throw new Error('no gas cover');
+    for (const z of [DIG.z0, DIG.z1]) {
+      const side = markById('dig')
+        .spots.filter((s) => s.form === 'paint' && s.z === z)
+        .flatMap(piecesOf);
+      const staying = side.filter((p) => !p.on);
+      const riding = side.filter((p) => p.on?.mark === 'gas');
+      expect(riding.length, `the outline at z ${String(z)}`).toBeGreaterThan(0);
+      const left = Math.max(...staying.filter((p) => p.x < gas.x0).map((p) => p.x + p.length / 2));
+      const right = Math.min(...staying.filter((p) => p.x > gas.x1).map((p) => p.x - p.length / 2));
+      expect(left).toBeCloseTo(gas.x0, 6);
+      expect(right).toBeCloseTo(gas.x1, 6);
+    }
   });
 
   it('keeps the boxes at the lines’ ends standing on solid ground', () => {

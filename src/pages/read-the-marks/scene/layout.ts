@@ -66,8 +66,9 @@ export const DIG = { x0: -12, x1: 0, z0: -11, z1: -3 } as const;
 export const FIXTURES = {
   transformer: { x: 26.5, z: -5 },
   pedestal: { x: -17, z: -1.8 },
-  waterBox: { x: 4, z: 7.6 },
-  reclaimedBox: { x: 26, z: 7.6 },
+  // Just in front of the sidewalk, so the ground opens along their lines far enough to see in.
+  waterBox: { x: 4, z: 6.2 },
+  reclaimedBox: { x: 26, z: 6.2 },
   cleanout: { x: -22, z: 6.3 },
   gasMeter: { x: -6, z: -26 },
   /** Where the gas line rises to its meter, just out from the wall. */
@@ -177,7 +178,7 @@ export const MARKS: readonly Mark[] = [
     color: MARK_COLOR.electric,
     line: {
       route: [F.transformer, { x: F.electricMeter.x, z: F.transformer.z }, F.electricMeter],
-      depth: 2.4,
+      depth: 2,
       radius: 0.36,
       inset: [1.75, 0],
     },
@@ -202,7 +203,7 @@ export const MARKS: readonly Mark[] = [
     color: MARK_COLOR.water,
     line: {
       route: [{ x: F.waterBox.x, z: STREET }, F.waterBox],
-      depth: 3.6,
+      depth: 1.6,
       radius: 0.32,
       inset: [0, 0.65],
     },
@@ -224,7 +225,7 @@ export const MARKS: readonly Mark[] = [
     color: MARK_COLOR.reclaimed,
     line: {
       route: [{ x: F.reclaimedBox.x, z: STREET }, F.reclaimedBox],
-      depth: 3.6,
+      depth: 1.6,
       radius: 0.32,
       inset: [0, 0.65],
     },
@@ -404,11 +405,14 @@ const slidesClear = (ref: RunRef, box: Box, dir: Point) => {
  * later run where neither or both would.
  */
 function ownsTurn(a: RunRef, b: RunRef): RunRef {
+  // Whichever way it's asked, the same run: the later one, unless only the other slides clear.
+  const later = a.run > b.run ? a : b;
   const overlap = overlapOf(runInfo(a).cut, runInfo(b).cut);
-  if (!overlap) return b;
+  if (!overlap) return later;
   const aClear = slidesClear(a, overlap, runInfo(a).away);
   const bClear = slidesClear(b, overlap, runInfo(b).away);
-  return aClear && !bClear ? a : b;
+  if (aClear !== bClear) return aClear ? a : b;
+  return later;
 }
 
 /**
@@ -438,7 +442,7 @@ export function asideOf(ref: RunRef): Point {
   return clear(back) ? back : away;
 }
 
-/** The run whose cover a flag's foot stands on, or a paint dash's footprint lies on, if any. */
+/** The run whose cover a flag's foot stands on (or most of a paint dash lies on), if any. */
 export function coverAt(spot: MarkSpot): RunRef | null {
   const foot = footprintOf(spot);
   let best: { ref: RunRef; area: number } | null = null;
@@ -460,6 +464,63 @@ export function footprintOf(spot: MarkSpot): Box {
     spot.form !== 'paint' || Math.abs(Math.sin(((spot.heading ?? 0) * Math.PI) / 180)) < 0.5;
   const [hx, hz] = alongX ? [along, across] : [across, along];
   return { x0: spot.x - hx, x1: spot.x + hx, y0: 0, y1: 0, z0: spot.z - hz, z1: spot.z + hz };
+}
+
+/** A paint dash, or the part of one on one cover, or on none. */
+export interface DashPiece {
+  /** Its middle. */
+  x: number;
+  z: number;
+  length: number;
+  heading: number;
+  on: RunRef | null;
+}
+
+/**
+ * A paint dash cut where it crosses a cover's edge, so the part on a cover rides with it as the
+ * ground opens and the rest stays: the white outline opens as wide as the trench across it.
+ */
+export function piecesOf(spot: MarkSpot): DashPiece[] {
+  const heading = spot.heading ?? 0;
+  const alongX = Math.abs(Math.sin((heading * Math.PI) / 180)) < 0.5;
+  const half = MARK_LOOK.paint.length / 2;
+  const [mid, across] = alongX ? [spot.x, spot.z] : [spot.z, spot.x];
+  const lo = mid - half;
+  const hi = mid + half;
+  // Every cover the dash's middle line crosses, as its stretch along the dash.
+  const spans = RUNS.flatMap((r) =>
+    coverOf(r.ref).flatMap((b) => {
+      const [a0, a1, c0, c1] = alongX ? [b.x0, b.x1, b.z0, b.z1] : [b.z0, b.z1, b.x0, b.x1];
+      if (across <= c0 || across >= c1 || a1 <= lo || a0 >= hi) return [];
+      return [{ from: Math.max(lo, a0), to: Math.min(hi, a1), ref: r.ref }];
+    }),
+  );
+  const cuts = [lo, hi, ...spans.flatMap((sp) => [sp.from, sp.to])].sort((a, b) => a - b);
+  const pieces: DashPiece[] = [];
+  for (let i = 1; i < cuts.length; i++) {
+    const from = cuts[i - 1] ?? lo;
+    const to = cuts[i] ?? hi;
+    if (to - from < 0.05) continue;
+    const m = (from + to) / 2;
+    const on = spans.find((sp) => m > sp.from && m < sp.to)?.ref ?? null;
+    const last = pieces.at(-1);
+    // Pieces side by side on the same cover, or on none, are one.
+    if (last && (last.on === on || (last.on && on && sameRun(last.on, on)))) {
+      const start = (alongX ? last.x : last.z) - last.length / 2;
+      last.length = to - start;
+      const centre = start + last.length / 2;
+      if (alongX) last.x = centre;
+      else last.z = centre;
+      continue;
+    }
+    pieces.push({
+      ...(alongX ? { x: m, z: across } : { x: across, z: m }),
+      length: to - from,
+      heading,
+      on,
+    });
+  }
+  return pieces;
 }
 
 /**

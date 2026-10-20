@@ -21,7 +21,18 @@ import type { MarkId } from '../game.ts';
 import { buildBuildings } from './buildings.ts';
 import { buildFixtures } from './fixtures.ts';
 import { buildGround, groundMaterials, type Ground } from './ground.ts';
-import { BANDS, BLOCK, GARAGE, HOUSE, MARKS, segmentsOf, topAt } from './layout.ts';
+import {
+  BANDS,
+  BLOCK,
+  FIXTURES,
+  GARAGE,
+  HOUSE,
+  MARKS,
+  cutsOf,
+  runsAlongZ,
+  segmentsOf,
+  topAt,
+} from './layout.ts';
 import { buildLines } from './lines.ts';
 import { buildMarks } from './marks.ts';
 import { OPEN_MS } from './palette.ts';
@@ -91,8 +102,18 @@ const MUST_SEE = [
 const TARGET = [0, -2, -12] as const;
 
 /** The view for a free area: from the street and the right, or, upright, from the street and above. */
+/** Which way each view looks from: the wide one from the street and the right, the tall one higher. */
+const WIDE_DIR = [0.42, 0.74, 1] as const;
+const TALL_DIR = [0.16, 1.1, 1] as const;
+
+/**
+ * How far the wide view's sight falls for each foot it reaches toward the house: how deep it sees
+ * into a cut past the cut's street-side edge. (The tall view, from higher, sees deeper.)
+ */
+const FALL = WIDE_DIR[1] / WIDE_DIR[2];
+
 export function viewFor(tall: boolean): View {
-  const dir = tall ? [0.16, 1.1, 1] : [0.42, 0.74, 1];
+  const dir = tall ? TALL_DIR : WIDE_DIR;
   const [dx = 0, dy = 0, dz = 0] = dir;
   const n = Math.hypot(dx, dy, dz);
   const [tx, ty, tz] = TARGET;
@@ -270,25 +291,52 @@ async function buildMarksScene(
     return moving;
   }
 
-  // The open lines' names: over the middle of each line's longest run, pointing down at it.
+  /**
+   * The open lines' names: over the middle of the stretch of each line the view sees into, its
+   * leader pointing down at the line there; or should there be no room (with every line open,
+   * there's little), at other places along that stretch. A line too deep to see in its cut, as the
+   * sewer line, is pointed at where it rises to the surface.
+   */
   const labels = new LabelLayer(camera, o.noGo);
   const labelList: Label[] = MARKS.flatMap((m) => {
     const element = o.labelElements.get(m.id);
-    if (!m.line || !element) return [];
-    const runs = segmentsOf(m.line);
-    const longest = runs.reduce((a, b) =>
-      Math.hypot(b[1].x - b[0].x, b[1].z - b[0].z) > Math.hypot(a[1].x - a[0].x, a[1].z - a[0].z)
-        ? b
-        : a,
-    );
-    const [a, b] = longest;
-    const mid = { x: (a.x + b.x) / 2, z: (Math.min(a.z, 11) + Math.min(b.z, 11)) / 2 };
+    const line = m.line;
+    if (!line || !element) return [];
+    const cuts = cutsOf(line);
+    const top = line.depth - line.radius;
+    // Each run's stretch the wide view sees the line along: in a run toward the street, only from
+    // as far past its street-side edge as the line lies deep; across the yard, if it shows at all.
+    const seen = segmentsOf(line).flatMap((run, i) => {
+      const cut = cuts[i];
+      if (!cut) return [];
+      if (runsAlongZ(run)) {
+        const hi = cut.z1 - top / FALL;
+        if (hi - cut.z0 < 0.4) return [];
+        const at = (k: number) => ({ x: run[0].x, z: cut.z0 + (hi - cut.z0) * k });
+        return [{ length: hi - cut.z0, at }];
+      }
+      if ((cut.z1 - run[0].z) * FALL < top) return [];
+      const at = (k: number) => ({ x: cut.x0 + (cut.x1 - cut.x0) * k, z: run[0].z });
+      return [{ length: cut.x1 - cut.x0, at }];
+    });
+    const [longest, ...others] = [...seen].sort((a, b) => b.length - a.length);
+    const onLine = (q: { x: number; z: number }) => new Vector3(q.x, -top, q.z);
+    const riser = m.id === 'sewer' ? FIXTURES.cleanout : null;
+    const mid = longest?.at(0.5) ?? riser;
+    if (!mid) return [];
     return [
       {
         id: m.id,
         element,
         anchor: new Vector3(mid.x, topAt(mid) + 1.6, mid.z),
-        point: new Vector3(mid.x, -m.line.depth + m.line.radius, mid.z),
+        point: longest ? onLine(mid) : new Vector3(mid.x, -1.5, mid.z),
+        along: longest
+          ? [
+              ...[0.25, 0.75, 0.1, 0.9].map((k) => onLine(longest.at(k))),
+              ...others.map((r) => onLine(r.at(0.5))),
+            ]
+          : [],
+        offLine: true,
         priority: 1,
         hidden: true,
       },

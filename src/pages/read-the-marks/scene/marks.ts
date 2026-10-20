@@ -36,6 +36,7 @@ import type { MarkId } from '../game.ts';
 import {
   MARKS,
   coverAt,
+  piecesOf,
   steppedAside,
   topAt,
   type Mark,
@@ -186,17 +187,19 @@ export function buildMarks(): MarkSet {
       paintGroups: new Map(),
       glow: null,
     };
-    // Paint, a mesh for each run's cover it lies on.
+    // Paint, a mesh for each run's cover it lies on: a dash across a cover's edge, in pieces.
     const byCover = new Map<string, BufferGeometry[]>();
     for (const s of mark.spots) {
       if (s.form !== 'paint') continue;
-      const dash = roundedBox(L.paint.length, 0.025, L.paint.width, 0.012, [0, 0, 0], 1)
-        .rotateY(-((s.heading ?? 0) * Math.PI) / 180)
-        .translate(s.x, topAt(s) + 0.016, s.z);
-      const key = keyOf(coverAt(s));
-      const list = byCover.get(key) ?? [];
-      list.push(dash);
-      byCover.set(key, list);
+      for (const piece of piecesOf(s)) {
+        const dash = roundedBox(piece.length, 0.025, L.paint.width, 0.012, [0, 0, 0], 1)
+          .rotateY(-(piece.heading * Math.PI) / 180)
+          .translate(piece.x, topAt(s) + 0.016, piece.z);
+        const key = keyOf(piece.on);
+        const list = byCover.get(key) ?? [];
+        list.push(dash);
+        byCover.set(key, list);
+      }
     }
     for (const [key, geometries] of byCover) {
       const g = new Group();
