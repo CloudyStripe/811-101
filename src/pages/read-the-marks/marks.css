@@ -162,6 +162,11 @@ body {
   gap: var(--space-4);
 }
 
+/* The end says the most: a little closer, so on a desktop it all shows. */
+.rm-end {
+  gap: var(--space-3);
+}
+
 .rm-intro {
   margin: 0;
   color: var(--ink-2);
@@ -316,7 +321,7 @@ body {
 
 .rm-code {
   display: grid;
-  gap: 10px;
+  gap: 7px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -330,6 +335,17 @@ body {
 
 .rm-code .rm-swatch {
   margin-top: 0.1em;
+}
+
+.rm-code-note {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+
+/* At the end, the grid's gap spaces it. */
+.rm-end .rm-code-note {
+  margin: 0;
 }
 
 .rm-key-lede {

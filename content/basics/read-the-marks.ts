@@ -4,7 +4,7 @@
  * Best Practices 22.0, Appendix B, adopts; lines that describe the yard, or how the game works, say
  * so. Mark terms with [[term]]; each one needs a definition in TERMS.
  *
- * Placeholders in braces ({color}, {meaning}, {n}) are filled in by the game.
+ * Placeholders in braces ({Color}, {meaning}, {n}) are filled in by the game.
  */
 import { claim, type Claim } from '../../src/content-kit/claims.ts';
 import type { ApwaCode } from '../../src/design/apwa.ts';
@@ -237,6 +237,20 @@ export const KEY = {
     'What each color of paint or flag means, from the American Public Works Association (APWA) uniform color code.',
     apwa,
   ),
+  /** Under the code, in the Key and at the end: what's drawn as it isn't in the field. */
+  scale: claim(
+    'rm.key.scale',
+    'Not to scale: the flags, paint and lines are drawn larger than life.',
+    scene,
+  ),
+  colors: claim(
+    'rm.key.colors',
+    "Each buried line is drawn in its marks' color. Real pipes and cables aren't always those colors.",
+    {
+      source: ['scene'],
+      note: "The second sentence says what the Frequency Lab's key says (fl.key.colors); it has no source of its own yet, for a locator to confirm.",
+    },
+  ),
 } as const;
 
 export const END = {
@@ -260,7 +274,11 @@ export const VIEW = {
     'A yard with a house, a lawn, a sidewalk and a street, marked with flags and paint.',
     scene,
   ),
-  end: claim('rm.view.end', 'The ground is open along every mark, showing all the lines.', game),
+  end: claim(
+    'rm.view.end',
+    "The ground is open along every buried line's marks, showing all the lines.",
+    game,
+  ),
 } as const;
 
 /** Definitions for every marked term, keyed as `termKey()` normalizes them. */

@@ -47,41 +47,33 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.mark.dig.ask` | These marks are white. What do they mean? | The game | No | `b48aacf303` | Not reviewed |
 | `rm.mark.dig.reveal` | You'll dig inside the white outline. The other marks show what's buried near it. | APWA card, The scene | No | `e6f8471489` | Not reviewed |
 | `rm.mark.dig.lit` | The white outline in the lawn is lit. | The game | No | `eb6189adc1` | Not reviewed |
-| `rm.mark.dig.open` | The white outline stays lit: nothing is buried under it. | The game | No | `b48532c153` | Not reviewed |
 | `rm.mark.gas.ask` | These flags and paint marks are yellow. What do they mean? | The game | No | `c69a97421b` | Not reviewed |
 | `rm.mark.gas.reveal` | Under the yellow marks: the gas line from the street to the house's meter. | The scene | No | `c14285d691` | Not reviewed |
 | `rm.mark.gas.label` | Gas line | The scene | No | `079f1be934` | Not reviewed |
 | `rm.mark.gas.lit` | The yellow flags and paint marks are lit. | The game | No | `f8eaa9bd63` | Not reviewed |
-| `rm.mark.gas.open` | The ground is open along the yellow marks, showing the gas line. | The game | No | `c40ddc17cb` | Not reviewed |
 | `rm.mark.electric.ask` | These flags and paint marks are red. What do they mean? | The game | No | `1bc5be96d6` | Not reviewed |
 | `rm.mark.electric.reveal` | Under the red marks: the electric line from the transformer box to the house. | The scene | No | `8091fa88c8` | Not reviewed |
 | `rm.mark.electric.label` | Electric line | The scene | No | `37ae0ed110` | Not reviewed |
 | `rm.mark.electric.lit` | The red flags and paint marks are lit. | The game | No | `e69792f821` | Not reviewed |
-| `rm.mark.electric.open` | The ground is open along the red marks, showing the electric line. | The game | No | `c2bc60660d` | Not reviewed |
 | `rm.mark.communication.ask` | These flags are orange. What do they mean? | The game | No | `16a04f445e` | Not reviewed |
 | `rm.mark.communication.reveal` | Under the orange flags: a communication cable from the pedestal to the house. | The scene | No | `c357b42843` | Not reviewed |
 | `rm.mark.communication.label` | Communication cable | The scene | No | `e4d8db46cb` | Not reviewed |
 | `rm.mark.communication.lit` | The orange flags are lit. | The game | No | `02476f34c3` | Not reviewed |
-| `rm.mark.communication.open` | The ground is open along the orange flags, showing the communication cable. | The game | No | `48ce858f97` | Not reviewed |
 | `rm.mark.water.ask` | These flags are blue. What do they mean? | The game | No | `09eff08fcb` | Not reviewed |
 | `rm.mark.water.reveal` | Under the blue flags: the water line from the street to the meter box. | The scene | No | `22b2cdc77a` | Not reviewed |
 | `rm.mark.water.label` | Water line | The scene | No | `8f27bd161c` | Not reviewed |
 | `rm.mark.water.lit` | The blue flags are lit. | The game | No | `9425cbc108` | Not reviewed |
-| `rm.mark.water.open` | The ground is open along the blue flags, showing the water line. | The game | No | `767d2e64c2` | Not reviewed |
 | `rm.mark.sewer.ask` | These flags are green. What do they mean? | The game | No | `b63d59e145` | Not reviewed |
 | `rm.mark.sewer.reveal` | Under the green flags: the sewer line out to the main under the street. | The scene | No | `62823f8ea8` | Not reviewed |
 | `rm.mark.sewer.label` | Sewer line | The scene | No | `e004c6b88d` | Not reviewed |
 | `rm.mark.sewer.lit` | The green flags are lit. | The game | No | `eb529c2941` | Not reviewed |
-| `rm.mark.sewer.open` | The ground is open along the green flags, showing the sewer line. | The game | No | `1fd8b685d5` | Not reviewed |
 | `rm.mark.reclaimed.ask` | These flags are purple. What do they mean? | The game | No | `a4a82d0f22` | Not reviewed |
 | `rm.mark.reclaimed.reveal` | Under the purple flags: a reclaimed water line from the street to its own meter box. | The scene | No | `5a141a6ab9` | Not reviewed |
 | `rm.mark.reclaimed.label` | Reclaimed water line | The scene | No | `74ab91a878` | Not reviewed |
 | `rm.mark.reclaimed.lit` | The purple flags are lit. | The game | No | `bdea5140a9` | Not reviewed |
-| `rm.mark.reclaimed.open` | The ground is open along the purple flags, showing the reclaimed water line. | The game | No | `f4ab419f8e` | Not reviewed |
 | `rm.mark.survey.ask` | These flags are pink. What do they mean? | The game | No | `29d182f823` | Not reviewed |
 | `rm.mark.survey.reveal` | Nothing's buried under these: a surveyor set pink flags along the property line. | APWA card, The scene | No | `f7e0e48390` | Not reviewed |
 | `rm.mark.survey.lit` | The pink flags along the property line are lit. | The game | No | `3ac0cd4d9e` | Not reviewed |
-| `rm.mark.survey.open` | The pink flags stay lit: nothing is buried under them. | The game | No | `828d0ae51e` | Not reviewed |
 | `rm.intro.scene` | You're about to dig in this yard. You've outlined the spot in white and called 811, and locators have marked what's buried nearby. _(The APWA card: white marks show proposed excavation; the one-call center is contacted before digging; colored paint and flags show buried lines.)_ | APWA card, CGA Best Practices, The scene | No | `2ee10035e6` | Not reviewed |
 | `rm.intro.how` | One mark lights up at a time. Pick what its color means. | The game | No | `1235cd28c8` | Not reviewed |
 | `rm.right` | Right. {Color} means {meaning}. _(Composed with the color’s name and its meaning (rm.code.*).)_ | The game | No | `edd6e0f709` | Not reviewed |
@@ -102,12 +94,14 @@ Every factual claim in the lessons, for locator sign-off.
 | `rm.ui.lost` | The 3D view paused because the graphics context was lost. It usually comes back on its own; if it doesn't, reload the page. | The game | No | `af9d1c68f6` | Not reviewed |
 | `rm.key.heading` | The color code | The game | No | `f977ec02e2` | Not reviewed |
 | `rm.key.lede` | What each color of paint or flag means, from the American Public Works Association (APWA) uniform color code. | APWA card, CGA Best Practices | No | `362f8330c1` | Not reviewed |
+| `rm.key.scale` | Not to scale: the flags, paint and lines are drawn larger than life. | The scene | No | `a3190fa7e8` | Not reviewed |
+| `rm.key.colors` | Each buried line is drawn in its marks' color. Real pipes and cables aren't always those colors. _(The second sentence says what the Frequency Lab's key says (fl.key.colors); it has no source of its own yet, for a locator to confirm.)_ | The scene | No | `7502f634e7` | Not reviewed |
 | `rm.end.score` | You read {n} of 8 marks. | The game | No | `91a26184e7` | Not reviewed |
 | `rm.end.all` | Here is everything under the marks, all at once. | The game | No | `8e760e5967` | Not reviewed |
 | `rm.end.safety` | Near a mark, dig by hand until you can see the line. _(The APWA card's tolerance zone: hand tools until the marked facility is exposed. Its width is set by state law, so this line names none.)_ | APWA card | No | `1ba9f3d530` | Not reviewed |
 | `rm.view.name` | A yard in 3D, with flags and paint marking what's buried in it. | The scene | No | `a4c1ba47d4` | Not reviewed |
 | `rm.view.yard` | A yard with a house, a lawn, a sidewalk and a street, marked with flags and paint. | The scene | No | `6333c194b8` | Not reviewed |
-| `rm.view.end` | The ground is open along every mark, showing all the lines. | The game | No | `c2b79814a4` | Not reviewed |
+| `rm.view.end` | The ground is open along every buried line's marks, showing all the lines. | The game | No | `63f6fa8b15` | Not reviewed |
 | `rm.term.proposed-excavation` | Where someone plans to dig. | APWA card | No | `8eb92aa13f` | Not reviewed |
 | `rm.term.survey-markings` | Marks a surveyor sets, for example to show where a property line runs or where something will be built. | BLS | No | `038e0f4984` | Not reviewed |
 | `rm.term.conduit` | A pipe or tube that protects the wires or cables run through it. | FCC, Merriam-Webster (conduit) | No | `1983d292a8` | Not reviewed |

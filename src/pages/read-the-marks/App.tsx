@@ -109,19 +109,27 @@ function Swatch({ color }: { color: ApwaCode }) {
   return <span class="rm-swatch" style={{ '--swatch': APWA[color].fill }} aria-hidden="true" />;
 }
 
-/** The whole code: a row per color, its swatch, name and meaning. */
+/**
+ * The whole code: a row per color, its swatch, name and meaning; then what the yard draws as it
+ * isn't in the field: larger than life, and each line in its marks' color.
+ */
 function CodeList() {
   return (
-    <ul class="rm-code">
-      {MARKS_APWA.map((c) => (
-        <li key={c}>
-          <Swatch color={c} />
-          <span>
-            <strong>{CODE[c].name}:</strong> <Rich text={CODE[c].meaning.text} define={define} />
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul class="rm-code">
+        {MARKS_APWA.map((c) => (
+          <li key={c}>
+            <Swatch color={c} />
+            <span>
+              <strong>{CODE[c].name}:</strong> <Rich text={CODE[c].meaning.text} define={define} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p class="rm-code-note">
+        {KEY.colors.text} {KEY.scale.text}
+      </p>
+    </>
   );
 }
 
@@ -319,28 +327,20 @@ export function App() {
     setRound(newRound(random));
   }
 
-  // 1 to 4 answer the question, wherever focus is but in a dialog or a field.
-  const onKey = useRef<(event: KeyboardEvent) => void>(() => undefined);
-  onKey.current = (event) => {
-    if (event.altKey || event.ctrlKey || event.metaKey || keyOpen) return;
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('input, textarea, select, dialog')) return;
+  /**
+   * 1 to 4 answer the question while focus is in it, in the panel: only there, as single keys
+   * acting anywhere on the page would catch a reader typing or speaking elsewhere (WCAG 2.1.4). The
+   * Key and the settings menu open outside the panel, so there they don't.
+   */
+  function onPanelKey(event: KeyboardEvent) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const n = Number(event.key);
     if (!q || answered || !Number.isInteger(n) || n < 1 || n > q.choices.length) return;
     const color = q.choices[n - 1];
     if (!color) return;
     event.preventDefault();
     pick(color);
-  };
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      onKey.current(event);
-    };
-    document.addEventListener('keydown', handler);
-    return () => {
-      document.removeEventListener('keydown', handler);
-    };
-  }, []);
+  }
 
   const status = over
     ? `${scoreLine(score(round))} ${viewSummary({ mark: null, over: true })}`
@@ -397,7 +397,7 @@ export function App() {
         </p>
       )}
 
-      <section class="rm-panel" data-chrome aria-labelledby="rm-ask">
+      <section class="rm-panel" data-chrome aria-labelledby="rm-ask" onKeyDown={onPanelKey}>
         <header class="rm-head">
           <div class="rm-progress">
             <p class="rm-count" hidden={over}>
@@ -507,7 +507,7 @@ export function App() {
                   })}
                 </div>
                 {answered && q.picked && (
-                  <div class="rm-result" ref={resultRef}>
+                  <div id="rm-result" class="rm-result" ref={resultRef}>
                     <p class="rm-verdict">
                       <Icon name={q.picked === right ? 'check' : 'close'} />
                       <span>
@@ -542,6 +542,9 @@ export function App() {
                 type="button"
                 class="button button-primary rm-next"
                 ref={nextRef}
+                // Focus comes here once the mark is answered: the answer, said with it, isn't
+                // cut short as focus moves.
+                aria-describedby="rm-result"
                 onClick={moveOn}
               >
                 {round.at === round.questions.length - 1 ? UI.finish.text : UI.next.text}

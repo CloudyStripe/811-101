@@ -3,8 +3,9 @@
  * moving on to Next and then to the next question, and at the end the score, the safety line, the
  * code and every line open; Play again starts white first, the others in a new order. A wrong
  * answer shows the right one beside it and says what the color means in one line. The Key shows
- * the whole code. What screen readers hear follows the round. With reduced motion the ground opens
- * at once and the view holds still. On a phone, by touch, the sheet keeps its height, so the yard
+ * the whole code. What screen readers hear follows the round, and Next carries the answer. The
+ * numbers answer only while focus is in the question. With reduced motion the ground opens at once
+ * and the view holds still; with motion it slides open over a run of frames, then holds still. On a phone, by touch, the sheet keeps its height, so the yard
  * keeps its size, through a round, with the answers and Next on screen.
  */
 import { CODE, END, KEY, MARKS as TEXT, UI } from '../../content/basics/read-the-marks.ts';
@@ -18,7 +19,15 @@ import {
   scoreLine,
   viewSummary,
 } from '../../src/pages/read-the-marks/text.ts';
-import { countFrames, expect, isMoving, shownNames, test, waitStill } from './fixtures.ts';
+import {
+  MOTION_WAIT,
+  countFrames,
+  expect,
+  isMoving,
+  shownNames,
+  test,
+  waitStill,
+} from './fixtures.ts';
 import {
   LINES,
   answers,
@@ -28,6 +37,9 @@ import {
   onToALine,
   openMarks as open,
 } from './play-marks.ts';
+
+/** Text as a pattern that matches it word for word. */
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test.use({ reducedMotion: 'reduce' });
 
@@ -43,6 +55,14 @@ test.describe('on a desktop', () => {
     const ask = page.locator('#rm-ask');
     const status = page.locator('#rm-status');
     const next = page.locator('.rm-next');
+    // From the top of the page, a number answers nothing: the numbers work in the question only.
+    await page.keyboard.press('1');
+    await expect(page.locator('.rm-result')).toHaveCount(0);
+    // Tab into the question, past the header.
+    const inPanel = () =>
+      page.evaluate(() => document.activeElement?.closest('.rm-panel') !== null);
+    for (let i = 0; i < 12 && !(await inPanel()); i++) await page.keyboard.press('Tab');
+    expect(await inPanel(), 'focus in the question').toBe(true);
     const asked: MarkId[] = [];
     for (let n = 1; n <= 8; n++) {
       const mark = await askedMark(page);
@@ -72,6 +92,12 @@ test.describe('on a desktop', () => {
       );
       await expect(page.locator('.rm-found')).toHaveText(TEXT[mark].reveal.text);
       await expect(status).toHaveText(announcement(mark, picked));
+      // Next, where focus is now, carries the answer too, so it's heard as focus moves.
+      await expect(next).toHaveAccessibleDescription(
+        new RegExp(
+          `^${escaped(plainText(feedback(picked === color, color)))}\\s*${escaped(TEXT[mark].reveal.text)}$`,
+        ),
+      );
       // Answered, the answers are done with: another number changes nothing.
       for (const button of await answers(page).all()) {
         await expect(button).toHaveAttribute('aria-disabled', 'true');
@@ -133,6 +159,26 @@ test.describe('on a desktop', () => {
     expect(panel.match(/proposed excavation/gi)).toHaveLength(1);
   });
 
+  test('the numbers answer nothing from the settings menu, or anywhere outside the question', async ({
+    page,
+  }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const menu = page.getByRole('dialog', { name: 'Settings' });
+    await expect(menu).toBeVisible();
+    await menu.getByRole('radio').first().focus();
+    await page.keyboard.press('2');
+    await expect(page.locator('.rm-result')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await page.getByRole('link', { name: '811 Basics' }).focus();
+    await page.keyboard.press('3');
+    await expect(page.locator('.rm-result')).toHaveCount(0);
+    // In the question, they do.
+    await answers(page).first().focus();
+    await page.keyboard.press('3');
+    await expect(page.locator('.rm-result')).toHaveCount(1);
+  });
+
   test('the Key shows the whole code, answers nothing while open, and closes by its button or Escape', async ({
     page,
   }) => {
@@ -180,6 +226,37 @@ test.describe('on a desktop', () => {
     await expect(page.locator('.rm-next')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect.poll(() => shownNames(page)).toEqual([]);
+  });
+});
+
+test.describe('with motion', () => {
+  test.use({ reducedMotion: 'no-preference', viewport: { width: 1440, height: 900 } });
+
+  test('the ground slides open over a run of frames, then the view holds still, and closes so too', async ({
+    page,
+  }) => {
+    // Two slides, waited out, drawn in software.
+    test.slow();
+    const frames = await countFrames(page);
+    await open(page);
+    const mark = await onToALine(page);
+    await waitStill(page, 'the yard holds still at a line’s mark');
+    let before = await frames();
+    await page.keyboard.press(String(await numberOf(page, MARK_COLOR[mark])));
+    await expect
+      .poll(() => shownNames(page), { timeout: MOTION_WAIT })
+      .toEqual([TEXT[mark].label?.text]);
+    await waitStill(page, 'the yard holds still, open');
+    // A slide, not a cut: each frame moves it on a tenth of a second at most, of 0.65.
+    expect((await frames()) - before, 'frames opening').toBeGreaterThanOrEqual(5);
+    expect(await isMoving(page, frames)).toBe(false);
+    before = await frames();
+    await expect(page.locator('.rm-next')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => shownNames(page), { timeout: MOTION_WAIT }).toEqual([]);
+    await waitStill(page, 'the yard holds still, closed');
+    expect((await frames()) - before, 'frames closing').toBeGreaterThanOrEqual(5);
+    expect(await isMoving(page, frames)).toBe(false);
   });
 });
 
