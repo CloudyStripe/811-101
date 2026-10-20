@@ -1,11 +1,12 @@
 /**
  * Screenshots for review, at desktop and phone sizes, in light and dark: the portal, and every
- * listed state of the lab and the diorama. The 3D pages are captured in `?capture` mode (fixed
+ * listed state of the lab, the diorama and Read the Marks. The 3D pages are captured in `?capture` mode (fixed
  * time and tier, one settled frame) so they're deterministic, and each capture also checks that
  * labels are neither clipped nor overlapping each other or the chrome.
  */
 import type { Page } from '@playwright/test';
 import { expect, loadImages, test } from './fixtures.ts';
+import { answerMark, nextMark, onToALine, playToEnd } from './play-marks.ts';
 
 interface State {
   name: string;
@@ -264,6 +265,73 @@ for (const theme of ['light', 'dark'] as const) {
             animations: 'disabled',
           });
           await expectLabelsClear(page, vp, !s.prepare);
+        });
+      }
+    });
+  }
+}
+
+/**
+ * Read the Marks: the first mark asked, a line's mark read right and another's read wrong (the
+ * ground open along each), the Key, and the end, every line open.
+ */
+const MARKS: State[] = [
+  { name: 'first', query: '' },
+  { name: 'right', query: 'show=gas' },
+  {
+    name: 'wrong',
+    query: '',
+    prepare: async (page) => {
+      await answerMark(page, true);
+      await nextMark(page);
+      await onToALine(page);
+      await answerMark(page, false);
+    },
+  },
+  {
+    name: 'key',
+    query: '',
+    overView: true,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Key', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'The color code' })).toBeVisible();
+    },
+  },
+  {
+    name: 'end',
+    query: '',
+    slow: true,
+    prepare: async (page) => {
+      await playToEnd(page);
+    },
+  },
+];
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const vp of VIEWPORTS) {
+    const phone = vp.name === 'phone';
+    test.describe(`Read the Marks ${vp.name} ${theme}`, () => {
+      test.use({
+        viewport: { width: vp.width, height: vp.height },
+        deviceScaleFactor: vp.scale,
+        colorScheme: theme,
+        hasTouch: phone,
+        isMobile: phone,
+      });
+      for (const s of MARKS) {
+        test(s.name, async ({ page }) => {
+          if (s.slow) test.slow();
+          await page.goto(`basics/read-the-marks/?seed=1&${s.query}&tier=${vp.tier}&capture`);
+          await expect(page.locator('html')).toHaveAttribute('data-scene-ready', 'true', {
+            timeout: 60_000,
+          });
+          await s.prepare?.(page, phone);
+          await page.screenshot({
+            path: `artifacts/screenshots/marks-${theme}-${vp.name}-${s.name}.png`,
+            animations: 'disabled',
+          });
+          // The yard is framed clear of the question, so the lines' names are too.
+          await expectLabelsClear(page, vp, !s.overView);
         });
       }
     });

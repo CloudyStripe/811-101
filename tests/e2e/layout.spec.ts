@@ -8,6 +8,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
+import { answerMark, nextMark, openMarks } from './play-marks.ts';
 
 interface Size {
   name: string;
@@ -477,6 +478,60 @@ for (const size of SIZES.filter((s) =>
         }
         await expectChromeApart(page);
       }
+    });
+  });
+}
+
+/**
+ * Read the Marks at every size: the question beside the yard or, on phones held upright, in a
+ * sheet under it; every answer and Next on top where they're pressed, the yard left room to see,
+ * the header and the question apart, and nothing running off the side. Where everything fits, the
+ * page doesn't scroll; on the shortest screens, the sheet or the page does.
+ */
+for (const size of SIZES) {
+  test.describe(`Read the Marks ${size.name}`, () => {
+    test.use({
+      viewport: { width: size.width, height: size.height },
+      hasTouch: size.touch,
+      isMobile: size.touch,
+    });
+
+    test('answers and Next on top where pressed, the yard given room, nothing overlapping', async ({
+      page,
+    }) => {
+      await openMarks(page);
+      await page.screenshot({ path: `artifacts/screenshots/layout-marks-${size.name}.png` });
+      const sideways = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(sideways, 'the page runs off the side').toBe(0);
+      if (size.fits) {
+        const overflow = await page.evaluate(
+          () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
+        );
+        expect(overflow, 'page taller than the screen').toBeLessThanOrEqual(1);
+      }
+      // The yard's room: beside the panel, or above the sheet where it spans the screen.
+      const room = await page.evaluate(() => {
+        const header = document.querySelector('.site-header')?.getBoundingClientRect();
+        const panel = document.querySelector('.rm-panel')?.getBoundingClientRect();
+        if (!header || !panel) return null;
+        const below = window.scrollY + header.bottom;
+        return panel.width > innerWidth * 0.8
+          ? { width: innerWidth, height: window.scrollY + panel.top - below }
+          : { width: panel.left, height: document.documentElement.clientHeight - header.bottom };
+      });
+      expect(room?.width ?? 0, 'the yard’s width').toBeGreaterThanOrEqual(200);
+      expect(room?.height ?? 0, 'the yard’s height').toBeGreaterThanOrEqual(150);
+      await expectChromeApart(page);
+      for (let i = 0; i < 4; i++) {
+        expect(await onTop(page, '.rm-answer', i), `answer ${String(i + 1)} is covered`).toBe(true);
+      }
+      await answerMark(page, true);
+      expect(await onTop(page, '.rm-next', 0), 'Next is covered').toBe(true);
+      await expectChromeApart(page);
+      await nextMark(page);
+      await expect(page.locator('.rm-count')).toHaveText('Mark 2 of 8');
     });
   });
 }

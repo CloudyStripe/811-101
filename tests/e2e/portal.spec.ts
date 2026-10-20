@@ -1,7 +1,7 @@
 /**
  * The portal and the ways between pages: the home page names the site and says what it is, over a
  * still of the diorama, and its cards show every lesson, with previews in the reader's theme, and
- * say what's coming, all on one desktop screen; a lesson's preview and its loader share a
+ * any section still to come, all on one desktop screen; a lesson's preview and its loader share a
  * transition; each page has the site header, which leads home and back to the lesson's card; a
  * missing address shows the site's 404 page. The built pages carry their title, share preview,
  * favicons and the settings script before any of their JavaScript runs. Plus axe on the portal
@@ -37,14 +37,16 @@ async function expectNoViolations(page: Page) {
   ).toEqual([]);
 }
 
-test('the portal’s cards show every lesson and section, and what’s coming', async ({ page }) => {
+test('the portal’s cards show every lesson and section, and any still to come', async ({
+  page,
+}) => {
   await openPortal(page);
   await expect(page).toHaveTitle(BRAND.name);
   const cards = page.getByRole('list', { name: CARDS_NAME }).getByRole('listitem');
   const lessons = SECTIONS.flatMap((section) => section.lessons);
   const coming = SECTIONS.filter((section) => section.lessons.length === 0);
   await expect(cards).toHaveCount(lessons.length + coming.length);
-  // The lessons first, then what's coming.
+  // The lessons first, then any section still to come.
   await expect(cards.getByRole('heading', { level: 2 })).toHaveText([
     ...lessons.map((lesson) => lesson.title),
     ...coming.map((section) => section.title),
@@ -298,6 +300,22 @@ test.describe('the diorama', () => {
     await page.getByRole('link', { name: BRAND.name }).click();
     await expect(page).toHaveURL(PORTAL_URL);
     await expect(page).toHaveTitle(BRAND.name);
+  });
+});
+
+test.describe('Read the Marks', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('opens from 811 Basics, and its breadcrumb leads back to its card', async ({ page }) => {
+    await openPortal(page);
+    // The lesson's card on the portal, not the footer's link to it.
+    await page.getByRole('main').getByRole('link', { name: 'Read the Marks', exact: true }).click();
+    await expect(page).toHaveURL(/\/basics\/read-the-marks\/$/);
+    await expect(page).toHaveTitle(pageById('read-the-marks').title);
+    await waitReady(page);
+    await page.getByRole('link', { name: '811 Basics' }).click();
+    await expect(page).toHaveURL(/\/811-101\/#basics$/);
+    await expect(page.locator('#basics')).toBeInViewport();
   });
 });
 

@@ -99,6 +99,8 @@ const VIEWS = [
     path: 'utilities/gas-petroleum/?capture&tier=medium',
     tokens: (theme: 'light' | 'dark') => THEMES[theme].scene,
   },
+  // The yard floats in the lab's sky, and is lit as the lab is.
+  { name: 'yard', path: 'basics/read-the-marks/?capture&tier=medium', tokens: labSceneTokens },
 ] as const;
 
 for (const view of VIEWS) {

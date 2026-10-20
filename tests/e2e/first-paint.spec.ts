@@ -36,6 +36,11 @@ const CASES: { name: string; path: string; places: { selector: string; fill: Fil
     path: 'utilities/gas-petroleum/',
     places: [{ selector: '.stage', fill: 'picture' }],
   },
+  {
+    name: 'Read the Marks',
+    path: 'basics/read-the-marks/',
+    places: [{ selector: '.stage', fill: 'picture' }],
+  },
 ];
 
 const SIZES = [
